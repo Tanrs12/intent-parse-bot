@@ -50,7 +50,7 @@ BOT_DUO_PRIORS = {
     ("Aphelios", "Thresh"): 0.98, ("Aphelios", "Lulu"): 0.88, ("Aphelios", "Braum"): 0.84,
     ("Kalista", "Renata Glasc"): 0.96, ("Kalista", "Nautilus"): 0.90, ("Kalista", "Rell"): 0.88,
     ("Zeri", "Lulu"): 0.94, ("Zeri", "Yuumi"): 0.90, ("Zeri", "Milio"): 0.88,
-    ("Ashe", "Seraphine"): 0.94, ("Ashe", "Braum"): 0.82,
+    ("Ashe", "Seraphine"): 0.94,
     ("Jhin", "Nautilus"): 0.88, ("Jhin", "Xerath"): 0.86, ("Jhin", "Bard"): 0.82, ("Jhin", "Leona"): 0.80,
     ("Sivir", "Yuumi"): 0.86,
 }
@@ -1319,7 +1319,7 @@ def _bounded_package_products(
     every champion eligible while avoiding a 10^5 Cartesian explosion per role assignment.
     """
     total = math.prod(max(1, len(pools[role])) for role in ROLES)
-    if total <= 20000:
+    if total <= 5000:
         return list(itertools.product(*(pools[role] for role in ROLES)))
 
     suggestion_sets = {role: set(history_suggestions.get(role, [])) for role in ROLES}
@@ -1382,7 +1382,7 @@ def _bounded_package_products(
             })
     shell_rows = _ranked_with_coverage(shell_rows, 70, ("top", "jungle", "mid"))
 
-    products = []
+    product_rows = []
     seen = set()
     for shell in shell_rows:
         for bot in bot_rows:
@@ -1390,8 +1390,27 @@ def _bounded_package_products(
             if len(set(picks)) != 5 or picks in seen:
                 continue
             seen.add(picks)
-            products.append(picks)
-    return products
+            product_rows.append({
+                "top": picks[0],
+                "jungle": picks[1],
+                "mid": picks[2],
+                "adc": picks[3],
+                "support": picks[4],
+                "heuristic": float(shell["heuristic"]) + float(bot["heuristic"]),
+            })
+
+    # Full comp scoring is substantially more expensive than package scoring. Keep
+    # the strongest complete shells, but retain at least one route for every champion
+    # in every role so a lower-ranked comfort pick is never silently made impossible.
+    product_rows = _ranked_with_coverage(
+        product_rows,
+        900,
+        ("top", "jungle", "mid", "adc", "support"),
+    )
+    return [
+        (row["top"], row["jungle"], row["mid"], row["adc"], row["support"])
+        for row in product_rows
+    ]
 
 
 def recommend_comps(
