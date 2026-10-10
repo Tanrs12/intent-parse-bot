@@ -1404,7 +1404,7 @@ def _bounded_package_products(
     # in every role so a lower-ranked comfort pick is never silently made impossible.
     product_rows = _ranked_with_coverage(
         product_rows,
-        900,
+        300,
         ("top", "jungle", "mid", "adc", "support"),
     )
     return [
