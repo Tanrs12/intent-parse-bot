@@ -1,5 +1,6 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
+import asyncio
 import logging
 import os
 
@@ -54,23 +55,23 @@ class LeagueBot(commands.Bot):
     async def _adopt_signup_board(self, guild: discord.Guild):
         cog = self.get_cog("LeagueFlexCog")
         if cog is None or self.user is None:
-            return
+            return False
         event = await cog.get_event(guild.id)
         if not event:
-            return
+            return False
         channel = guild.get_channel(int(event["channel_id"]))
         if channel is None:
             try:
                 channel = await guild.fetch_channel(int(event["channel_id"]))
             except discord.HTTPException:
-                return
+                return False
         if not isinstance(channel, (discord.TextChannel, discord.Thread)):
-            return
+            return False
         if event["message_id"]:
             try:
                 existing = await channel.fetch_message(int(event["message_id"]))
                 if existing.author.id == self.user.id:
-                    return
+                    return True
             except discord.HTTPException:
                 pass
 
@@ -87,11 +88,12 @@ class LeagueBot(commands.Bot):
         finally:
             await db.close()
         log.info("Adopted League signup board with new message %s", message.id)
+        return True
 
     async def _sync_if_present(self):
         guild = self.get_guild(LEAGUE_GUILD_ID)
         if guild is None:
-            return
+            return False
         await self._apply_identity()
         try:
             synced = await self.tree.sync(guild=GUILD)
@@ -99,14 +101,28 @@ class LeagueBot(commands.Bot):
         except discord.HTTPException:
             log.exception("Could not sync League commands")
         try:
-            await self._adopt_signup_board(guild)
+            return await self._adopt_signup_board(guild)
         except Exception:
             log.exception("Could not adopt the existing League signup board")
+            return False
+
+    async def _delayed_ready_sync(self):
+        # Guild/member caches can lag the READY event by a moment on a fresh deployment.
+        # Retry adoption rather than letting reminder startup race the old bot-authored board.
+        for attempt in range(1, 6):
+            await asyncio.sleep(2 if attempt == 1 else 3)
+            guild = self.get_guild(LEAGUE_GUILD_ID)
+            if guild is None:
+                log.info("League guild cache not ready yet (attempt %s/5)", attempt)
+                continue
+            if await self._sync_if_present():
+                return
+            log.info("League board adoption not complete yet (attempt %s/5)", attempt)
 
     async def on_ready(self):
         log.info("League bot ready as %s (%s)", self.user, self.user.id if self.user else "unknown")
         await self._apply_identity()
-        await self._sync_if_present()
+        asyncio.create_task(self._delayed_ready_sync())
         await self.change_presence(activity=discord.Game(name="Ranked Flex drafts"))
 
     async def on_guild_join(self, guild: discord.Guild):

@@ -1578,6 +1578,9 @@ class LeagueFlexCog(commands.Cog):
     @reminder_loop.before_loop
     async def before_reminder_loop(self):
         await self.bot.wait_until_ready()
+        # Let the dedicated bot adopt the migrated signup board before reminders use
+        # its saved URL. This is effectively free after the first startup.
+        await asyncio.sleep(7)
         try:
             await self.refresh_event_message(LEAGUE_GUILD_ID)
             slot_key = self._reminder_slot_key(datetime.now(DUBLIN_TZ))
@@ -1792,6 +1795,10 @@ class LeagueFlexCog(commands.Cog):
         try:
             message = await channel.fetch_message(int(event["message_id"]))
         except discord.HTTPException:
+            return
+        # During the one-time bot migration, the saved board can still belong to the
+        # old WoW bot. Discord never permits another bot to edit that message.
+        if self.bot.user is not None and message.author.id != self.bot.user.id:
             return
         image_url = message.attachments[0].url if message.attachments else None
         embed = await self.build_embed(guild_id, image_url=image_url)
