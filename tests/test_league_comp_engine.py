@@ -692,3 +692,37 @@ def test_recommender_never_surfaces_varus_top():
     assert recs
     assert not missing
     assert all(rec["champions"]["Top"] != "Varus" for rec in recs)
+
+
+
+def test_two_strongest_carry_profiles_are_penalised_when_stacked_adc_support(monkeypatch):
+    meta = load_meta()
+    scores = {
+        101: {"carry_index": 100.0, "reliability_index": 90.0, "metrics": {}, "roles": {}},
+        102: {"carry_index": 90.0, "reliability_index": 85.0, "metrics": {}, "roles": {}},
+        103: {"carry_index": 60.0, "reliability_index": 60.0, "metrics": {}, "roles": {}},
+        104: {"carry_index": 55.0, "reliability_index": 55.0, "metrics": {}, "roles": {}},
+        105: {"carry_index": 45.0, "reliability_index": 65.0, "metrics": {}, "roles": {}},
+    }
+    monkeypatch.setattr(engine, "load_player_score_index", lambda: scores)
+    monkeypatch.setattr(engine, "_champion_comfort", lambda *args, **kwargs: 6.0)
+    monkeypatch.setattr(engine, "_champion_ownership", lambda *args, **kwargs: 6.0)
+    monkeypatch.setattr(engine, "_mastery_points_for", lambda *args, **kwargs: 0)
+    champions = {"Top": "Ornn", "Jungle": "Vi", "Mid": "Orianna", "ADC": "Jinx", "Support": "Lulu"}
+    stacked = {
+        "Top": {"user_id": 103, "display_name": "Top"},
+        "Jungle": {"user_id": 104, "display_name": "Jungle"},
+        "Mid": {"user_id": 105, "display_name": "Mid"},
+        "ADC": {"user_id": 101, "display_name": "ADC"},
+        "Support": {"user_id": 102, "display_name": "Support"},
+    }
+    spread = {
+        "Top": {"user_id": 103, "display_name": "Top"},
+        "Jungle": {"user_id": 102, "display_name": "Jungle"},
+        "Mid": {"user_id": 105, "display_name": "Mid"},
+        "ADC": {"user_id": 101, "display_name": "ADC"},
+        "Support": {"user_id": 104, "display_name": "Support"},
+    }
+    stacked_fit = engine._player_fit_adjustment(stacked, champions, score_comp(champions, meta)["archetypes"], meta)
+    spread_fit = engine._player_fit_adjustment(spread, champions, score_comp(champions, meta)["archetypes"], meta)
+    assert stacked_fit["agency_allocation_adjustment"] <= spread_fit["agency_allocation_adjustment"] - 1.5

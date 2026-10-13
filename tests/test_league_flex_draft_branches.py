@@ -195,3 +195,38 @@ def test_portfolio_rewards_bot_lane_style_diversity_when_quality_is_close():
     chosen = _select_diverse_recommendations([enchanter1, enchanter2, engage], limit=2)
     assert enchanter1 in chosen
     assert engage in chosen
+
+
+
+def test_team_option_search_preserves_selected_roles_for_top_carry_flex_player(monkeypatch):
+    import cogs.league_flex as flex
+
+    cian = {
+        "user_id": 1, "display_name": "Cian",
+        "roles": ["Top", "Jungle", "Mid"],
+        "role_priority": {"Top": 1, "Jungle": 1, "Mid": 1},
+    }
+    signups = [
+        cian,
+        {"user_id": 2, "display_name": "A", "roles": ["Top", "Jungle"], "role_priority": {"Top": 1, "Jungle": 1}},
+        {"user_id": 3, "display_name": "B", "roles": ["Jungle", "Mid"], "role_priority": {"Jungle": 1, "Mid": 1}},
+        {"user_id": 4, "display_name": "C", "roles": ["ADC"], "role_priority": {"ADC": 1}},
+        {"user_id": 5, "display_name": "D", "roles": ["Support"], "role_priority": {"Support": 1}},
+    ]
+    monkeypatch.setattr(flex, "load_player_score_index", lambda: {
+        1: {"carry_index": 100.0}, 2: {"carry_index": 60.0}, 3: {"carry_index": 55.0},
+        4: {"carry_index": 50.0}, 5: {"carry_index": 40.0},
+    })
+    monkeypatch.setattr(
+        flex,
+        "role_experience_score",
+        lambda uid, role: {("1", "Jungle"): 7.0, ("1", "Mid"): 5.0, ("1", "Top"): 4.0}.get((str(uid), role), 3.0),
+    )
+    options = flex.generate_team_options(signups, limit=8)
+    cian_roles = {
+        role
+        for option in options
+        for role in flex.ROLES
+        if int(option[role]["user_id"]) == 1
+    }
+    assert {"Top", "Jungle", "Mid"}.issubset(cian_roles)

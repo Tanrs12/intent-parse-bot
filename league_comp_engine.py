@@ -1335,21 +1335,23 @@ def _player_fit_adjustment(
 
     notes = []
 
-    # WHO carries matters as much as which champions can carry. Match the highest-
-    # leverage players to the highest-agency jobs, while keeping this a soft cost so
-    # a tank on the best player can still win when the composition gain is large.
+    # WHO carries matters as much as which champions can carry. A structurally neat
+    # draft is still wrong for this five if it spends the strongest player on a very
+    # low-agency job and asks materially weaker carry profiles to be the damage engines.
     team_carry_avg = sum(carry_values.values()) / max(1, len(carry_values))
-    strongest_player_role = max(carry_values, key=carry_values.get)
+    carry_order = sorted(ROLES, key=lambda role: carry_values[role], reverse=True)
+    strongest_player_role = carry_order[0]
     strongest_player_carry = carry_values[strongest_player_role]
     strongest_player_demand = demand_values[strongest_player_role]
     allocation_adjustment = 0.0
     if strongest_player_carry >= team_carry_avg + 6.0:
         if strongest_player_demand < 0.30:
+            carry_gap = strongest_player_carry - team_carry_avg
             sacrifice_penalty = min(
-                1.4,
-                0.45
-                + (strongest_player_carry - team_carry_avg) / 35.0 * 0.55
-                + (0.30 - strongest_player_demand) * 1.2,
+                5.0,
+                2.0
+                + carry_gap / 25.0 * 1.5
+                + (0.30 - strongest_player_demand) * 3.5,
             )
             total -= sacrifice_penalty
             allocation_adjustment -= sacrifice_penalty
@@ -1358,16 +1360,26 @@ def _player_fit_adjustment(
             )
         elif strongest_player_demand >= 0.72:
             leverage_bonus = min(
-                0.35,
-                0.12 + (strongest_player_carry - team_carry_avg) / 120.0,
+                0.8,
+                0.25 + (strongest_player_carry - team_carry_avg) / 70.0,
             )
             total += leverage_bonus
             allocation_adjustment += leverage_bonus
             notes.append("highest carry-profile player is on a high-agency win condition")
 
-    # Penalise obvious agency inversions: a clearly stronger carry profile is on a
-    # low-agency job while a materially weaker profile is asked to play the demanding
-    # carry champion. Cap it so team composition can still justify the sacrifice.
+    # Do not stack the two strongest carry profiles into bot lane unless the quality
+    # gain is large enough to justify surrendering a strong solo-lane/jungle resource.
+    top_two_roles = set(carry_order[:2])
+    if top_two_roles == {"ADC", "Support"}:
+        support = champions["Support"]
+        lane_stack_penalty = 2.8 if support in ENCHANTER_SUPPORTS else 2.0
+        total -= lane_stack_penalty
+        allocation_adjustment -= lane_stack_penalty
+        notes.append("two strongest carry profiles are concentrated in bot lane")
+
+    # Penalise agency inversions more meaningfully: a clearly stronger carry profile
+    # should not be on a low-agency job while a much weaker profile gets the demanding
+    # carry champion, unless the composition itself is substantially better.
     inversion_penalty = 0.0
     for strong_role in ROLES:
         for weak_role in ROLES:
@@ -1377,10 +1389,10 @@ def _player_fit_adjustment(
             demand_gap = demand_values[weak_role] - demand_values[strong_role]
             if carry_gap >= 15.0 and demand_gap >= 0.30:
                 inversion_penalty += min(
-                    0.28,
-                    (carry_gap - 10.0) / 70.0 * demand_gap * 0.9,
+                    0.9,
+                    (carry_gap - 10.0) / 45.0 * demand_gap * 1.35,
                 )
-    inversion_penalty = min(0.7, inversion_penalty)
+    inversion_penalty = min(3.0, inversion_penalty)
     if inversion_penalty > 0:
         total -= inversion_penalty
         allocation_adjustment -= inversion_penalty

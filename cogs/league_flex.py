@@ -31,6 +31,7 @@ from league_comp_engine import (
     counter_ban_recommendations,
     load_lane_matchups,
     load_meta as load_league_comp_meta,
+    load_player_score_index,
     load_solo_queue_winrates,
     recommend_comps,
     role_experience_score,
@@ -277,11 +278,51 @@ def generate_team_options(signups: list[dict], limit: int = 5) -> list[dict[str,
         if len(varied) >= limit:
             return varied
 
+    # Preserve role variety for the strongest flexible carry profiles before the
+    # composition solver runs. Otherwise an excellent Mid/Jungle option can disappear
+    # simply because only a handful of role layouts survive this pre-search stage.
+    best_cost = _assignment_preference_cost(results[0])
+    player_scores = load_player_score_index()
+    carry_ranked_users = sorted(
+        {int(player["user_id"]) for player in eligible},
+        key=lambda uid: float(player_scores.get(uid, {}).get("carry_index", 50.0) or 50.0),
+        reverse=True,
+    )[:2]
+    by_user = {int(player["user_id"]): player for player in eligible}
+    for uid in carry_ranked_users:
+        player = by_user.get(uid)
+        if not player or len(player.get("roles") or []) < 2:
+            continue
+        role_targets = sorted(
+            player.get("roles") or [],
+            key=lambda role: (
+                _role_preference_penalty(player, role),
+                -role_experience_score(uid, role),
+            ),
+        )
+        for target_role in role_targets:
+            candidates = [
+                result for result in results
+                if int(result[target_role]["user_id"]) == uid
+                and tuple(int(result[role]["user_id"]) for role in ROLES) not in seen_signatures
+                and _assignment_preference_cost(result) <= best_cost + 5.0
+            ]
+            if not candidates:
+                continue
+            candidates.sort(
+                key=lambda result: (
+                    _assignment_preference_cost(result),
+                    -sum(role_experience_score(int(result[role]["user_id"]), role) for role in ROLES),
+                )
+            )
+            add(candidates[0])
+            if len(varied) >= limit:
+                return varied
+
     # Then deliberately keep a small number of viable Priority-3 assignments in the
     # candidate set. The composition engine still charges their preference penalty, so
     # they only win when the comp/player-fit gain is genuinely worth it. Rotate who
     # takes the Priority-3 hit where possible rather than shafting the same person.
-    best_cost = _assignment_preference_cost(results[0])
     used_p3: set[int] = set()
     flex_slots = min(max(1, limit // 4), max(0, limit - len(varied)))
     for _ in range(flex_slots):
