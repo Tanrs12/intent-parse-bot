@@ -31,6 +31,23 @@ HYPERCARRY_ADCS = {"Jinx", "Kog'Maw", "Aphelios", "Twitch", "Vayne", "Smolder", 
 UTILITY_ADCS = {"Ashe", "Jhin", "Senna"}
 PROTECT_CARRY_ADCS = {"Jinx", "Kog'Maw", "Aphelios", "Twitch", "Vayne", "Smolder", "Sivir", "Yunara", "Zeri"}
 
+# User-facing draft exclusions. A champion can remain in a player's saved pool/history
+# without ever being surfaced by the composition recommender.
+DISPLAY_EXCLUDED_CHAMPIONS = {"Teemo"}
+
+# Ranged/carry Top consumes a team resource slot. These champions are useful signals
+# that Jungle can supply low-economy frontline while Mid supplies dependable waveclear.
+LOW_ECON_FRONTLINE_JUNGLES = {
+    "Skarner", "Maokai", "Sejuani", "Poppy", "Amumu", "Zac", "Rammus",
+    "Nunu & Willump", "Ivern",
+}
+STRONG_WAVECLEAR_MIDS = {
+    "Galio", "Orianna", "Syndra", "Viktor", "Taliyah", "Hwei", "Azir",
+    "Anivia", "Ryze", "Ziggs", "Xerath", "Corki", "Aurelion Sol",
+    "Malzahar", "Swain", "Lissandra",
+}
+MID_FRONTLINE_CONTROL = {"Galio", "Swain", "Lissandra"}
+
 POKE_ADCS = {"Ezreal", "Caitlyn", "Varus", "Jhin", "Ashe", "Ziggs", "Corki"}
 ALL_IN_ADCS = {"Kai'Sa", "Samira", "Nilah", "Kalista", "Tristana", "Draven", "Lucian"}
 ENCHANTER_SUPPORTS = {"Lulu", "Milio", "Yuumi", "Nami", "Janna", "Soraka", "Sona"}
@@ -57,7 +74,8 @@ DRAFT_SPECIFIC_COUNTERS = {
 BOT_DUO_PRIORS = {
     ("Ezreal", "Karma"): 1.00, ("Ezreal", "Bard"): 0.78,
     ("Caitlyn", "Lux"): 1.00, ("Caitlyn", "Morgana"): 0.95, ("Caitlyn", "Karma"): 0.88,
-    ("Lucian", "Nami"): 1.00, ("Lucian", "Milio"): 0.98,
+    # Prefer Milio when both are genuinely in the support player's available pool.
+    ("Lucian", "Milio"): 1.12, ("Lucian", "Nami"): 0.84,
     ("Xayah", "Rakan"): 1.00,
     ("Kai'Sa", "Nautilus"): 0.98, ("Kai'Sa", "Rell"): 0.92, ("Kai'Sa", "Leona"): 0.85,
     ("Samira", "Nautilus"): 0.98, ("Samira", "Rell"): 0.90, ("Samira", "Leona"): 0.88, ("Samira", "Alistar"): 0.84,
@@ -685,19 +703,55 @@ def _ranged_top_structure_fit(champions: dict[str, str], meta: dict) -> dict:
         if tags & TANK_TAGS or _rating(champion, "toughness", meta) >= 3:
             frontline.append(role)
 
+    jungle = champions["Jungle"]
+    mid = champions["Mid"]
+    adc = champions["ADC"]
+    support = champions["Support"]
+    jungle_low_econ_frontline = (
+        jungle in LOW_ECON_FRONTLINE_JUNGLES
+        or (bool(_tags(jungle, meta) & TANK_TAGS) and _rating(jungle, "damage", meta) <= 2)
+    )
+    mid_waveclear = mid in STRONG_WAVECLEAR_MIDS
+    mid_structure = mid in MID_FRONTLINE_CONTROL or _rating(mid, "control", meta) >= 3
+
     non_top_poke = 0
     for role in ("Jungle", "Mid", "ADC", "Support"):
         champion = champions[role]
         if champion in POKE_CHAMPS or (role == "Support" and champion in POKE_SUPPORTS):
             non_top_poke += 1
-    coherent_siege = non_top_poke >= 3 and bool(frontline or reliable_setup)
+    coherent_siege = (
+        non_top_poke >= 3
+        and bool(frontline or reliable_setup)
+        and (jungle_low_econ_frontline or mid_waveclear)
+    )
+
+    # A double-ranged poke bot beside a ranged Top is especially greedy: it needs
+    # Jungle to absorb low-econ frontline duty and Mid to provide waveclear/control.
+    greedy_poke_shell = adc in POKE_ADCS and support in POKE_SUPPORTS
+    if greedy_poke_shell:
+        if jungle_low_econ_frontline and mid_waveclear and mid_structure:
+            return {
+                "active": True, "plan_adjustment": 0.75, "score_adjustment": 1.6,
+                "reason": f"low-econ Jungle + waveclear/control Mid unlock {top} Top", "missing": "",
+            }
+        missing_parts = []
+        if not jungle_low_econ_frontline:
+            missing_parts.append("low-econ frontline Jungle")
+        if not mid_waveclear:
+            missing_parts.append("strong Mid waveclear")
+        if not mid_structure:
+            missing_parts.append("Mid frontline/control")
+        return {
+            "active": True, "plan_adjustment": -3.0, "score_adjustment": -7.5,
+            "reason": "", "missing": f"{', '.join(missing_parts)} for ranged Top ({top})",
+        }
 
     if coherent_siege:
         return {
             "active": True, "plan_adjustment": 0.45, "score_adjustment": 1.0,
             "reason": f"the other lanes complete {top}'s ranged siege shell", "missing": "",
         }
-    if len(reliable_setup) >= 2 and frontline:
+    if len(reliable_setup) >= 2 and frontline and (jungle_low_econ_frontline or mid_waveclear):
         return {
             "active": True, "plan_adjustment": 0.45, "score_adjustment": 1.0,
             "reason": f"multiple setup/frontline sources unlock {top} Top", "missing": "",
@@ -1263,9 +1317,16 @@ def _player_fit_adjustment(
             notes.append("protect-the-carry is centred on a strong historical carry profile")
         total += protect_adjustment
 
-    if champions["ADC"] in HYPERCARRY_ADCS and adc_carry < 35:
-        total -= 2.5
-        notes.append(f"{champions['ADC']} is a high-resource ADC on a low carry-profile player")
+    adc_role_score = scores.get(adc_uid, {}).get("roles", {}).get("ADC", {})
+    adc_role_eff = float(adc_role_score.get("effective_games", 0) or 0)
+    adc_role_carry = float(adc_role_score.get("carry_index", adc_carry) or adc_carry)
+    if champions["ADC"] in HYPERCARRY_ADCS:
+        carry_signal = adc_role_carry if adc_role_eff >= 2.0 else adc_carry
+        if carry_signal < 35:
+            total -= 2.8
+            notes.append(
+                f"{champions['ADC']} is a high-resource ADC on weak role-specific carry evidence"
+            )
 
     # Fit the inferred team plan to the actual people playing it. A pro-style shell
     # is only valuable if our players are suited to the jobs the plan asks of them.
@@ -1666,28 +1727,23 @@ def recommend_comps(
                 limit=max(pool_limit, 10),
             )
 
+            # Explicit champion choices are the hard primary-pick boundary. Account
+            # history/mastery can rank those choices and can be retained as optional
+            # suggestion data, but it must not silently become a primary recommendation.
+            selected = [champ for champ in selected if champ not in DISPLAY_EXCLUDED_CHAMPIONS]
+            inferred = [champ for champ in inferred if champ not in DISPLAY_EXCLUDED_CHAMPIONS]
             if selected:
-                # User-submitted comfort always has priority. If the submitted pool is
-                # narrow, fill the remaining slots (up to pool_limit) with role-valid
-                # OP.GG/mastery history rather than constraining the whole team draft.
-                if len(selected) > pool_limit:
-                    chosen = _prune_pool(role, selected, meta, pool_limit)
-                else:
-                    chosen = list(selected)
-                suggestions = [champ for champ in inferred if champ not in chosen]
-                suggestions = suggestions[: max(0, pool_limit - len(chosen))]
-                chosen.extend(suggestions)
+                chosen = _prune_pool(role, selected, meta, pool_limit) if len(selected) > pool_limit else list(selected)
+                suggestions = [champ for champ in inferred if champ not in chosen][:pool_limit]
                 pools[role] = chosen[:pool_limit]
                 history_suggestions[role] = suggestions
-                pool_sources[role] = "submitted+history" if suggestions else "submitted"
+                pool_sources[role] = "submitted"
                 continue
 
-            if inferred:
-                pools[role] = inferred[:pool_limit]
-                history_suggestions[role] = list(pools[role])
-                pool_sources[role] = "history"
-                continue
-
+            # No explicit champions for this role means no primary draft pick.
+            # History/mastery remains useful for optional coaching, but never silently
+            # declares a champion playable on the player's behalf.
+            history_suggestions[role] = inferred[:pool_limit]
             missing.add(f"{player['display_name']} ({role})")
             valid = False
         if not valid:
@@ -1710,10 +1766,9 @@ def recommend_comps(
             suggested_pick_count = sum(
                 1
                 for role in ROLES
-                if pool_sources.get(role) == "submitted+history"
-                and champions[role] in history_suggestions.get(role, [])
+                if pool_sources.get(role) == "history"
             )
-            suggestion_penalty = suggested_pick_count * 0.75
+            suggestion_penalty = suggested_pick_count * 0.25
             role_preference_penalty = sum(
                 float(assignment[role].get("_role_preference_penalty", 0.0) or 0.0)
                 for role in ROLES
@@ -1876,6 +1931,8 @@ def attach_learn_suggestions(recommendations: list[dict], meta: dict | None = No
             candidate_rows = []
             candidate_names = set(meta.get("role_stats", {}).get(role, {})) | set(role_index.get(role, {}))
             for candidate in candidate_names:
+                if candidate in DISPLAY_EXCLUDED_CHAMPIONS:
+                    continue
                 if candidate in owned or candidate in base_champions.values():
                     continue
                 # If they already have meaningful ownership, this is not a "learn" pick.

@@ -1020,6 +1020,12 @@ def _attach_role_alternatives(selected: list[dict], candidates: list[dict], max_
                     continue
                 if float(candidate.get("team_plan_score", 5.0)) < float(rec.get("team_plan_score", 5.0)) - 0.8:
                     continue
+                base_top_structure = float(rec.get("top_structure_adjustment", 0.0) or 0.0)
+                cand_top_structure = float(candidate.get("top_structure_adjustment", 0.0) or 0.0)
+                if base_top_structure > 0 and cand_top_structure < 0:
+                    continue
+                if cand_top_structure < base_top_structure - 1.0:
+                    continue
                 if role in {"ADC", "Support"} and float(candidate.get("bot_lane_score", 5.0)) < float(rec.get("bot_lane_score", 5.0)) - 0.8:
                     continue
                 if role in {"Jungle", "Mid"} and float(candidate.get("mid_jungle_score", 5.0)) < float(rec.get("mid_jungle_score", 5.0)) - 0.8:

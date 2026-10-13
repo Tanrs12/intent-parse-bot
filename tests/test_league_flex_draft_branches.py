@@ -63,3 +63,23 @@ def test_diversity_does_not_choose_bad_team_plan_just_for_novelty():
     flashy_bad = rec(5, 89, 5.8, ["Varus", "Amumu", "Yasuo", "Ezreal", "Karma"])
     chosen = _select_diverse_recommendations([strong[0], flashy_bad, *strong[1:]], limit=4, core_limit=4, role_mix_slots=0)
     assert flashy_bad not in chosen
+
+
+
+def test_role_alternative_cannot_break_ranged_top_structure():
+    from cogs.league_flex import _attach_role_alternatives
+    roles=("Top","Jungle","Mid","ADC","Support")
+    players={role:{"user_id":i+1,"display_name":role,"roles":[role]} for i,role in enumerate(roles)}
+    base={
+        "players":players,
+        "champions":{"Top":"Varus","Jungle":"Skarner","Mid":"Galio","ADC":"Ezreal","Support":"Karma"},
+        "team_plan":"poke / siege","score":90,"team_plan_score":8.5,"top_structure_adjustment":1.6,
+        "bot_lane_score":8.0,"mid_jungle_score":7.0,
+    }
+    bad_mid={
+        **base,
+        "champions":dict(base["champions"],Mid="Yasuo"),
+        "score":89,"team_plan_score":8.0,"top_structure_adjustment":-7.5,
+    }
+    _attach_role_alternatives([base],[base,bad_mid])
+    assert "Yasuo" not in base.get("role_alternatives",{}).get("Mid",[])

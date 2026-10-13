@@ -144,7 +144,7 @@ def test_recommendations_only_leave_submitted_pool_for_marked_history_suggestion
                 assert champion in recommendation["history_suggestions"][role]
 
 
-def test_missing_champion_pool_uses_fallback_instead_of_blocking():
+def test_missing_champion_pool_blocks_primary_draft_instead_of_guessing():
     assignment = {
         "Top": _player(1, "Top", "Top", ["Ornn"]),
         "Jungle": _player(2, "Jungle", "Jungle", ["Jarvan IV"]),
@@ -153,12 +153,11 @@ def test_missing_champion_pool_uses_fallback_instead_of_blocking():
         "Support": _player(5, "Support", "Support", ["Lulu"]),
     }
     recommendations, missing = recommend_comps([assignment], limit=3)
-    assert recommendations
-    assert not missing
-    assert all(rec["pool_sources"]["Mid"] == "history" for rec in recommendations)
+    assert not recommendations
+    assert "Mid (Mid)" in missing
 
 
-def test_cheeky_chuckler_history_supplies_missing_support_pool():
+def test_account_history_does_not_declare_unselected_support_playable():
     cheeky_id = 400745307467415553
     assignment = {
         "Top": _player(1, "Top", "Top", ["Ornn"]),
@@ -168,12 +167,8 @@ def test_cheeky_chuckler_history_supplies_missing_support_pool():
         "Support": _player(cheeky_id, "The Cheeky Chuckler", "Support", []),
     }
     recommendations, missing = recommend_comps([assignment], limit=3)
-    assert recommendations
-    assert not missing
-    assert all(rec["pool_sources"]["Support"] == "history" for rec in recommendations)
-    assert recommendations[0]["champions"]["Support"] in {
-        "Lulu", "Leona", "Blitzcrank", "Braum", "Janna", "Poppy", "Miss Fortune"
-    }
+    assert not recommendations
+    assert "The Cheeky Chuckler (Support)" in missing
 
 
 def test_protect_the_carry_prefers_stronger_historical_carry_profile():
@@ -559,7 +554,95 @@ def test_ranged_top_requires_the_rest_of_draft_to_pay_setup_cost():
 
 def test_coherent_poke_shell_can_still_use_varus_top():
     meta = load_meta()
-    comp = {"Top": "Varus", "Jungle": "Maokai", "Mid": "Jayce", "ADC": "Ezreal", "Support": "Karma"}
+    comp = {"Top": "Varus", "Jungle": "Skarner", "Mid": "Galio", "ADC": "Ezreal", "Support": "Karma"}
     scored = score_comp(comp, meta)
     assert scored["top_structure_adjustment"] > 0
     assert scored["team_plan_score"] >= 7.0
+
+
+
+def test_submitted_pool_is_primary_boundary_not_history_expansion(monkeypatch):
+    meta = load_meta()
+    monkeypatch.setattr(engine, "_historical_pool", lambda *args, **kwargs: ["Lee Sin", "Wukong"])
+    assignment = {
+        "Top": _player(1, "Top", "Top", ["Ornn"]),
+        "Jungle": _player(2, "Jungle", "Jungle", ["Skarner"]),
+        "Mid": _player(3, "Mid", "Mid", ["Galio"]),
+        "ADC": _player(4, "ADC", "ADC", ["Ezreal"]),
+        "Support": _player(5, "Support", "Support", ["Karma"]),
+    }
+    recs, _ = recommend_comps([assignment], limit=20, pool_limit=10, meta=meta)
+    assert recs
+    assert {row["champions"]["Jungle"] for row in recs} == {"Skarner"}
+    assert "Lee Sin" in recs[0]["history_suggestions"]["Jungle"]
+
+
+def test_teemo_is_never_a_primary_display_pick_even_if_selected():
+    meta = load_meta()
+    assignment = {
+        "Top": _player(1, "Top", "Top", ["Teemo", "Ornn"]),
+        "Jungle": _player(2, "Jungle", "Jungle", ["Skarner"]),
+        "Mid": _player(3, "Mid", "Mid", ["Galio"]),
+        "ADC": _player(4, "ADC", "ADC", ["Ezreal"]),
+        "Support": _player(5, "Support", "Support", ["Karma"]),
+    }
+    recs, _ = recommend_comps([assignment], limit=20, pool_limit=10, meta=meta)
+    assert recs
+    assert all(row["champions"]["Top"] != "Teemo" for row in recs)
+
+
+def test_lucian_milio_prior_beats_lucian_nami_when_both_available():
+    meta = load_meta()
+    milio = engine._bot_lane_duo_score("Lucian", "Milio", meta)
+    nami = engine._bot_lane_duo_score("Lucian", "Nami", meta)
+    assert milio["score"] > nami["score"]
+
+
+def test_varus_poke_top_shell_prefers_low_econ_jungle_and_structural_mid():
+    meta = load_meta()
+    bad = {"Top": "Varus", "Jungle": "Amumu", "Mid": "Yasuo", "ADC": "Ezreal", "Support": "Karma"}
+    good = {"Top": "Varus", "Jungle": "Skarner", "Mid": "Galio", "ADC": "Ezreal", "Support": "Karma"}
+    bad_score = score_comp(bad, meta)
+    good_score = score_comp(good, meta)
+    assert bad_score["top_structure_adjustment"] < 0
+    assert good_score["top_structure_adjustment"] > 0
+    assert good_score["team_plan_score"] > bad_score["team_plan_score"]
+    assert good_score["score"] > bad_score["score"]
+
+
+def test_low_adc_carry_evidence_penalizes_hypercarry_more_than_utility(monkeypatch):
+    meta = load_meta()
+    assignment = {role: {"user_id": i + 920001, "display_name": role} for i, role in enumerate(engine.ROLES)}
+    scores = {
+        920001: {"carry_index": 50, "reliability_index": 50, "metrics": {}, "roles": {}},
+        920002: {"carry_index": 50, "reliability_index": 50, "metrics": {}, "roles": {}},
+        920003: {"carry_index": 50, "reliability_index": 50, "metrics": {}, "roles": {}},
+        920004: {"carry_index": 50, "reliability_index": 60, "metrics": {}, "roles": {"ADC": {"effective_games": 4, "carry_index": 25, "reliability_index": 60, "metrics": {}}}},
+        920005: {"carry_index": 50, "reliability_index": 50, "metrics": {}, "roles": {}},
+    }
+    monkeypatch.setattr(engine, "load_player_score_index", lambda: scores)
+    monkeypatch.setattr(engine, "_champion_comfort", lambda *args, **kwargs: 5.0)
+    monkeypatch.setattr(engine, "_champion_ownership", lambda *args, **kwargs: 5.0)
+    monkeypatch.setattr(engine, "_mastery_points_for", lambda *args, **kwargs: 0)
+    base = {"Top": "Ornn", "Jungle": "Skarner", "Mid": "Galio", "ADC": "Ashe", "Support": "Nautilus"}
+    hyper = dict(base, ADC="Jinx")
+    utility_fit = engine._player_fit_adjustment(assignment, base, score_comp(base, meta)["archetypes"], meta)
+    hyper_fit = engine._player_fit_adjustment(assignment, hyper, score_comp(hyper, meta)["archetypes"], meta)
+    assert hyper_fit["adjustment"] < utility_fit["adjustment"]
+    assert any("weak role-specific carry evidence" in note for note in hyper_fit["notes"])
+
+
+
+def test_history_never_becomes_primary_when_player_selected_no_champions(monkeypatch):
+    meta = load_meta()
+    monkeypatch.setattr(engine, "_historical_pool", lambda *args, **kwargs: ["Milio", "Nami"])
+    assignment = {
+        "Top": _player(1, "Top", "Top", ["Ornn"]),
+        "Jungle": _player(2, "Jungle", "Jungle", ["Skarner"]),
+        "Mid": _player(3, "Mid", "Mid", ["Galio"]),
+        "ADC": _player(4, "ADC", "ADC", ["Lucian"]),
+        "Support": _player(5, "Support", "Support", []),
+    }
+    recs, missing = recommend_comps([assignment], limit=20, pool_limit=10, meta=meta)
+    assert not recs
+    assert "Support (Support)" in missing
