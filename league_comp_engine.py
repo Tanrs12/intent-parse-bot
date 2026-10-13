@@ -26,6 +26,23 @@ SPLIT_CHAMPS = {
     "Camille", "Fiora", "Gwen", "Jax", "Kayle", "Nasus", "Quinn",
     "Riven", "Trundle", "Tryndamere", "Yorick", "Yone",
 }
+
+# Temporary bridge from Demacia Cup 26.18 evidence to the Worlds 26.20 patch.
+# These are deliberately small priors, not fake win rates: live 26.20 pro games
+# automatically take over once the recent-pro feed reaches patch .20.
+WORLDS_PATCH_ROLE_ADJUSTMENTS = {
+    ("Top", "K'Sante"): -0.020,
+    ("Top", "Ambessa"): -0.018,
+    ("ADC", "Ashe"): -0.018,
+    ("Jungle", "Vi"): -0.018,
+    ("Jungle", "Nocturne"): -0.015,
+    ("Mid", "Ryze"): -0.018,
+    ("Top", "Rumble"): -0.016,
+    ("ADC", "Lucian"): 0.012,
+    ("Top", "Kennen"): 0.012,
+    ("Jungle", "Kindred"): 0.015,
+    ("Jungle", "Lillia"): 0.012,
+}
 HYBRID_CHAMPS = {"Kai'Sa", "Kog'Maw", "Corki", "Varus", "Smolder"}
 HYPERCARRY_ADCS = {"Jinx", "Kog'Maw", "Aphelios", "Twitch", "Vayne", "Smolder", "Kai'Sa", "Yunara"}
 UTILITY_ADCS = {"Ashe", "Jhin", "Senna"}
@@ -585,20 +602,41 @@ def load_recent_pro(path: str | None = None) -> dict:
     return data
 
 
+def _recent_pro_patch_minor() -> int | None:
+    raw = str(load_recent_pro().get("latest_patch", "")).strip()
+    try:
+        return int(raw.rsplit(".", 1)[-1])
+    except (TypeError, ValueError):
+        return None
+
+
+def _worlds_patch_bridge_active() -> bool:
+    minor = _recent_pro_patch_minor()
+    return minor is None or minor < 20
+
+
+def _apply_worlds_patch_role_adjustment(role: str, champion: str, value: float) -> float:
+    if not _worlds_patch_bridge_active():
+        return value
+    delta = WORLDS_PATCH_ROLE_ADJUSTMENTS.get((role, champion), 0.0)
+    return max(0.35, min(0.65, value + delta))
+
+
 def _meta_value(role: str, champion: str, meta: dict) -> tuple[float, int]:
     entry = meta.get("role_stats", {}).get(role, {}).get(champion)
     historical_wr = float(entry.get("bayes_win_rate", 0.5)) if entry else 0.5
     historical_games = int(entry.get("games", 0)) if entry else 0
     recent = load_recent_pro().get("role_stats", {}).get(role, {}).get(champion)
     if not recent:
-        return historical_wr, historical_games
+        return _apply_worlds_patch_role_adjustment(role, champion, historical_wr), historical_games
     recent_wr = float(recent.get("bayes_win_rate", 0.5))
     recent_weighted_games = max(0.0, float(recent.get("weighted_games", 0.0)))
     current_weight = min(24.0, recent_weighted_games * 4.0)
     old_weight = min(10.0, float(historical_games))
     if current_weight <= 0:
-        return historical_wr, historical_games
+        return _apply_worlds_patch_role_adjustment(role, champion, historical_wr), historical_games
     blended = ((historical_wr * old_weight) + (recent_wr * current_weight)) / max(1e-9, old_weight + current_weight)
+    blended = _apply_worlds_patch_role_adjustment(role, champion, blended)
     return blended, historical_games + int(round(current_weight))
 
 
@@ -897,6 +935,13 @@ def _team_plan_completion(champions: dict[str, str], meta: dict) -> dict:
             if control >= 1.7: score += 0.5
         elif mj >= 7.0:
             score += 0.5; reasons.append("strong mid-jungle package")
+
+    # Patch 26.19 lowered top-role Teleport cooldowns specifically to support
+    # side-lane strategies. Give those structures a modest bridge bump until
+    # actual Worlds 26.20 games are present in the live feed.
+    if _worlds_patch_bridge_active() and top in SPLIT_CHAMPS:
+        score += 0.25
+        reasons.append("Worlds patch gives side-lane/Teleport plans more room")
 
     top_structure = _ranged_top_structure_fit(champions, meta)
     score += float(top_structure["plan_adjustment"])
