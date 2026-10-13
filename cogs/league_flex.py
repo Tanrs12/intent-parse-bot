@@ -1091,7 +1091,13 @@ def _select_diverse_recommendations(
     # First preserve the existing behaviour: choose up to four strong drafts with
     # genuinely different strategic identities and champion packages.
     while remaining and len(chosen) < core_limit:
-        quality_pool = [rec for rec in remaining if float(rec.get("score", 0)) >= top_score - 10.0] or remaining
+        score_pool = [rec for rec in remaining if float(rec.get("score", 0)) >= top_score - 10.0] or remaining
+        best_plan = max(float(rec.get("team_plan_score", 5.0) or 5.0) for rec in score_pool)
+        plan_floor = max(5.5, best_plan - 1.5)
+        quality_pool = [
+            rec for rec in score_pool
+            if float(rec.get("team_plan_score", 5.0) or 5.0) >= plan_floor
+        ] or score_pool
         used_plans = {str(rec.get("team_plan", "balanced")) for rec in chosen}
         used_bot = {bot_package(rec) for rec in chosen}
         used_mj = {mid_jungle_package(rec) for rec in chosen}
@@ -1145,11 +1151,20 @@ def _select_diverse_recommendations(
             for rec in chosen
             for role in ROLES
         }
-        role_candidates = [
+        score_candidates = [
             rec for rec in remaining
             if player_signature(rec) not in seen_signatures
             and float(rec.get("score", 0)) >= top_score - 8.0
         ]
+        if score_candidates:
+            best_plan = max(float(rec.get("team_plan_score", 5.0) or 5.0) for rec in score_candidates)
+            plan_floor = max(5.5, best_plan - 1.5)
+            role_candidates = [
+                rec for rec in score_candidates
+                if float(rec.get("team_plan_score", 5.0) or 5.0) >= plan_floor
+            ] or score_candidates
+        else:
+            role_candidates = []
         if not role_candidates:
             break
 

@@ -514,7 +514,7 @@ def test_malphite_branch_adds_sylas_ban_but_renekton_branch_does_not():
 
 
 
-def test_historical_pool_does_not_migrate_niche_pick_across_roles(monkeypatch):
+def test_mastery_plus_current_role_evidence_can_infer_niche_pick(monkeypatch):
     meta = load_meta()
     profile = {
         "champion_history": [{
@@ -533,8 +533,7 @@ def test_historical_pool_does_not_migrate_niche_pick_across_roles(monkeypatch):
     })
     monkeypatch.setattr(engine, "_meta_value", lambda role, champion, meta: (0.51, 22 if champion == "Varus" else 50))
     pool = engine._historical_pool(1, "Top", meta, limit=10)
-    assert "Varus" not in pool
-    assert "Ornn" in pool
+    assert "Varus" in pool
 
 
 def test_player_agency_is_tiebreaker_not_full_draft_override(monkeypatch):
@@ -544,3 +543,23 @@ def test_player_agency_is_tiebreaker_not_full_draft_override(monkeypatch):
     weighted = (raw_fit - agency) + agency * 0.35
     assert weighted == 2.05
     assert weighted < raw_fit
+
+
+def test_ranged_top_requires_the_rest_of_draft_to_pay_setup_cost():
+    meta = load_meta()
+    awkward = {"Top": "Varus", "Jungle": "Amumu", "Mid": "Yasuo", "ADC": "Ezreal", "Support": "Karma"}
+    setup_shell = {"Top": "Varus", "Jungle": "Wukong", "Mid": "Orianna", "ADC": "Ezreal", "Support": "Nautilus"}
+    awkward_score = score_comp(awkward, meta)
+    setup_score = score_comp(setup_shell, meta)
+    assert awkward_score["top_structure_adjustment"] <= -5.0
+    assert any("ranged Top" in item for item in awkward_score["team_plan_missing"])
+    assert setup_score["top_structure_adjustment"] > 0
+    assert setup_score["team_plan_score"] > awkward_score["team_plan_score"]
+
+
+def test_coherent_poke_shell_can_still_use_varus_top():
+    meta = load_meta()
+    comp = {"Top": "Varus", "Jungle": "Maokai", "Mid": "Jayce", "ADC": "Ezreal", "Support": "Karma"}
+    scored = score_comp(comp, meta)
+    assert scored["top_structure_adjustment"] > 0
+    assert scored["team_plan_score"] >= 7.0

@@ -468,10 +468,13 @@ def _historical_pool(user_id: int, role: str, meta: dict, limit: int = 10) -> li
         # organised-play evidence.
         solo_weight = int(role_row.get("weight", 0) or 0)
         _, pro_games = _meta_value(role, champion, meta)
-        # Global champion ownership must not silently migrate a champion into a
-        # niche/off-role slot. Without player-specific evidence in this role, only
-        # infer genuinely established role picks. Explicit Discord selections still
-        # bypass this gate, so a player can intentionally opt into a niche pick.
+        # Global ownership alone should not migrate a champion into a random role,
+        # but strong personal mastery plus credible current evidence in that role is
+        # enough to infer a genuine niche pick. Explicit Discord selections always
+        # bypass this gate as well.
+        mastery = int(mastery_map.get(champion, 0) or 0)
+        if mastery >= 50000 and (solo_weight >= 2000 or pro_games >= 10):
+            return True
         return solo_weight >= 12000 or pro_games >= 40
 
     candidates = []
@@ -658,6 +661,63 @@ def _coordinated_duo_score(role_a: str, champ_a: str, role_b: str, champ_b: str,
     return {"score": round(score, 1), "grade": grade, "reasons": reasons[:3], "pro_games": games}
 
 
+def _ranged_top_structure_fit(champions: dict[str, str], meta: dict) -> dict:
+    """Score whether the other four picks pay the structural cost of a ranged carry Top."""
+    top = champions.get("Top", "")
+    top_tags = _tags(top, meta)
+    top_traits = _traits(top, meta)
+    ranged_carry = (
+        str(top_traits.get("attack_type") or "").upper() == "RANGED"
+        and bool(top_tags & {"MARKSMAN", "ARTILLERY"})
+        and not bool(top_tags & TANK_TAGS)
+    )
+    if not ranged_carry:
+        return {"active": False, "plan_adjustment": 0.0, "score_adjustment": 0.0, "reason": "", "missing": ""}
+
+    setup_roles = ("Jungle", "Mid", "Support")
+    reliable_setup = []
+    frontline = []
+    for role in setup_roles:
+        champion = champions[role]
+        tags = _tags(champion, meta)
+        if tags & ENGAGE_TAGS or _rating(champion, "control", meta) >= 3:
+            reliable_setup.append(role)
+        if tags & TANK_TAGS or _rating(champion, "toughness", meta) >= 3:
+            frontline.append(role)
+
+    non_top_poke = 0
+    for role in ("Jungle", "Mid", "ADC", "Support"):
+        champion = champions[role]
+        if champion in POKE_CHAMPS or (role == "Support" and champion in POKE_SUPPORTS):
+            non_top_poke += 1
+    coherent_siege = non_top_poke >= 3 and bool(frontline or reliable_setup)
+
+    if coherent_siege:
+        return {
+            "active": True, "plan_adjustment": 0.45, "score_adjustment": 1.0,
+            "reason": f"the other lanes complete {top}'s ranged siege shell", "missing": "",
+        }
+    if len(reliable_setup) >= 2 and frontline:
+        return {
+            "active": True, "plan_adjustment": 0.45, "score_adjustment": 1.0,
+            "reason": f"multiple setup/frontline sources unlock {top} Top", "missing": "",
+        }
+    if not frontline:
+        return {
+            "active": True, "plan_adjustment": -2.8, "score_adjustment": -7.0,
+            "reason": "", "missing": f"frontline outside ranged Top ({top})",
+        }
+    if not reliable_setup:
+        return {
+            "active": True, "plan_adjustment": -2.6, "score_adjustment": -6.5,
+            "reason": "", "missing": f"reliable setup for ranged Top ({top})",
+        }
+    return {
+        "active": True, "plan_adjustment": -2.2, "score_adjustment": -5.5,
+        "reason": "", "missing": f"second setup/frontline source for ranged Top ({top})",
+    }
+
+
 def _team_plan_completion(champions: dict[str, str], meta: dict) -> dict:
     """Infer a team plan from strong 2-man packages and score whether the other three picks complete it."""
     adc, support = champions["ADC"], champions["Support"]
@@ -783,6 +843,13 @@ def _team_plan_completion(champions: dict[str, str], meta: dict) -> dict:
             if control >= 1.7: score += 0.5
         elif mj >= 7.0:
             score += 0.5; reasons.append("strong mid-jungle package")
+
+    top_structure = _ranged_top_structure_fit(champions, meta)
+    score += float(top_structure["plan_adjustment"])
+    if top_structure.get("reason"):
+        reasons.insert(0, str(top_structure["reason"]))
+    if top_structure.get("missing"):
+        missing.insert(0, str(top_structure["missing"]))
 
     score += (float(bot["score"]) - 5.0) * 0.18
     score += (float(mid_jungle["score"]) - 5.0) * 0.10
@@ -1367,6 +1434,8 @@ def score_comp(champions: dict[str, str], meta: dict | None = None) -> dict:
         bot_lane_adjustment -= 2.0 + (5.5 - bot_score) * 2.5
     team_plan = _team_plan_completion(champions, meta)
     team_plan_adjustment = (float(team_plan["score"]) - 5.0) * 1.45
+    top_structure = _ranged_top_structure_fit(champions, meta)
+    top_structure_adjustment = float(top_structure["score_adjustment"])
     mid_jungle = _coordinated_duo_score("Jungle", champions["Jungle"], "Mid", champions["Mid"], meta)
     jungle_support = _coordinated_duo_score("Jungle", champions["Jungle"], "Support", champions["Support"], meta)
     top_jungle = _coordinated_duo_score("Top", champions["Top"], "Jungle", champions["Jungle"], meta)
@@ -1381,7 +1450,8 @@ def score_comp(champions: dict[str, str], meta: dict | None = None) -> dict:
     total = (
         frontline_score + control_score + engage_score + utility_score
         + damage_score + mobility_score + range_score + mix_score
-        + solo_queue_score + meta_score + synergy_score + bot_lane_adjustment + package_adjustment + team_plan_adjustment
+        + solo_queue_score + meta_score + synergy_score + bot_lane_adjustment + package_adjustment
+        + team_plan_adjustment + top_structure_adjustment
     )
     total = max(0.0, min(100.0, total))
 
@@ -1429,6 +1499,8 @@ def score_comp(champions: dict[str, str], meta: dict | None = None) -> dict:
         "team_plan_grade": team_plan["grade"],
         "team_plan_reasons": team_plan["reasons"],
         "team_plan_missing": team_plan["missing"],
+        "top_structure_adjustment": round(top_structure_adjustment, 1),
+        "top_structure_reason": top_structure.get("reason") or top_structure.get("missing") or "",
         "mid_jungle_score": mid_jungle["score"],
         "mid_jungle_grade": mid_jungle["grade"],
         "mid_jungle_reasons": mid_jungle["reasons"],
@@ -1654,6 +1726,14 @@ def recommend_comps(
                 float(player_fit["adjustment"]) - agency_adjustment
                 + agency_adjustment * 0.35
             )
+            # Player strength modifies a sound draft; it must not rescue a shell with
+            # poor strategic completion. Positive player-fit is progressively capped
+            # as team-plan quality falls, while negative fit still counts in full.
+            plan_score = float(scored.get("team_plan_score", 5.0) or 5.0)
+            if weighted_player_fit > 0:
+                plan_fit_multiplier = max(0.20, min(1.0, (plan_score - 4.5) / 2.5))
+                weighted_player_fit *= plan_fit_multiplier
+            draft_structure_penalty = max(0.0, 5.5 - plan_score) * 2.0
             final_score = max(
                 0.0,
                 min(
@@ -1661,7 +1741,8 @@ def recommend_comps(
                     composition_score
                     + weighted_player_fit
                     - suggestion_penalty
-                    - role_preference_penalty,
+                    - role_preference_penalty
+                    - draft_structure_penalty,
                 ),
             )
             item = {
@@ -1694,6 +1775,7 @@ def recommend_comps(
                 "composition_score": round(composition_score, 1),
                 "player_fit_adjustment": round(weighted_player_fit, 2),
                 "raw_player_fit_adjustment": player_fit["adjustment"],
+                "draft_structure_penalty": round(draft_structure_penalty, 2),
                 "history_suggestion_penalty": round(suggestion_penalty, 2),
                 "role_preference_penalty": round(role_preference_penalty, 2),
                 "player_fit_details": player_fit["role_details"],
