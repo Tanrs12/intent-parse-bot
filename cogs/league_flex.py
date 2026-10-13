@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import itertools
 import io
 import json
@@ -1066,6 +1067,7 @@ def _select_diverse_recommendations(
     limit: int = 6,
     core_limit: int = 4,
     role_mix_slots: int = 2,
+    rotation_token: str | None = None,
 ) -> list[dict]:
     """Choose 4-6 genuinely different high-quality composition shells.
 
@@ -1084,8 +1086,6 @@ def _select_diverse_recommendations(
     if len(recommendations) == 1:
         return recommendations
 
-    chosen = [recommendations[0]]
-    remaining = recommendations[1:]
     top_score = float(recommendations[0].get("score", 0))
 
     def champion_signature(rec: dict):
@@ -1099,6 +1099,31 @@ def _select_diverse_recommendations(
 
     def mid_jungle_package(rec: dict):
         return (rec["champions"]["Mid"], rec["champions"]["Jungle"])
+
+    def rotation_value(rec: dict) -> int:
+        if not rotation_token:
+            return 0
+        payload = "|".join([
+            str(rotation_token),
+            *(champion_signature(rec)),
+            *(str(uid) for uid in player_signature(rec)),
+        ])
+        return int.from_bytes(hashlib.sha256(payload.encode("utf-8")).digest()[:8], "big")
+
+    # A fresh /league draft may start from any near-top shell rather than pinning the
+    # exact same #1 every time. The small score window preserves quality while allowing
+    # different comps and legal role assignments across sessions.
+    initial_pool = [
+        rec for rec in recommendations
+        if float(rec.get("score", 0)) >= top_score - 3.0
+        and float(rec.get("team_plan_score", 5.0) or 5.0) >= 6.0
+    ] or recommendations[:1]
+    if rotation_token and len(initial_pool) > 1:
+        first = max(initial_pool, key=rotation_value)
+    else:
+        first = recommendations[0]
+    chosen = [first]
+    remaining = [rec for rec in recommendations if rec is not first]
 
     def min_champion_difference(rec: dict) -> int:
         sig = champion_signature(rec)
@@ -1147,16 +1172,19 @@ def _select_diverse_recommendations(
             )
             package_novelty = int(bot_package(rec) not in used_bot) + int(mid_jungle_package(rec) not in used_mj)
             champ_band = 2 if min_champ_diff >= 3 else 1 if min_champ_diff >= 2 else 0
+            role_band = 2 if min_player_diff >= 2 else 1 if min_player_diff >= 1 else 0
             new_champion_count = sum(champ not in used_champions for champ in champ_sig)
             return (
                 champ_band,
                 package_novelty,
-                new_champion_count,
                 int(plan not in used_plans),
+                role_band,
+                new_champion_count,
                 int(carry_role not in used_carry_roles),
                 min_new_archetypes,
                 min_champ_diff,
                 min_player_diff,
+                rotation_value(rec),
                 float(rec.get("score", 0)),
             )
 
@@ -2176,7 +2204,11 @@ class LeagueFlexCog(commands.Cog):
                 pool_limit=10,
             )
             recommendations = _select_diverse_recommendations(
-                candidate_pool, limit=6, core_limit=4, role_mix_slots=2
+                candidate_pool,
+                limit=6,
+                core_limit=4,
+                role_mix_slots=2,
+                rotation_token=None if locked_assignment else str(interaction.id),
             )
             recommendations = _attach_role_alternatives(recommendations, candidate_pool)
             recommendations = attach_learn_suggestions(recommendations)
@@ -2254,9 +2286,9 @@ class LeagueFlexCog(commands.Cog):
         embed = discord.Embed(
             title="🧠 Recommended pre-game comps",
             description=(
-                "Uses each player's submitted role pool first; if a role has no saved champions, "
-                "the bot falls back to that player's **OP.GG season + mastery history** instead of aborting. "
-                "The score combines comp structure, player fit and current role strength.\n"
+                "Uses each player's **submitted champion pool as the primary-pick boundary**. "
+                "OP.GG season + mastery history helps rank comfort and optional suggestions, but does not "
+                "silently assign an unsubmitted champion. The score combines comp structure, player fit and current role strength.\n"
                 f"Recent pro signal: **{games} LCK/LPL/LEC/LCS games** "
                 f"({window_start} → {window_end})."
             ),

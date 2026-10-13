@@ -138,3 +138,35 @@ def test_draft_portfolio_prefers_credible_mixed_damage_when_enough_exist():
 def test_varus_is_not_offered_in_top_signup_pool():
     from cogs.league_flex import ROLE_CHAMPIONS
     assert "Varus" not in ROLE_CHAMPIONS["Top"]
+
+
+def test_fresh_draft_rotation_can_change_the_opening_shell_without_dropping_quality():
+    from cogs.league_flex import _select_diverse_recommendations
+    roles = ("Top", "Jungle", "Mid", "ADC", "Support")
+
+    def rec(idx, score, champs, players):
+        return {
+            "score": score,
+            "team_plan_score": 8.0,
+            "team_plan": f"plan-{idx}",
+            "carry_plan": {"role": "Mid"},
+            "archetypes": [f"plan-{idx}"],
+            "credible_mixed_damage": True,
+            "champions": dict(zip(roles, champs)),
+            "players": {
+                role: {"user_id": players[i], "display_name": role, "roles": [role]}
+                for i, role in enumerate(roles)
+            },
+        }
+
+    rows = [
+        rec(1, 100.0, ["Ornn", "Zac", "Yasuo", "Jhin", "Rakan"], [1,2,3,4,5]),
+        rec(2, 99.2, ["Renekton", "Vi", "Ahri", "Kai'Sa", "Nautilus"], [2,1,3,4,5]),
+        rec(3, 98.5, ["K'Sante", "Jarvan IV", "Orianna", "Ashe", "Braum"], [1,3,2,4,5]),
+    ]
+    first_signatures = set()
+    for token in map(str, range(20)):
+        out = _select_diverse_recommendations(rows, limit=3, rotation_token=token)
+        first_signatures.add(tuple(out[0]["champions"][role] for role in roles))
+        assert out[0]["score"] >= 97.0
+    assert len(first_signatures) > 1
