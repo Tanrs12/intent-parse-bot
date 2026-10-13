@@ -573,21 +573,6 @@ class LeagueEventView(discord.ui.View):
             ephemeral=True,
         )
 
-    @discord.ui.button(
-        label="Don't Notify Me",
-        emoji="🔕",
-        style=discord.ButtonStyle.secondary,
-        custom_id="intent:league:flex:mute_event",
-    )
-    async def mute(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not interaction.guild:
-            return
-        await self.cog.set_reminder_optout(interaction.guild.id, interaction.user.id, True)
-        await interaction.response.send_message(
-            "🔕 You won't be pinged by Ranked Flex reminder posts. Your signup, if any, stays intact.",
-            ephemeral=True,
-        )
-
 
 def _filter_unavailable(signups: list[dict], unavailable: set[str]) -> list[dict]:
     if not unavailable:
@@ -1150,11 +1135,11 @@ class LeagueFlexCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.bot.add_view(LeagueEventView(self))
-        self.bot.add_view(LeagueReminderView(self))
-        self.reminder_loop.start()
+        self._legacy_reminder_cleanup = asyncio.create_task(self.remove_existing_reminder())
 
     def cog_unload(self):
-        self.reminder_loop.cancel()
+        if not self._legacy_reminder_cleanup.done():
+            self._legacy_reminder_cleanup.cancel()
 
     async def get_draft_state(self, guild_id: int):
         db = await database.connect()
@@ -1427,6 +1412,35 @@ class LeagueFlexCog(commands.Cog):
             }
             for row in rows
         ]
+
+    async def remove_existing_reminder(self):
+        """Delete the last legacy signup reminder, if one is still sitting in Discord."""
+        await self.bot.wait_until_ready()
+        state = await self.get_reminder_state(LEAGUE_GUILD_ID)
+        event = await self.get_event(LEAGUE_GUILD_ID)
+        if not state or not state["reminder_message_id"] or not event:
+            return
+
+        guild = self.bot.get_guild(LEAGUE_GUILD_ID)
+        if guild is None:
+            return
+        channel = guild.get_channel(int(event["channel_id"]))
+        if channel is None:
+            try:
+                channel = await guild.fetch_channel(int(event["channel_id"]))
+            except discord.HTTPException:
+                channel = None
+        if isinstance(channel, (discord.TextChannel, discord.Thread)):
+            try:
+                previous = await channel.fetch_message(int(state["reminder_message_id"]))
+                await previous.delete()
+            except discord.HTTPException:
+                pass
+        await self.save_reminder_state(
+            LEAGUE_GUILD_ID,
+            str(state["last_slot"] or "disabled"),
+            None,
+        )
 
     async def set_reminder_optout(self, guild_id: int, user_id: int, opted_out: bool):
         db = await database.connect()
