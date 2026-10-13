@@ -11,6 +11,8 @@ ROLES = ("Top", "Jungle", "Mid", "ADC", "Support")
 DATA_PATH = Path(__file__).with_name("data") / "league_comp_meta.json"
 MATCHUP_PATH = Path(__file__).with_name("data") / "league_lane_matchups.json"
 PLAYER_PROFILE_PATH = Path(__file__).with_name("data") / "league_player_profiles.json"
+RECENT_PRO_PATH = Path(__file__).with_name("data") / "league_recent_pro.json"
+_RECENT_PRO_CACHE: tuple[int | None, dict] = (None, {})
 
 ENGAGE_TAGS = {"VANGUARD", "DIVER", "CATCHER"}
 PEEL_TAGS = {"ENCHANTER", "WARDEN", "CATCHER", "SUPPORT"}
@@ -521,11 +523,39 @@ def _tags(champion: str, meta: dict) -> set[str]:
     return {str(tag).upper() for tag in _traits(champion, meta).get("roles", [])}
 
 
+def load_recent_pro(path: str | None = None) -> dict:
+    global _RECENT_PRO_CACHE
+    target = Path(path) if path else RECENT_PRO_PATH
+    try:
+        mtime = target.stat().st_mtime_ns
+    except OSError:
+        return {}
+    if path is None and _RECENT_PRO_CACHE[0] == mtime:
+        return _RECENT_PRO_CACHE[1]
+    try:
+        data = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if path is None:
+        _RECENT_PRO_CACHE = (mtime, data)
+    return data
+
+
 def _meta_value(role: str, champion: str, meta: dict) -> tuple[float, int]:
     entry = meta.get("role_stats", {}).get(role, {}).get(champion)
-    if not entry:
-        return 0.5, 0
-    return float(entry.get("bayes_win_rate", 0.5)), int(entry.get("games", 0))
+    historical_wr = float(entry.get("bayes_win_rate", 0.5)) if entry else 0.5
+    historical_games = int(entry.get("games", 0)) if entry else 0
+    recent = load_recent_pro().get("role_stats", {}).get(role, {}).get(champion)
+    if not recent:
+        return historical_wr, historical_games
+    recent_wr = float(recent.get("bayes_win_rate", 0.5))
+    recent_weighted_games = max(0.0, float(recent.get("weighted_games", 0.0)))
+    current_weight = min(24.0, recent_weighted_games * 4.0)
+    old_weight = min(10.0, float(historical_games))
+    if current_weight <= 0:
+        return historical_wr, historical_games
+    blended = ((historical_wr * old_weight) + (recent_wr * current_weight)) / max(1e-9, old_weight + current_weight)
+    return blended, historical_games + int(round(current_weight))
 
 
 def _bot_lane_duo_score(adc: str, support: str, meta: dict) -> dict:
@@ -734,9 +764,19 @@ def _pair_value(role_a: str, champ_a: str, role_b: str, champ_b: str, meta: dict
         champ_a, champ_b = champ_b, champ_a
     key = f"{role_a}|{role_b}|{champ_a}|{champ_b}"
     entry = meta.get("pair_stats", {}).get(key)
-    if not entry:
-        return 0.0, 0
-    return float(entry.get("lift", 0.0)), int(entry.get("games", 0))
+    historical_lift = float(entry.get("lift", 0.0)) if entry else 0.0
+    historical_games = int(entry.get("games", 0)) if entry else 0
+    recent = load_recent_pro().get("pair_stats", {}).get(key)
+    if not recent:
+        return historical_lift, historical_games
+    recent_lift = float(recent.get("lift", 0.0))
+    recent_weighted_games = max(0.0, float(recent.get("weighted_games", 0.0)))
+    current_weight = min(16.0, recent_weighted_games * 4.0)
+    old_weight = min(8.0, float(historical_games))
+    if current_weight <= 0:
+        return historical_lift, historical_games
+    blended = ((historical_lift * old_weight) + (recent_lift * current_weight)) / max(1e-9, old_weight + current_weight)
+    return blended, historical_games + int(round(current_weight))
 
 
 def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8) -> list[str]:

@@ -28,6 +28,7 @@ from league_comp_engine import (
     recommend_comps,
     role_experience_score,
 )
+from league_pro_data import refresh_recent_pro_data
 
 log = logging.getLogger(__name__)
 
@@ -1136,10 +1137,29 @@ class LeagueFlexCog(commands.Cog):
         self.bot = bot
         self.bot.add_view(LeagueEventView(self))
         self._legacy_reminder_cleanup = asyncio.create_task(self.remove_existing_reminder())
+        self._pro_meta_refresh_task = asyncio.create_task(self.refresh_pro_meta_forever())
 
     def cog_unload(self):
         if not self._legacy_reminder_cleanup.done():
             self._legacy_reminder_cleanup.cancel()
+        if not self._pro_meta_refresh_task.done():
+            self._pro_meta_refresh_task.cancel()
+
+    async def refresh_pro_meta_forever(self):
+        await self.bot.wait_until_ready()
+        while True:
+            try:
+                data = await refresh_recent_pro_data()
+                log.info(
+                    "League live pro data refreshed: %s games, latest patch %s",
+                    data.get("game_count", 0),
+                    data.get("latest_patch", "unknown"),
+                )
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                log.exception("League live pro data refresh failed; retaining last good snapshot")
+            await asyncio.sleep(6 * 60 * 60)
 
     async def get_draft_state(self, guild_id: int):
         db = await database.connect()
