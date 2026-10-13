@@ -1534,10 +1534,8 @@ class LeagueFlexCog(commands.Cog):
             f"https://discord.com/channels/{guild_id}/"
             f"{event['channel_id']}/{event['message_id']}"
         )
-        mentions = " ".join(f"<@{user_id}>" for user_id in pending)
         content = (
             "🏆 **RANKED FLEX → CHALLENGER REMINDER**\n"
-            f"{mentions}\n\n"
             "You still haven't signed up. Pick your roles and join the climb, "
             "or hit **Don't Notify Me** and we'll stop harassing you.\n"
             "**Improvement is the goal. Allegedly.**"
@@ -1545,11 +1543,7 @@ class LeagueFlexCog(commands.Cog):
         message = await channel.send(
             content,
             view=LeagueReminderView(self, event_url),
-            allowed_mentions=discord.AllowedMentions(
-                everyone=False,
-                roles=False,
-                users=[discord.Object(id=user_id) for user_id in pending],
-            ),
+            allowed_mentions=discord.AllowedMentions.none(),
         )
         await self.save_reminder_state(guild_id, slot_key, message.id)
         return message
