@@ -2026,3 +2026,17 @@ def build_draft_book(
             branches.append(candidates[0])
 
     return base, branches, missing
+
+
+def clear_player_profile_caches() -> None:
+    """Drop only caches derived from league_player_profiles.json after a live refresh."""
+    for cached in (
+        load_player_profiles,
+        load_recent_match_index,
+        load_player_score_index,
+        role_experience_score,
+        _mastery_points_for,
+        _champion_ownership,
+        _champion_comfort,
+    ):
+        cached.cache_clear()

@@ -21,6 +21,7 @@ from config import LEAGUE_EVENT_CHANNEL_ID, LEAGUE_GUILD_ID
 from league_comp_engine import (
     attach_learn_suggestions,
     build_draft_book,
+    clear_player_profile_caches,
     counter_ban_recommendations,
     load_lane_matchups,
     load_meta as load_league_comp_meta,
@@ -28,6 +29,7 @@ from league_comp_engine import (
     recommend_comps,
     role_experience_score,
 )
+from league_player_data import refresh_recent_player_data
 from league_pro_data import refresh_recent_pro_data
 
 log = logging.getLogger(__name__)
@@ -1284,12 +1286,15 @@ class LeagueFlexCog(commands.Cog):
         self.bot.add_view(LeagueEventView(self))
         self._legacy_reminder_cleanup = asyncio.create_task(self.remove_existing_reminder())
         self._pro_meta_refresh_task = asyncio.create_task(self.refresh_pro_meta_forever())
+        self._player_data_refresh_task = asyncio.create_task(self.refresh_player_data_forever())
 
     def cog_unload(self):
         if not self._legacy_reminder_cleanup.done():
             self._legacy_reminder_cleanup.cancel()
         if not self._pro_meta_refresh_task.done():
             self._pro_meta_refresh_task.cancel()
+        if not self._player_data_refresh_task.done():
+            self._player_data_refresh_task.cancel()
 
     async def refresh_pro_meta_forever(self):
         await self.bot.wait_until_ready()
@@ -1306,6 +1311,30 @@ class LeagueFlexCog(commands.Cog):
             except Exception:
                 log.exception("League live pro data refresh failed; retaining last good snapshot")
             await asyncio.sleep(6 * 60 * 60)
+
+    async def refresh_player_data_forever(self):
+        # Stagger this behind the pro refresh so deploy/startup never runs both
+        # network collectors at once.  The actual scraper is blocking stdlib I/O,
+        # so keep it off Discord's event loop.
+        await self.bot.wait_until_ready()
+        await asyncio.sleep(5 * 60)
+        while True:
+            try:
+                data = await asyncio.to_thread(refresh_recent_player_data)
+                if data.get("players", 0):
+                    clear_player_profile_caches()
+                log.info(
+                    "League player data refreshed: %s players, %s accounts, %s new games, %s errors",
+                    data.get("players", 0),
+                    data.get("accounts", 0),
+                    data.get("new_games", 0),
+                    len(data.get("errors", [])),
+                )
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                log.exception("League player data refresh failed; retaining last good snapshot")
+            await asyncio.sleep(12 * 60 * 60)
 
     async def get_draft_state(self, guild_id: int):
         db = await database.connect()
