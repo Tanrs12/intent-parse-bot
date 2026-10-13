@@ -1025,10 +1025,26 @@ def _attach_role_alternatives(selected: list[dict], candidates: list[dict], max_
     return selected
 
 
-def _select_diverse_recommendations(recommendations: list[dict], limit: int = 4) -> list[dict]:
-    """Return strong drafts that are strategically different, not four near-clones."""
-    if len(recommendations) <= limit:
-        return recommendations
+def _select_diverse_recommendations(
+    recommendations: list[dict],
+    limit: int = 6,
+    core_limit: int = 4,
+    role_mix_slots: int = 2,
+) -> list[dict]:
+    """Keep the best strategic drafts, then add high-quality role-mix variants when available.
+
+    The expensive composition search has already happened before this function runs.  The
+    extra slots only select from the existing candidate pool, so surfacing up to two role
+    variants does not expand the solver search or materially increase Northflank CPU time.
+    """
+    if not recommendations:
+        return []
+
+    limit = max(1, int(limit))
+    core_limit = max(1, min(int(core_limit), limit))
+    role_mix_slots = max(0, min(int(role_mix_slots), limit - core_limit))
+    if len(recommendations) <= core_limit:
+        return recommendations[:limit]
 
     chosen = [recommendations[0]]
     remaining = recommendations[1:]
@@ -1038,7 +1054,7 @@ def _select_diverse_recommendations(recommendations: list[dict], limit: int = 4)
         return [rec["champions"][role] for role in ROLES]
 
     def player_signature(rec: dict):
-        return [rec["players"][role]["user_id"] for role in ROLES]
+        return tuple(int(rec["players"][role]["user_id"]) for role in ROLES)
 
     def bot_package(rec: dict):
         return (rec["champions"]["ADC"], rec["champions"]["Support"])
@@ -1046,9 +1062,9 @@ def _select_diverse_recommendations(recommendations: list[dict], limit: int = 4)
     def mid_jungle_package(rec: dict):
         return (rec["champions"]["Mid"], rec["champions"]["Jungle"])
 
-    while remaining and len(chosen) < limit:
-        # We will trade a little raw score for a genuinely different game plan,
-        # but never dive far below the best draft just for cosmetic variety.
+    # First preserve the existing behaviour: choose up to four strong drafts with
+    # genuinely different strategic identities and champion packages.
+    while remaining and len(chosen) < core_limit:
         quality_pool = [rec for rec in remaining if float(rec.get("score", 0)) >= top_score - 10.0] or remaining
         used_plans = {str(rec.get("team_plan", "balanced")) for rec in chosen}
         used_bot = {bot_package(rec) for rec in chosen}
@@ -1077,8 +1093,8 @@ def _select_diverse_recommendations(recommendations: list[dict], limit: int = 4)
             role_band = 2 if min_player_diff >= 2 else 1 if min_player_diff >= 1 else 0
             champ_band = 2 if min_champ_diff >= 3 else 1 if min_champ_diff >= 2 else 0
             return (
-                int(plan not in used_plans),       # first: a genuinely different team identity
-                package_novelty,                   # then different bot / mid-jungle building blocks
+                int(plan not in used_plans),
+                package_novelty,
                 int(carry_role not in used_carry_roles),
                 min_new_archetypes,
                 role_band,
@@ -1091,6 +1107,46 @@ def _select_diverse_recommendations(recommendations: list[dict], limit: int = 4)
         best = max(quality_pool, key=diversity_key)
         chosen.append(best)
         remaining.remove(best)
+
+    # Then use only the already-scored candidate pool to surface role assignments the
+    # core four may have hidden.  Keep a tighter quality floor for these bonus drafts:
+    # variety is useful, but not if it means recommending a noticeably worse team.
+    bonus_target = min(limit, core_limit + role_mix_slots)
+    while remaining and len(chosen) < bonus_target:
+        seen_signatures = {player_signature(rec) for rec in chosen}
+        used_role_players = {
+            (role, int(rec["players"][role]["user_id"]))
+            for rec in chosen
+            for role in ROLES
+        }
+        role_candidates = [
+            rec for rec in remaining
+            if player_signature(rec) not in seen_signatures
+            and float(rec.get("score", 0)) >= top_score - 8.0
+        ]
+        if not role_candidates:
+            break
+
+        def role_mix_key(rec: dict):
+            sig = player_signature(rec)
+            min_player_diff = min(
+                sum(a != b for a, b in zip(sig, player_signature(prev)))
+                for prev in chosen
+            )
+            new_role_players = sum(
+                (role, int(rec["players"][role]["user_id"])) not in used_role_players
+                for role in ROLES
+            )
+            return (
+                min_player_diff,
+                new_role_players,
+                float(rec.get("score", 0)),
+            )
+
+        best = max(role_candidates, key=role_mix_key)
+        chosen.append(best)
+        remaining.remove(best)
+
     return chosen
 
 
@@ -1158,7 +1214,7 @@ class DraftControlsView(discord.ui.View):
     async def unavailable_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.locked_assignment is None:
             await interaction.response.send_message(
-                "Pick **Lock Draft 1–4** first so I know which role assignment you're actually playing. Then bans/picks will never reshuffle roles.",
+                "Pick **one of the drafts to lock** first so I know which role assignment you're actually playing. Then bans/picks will never reshuffle roles.",
                 ephemeral=True,
             )
             return
@@ -2075,7 +2131,9 @@ class LeagueFlexCog(commands.Cog):
                 limit=300,
                 pool_limit=10,
             )
-            recommendations = _select_diverse_recommendations(candidate_pool, limit=4)
+            recommendations = _select_diverse_recommendations(
+                candidate_pool, limit=6, core_limit=4, role_mix_slots=2
+            )
             recommendations = _attach_role_alternatives(recommendations, candidate_pool)
             recommendations = attach_learn_suggestions(recommendations)
             source = load_league_comp_meta().get("source", {})
