@@ -170,3 +170,28 @@ def test_fresh_draft_rotation_can_change_the_opening_shell_without_dropping_qual
         first_signatures.add(tuple(out[0]["champions"][role] for role in roles))
         assert out[0]["score"] >= 97.0
     assert len(first_signatures) > 1
+
+
+def test_portfolio_rewards_bot_lane_style_diversity_when_quality_is_close():
+    from cogs.league_flex import _select_diverse_recommendations
+    roles = ("Top", "Jungle", "Mid", "ADC", "Support")
+    players = {role: {"user_id": i + 1, "display_name": role, "roles": [role]} for i, role in enumerate(roles)}
+
+    def rec(champs, score, plan):
+        return {
+            "score": score,
+            "team_plan_score": 8.0,
+            "team_plan": plan,
+            "carry_plan": {"role": "Mid"},
+            "archetypes": [plan],
+            "credible_mixed_damage": True,
+            "champions": dict(zip(roles, champs)),
+            "players": players,
+        }
+
+    enchanter1 = rec(["Ornn", "Zac", "Yasuo", "Jinx", "Lulu"], 100, "scaling front-to-back")
+    enchanter2 = rec(["Renekton", "Vi", "Ahri", "Lucian", "Milio"], 99.8, "tempo skirmish")
+    engage = rec(["K'Sante", "Jarvan IV", "Orianna", "Kai'Sa", "Nautilus"], 99.5, "dive / all-in")
+    chosen = _select_diverse_recommendations([enchanter1, enchanter2, engage], limit=2)
+    assert enchanter1 in chosen
+    assert engage in chosen

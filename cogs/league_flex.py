@@ -20,7 +20,11 @@ from discord.ext import commands, tasks
 import db as database
 from config import LEAGUE_EVENT_CHANNEL_ID, LEAGUE_GUILD_ID
 from league_comp_engine import (
+    ALL_IN_ADCS,
     BLOCKED_ROLE_PICKS,
+    ENCHANTER_SUPPORTS,
+    ENGAGE_SUPPORTS,
+    POKE_SUPPORTS,
     attach_learn_suggestions,
     build_draft_book,
     clear_player_profile_caches,
@@ -1100,6 +1104,19 @@ def _select_diverse_recommendations(
     def mid_jungle_package(rec: dict):
         return (rec["champions"]["Mid"], rec["champions"]["Jungle"])
 
+    def bot_style(rec: dict) -> str:
+        adc = rec["champions"]["ADC"]
+        support = rec["champions"]["Support"]
+        if support in ENGAGE_SUPPORTS and adc in ALL_IN_ADCS:
+            return "all-in engage"
+        if support in ENGAGE_SUPPORTS:
+            return "engage"
+        if support in ENCHANTER_SUPPORTS:
+            return "enchanter"
+        if support in POKE_SUPPORTS:
+            return "poke"
+        return "other"
+
     def rotation_value(rec: dict) -> int:
         if not rotation_token:
             return 0
@@ -1151,6 +1168,7 @@ def _select_diverse_recommendations(
 
         used_plans = {str(rec.get("team_plan", "balanced")) for rec in chosen}
         used_bot = {bot_package(rec) for rec in chosen}
+        used_bot_styles = {bot_style(rec) for rec in chosen}
         used_mj = {mid_jungle_package(rec) for rec in chosen}
         used_carry_roles = {(rec.get("carry_plan") or {}).get("role") for rec in chosen}
         used_champions = {champ for prev in chosen for champ in champion_signature(prev)}
@@ -1171,11 +1189,13 @@ def _select_diverse_recommendations(
                 for prev in chosen
             )
             package_novelty = int(bot_package(rec) not in used_bot) + int(mid_jungle_package(rec) not in used_mj)
+            bot_style_novelty = int(bot_style(rec) not in used_bot_styles)
             champ_band = 2 if min_champ_diff >= 3 else 1 if min_champ_diff >= 2 else 0
             role_band = 2 if min_player_diff >= 2 else 1 if min_player_diff >= 1 else 0
             new_champion_count = sum(champ not in used_champions for champ in champ_sig)
             return (
                 champ_band,
+                bot_style_novelty,
                 package_novelty,
                 int(plan not in used_plans),
                 role_band,
