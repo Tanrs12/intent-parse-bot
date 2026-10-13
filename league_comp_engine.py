@@ -468,7 +468,11 @@ def _historical_pool(user_id: int, role: str, meta: dict, limit: int = 10) -> li
         # organised-play evidence.
         solo_weight = int(role_row.get("weight", 0) or 0)
         _, pro_games = _meta_value(role, champion, meta)
-        return solo_weight >= 8000 or pro_games >= 5
+        # Global champion ownership must not silently migrate a champion into a
+        # niche/off-role slot. Without player-specific evidence in this role, only
+        # infer genuinely established role picks. Explicit Discord selections still
+        # bypass this gate, so a player can intentionally opt into a niche pick.
+        return solo_weight >= 12000 or pro_games >= 40
 
     candidates = []
     for champion in set(history_map) | set(recent_role):
@@ -518,7 +522,12 @@ def _historical_pool(user_id: int, role: str, meta: dict, limit: int = 10) -> li
 
     # If there is no account history at all, keep the draft moving with current role strength.
     ranked = sorted(
-        role_index.items(),
+        (
+            (champion, row)
+            for champion, row in role_index.items()
+            if int(row.get("weight", 0) or 0) >= 12000
+            or _meta_value(role, champion, meta)[1] >= 40
+        ),
         key=lambda item: (float(item[1].get("win_rate", 50)), int(item[1].get("weight", 0))),
         reverse=True,
     )
@@ -1090,7 +1099,7 @@ def _player_fit_adjustment(
             if low_econ_frontline:
                 adjustment += (reliability - 50.0) / 50.0 * 0.4
             else:
-                adjustment += (carry - 50.0) / 50.0 * 1.8
+                adjustment += (carry - 50.0) / 50.0 * 0.75
         elif role == "Jungle":
             adjustment += (reliability - 50.0) / 50.0 * 0.8
             adjustment += (float(metrics.get("kp", 50.0)) - 50.0) / 50.0 * 0.4
@@ -1126,10 +1135,10 @@ def _player_fit_adjustment(
     if strongest_player_carry >= team_carry_avg + 6.0:
         if strongest_player_demand < 0.30:
             sacrifice_penalty = min(
-                3.2,
-                1.1
-                + (strongest_player_carry - team_carry_avg) / 25.0 * 1.2
-                + (0.30 - strongest_player_demand) * 3.0,
+                1.4,
+                0.45
+                + (strongest_player_carry - team_carry_avg) / 35.0 * 0.55
+                + (0.30 - strongest_player_demand) * 1.2,
             )
             total -= sacrifice_penalty
             allocation_adjustment -= sacrifice_penalty
@@ -1138,8 +1147,8 @@ def _player_fit_adjustment(
             )
         elif strongest_player_demand >= 0.72:
             leverage_bonus = min(
-                1.0,
-                0.35 + (strongest_player_carry - team_carry_avg) / 40.0,
+                0.35,
+                0.12 + (strongest_player_carry - team_carry_avg) / 120.0,
             )
             total += leverage_bonus
             allocation_adjustment += leverage_bonus
@@ -1157,10 +1166,10 @@ def _player_fit_adjustment(
             demand_gap = demand_values[weak_role] - demand_values[strong_role]
             if carry_gap >= 15.0 and demand_gap >= 0.30:
                 inversion_penalty += min(
-                    0.55,
-                    (carry_gap - 10.0) / 50.0 * demand_gap * 1.4,
+                    0.28,
+                    (carry_gap - 10.0) / 70.0 * demand_gap * 0.9,
                 )
-    inversion_penalty = min(1.5, inversion_penalty)
+    inversion_penalty = min(0.7, inversion_penalty)
     if inversion_penalty > 0:
         total -= inversion_penalty
         allocation_adjustment -= inversion_penalty
@@ -1172,8 +1181,8 @@ def _player_fit_adjustment(
         and float(role_details[role]["champion_comfort"]) >= 4.0
     ]
     if len(credible_threat_roles) >= 3:
-        total += 0.65
-        allocation_adjustment += 0.65
+        total += 0.35
+        allocation_adjustment += 0.35
         notes.append("three credible player/champion carry angles reduce damage concentration")
     adc_uid = int(assignment["ADC"]["user_id"])
     adc_carry = carry_values.get("ADC", 50.0)
@@ -1476,7 +1485,7 @@ def _bounded_package_products(
         agency_demand = _champion_carry_demand(role, champion, meta)
         # Carry/agency fit belongs in the cheap package heuristic too; otherwise
         # the bounded search can prune the right high-agency pick before full scoring.
-        value += ((player_carry - 50.0) / 50.0) * (agency_demand - 0.35) * 1.5
+        value += ((player_carry - 50.0) / 50.0) * (agency_demand - 0.35) * 0.45
         if solo_wr is not None:
             value += (solo_wr - 50.0) * min(1.0, solo_weight / 1500.0) * 0.12
         if pro_games:
@@ -1637,12 +1646,20 @@ def recommend_comps(
                 float(assignment[role].get("_role_preference_penalty", 0.0) or 0.0)
                 for role in ROLES
             )
+            # Draft quality is primary. Player fit matters, but the specific
+            # carry/agency allocation layer is only a tie-breaker among otherwise
+            # good compositions; it must not rescue a structurally worse five-man.
+            agency_adjustment = float(player_fit.get("agency_allocation_adjustment", 0.0) or 0.0)
+            weighted_player_fit = (
+                float(player_fit["adjustment"]) - agency_adjustment
+                + agency_adjustment * 0.35
+            )
             final_score = max(
                 0.0,
                 min(
                     100.0,
                     composition_score
-                    + player_fit["adjustment"]
+                    + weighted_player_fit
                     - suggestion_penalty
                     - role_preference_penalty,
                 ),
@@ -1653,6 +1670,8 @@ def recommend_comps(
                     role: {
                         "user_id": assignment[role]["user_id"],
                         "display_name": assignment[role]["display_name"],
+                        "roles": list(assignment[role].get("roles", [])),
+                        "role_priority": dict(assignment[role].get("role_priority", {})),
                     }
                     for role in ROLES
                 },
@@ -1673,7 +1692,8 @@ def recommend_comps(
                 },
                 **scored,
                 "composition_score": round(composition_score, 1),
-                "player_fit_adjustment": player_fit["adjustment"],
+                "player_fit_adjustment": round(weighted_player_fit, 2),
+                "raw_player_fit_adjustment": player_fit["adjustment"],
                 "history_suggestion_penalty": round(suggestion_penalty, 2),
                 "role_preference_penalty": round(role_preference_penalty, 2),
                 "player_fit_details": player_fit["role_details"],

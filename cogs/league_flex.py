@@ -703,6 +703,28 @@ def _paste_champion_icon(canvas: Image.Image, icons: dict[str, bytes], champion:
     draw.text((x + size // 2, y + size // 2), champion[:2].upper(), font=_draft_font(max(12, size // 3), True), anchor="mm", fill="white")
 
 
+def _conditional_ban_annotations(base_bans: list[dict], branches: list[dict]) -> dict[str, list[dict]]:
+    """Map each primary ban to compact 'if pick X -> ban Y' alternatives for the card."""
+    base_names = [str(row.get("champion") or "") for row in base_bans]
+    notes: dict[str, list[dict]] = {name: [] for name in base_names if name}
+    for branch in branches:
+        condition = str(branch.get("champion") or "")
+        added = [str(name) for name in branch.get("added", []) if str(name)]
+        removed = [str(name) for name in branch.get("removed", []) if str(name) in notes]
+        if not condition or not added:
+            continue
+        targets = removed or (base_names[-1:] if base_names else [])
+        for idx, alt_ban in enumerate(added[:2]):
+            if not targets:
+                break
+            target = targets[min(idx, len(targets) - 1)]
+            row = {"condition": condition, "ban": alt_ban}
+            if row not in notes.setdefault(target, []):
+                notes[target].append(row)
+    return notes
+
+
+
 def _draw_draft_card(
     rec: dict,
     index: int,
@@ -711,6 +733,8 @@ def _draw_draft_card(
     red_order: list[tuple[str, str]],
     red_bans: list[dict],
     icons: dict[str, bytes],
+    blue_conditional: list[dict] | None = None,
+    red_conditional: list[dict] | None = None,
 ) -> bytes:
     width, height = 1200, 900
     image = Image.new("RGBA", (width, height), (15, 18, 24, 255))
@@ -765,7 +789,7 @@ def _draw_draft_card(
             option_note = " • ".join(notes) or "same-plan option"
             draw.text((x + col_w // 2 - 4, y + 186), option_note[:34], font=_draft_font(11), anchor="ma", fill=muted)
 
-    def draw_side_plan(label: str, side_letter: str, accent, order, bans, top_y: int):
+    def draw_side_plan(label: str, side_letter: str, accent, order, bans, conditional, top_y: int):
         draw.text((30, top_y), f"{label} SIDE", font=_draft_font(21, True), fill=accent)
         draw.text((165, top_y + 2), "PICK ORDER", font=_draft_font(17, True), fill=white)
         order_y = top_y + 31
@@ -780,6 +804,7 @@ def _draw_draft_card(
         ban_title_y = order_y + 91
         draw.text((30, ban_title_y), "PRIMARY-PICK BANS", font=_draft_font(17, True), fill=white)
         bans_y = ban_title_y + 27
+        annotations = _conditional_ban_annotations(bans[:5], conditional or [])
         if bans:
             for i, ban in enumerate(bans[:5]):
                 x = 30 + i * 228
@@ -790,13 +815,23 @@ def _draw_draft_card(
                 protect = str(reason.get("our_champion") or "")
                 role = str(reason.get("role") or "")
                 pick_no = reason.get("pick_number") or "?"
-                draw.text((x + 66, bans_y + 8), champ[:17], font=_draft_font(15, True), fill=white)
-                draw.text((x + 66, bans_y + 34), f"protect {protect[:10]} • {role} {side_letter}{pick_no}", font=_draft_font(11), fill=muted)
+                swaps = annotations.get(champ, [])[:2]
+                alt_names = [row["ban"] for row in swaps]
+                name_line = champ if not alt_names else champ + " / " + "/".join(alt_names)
+                draw.text((x + 66, bans_y + 7), name_line[:22], font=_draft_font(14, True), fill=white)
+                if swaps:
+                    swap_text = " • ".join(
+                        f"{row['ban']} if {row['condition']}" for row in swaps
+                    )
+                    draw.text((x + 66, bans_y + 31), swap_text[:28], font=_draft_font(10, True), fill=accent)
+                    draw.text((x + 66, bans_y + 49), f"primary protects {protect[:9]} {side_letter}{pick_no}", font=_draft_font(9), fill=muted)
+                else:
+                    draw.text((x + 66, bans_y + 34), f"protect {protect[:10]} • {role} {side_letter}{pick_no}", font=_draft_font(11), fill=muted)
         else:
             draw.text((30, bans_y + 12), "No high-confidence direct counter ban found", font=_draft_font(15), fill=muted)
 
-    draw_side_plan("BLUE", "B", blue, blue_order, blue_bans, 330)
-    draw_side_plan("RED", "R", red, red_order, red_bans, 575)
+    draw_side_plan("BLUE", "B", blue, blue_order, blue_bans, blue_conditional, 330)
+    draw_side_plan("RED", "R", red, red_order, red_bans, red_conditional, 575)
 
     carry_options = list(rec.get("carry_options") or [])
     if carry_options:
@@ -855,39 +890,16 @@ async def _build_draft_visuals(recommendations: list[dict], unavailable: set[str
             red_order,
             red_bans,
             icons,
+            blue_conditional,
+            red_conditional,
         )
         filename = f"league_draft_{index}.png"
         file = discord.File(io.BytesIO(png), filename=filename)
         embed = discord.Embed(
             title=f"Draft {index} | {rec.get('team_plan', 'balanced')}",
-            description="Primary-pick bans are on the card; alternate picks below recalculate their own ban consequences.",
+            description="Primary bans and pick-conditional replacement bans are shown together on the card.",
             colour=discord.Colour.gold(),
         )
-        conditional_lines = []
-        for label, branches in (("BLUE", blue_conditional), ("RED", red_conditional)):
-            for branch in branches:
-                added = ", ".join(branch.get("added", [])[:2])
-                removed = ", ".join(branch.get("removed", [])[:2])
-                if not added and not removed:
-                    continue
-                change_bits = []
-                if added:
-                    change_bits.append(f"+{added}")
-                if removed:
-                    change_bits.append(f"-{removed}")
-                conditional_lines.append(
-                    f"**{label} {branch['role']} -> {branch['champion']}:** " + " / ".join(change_bits)
-                )
-                if len(conditional_lines) >= 10:
-                    break
-            if len(conditional_lines) >= 10:
-                break
-        if conditional_lines:
-            embed.add_field(
-                name="Pick-conditional ban changes",
-                value="\n".join(conditional_lines)[:1024],
-                inline=False,
-            )
         carry_options = list(rec.get("carry_options") or [])
         if carry_options:
             carry_text = " | ".join(
@@ -1027,6 +1039,17 @@ def _attach_role_alternatives(selected: list[dict], candidates: list[dict], max_
     return selected
 
 
+def _recommendation_respects_selected_roles(rec: dict) -> bool:
+    """Defence-in-depth: never render a player in a role they did not select."""
+    for role in ROLES:
+        player = rec.get("players", {}).get(role, {})
+        selected = set(player.get("roles") or [])
+        if role not in selected:
+            return False
+    return True
+
+
+
 def _select_diverse_recommendations(
     recommendations: list[dict],
     limit: int = 6,
@@ -1039,6 +1062,7 @@ def _select_diverse_recommendations(
     extra slots only select from the existing candidate pool, so surfacing up to two role
     variants does not expand the solver search or materially increase Northflank CPU time.
     """
+    recommendations = [rec for rec in recommendations if _recommendation_respects_selected_roles(rec)]
     if not recommendations:
         return []
 

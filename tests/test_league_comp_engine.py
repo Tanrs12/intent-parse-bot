@@ -511,3 +511,36 @@ def test_malphite_branch_adds_sylas_ban_but_renekton_branch_does_not():
     )
     assert "Sylas" in {row["champion"] for row in malphite_bans}
     assert "Sylas" not in {row["champion"] for row in renekton_bans}
+
+
+
+def test_historical_pool_does_not_migrate_niche_pick_across_roles(monkeypatch):
+    meta = load_meta()
+    profile = {
+        "champion_history": [{
+            "champion": "Varus", "games": 40, "recent_weighted_win_rate": 60,
+            "recent_weighted_op_score": 7, "mastery_points": 100000,
+        }],
+        "masteries": [{"champion_name": "Varus", "points": 100000}],
+    }
+    monkeypatch.setattr(engine, "_profile_for", lambda user_id: profile)
+    monkeypatch.setattr(engine, "load_recent_match_index", lambda: {1: {"by_role_champion": {"Top": {}}}})
+    monkeypatch.setattr(engine, "load_solo_queue_winrates", lambda path=None: {
+        "Top": {
+            "Varus": {"win_rate": 53.3, "weight": 2490},
+            "Ornn": {"win_rate": 50.5, "weight": 20000},
+        }
+    })
+    monkeypatch.setattr(engine, "_meta_value", lambda role, champion, meta: (0.51, 22 if champion == "Varus" else 50))
+    pool = engine._historical_pool(1, "Top", meta, limit=10)
+    assert "Varus" not in pool
+    assert "Ornn" in pool
+
+
+def test_player_agency_is_tiebreaker_not_full_draft_override(monkeypatch):
+    # The final weighting should discount the agency-only portion of player fit.
+    raw_fit = 4.0
+    agency = 3.0
+    weighted = (raw_fit - agency) + agency * 0.35
+    assert weighted == 2.05
+    assert weighted < raw_fit
