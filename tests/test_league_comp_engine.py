@@ -424,3 +424,90 @@ def test_role_preference_penalty_is_charged_but_not_a_hard_lock():
     assert base and penalized
     assert penalized[0]["role_preference_penalty"] == 3.0
     assert 2.9 <= base[0]["score"] - penalized[0]["score"] <= 3.1
+
+
+
+def test_poke_with_camille_is_labeled_side_lane_variant_not_pure_siege():
+    meta = load_meta()
+    comp = {
+        "Top": "Camille",
+        "Jungle": "Nidalee",
+        "Mid": "Jayce",
+        "ADC": "Ezreal",
+        "Support": "Karma",
+    }
+    result = _team_plan_completion(comp, meta)
+    assert result["plan"] == "poke + side-lane"
+    assert any("side-lane" in reason for reason in result["reasons"])
+
+
+def test_camille_kaisa_nautilus_gets_second_access_angle_in_dive_shell():
+    meta = load_meta()
+    comp = {
+        "Top": "Camille",
+        "Jungle": "Vi",
+        "Mid": "Orianna",
+        "ADC": "Kai'Sa",
+        "Support": "Nautilus",
+    }
+    result = _team_plan_completion(comp, meta)
+    assert result["plan"] == "dive / all-in"
+    assert any("side-lane threat" in reason for reason in result["reasons"])
+
+
+def test_best_player_on_low_agency_tank_has_explicit_opportunity_cost(monkeypatch):
+    meta = load_meta()
+    assignment = {
+        role: {"user_id": i + 910001, "display_name": role}
+        for i, role in enumerate(engine.ROLES)
+    }
+    scores = {
+        910001: {"carry_index": 95.0, "reliability_index": 80.0, "metrics": {}, "roles": {}},
+        910002: {"carry_index": 60.0, "reliability_index": 60.0, "metrics": {}, "roles": {}},
+        910003: {"carry_index": 62.0, "reliability_index": 60.0, "metrics": {}, "roles": {}},
+        910004: {"carry_index": 65.0, "reliability_index": 60.0, "metrics": {}, "roles": {}},
+        910005: {"carry_index": 45.0, "reliability_index": 65.0, "metrics": {}, "roles": {}},
+    }
+    monkeypatch.setattr(engine, "load_player_score_index", lambda: scores)
+    monkeypatch.setattr(engine, "_champion_comfort", lambda uid, champion, role=None: 6.0)
+    monkeypatch.setattr(engine, "_champion_ownership", lambda uid, champion, role=None: 6.0)
+    monkeypatch.setattr(engine, "_mastery_points_for", lambda uid, champion: 0)
+
+    tank = {
+        "Top": "Ornn",
+        "Jungle": "Vi",
+        "Mid": "Orianna",
+        "ADC": "Kai'Sa",
+        "Support": "Nautilus",
+    }
+    carry = dict(tank, Top="Camille")
+    tank_fit = engine._player_fit_adjustment(assignment, tank, score_comp(tank)["archetypes"], meta)
+    carry_fit = engine._player_fit_adjustment(assignment, carry, score_comp(carry)["archetypes"], meta)
+
+    assert tank_fit["agency_allocation_adjustment"] < -1.5
+    assert carry_fit["agency_allocation_adjustment"] > tank_fit["agency_allocation_adjustment"]
+    assert any("sacrificing agency" in note for note in tank_fit["notes"])
+    assert carry_fit["carry_options"][0]["role"] == "Top"
+
+
+def test_malphite_branch_adds_sylas_ban_but_renekton_branch_does_not():
+    empty_matchups = {"matchups": {role: {} for role in engine.ROLES}}
+    meta = load_meta()
+    base = {
+        "Top": "Malphite",
+        "Jungle": "Vi",
+        "Mid": "Orianna",
+        "ADC": "Kai'Sa",
+        "Support": "Nautilus",
+    }
+    order = list(base.items())
+    malphite_bans = counter_ban_recommendations(
+        base, order, "blue", matchup_data=empty_matchups, meta=meta, limit=5
+    )
+    renekton = dict(base, Top="Renekton")
+    renekton_order = list(renekton.items())
+    renekton_bans = counter_ban_recommendations(
+        renekton, renekton_order, "blue", matchup_data=empty_matchups, meta=meta, limit=5
+    )
+    assert "Sylas" in {row["champion"] for row in malphite_bans}
+    assert "Sylas" not in {row["champion"] for row in renekton_bans}

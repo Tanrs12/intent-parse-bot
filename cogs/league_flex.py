@@ -776,7 +776,7 @@ def _draw_draft_card(
             draw.text((x + 78, order_y + 55), role, font=_draft_font(12), fill=muted)
 
         ban_title_y = order_y + 91
-        draw.text((30, ban_title_y), "PROTECTION BANS", font=_draft_font(17, True), fill=white)
+        draw.text((30, ban_title_y), "PRIMARY-PICK BANS", font=_draft_font(17, True), fill=white)
         bans_y = ban_title_y + 27
         if bans:
             for i, ban in enumerate(bans[:5]):
@@ -796,9 +796,17 @@ def _draw_draft_card(
     draw_side_plan("BLUE", "B", blue, blue_order, blue_bans, 330)
     draw_side_plan("RED", "R", red, red_order, red_bans, 575)
 
-    carry = rec.get("carry_plan") or {}
-    footer = f"Win condition: {carry.get('champion', 'shared')} ({carry.get('role', 'team')})  •  Team-plan fit {rec.get('team_plan_score', 5.0):.1f}/10"
-    draw.text((30, 868), footer, font=_draft_font(16), fill=muted)
+    carry_options = list(rec.get("carry_options") or [])
+    if carry_options:
+        leverage = " / ".join(
+            f"{str(row.get('display_name', row.get('role', '')) )[:10]}-{row.get('champion', '')}"
+            for row in carry_options[:2]
+        )
+        footer = f"Carry leverage: {leverage}  |  Team-plan fit {rec.get('team_plan_score', 5.0):.1f}/10"
+    else:
+        carry = rec.get("carry_plan") or {}
+        footer = f"Win condition: {carry.get('champion', 'shared')} ({carry.get('role', 'team')})  |  Team-plan fit {rec.get('team_plan_score', 5.0):.1f}/10"
+    draw.text((30, 868), footer[:120], font=_draft_font(16), fill=muted)
 
     out = io.BytesIO()
     image.convert("RGB").save(out, format="PNG", optimize=True)
@@ -814,7 +822,12 @@ async def _build_draft_visuals(recommendations: list[dict], unavailable: set[str
         red_order = _pro_pick_order(rec, meta, "red")
         blue_bans = counter_ban_recommendations(rec["champions"], blue_order, "blue", unavailable=unavailable, limit=5)
         red_bans = counter_ban_recommendations(rec["champions"], red_order, "red", unavailable=unavailable, limit=5)
-        presentation.append((index, rec, blue_order, blue_bans, red_order, red_bans))
+        blue_conditional = _conditional_ban_branches(rec, meta, "blue", unavailable, blue_bans)
+        red_conditional = _conditional_ban_branches(rec, meta, "red", unavailable, red_bans)
+        presentation.append((
+            index, rec, blue_order, blue_bans, red_order, red_bans,
+            blue_conditional, red_conditional,
+        ))
         all_champions.update(rec["champions"].values())
         for options in rec.get("role_alternatives", {}).values():
             all_champions.update(options)
@@ -822,10 +835,15 @@ async def _build_draft_visuals(recommendations: list[dict], unavailable: set[str
             all_champions.update(options)
         all_champions.update(ban["champion"] for ban in blue_bans)
         all_champions.update(ban["champion"] for ban in red_bans)
+        for branch in blue_conditional + red_conditional:
+            all_champions.update(branch.get("bans", []))
     icons = await _fetch_champion_icons(all_champions)
     embeds: list[discord.Embed] = []
     files: list[discord.File] = []
-    for index, rec, blue_order, blue_bans, red_order, red_bans in presentation:
+    for (
+        index, rec, blue_order, blue_bans, red_order, red_bans,
+        blue_conditional, red_conditional,
+    ) in presentation:
         png = await asyncio.to_thread(
             _draw_draft_card,
             rec,
@@ -839,14 +857,47 @@ async def _build_draft_visuals(recommendations: list[dict], unavailable: set[str
         filename = f"league_draft_{index}.png"
         file = discord.File(io.BytesIO(png), filename=filename)
         embed = discord.Embed(
-            title=f"Draft {index} • {rec.get('team_plan', 'balanced')}",
-            description="Blue and Red plans are both prepared before champ select.",
+            title=f"Draft {index} | {rec.get('team_plan', 'balanced')}",
+            description="Primary-pick bans are on the card; alternate picks below recalculate their own ban consequences.",
             colour=discord.Colour.gold(),
         )
+        conditional_lines = []
+        for label, branches in (("BLUE", blue_conditional), ("RED", red_conditional)):
+            for branch in branches:
+                added = ", ".join(branch.get("added", [])[:2])
+                removed = ", ".join(branch.get("removed", [])[:2])
+                if not added and not removed:
+                    continue
+                change_bits = []
+                if added:
+                    change_bits.append(f"+{added}")
+                if removed:
+                    change_bits.append(f"-{removed}")
+                conditional_lines.append(
+                    f"**{label} {branch['role']} -> {branch['champion']}:** " + " / ".join(change_bits)
+                )
+                if len(conditional_lines) >= 10:
+                    break
+            if len(conditional_lines) >= 10:
+                break
+        if conditional_lines:
+            embed.add_field(
+                name="Pick-conditional ban changes",
+                value="\n".join(conditional_lines)[:1024],
+                inline=False,
+            )
+        carry_options = list(rec.get("carry_options") or [])
+        if carry_options:
+            carry_text = " | ".join(
+                f"{row.get('display_name', row.get('role'))}: {row.get('champion')}"
+                for row in carry_options[:3]
+            )
+            embed.add_field(name="Carry allocation", value=carry_text[:1024], inline=False)
         embed.set_image(url=f"attachment://{filename}")
         files.append(file)
         embeds.append(embed)
     return embeds, files
+
 
 
 def _pro_pick_order(rec: dict, meta: dict, side: str = "blue") -> list[tuple[str, str]]:
@@ -892,13 +943,54 @@ def _pro_pick_order(rec: dict, meta: dict, side: str = "blue") -> list[tuple[str
     return [(row["role"], row["champion"]) for row in rows]
 
 
+def _conditional_ban_branches(
+    rec: dict,
+    meta: dict,
+    side: str,
+    unavailable: set[str],
+    base_bans: list[dict] | None = None,
+) -> list[dict]:
+    """Recalculate protection bans for every champion option actually shown to the user."""
+    base_order = _pro_pick_order(rec, meta, side)
+    if base_bans is None:
+        base_bans = counter_ban_recommendations(
+            rec["champions"], base_order, side, unavailable=unavailable, limit=5
+        )
+    base_names = [row["champion"] for row in base_bans]
+    branches: list[dict] = []
+    for role in ROLES:
+        options = []
+        options.extend(rec.get("role_alternatives", {}).get(role, []))
+        options.extend(rec.get("learn_suggestions", {}).get(role, []))
+        for champion in dict.fromkeys(options):
+            if champion == rec["champions"][role]:
+                continue
+            swapped = dict(rec["champions"])
+            swapped[role] = champion
+            alt_rec = dict(rec)
+            alt_rec["champions"] = swapped
+            alt_order = _pro_pick_order(alt_rec, meta, side)
+            alt_bans = counter_ban_recommendations(
+                swapped, alt_order, side, unavailable=unavailable, limit=5
+            )
+            alt_names = [row["champion"] for row in alt_bans]
+            branches.append({
+                "role": role,
+                "champion": champion,
+                "bans": alt_names,
+                "added": [name for name in alt_names if name not in base_names],
+                "removed": [name for name in base_names if name not in alt_names],
+            })
+    return branches
+
+
+
 def _attach_role_alternatives(selected: list[dict], candidates: list[dict], max_per_role: int = 2) -> list[dict]:
-    """Attach only genuinely interchangeable, same-plan one-role swaps."""
+    """Attach same-plan one-role variants, including deliberate tank-vs-carry agency shifts."""
     for rec in selected:
         base_players = tuple(int(rec["players"][role]["user_id"]) for role in ROLES)
         base_plan = rec.get("team_plan")
         base_score = float(rec.get("score", 0))
-        base_carry_role = (rec.get("carry_plan") or {}).get("role")
         alternatives: dict[str, list[str]] = {}
         for role in ROLES:
             viable: list[tuple[float, str]] = []
@@ -906,8 +998,6 @@ def _attach_role_alternatives(selected: list[dict], candidates: list[dict], max_
                 if tuple(int(candidate["players"][r]["user_id"]) for r in ROLES) != base_players:
                     continue
                 if candidate.get("team_plan") != base_plan:
-                    continue
-                if (candidate.get("carry_plan") or {}).get("role") != base_carry_role:
                     continue
                 changed = [r for r in ROLES if candidate["champions"][r] != rec["champions"][r]]
                 if changed != [role]:

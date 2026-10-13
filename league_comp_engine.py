@@ -38,6 +38,20 @@ POKE_SUPPORTS = {"Karma", "Lux", "Xerath", "Vel'Koz", "Zyra", "Morgana", "Bard",
 ENGAGE_SUPPORTS = {"Nautilus", "Leona", "Rell", "Alistar", "Thresh", "Blitzcrank", "Rakan", "Braum", "Maokai", "Poppy", "Pantheon"}
 PEEL_SUPPORTS = ENCHANTER_SUPPORTS | {"Thresh", "Braum", "Renata Glasc", "Rakan"}
 
+# Draft-specific counters that are important across lanes rather than ordinary
+# same-lane matchup data. These are intentionally sparse/high-confidence rules.
+# Example: a planned Malphite materially increases Sylas value regardless of who
+# Sylas lanes into, so that consequence must follow Malphite as an alternate pick.
+DRAFT_SPECIFIC_COUNTERS = {
+    "Malphite": [
+        {
+            "champion": "Sylas",
+            "score": 4.5,
+            "reason": "Sylas can steal Malphite's fight-defining engage ultimate",
+        },
+    ],
+}
+
 # Organised-play priors. Current pro pair_stats can move these up/down,
 # but these prevent individually strong champions forming a strategically weak lane.
 BOT_DUO_PRIORS = {
@@ -711,6 +725,14 @@ def _team_plan_completion(champions: dict[str, str], meta: dict) -> dict:
             score += 0.7; reasons.append("frontline/engage stops free collapse")
         else:
             score -= 1.2; missing.append("anti-dive/frontline")
+        # A true split-push/diver top can coexist with poke, but it is a variant
+        # win condition rather than another siege piece. Do not present Camille-
+        # style tops as the default pure-poke answer just because they are strong.
+        if top in SPLIT_CHAMPS and top not in POKE_CHAMPS:
+            plan = "poke + side-lane"
+            score -= 1.0
+            reasons.append(f"{top} adds side-lane/flank pressure rather than direct siege")
+            missing.append("top does not directly extend poke pressure")
 
     elif adc in ALL_IN_ADCS and support in ENGAGE_SUPPORTS:
         plan = "dive / all-in"
@@ -724,6 +746,9 @@ def _team_plan_completion(champions: dict[str, str], meta: dict) -> dict:
             score += 0.7
         if tanky >= 1:
             score += 0.5
+        if top in SPLIT_CHAMPS and bool(_tags(top, meta) & DIVE_TAGS):
+            score += 0.8
+            reasons.append("top adds side-lane threat and a second backline access angle")
         if control < 1.3:
             score -= 0.7; missing.append("setup/control")
 
@@ -902,7 +927,7 @@ def _champion_carry_demand(role: str, champion: str, meta: dict) -> float:
         demand -= 0.32
     if champion in SPLIT_CHAMPS:
         demand += 0.18
-    if tags & {"ASSASSIN", "MARKSMAN", "SKIRMISHER"}:
+    if tags & {"ASSASSIN", "MARKSMAN", "SKIRMISHER", "DIVER"}:
         demand += 0.12
     if tags & {"TANK", "VANGUARD", "WARDEN"}:
         demand -= 0.35
@@ -1016,6 +1041,7 @@ def _player_fit_adjustment(
     total = 0.0
     role_details = {}
     carry_values = {}
+    demand_values = {}
     win_condition_values = {}
 
     for role in ROLES:
@@ -1075,6 +1101,7 @@ def _player_fit_adjustment(
         total += adjustment
         carry_values[role] = carry
         demand = _champion_carry_demand(role, champion, meta)
+        demand_values[role] = demand
         win_condition_values[role] = carry * demand
         role_details[role] = {
             "carry_index": round(carry, 1),
@@ -1082,10 +1109,72 @@ def _player_fit_adjustment(
             "champion_comfort": round(comfort, 1),
             "champion_ownership": round(ownership, 1),
             "mastery_points": _mastery_points_for(uid, champion),
+            "agency_demand": round(demand, 2),
             "adjustment": round(adjustment, 2),
         }
 
     notes = []
+
+    # WHO carries matters as much as which champions can carry. Match the highest-
+    # leverage players to the highest-agency jobs, while keeping this a soft cost so
+    # a tank on the best player can still win when the composition gain is large.
+    team_carry_avg = sum(carry_values.values()) / max(1, len(carry_values))
+    strongest_player_role = max(carry_values, key=carry_values.get)
+    strongest_player_carry = carry_values[strongest_player_role]
+    strongest_player_demand = demand_values[strongest_player_role]
+    allocation_adjustment = 0.0
+    if strongest_player_carry >= team_carry_avg + 6.0:
+        if strongest_player_demand < 0.30:
+            sacrifice_penalty = min(
+                3.2,
+                1.1
+                + (strongest_player_carry - team_carry_avg) / 25.0 * 1.2
+                + (0.30 - strongest_player_demand) * 3.0,
+            )
+            total -= sacrifice_penalty
+            allocation_adjustment -= sacrifice_penalty
+            notes.append(
+                f"highest carry-profile player is sacrificing agency on {champions[strongest_player_role]}"
+            )
+        elif strongest_player_demand >= 0.72:
+            leverage_bonus = min(
+                1.0,
+                0.35 + (strongest_player_carry - team_carry_avg) / 40.0,
+            )
+            total += leverage_bonus
+            allocation_adjustment += leverage_bonus
+            notes.append("highest carry-profile player is on a high-agency win condition")
+
+    # Penalise obvious agency inversions: a clearly stronger carry profile is on a
+    # low-agency job while a materially weaker profile is asked to play the demanding
+    # carry champion. Cap it so team composition can still justify the sacrifice.
+    inversion_penalty = 0.0
+    for strong_role in ROLES:
+        for weak_role in ROLES:
+            if strong_role == weak_role:
+                continue
+            carry_gap = carry_values[strong_role] - carry_values[weak_role]
+            demand_gap = demand_values[weak_role] - demand_values[strong_role]
+            if carry_gap >= 15.0 and demand_gap >= 0.30:
+                inversion_penalty += min(
+                    0.55,
+                    (carry_gap - 10.0) / 50.0 * demand_gap * 1.4,
+                )
+    inversion_penalty = min(1.5, inversion_penalty)
+    if inversion_penalty > 0:
+        total -= inversion_penalty
+        allocation_adjustment -= inversion_penalty
+
+    credible_threat_roles = [
+        role
+        for role in ROLES
+        if demand_values[role] >= 0.46
+        and float(role_details[role]["champion_comfort"]) >= 4.0
+    ]
+    if len(credible_threat_roles) >= 3:
+        total += 0.65
+        allocation_adjustment += 0.65
+        notes.append("three credible player/champion carry angles reduce damage concentration")
     adc_uid = int(assignment["ADC"]["user_id"])
     adc_carry = carry_values.get("ADC", 50.0)
     if "protect-the-carry" in archetypes:
@@ -1138,7 +1227,7 @@ def _player_fit_adjustment(
         elif tempo >= 65:
             notes.append("mid-jungle player history fits a tempo/skirmish plan")
 
-    elif plan == "poke / siege":
+    elif plan in {"poke / siege", "poke + side-lane"}:
         pressure = (metric("ADC", "dpm") + metric("ADC", "cs")
                     + metric("Mid", "dpm") + metric("Mid", "cs")) / 4.0
         total += (pressure - 50.0) / 50.0 * 1.8
@@ -1163,21 +1252,32 @@ def _player_fit_adjustment(
             total -= 1.0
             notes.append("pick/control plan is on low-participation setup players")
 
-    strongest_role = max(win_condition_values, key=win_condition_values.get)
-    strongest_player = assignment[strongest_role]
-    win_condition = {
-        "role": strongest_role,
-        "user_id": int(strongest_player["user_id"]),
-        "display_name": strongest_player["display_name"],
-        "champion": champions[strongest_role],
-        "score": round(win_condition_values[strongest_role], 1),
-        "player_carry_index": round(carry_values[strongest_role], 1),
-    }
+    ranked_carry_roles = sorted(
+        ROLES,
+        key=lambda role: win_condition_values[role],
+        reverse=True,
+    )
+    carry_options = []
+    for role in ranked_carry_roles[:3]:
+        player = assignment[role]
+        carry_options.append({
+            "role": role,
+            "user_id": int(player["user_id"]),
+            "display_name": player["display_name"],
+            "champion": champions[role],
+            "score": round(win_condition_values[role], 1),
+            "player_carry_index": round(carry_values[role], 1),
+            "agency_demand": round(demand_values[role], 2),
+        })
+    win_condition = carry_options[0]
     return {
         "adjustment": round(max(-12.0, min(12.0, total)), 2),
         "role_details": role_details,
         "notes": notes[:3],
         "carry_plan": win_condition,
+        "carry_options": carry_options,
+        "agency_allocation_adjustment": round(allocation_adjustment, 2),
+        "credible_threat_roles": credible_threat_roles,
         "adc_carry_index": round(adc_carry, 1),
         "adc_user_id": adc_uid,
     }
@@ -1363,6 +1463,7 @@ def _bounded_package_products(
         return list(itertools.product(*(pools[role] for role in ROLES)))
 
     suggestion_sets = {role: set(history_suggestions.get(role, [])) for role in ROLES}
+    player_scores = load_player_score_index()
 
     def individual(role: str, champion: str) -> float:
         uid = int(assignment[role]["user_id"])
@@ -1371,6 +1472,11 @@ def _bounded_package_products(
         solo_wr, solo_weight = _solo_queue_value(role, champion)
         bayes, pro_games = _meta_value(role, champion, meta)
         value = comfort * 0.42 + ownership * 0.26
+        player_carry = float(player_scores.get(uid, {}).get("carry_index", 50.0) or 50.0)
+        agency_demand = _champion_carry_demand(role, champion, meta)
+        # Carry/agency fit belongs in the cheap package heuristic too; otherwise
+        # the bounded search can prune the right high-agency pick before full scoring.
+        value += ((player_carry - 50.0) / 50.0) * (agency_demand - 0.35) * 1.5
         if solo_wr is not None:
             value += (solo_wr - 50.0) * min(1.0, solo_weight / 1500.0) * 0.12
         if pro_games:
@@ -1573,6 +1679,9 @@ def recommend_comps(
                 "player_fit_details": player_fit["role_details"],
                 "player_fit_notes": player_fit["notes"],
                 "carry_plan": player_fit["carry_plan"],
+                "carry_options": player_fit["carry_options"],
+                "agency_allocation_adjustment": player_fit["agency_allocation_adjustment"],
+                "credible_threat_roles": player_fit["credible_threat_roles"],
                 "adc_carry_index": player_fit["adc_carry_index"],
                 "score": round(final_score, 1),
             }
@@ -1797,6 +1906,35 @@ def counter_ban_recommendations(
                 "games": games,
                 "exposure": exposure,
                 "score": score,
+            })
+
+    # Cross-role / draft-shape counters follow the champion itself. This is what
+    # makes an alternate Malphite branch recommend Sylas even when Sylas is not the
+    # opposing top-lane matchup in the lane dataset.
+    for role, own_champion in champions.items():
+        slot_index = pick_slots.get(role, 4)
+        for rule in DRAFT_SPECIFIC_COUNTERS.get(own_champion, []):
+            enemy_champion = str(rule["champion"])
+            enemy_key = enemy_champion.casefold()
+            if enemy_key in own_lower or enemy_key in unavailable_lower:
+                continue
+            score = float(rule.get("score", 0.0) or 0.0)
+            if score <= 0:
+                continue
+            row = aggregated.setdefault(
+                enemy_champion,
+                {"champion": enemy_champion, "score": 0.0, "reasons": []},
+            )
+            row["score"] += score
+            row["reasons"].append({
+                "role": role,
+                "our_champion": own_champion,
+                "pick_number": slot_index + 1,
+                "counter_edge": round(score, 2),
+                "games": 0,
+                "exposure": 1.0,
+                "score": score,
+                "reason": str(rule.get("reason") or "draft-specific counter"),
             })
 
     ranked = sorted(aggregated.values(), key=lambda row: row["score"], reverse=True)
