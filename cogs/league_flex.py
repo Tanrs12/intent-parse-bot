@@ -19,6 +19,7 @@ from discord.ext import commands, tasks
 import db as database
 from config import LEAGUE_EVENT_CHANNEL_ID, LEAGUE_GUILD_ID
 from league_comp_engine import (
+    BLOCKED_ROLE_PICKS,
     attach_learn_suggestions,
     build_draft_book,
     clear_player_profile_caches,
@@ -117,6 +118,8 @@ def _build_role_champions() -> dict[str, tuple[str, ...]]:
         current_roles = load_solo_queue_winrates()
         for role in ROLES:
             for champion, row in current_roles.get(role, {}).items():
+                if (role, str(champion)) in BLOCKED_ROLE_PICKS:
+                    continue
                 if int(row.get("weight", 0) or 0) >= CURRENT_ROLE_SAMPLE_MIN:
                     pools[role].add(str(champion))
     except Exception:
@@ -1020,6 +1023,8 @@ def _attach_role_alternatives(selected: list[dict], candidates: list[dict], max_
                     continue
                 if float(candidate.get("team_plan_score", 5.0)) < float(rec.get("team_plan_score", 5.0)) - 0.8:
                     continue
+                if rec.get("credible_mixed_damage") and not candidate.get("credible_mixed_damage"):
+                    continue
                 base_top_structure = float(rec.get("top_structure_adjustment", 0.0) or 0.0)
                 cand_top_structure = float(candidate.get("top_structure_adjustment", 0.0) or 0.0)
                 if base_top_structure > 0 and cand_top_structure < 0:
@@ -1062,21 +1067,22 @@ def _select_diverse_recommendations(
     core_limit: int = 4,
     role_mix_slots: int = 2,
 ) -> list[dict]:
-    """Keep the best strategic drafts, then add high-quality role-mix variants when available.
+    """Choose 4-6 genuinely different high-quality composition shells.
 
-    The expensive composition search has already happened before this function runs.  The
-    extra slots only select from the existing candidate pool, so surfacing up to two role
-    variants does not expand the solver search or materially increase Northflank CPU time.
+    Small one-role swaps belong inside a draft as role alternatives; they should not
+    consume a separate prepared-draft slot. ``core_limit``/``role_mix_slots`` remain
+    accepted for compatibility, but all output slots now compete on composition diversity.
     """
     recommendations = [rec for rec in recommendations if _recommendation_respects_selected_roles(rec)]
     if not recommendations:
         return []
 
     limit = max(1, int(limit))
-    core_limit = max(1, min(int(core_limit), limit))
-    role_mix_slots = max(0, min(int(role_mix_slots), limit - core_limit))
-    if len(recommendations) <= core_limit:
-        return recommendations[:limit]
+    mixed = [rec for rec in recommendations if rec.get("credible_mixed_damage", True)]
+    if len(mixed) >= min(4, limit):
+        recommendations = mixed
+    if len(recommendations) == 1:
+        return recommendations
 
     chosen = [recommendations[0]]
     remaining = recommendations[1:]
@@ -1094,28 +1100,40 @@ def _select_diverse_recommendations(
     def mid_jungle_package(rec: dict):
         return (rec["champions"]["Mid"], rec["champions"]["Jungle"])
 
-    # First preserve the existing behaviour: choose up to four strong drafts with
-    # genuinely different strategic identities and champion packages.
-    while remaining and len(chosen) < core_limit:
-        score_pool = [rec for rec in remaining if float(rec.get("score", 0)) >= top_score - 10.0] or remaining
+    def min_champion_difference(rec: dict) -> int:
+        sig = champion_signature(rec)
+        return min(
+            sum(a != b for a, b in zip(sig, champion_signature(prev)))
+            for prev in chosen
+        )
+
+    while remaining and len(chosen) < limit:
+        score_pool = [
+            rec for rec in remaining
+            if float(rec.get("score", 0)) >= top_score - 12.0
+        ] or remaining
         best_plan = max(float(rec.get("team_plan_score", 5.0) or 5.0) for rec in score_pool)
         plan_floor = max(5.5, best_plan - 1.5)
         quality_pool = [
             rec for rec in score_pool
             if float(rec.get("team_plan_score", 5.0) or 5.0) >= plan_floor
         ] or score_pool
+
+        # One-pick changes are already shown as alternatives inside a role slot.
+        different_shells = [rec for rec in quality_pool if min_champion_difference(rec) >= 2]
+        if different_shells:
+            quality_pool = different_shells
+
         used_plans = {str(rec.get("team_plan", "balanced")) for rec in chosen}
         used_bot = {bot_package(rec) for rec in chosen}
         used_mj = {mid_jungle_package(rec) for rec in chosen}
         used_carry_roles = {(rec.get("carry_plan") or {}).get("role") for rec in chosen}
+        used_champions = {champ for prev in chosen for champ in champion_signature(prev)}
 
         def diversity_key(rec: dict):
             champ_sig = champion_signature(rec)
             player_sig = player_signature(rec)
-            min_champ_diff = min(
-                sum(a != b for a, b in zip(champ_sig, champion_signature(prev)))
-                for prev in chosen
-            )
+            min_champ_diff = min_champion_difference(rec)
             min_player_diff = min(
                 sum(a != b for a, b in zip(player_sig, player_signature(prev)))
                 for prev in chosen
@@ -1128,69 +1146,21 @@ def _select_diverse_recommendations(
                 for prev in chosen
             )
             package_novelty = int(bot_package(rec) not in used_bot) + int(mid_jungle_package(rec) not in used_mj)
-            role_band = 2 if min_player_diff >= 2 else 1 if min_player_diff >= 1 else 0
             champ_band = 2 if min_champ_diff >= 3 else 1 if min_champ_diff >= 2 else 0
+            new_champion_count = sum(champ not in used_champions for champ in champ_sig)
             return (
-                int(plan not in used_plans),
+                champ_band,
                 package_novelty,
+                new_champion_count,
+                int(plan not in used_plans),
                 int(carry_role not in used_carry_roles),
                 min_new_archetypes,
-                role_band,
-                champ_band,
                 min_champ_diff,
                 min_player_diff,
                 float(rec.get("score", 0)),
             )
 
         best = max(quality_pool, key=diversity_key)
-        chosen.append(best)
-        remaining.remove(best)
-
-    # Then use only the already-scored candidate pool to surface role assignments the
-    # core four may have hidden.  Keep a tighter quality floor for these bonus drafts:
-    # variety is useful, but not if it means recommending a noticeably worse team.
-    bonus_target = min(limit, core_limit + role_mix_slots)
-    while remaining and len(chosen) < bonus_target:
-        seen_signatures = {player_signature(rec) for rec in chosen}
-        used_role_players = {
-            (role, int(rec["players"][role]["user_id"]))
-            for rec in chosen
-            for role in ROLES
-        }
-        score_candidates = [
-            rec for rec in remaining
-            if player_signature(rec) not in seen_signatures
-            and float(rec.get("score", 0)) >= top_score - 8.0
-        ]
-        if score_candidates:
-            best_plan = max(float(rec.get("team_plan_score", 5.0) or 5.0) for rec in score_candidates)
-            plan_floor = max(5.5, best_plan - 1.5)
-            role_candidates = [
-                rec for rec in score_candidates
-                if float(rec.get("team_plan_score", 5.0) or 5.0) >= plan_floor
-            ] or score_candidates
-        else:
-            role_candidates = []
-        if not role_candidates:
-            break
-
-        def role_mix_key(rec: dict):
-            sig = player_signature(rec)
-            min_player_diff = min(
-                sum(a != b for a, b in zip(sig, player_signature(prev)))
-                for prev in chosen
-            )
-            new_role_players = sum(
-                (role, int(rec["players"][role]["user_id"])) not in used_role_players
-                for role in ROLES
-            )
-            return (
-                min_player_diff,
-                new_role_players,
-                float(rec.get("score", 0)),
-            )
-
-        best = max(role_candidates, key=role_mix_key)
         chosen.append(best)
         remaining.remove(best)
 

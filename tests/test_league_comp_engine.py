@@ -646,3 +646,49 @@ def test_history_never_becomes_primary_when_player_selected_no_champions(monkeyp
     recs, missing = recommend_comps([assignment], limit=20, pool_limit=10, meta=meta)
     assert not recs
     assert "Support (Support)" in missing
+
+
+
+def test_zac_yasuo_is_a_premium_mid_jungle_package():
+    meta = load_meta()
+    result = _coordinated_duo_score("Jungle", "Zac", "Mid", "Yasuo", meta)
+    assert result["score"] >= 7.5
+
+
+def test_support_only_magic_does_not_fake_a_balanced_damage_profile():
+    comp = {
+        "Top": "Riven",
+        "Jungle": "Wukong",
+        "Mid": "Yasuo",
+        "ADC": "Jhin",
+        "Support": "Seraphine",
+    }
+    scored = score_comp(comp)
+    assert scored["credible_mixed_damage"] is False
+    assert "no credible magic damage threat" in scored["gaps"]
+
+
+def test_real_magic_threat_with_yasuo_counts_as_mixed_damage():
+    comp = {
+        "Top": "Ornn",
+        "Jungle": "Zac",
+        "Mid": "Yasuo",
+        "ADC": "Jhin",
+        "Support": "Rakan",
+    }
+    scored = score_comp(comp)
+    assert scored["credible_mixed_damage"] is True
+
+
+def test_recommender_never_surfaces_varus_top():
+    assignment = {
+        "Top": _player(8101, "Top", "Top", ["Varus", "Ornn"]),
+        "Jungle": _player(8102, "Jungle", "Jungle", ["Zac"]),
+        "Mid": _player(8103, "Mid", "Mid", ["Yasuo"]),
+        "ADC": _player(8104, "ADC", "ADC", ["Jhin"]),
+        "Support": _player(8105, "Support", "Support", ["Rakan"]),
+    }
+    recs, missing = recommend_comps([assignment], limit=10, pool_limit=2)
+    assert recs
+    assert not missing
+    assert all(rec["champions"]["Top"] != "Varus" for rec in recs)

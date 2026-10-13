@@ -83,3 +83,58 @@ def test_role_alternative_cannot_break_ranged_top_structure():
     }
     _attach_role_alternatives([base],[base,bad_mid])
     assert "Yasuo" not in base.get("role_alternatives",{}).get("Mid",[])
+
+
+def test_draft_portfolio_uses_distinct_shells_instead_of_one_pick_clones():
+    from cogs.league_flex import _select_diverse_recommendations
+    roles = ("Top", "Jungle", "Mid", "ADC", "Support")
+    players = {role: {"user_id": i + 1, "display_name": role, "roles": [role]} for i, role in enumerate(roles)}
+
+    def rec(champs, score, plan, mixed=True):
+        return {
+            "score": score,
+            "team_plan_score": 8.0,
+            "team_plan": plan,
+            "carry_plan": {"role": "Mid"},
+            "archetypes": [plan],
+            "credible_mixed_damage": mixed,
+            "champions": dict(zip(roles, champs)),
+            "players": players,
+        }
+
+    base = rec(["Ornn", "Zac", "Yasuo", "Jhin", "Rakan"], 100, "engage")
+    clone = rec(["Sion", "Zac", "Yasuo", "Jhin", "Rakan"], 99, "engage")
+    shell2 = rec(["Renekton", "Vi", "Ahri", "Ashe", "Nautilus"], 96, "pick")
+    shell3 = rec(["K'Sante", "Diana", "Yasuo", "Ezreal", "Karma"], 94, "dive")
+    chosen = _select_diverse_recommendations([base, clone, shell2, shell3], limit=3)
+    assert base in chosen
+    assert clone not in chosen
+    assert shell2 in chosen and shell3 in chosen
+
+
+def test_draft_portfolio_prefers_credible_mixed_damage_when_enough_exist():
+    from cogs.league_flex import _select_diverse_recommendations
+    roles = ("Top", "Jungle", "Mid", "ADC", "Support")
+    players = {role: {"user_id": i + 1, "display_name": role, "roles": [role]} for i, role in enumerate(roles)}
+
+    def rec(tag, score, mixed):
+        return {
+            "score": score,
+            "team_plan_score": 8.0,
+            "team_plan": tag,
+            "carry_plan": {"role": "Mid"},
+            "archetypes": [tag],
+            "credible_mixed_damage": mixed,
+            "champions": {role: f"{role}-{tag}" for role in roles},
+            "players": players,
+        }
+
+    rows = [rec("physical-only", 100, False)] + [rec(f"mixed-{i}", 96 - i, True) for i in range(5)]
+    chosen = _select_diverse_recommendations(rows, limit=4)
+    assert len(chosen) == 4
+    assert all(row["credible_mixed_damage"] for row in chosen)
+
+
+def test_varus_is_not_offered_in_top_signup_pool():
+    from cogs.league_flex import ROLE_CHAMPIONS
+    assert "Varus" not in ROLE_CHAMPIONS["Top"]

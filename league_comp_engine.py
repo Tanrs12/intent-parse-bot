@@ -51,6 +51,10 @@ PROTECT_CARRY_ADCS = {"Jinx", "Kog'Maw", "Aphelios", "Twitch", "Vayne", "Smolder
 # User-facing draft exclusions. A champion can remain in a player's saved pool/history
 # without ever being surfaced by the composition recommender.
 DISPLAY_EXCLUDED_CHAMPIONS = {"Teemo"}
+# Role-specific niche picks can still exist in account history, but should not be
+# forced into normal prepared drafts unless we deliberately reopen them later.
+BLOCKED_ROLE_PICKS = {("Top", "Varus")}
+CREDIBLE_DAMAGE_MIN = 1.75
 
 # Ranged/carry Top consumes a team resource slot. These champions are useful signals
 # that Jungle can supply low-economy frontline while Mid supplies dependable waveclear.
@@ -113,6 +117,7 @@ COORDINATED_DUO_PRIORS = {
     ("Jungle", "Mid", "Jarvan IV", "Orianna"): 0.96,
     ("Jungle", "Mid", "Nocturne", "Orianna"): 0.96,
     ("Jungle", "Mid", "Diana", "Yasuo"): 1.00,
+    ("Jungle", "Mid", "Zac", "Yasuo"): 1.00,
     ("Jungle", "Mid", "Vi", "Taliyah"): 0.94,
     ("Jungle", "Mid", "Vi", "Lissandra"): 0.92,
     ("Jungle", "Mid", "Lee Sin", "LeBlanc"): 0.90,
@@ -1060,6 +1065,46 @@ def _damage_mix(champions: dict[str, str], meta: dict) -> tuple[float, str]:
     return score, label
 
 
+def _credible_damage_profile(champions: dict[str, str], meta: dict) -> dict:
+    """Require both damage types to come from a meaningful threat, not token support AP."""
+    totals = {"physical": 0.0, "magic": 0.0}
+    sources = {"physical": [], "magic": []}
+    for role, champion in champions.items():
+        damage_rating = float(_rating(champion, "damage", meta) or 0)
+        economy = 0.40 if role == "Support" else 1.0
+        contribution = damage_rating * economy
+        if champion in HYBRID_CHAMPS:
+            physical = contribution * 0.5
+            magic = contribution * 0.5
+            totals["physical"] += physical
+            totals["magic"] += magic
+            if physical >= CREDIBLE_DAMAGE_MIN:
+                sources["physical"].append(champion)
+            if magic >= CREDIBLE_DAMAGE_MIN:
+                sources["magic"].append(champion)
+            continue
+        adaptive = str(_traits(champion, meta).get("adaptive_type") or "")
+        if adaptive == "PHYSICAL_DAMAGE":
+            totals["physical"] += contribution
+            if contribution >= CREDIBLE_DAMAGE_MIN:
+                sources["physical"].append(champion)
+        elif adaptive == "MAGIC_DAMAGE":
+            totals["magic"] += contribution
+            if contribution >= CREDIBLE_DAMAGE_MIN:
+                sources["magic"].append(champion)
+
+    return {
+        "physical": round(totals["physical"], 2),
+        "magic": round(totals["magic"], 2),
+        "physical_sources": sources["physical"],
+        "magic_sources": sources["magic"],
+        "credible_mixed": (
+            totals["physical"] >= CREDIBLE_DAMAGE_MIN
+            and totals["magic"] >= CREDIBLE_DAMAGE_MIN
+        ),
+    }
+
+
 def _archetypes(champions: dict[str, str], meta: dict) -> list[str]:
     champs = list(champions.values())
     tags = [_tags(champ, meta) for champ in champs]
@@ -1494,6 +1539,8 @@ def score_comp(champions: dict[str, str], meta: dict | None = None) -> dict:
     ranged = sum(str(_traits(c, meta).get("attack_type")) == "RANGED" for c in champs)
     range_score = {0: 1.0, 1: 4.0, 2: 7.0, 3: 8.0, 4: 8.0, 5: 6.0}.get(ranged, 5.0)
     mix_score, mix_label = _damage_mix(champions, meta)
+    damage_profile = _credible_damage_profile(champions, meta)
+    credible_mixed_damage = bool(damage_profile["credible_mixed"])
 
     solo_wr_terms = []
     solo_wr_display = []
@@ -1558,6 +1605,7 @@ def score_comp(champions: dict[str, str], meta: dict | None = None) -> dict:
         + damage_score + mobility_score + range_score + mix_score
         + solo_queue_score + meta_score + synergy_score + bot_lane_adjustment + package_adjustment
         + team_plan_adjustment + top_structure_adjustment
+        + (0.0 if credible_mixed_damage else -16.0)
     )
     total = max(0.0, min(100.0, total))
 
@@ -1575,10 +1623,11 @@ def score_comp(champions: dict[str, str], meta: dict | None = None) -> dict:
         strengths.append("strong crowd control")
     elif control_avg < 1.3:
         gaps.append("light crowd control")
-    if mix_score >= 8:
-        strengths.append("mixed damage")
-    elif "heavy" in mix_label:
-        gaps.append(mix_label)
+    if credible_mixed_damage:
+        strengths.append("credible mixed damage")
+    else:
+        missing_type = "magic" if damage_profile["magic"] < CREDIBLE_DAMAGE_MIN else "physical"
+        gaps.append(f"no credible {missing_type} damage threat")
     if ranged <= 1:
         gaps.append("very short-ranged")
     if supported_pairs >= 5 and synergy_score >= 5:
@@ -1591,6 +1640,8 @@ def score_comp(champions: dict[str, str], meta: dict | None = None) -> dict:
         "strengths": strengths[:4],
         "gaps": gaps[:4],
         "damage_mix": mix_label,
+        "credible_mixed_damage": credible_mixed_damage,
+        "damage_profile": damage_profile,
         "pro_pair_samples": supported_pairs,
         "solo_queue_score": round(solo_queue_score, 1),
         "average_solo_queue_win_rate": avg_solo_wr,
@@ -1800,6 +1851,8 @@ def recommend_comps(
             if len(set(picks)) != len(picks):
                 continue
             champions = dict(zip(ROLES, picks))
+            if any((role, champions[role]) in BLOCKED_ROLE_PICKS for role in ROLES):
+                continue
             scored = score_comp(champions, meta)
             player_fit = _player_fit_adjustment(
                 assignment,
