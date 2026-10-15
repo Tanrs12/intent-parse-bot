@@ -196,3 +196,22 @@ def test_bot_test_state_ignores_auto_selected_ally_bots(monkeypatch):
     assert effective["our_team"][1]["locked"] is None
     assert effective["our_team"][2]["locked"] is None
     assert effective["enemy_team"][0]["locked"] == "Sett"
+
+
+def test_custom_test_overrides_apply_without_touching_original():
+    bridge._set_test_overrides({"clear": True})
+    bridge._set_test_overrides({"ban": "Camille", "enemy_pick": {"role": "Top", "champion": "Rumble"},
+                                "our_pick": {"role": "Jungle", "champion": "Amumu"}})
+    original = {"our_team": [{"role": "Jungle", "locked": None}], "enemy_team": [{"role": "Top", "locked": None}],
+                "our_bans": [], "enemy_bans": []}
+    effective = bridge._apply_test_overrides(original)
+    assert original["enemy_bans"] == []
+    assert effective["enemy_bans"] == ["Camille"]
+    assert effective["enemy_team"][0]["locked"] == "Rumble"
+    assert effective["our_team"][0]["locked"] == "Amumu"
+    bridge._set_test_overrides({"clear": True})
+
+
+def test_bridge_has_champion_ids_for_overlay_icons():
+    assert bridge._champion_id("Camille") == 164
+    assert bridge._champion_id("LeBlanc") == 7

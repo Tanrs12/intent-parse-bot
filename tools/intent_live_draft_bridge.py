@@ -30,6 +30,25 @@ SIGNUP_CACHE = REPO / "data" / "live_flex_signups.json"
 RUNTIME_PRO_PATH = REPO / "data" / "live_league_recent_pro.json"
 ARAM_QUEUE_IDS = {450, 2400}
 
+
+def _load_champion_ids() -> dict[str, int]:
+    try:
+        raw = json.loads((REPO / "draftcoach" / "champion_ids.json").read_text(encoding="utf-8-sig"))
+        return {str(name).casefold(): int(cid) for cid, name in (raw.get("champions") or {}).items()}
+    except Exception:
+        return {}
+
+
+CHAMPION_IDS = _load_champion_ids()
+
+
+def _champion_id(name: str | None) -> int | None:
+    return CHAMPION_IDS.get(str(name or "").casefold())
+
+
+_test_lock = threading.Lock()
+_test_overrides = {"bans": [], "enemy": {}, "ours": {}}
+
 # Keep runtime pro refreshes out of the tracked Git snapshot while still feeding the engine.
 if not RUNTIME_PRO_PATH.exists():
     try:
@@ -295,6 +314,76 @@ def _state_for_test(state: dict) -> dict:
     return out
 
 
+
+def _apply_test_overrides(state: dict) -> dict:
+    """Overlay-only custom/bot test events on a copy of the live state.
+
+    These inputs are never used in Ranked Flex. They let a solo custom/bot lobby exercise the
+    exact same backend with sequential bans/picks that Riot's bots normally reveal all at once.
+    """
+    out = dict(state)
+    out["our_team"] = [dict(row) for row in (state.get("our_team") or [])]
+    out["enemy_team"] = [dict(row) for row in (state.get("enemy_team") or [])]
+    out["our_bans"] = list(state.get("our_bans") or [])
+    out["enemy_bans"] = list(state.get("enemy_bans") or [])
+    with _test_lock:
+        test = {
+            "bans": list(_test_overrides.get("bans") or []),
+            "enemy": dict(_test_overrides.get("enemy") or {}),
+            "ours": dict(_test_overrides.get("ours") or {}),
+        }
+    for champ in test["bans"]:
+        if champ and champ not in out["enemy_bans"]:
+            out["enemy_bans"].append(champ)
+
+    def set_lock(team: list[dict], role: str, champion: str) -> None:
+        row = next((item for item in team if item.get("role") == role), None)
+        if row is None:
+            row = {"role": role, "cell_id": 100 + len(team), "display_name": f"Test {role}"}
+            team.append(row)
+        row["locked"] = champion or None
+        row["hover"] = None
+
+    for role, champion in test["enemy"].items():
+        if role in ROLES:
+            set_lock(out["enemy_team"], role, champion)
+    for role, champion in test["ours"].items():
+        if role in ROLES:
+            set_lock(out["our_team"], role, champion)
+    out["test_overrides"] = test
+    return out
+
+
+def _set_test_overrides(payload: dict) -> dict:
+    with _test_lock:
+        if payload.get("clear"):
+            _test_overrides["bans"] = []
+            _test_overrides["enemy"] = {}
+            _test_overrides["ours"] = {}
+        if "ban" in payload:
+            champ = str(payload.get("ban") or "").strip()
+            if champ and champ not in _test_overrides["bans"]:
+                _test_overrides["bans"].append(champ)
+        if "unban" in payload:
+            champ = str(payload.get("unban") or "").strip().casefold()
+            _test_overrides["bans"] = [x for x in _test_overrides["bans"] if str(x).casefold() != champ]
+        for key in ("enemy_pick", "our_pick"):
+            item = payload.get(key)
+            if isinstance(item, dict):
+                role = str(item.get("role") or "")
+                champion = str(item.get("champion") or "").strip()
+                target = _test_overrides["enemy" if key == "enemy_pick" else "ours"]
+                if role in ROLES:
+                    if champion:
+                        target[role] = champion
+                    else:
+                        target.pop(role, None)
+        return {
+            "bans": list(_test_overrides["bans"]),
+            "enemy": dict(_test_overrides["enemy"]),
+            "ours": dict(_test_overrides["ours"]),
+        }
+
 def _unavailable(state: dict) -> set[str]:
     names = set(state.get("our_bans") or []) | set(state.get("enemy_bans") or [])
     for row in (state.get("our_team") or []) + (state.get("enemy_team") or []):
@@ -376,7 +465,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         picks.append({
             "role": role,
             "champion": champ,
-            "champion_id": None,
+            "champion_id": _champion_id(champ),
             "score": float(rec.get("score", rec.get("composition_score", 0.0)) or 0.0),
             "rank": float(rec.get("live_rank_score", rec.get("score", 0.0)) or 0.0),
             "comp_score": float(rec.get("composition_score", rec.get("score", 0.0)) or 0.0),
@@ -401,11 +490,11 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
     if recs:
         for item in (recs[0].get("counter_bans") or [])[:5]:
             if isinstance(item, str):
-                bans.append({"champion": item, "champion_id": None, "score": 1.0, "reasons": ["protects the planned Intent draft"], "tags": ["intent"]})
+                bans.append({"champion": item, "champion_id": _champion_id(item), "score": 1.0, "reasons": ["protects the planned Intent draft"], "tags": ["intent"]})
             elif isinstance(item, dict):
                 champ = item.get("champion") or item.get("name")
                 if champ:
-                    bans.append({"champion": champ, "champion_id": None, "score": float(item.get("score", 1.0) or 1.0), "reasons": item.get("reasons") or [item.get("reason") or "protects the planned Intent draft"], "tags": list(item.get("tags") or ["intent"])})
+                    bans.append({"champion": champ, "champion_id": _champion_id(champ), "score": float(item.get("score", 1.0) or 1.0), "reasons": item.get("reasons") or [item.get("reason") or "protects the planned Intent draft"], "tags": list(item.get("tags") or ["intent"])})
 
     comps = []
     for rec in recs[:6]:
@@ -415,6 +504,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
             "lane_adjustment": float(rec.get("live_lane_adjustment", 0.0) or 0.0),
             "lane_edges": list(rec.get("live_lane_edges") or []),
             "champions": rec.get("champions") or {},
+            "champion_ids": {role: _champion_id((rec.get("champions") or {}).get(role)) for role in ROLES},
             "players": {role: (rec.get("players", {}).get(role) or {}).get("display_name", role) for role in ROLES},
             "team_plan": rec.get("team_plan"),
             "pick_order": list(rec.get("pick_order") or []),
@@ -430,6 +520,9 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         "draft_complete": len(locked_roles) == 5,
         "our_locked": _locked_by_role(state),
         "enemy_locked": enemy_locked,
+        "our_bans": list(state.get("our_bans") or []),
+        "enemy_bans": list(state.get("enemy_bans") or []),
+        "test_overrides": dict(state.get("test_overrides") or {}),
         "swaps": [],
         "picks": picks,
         "bans": bans,
@@ -483,16 +576,16 @@ def build_response():
     if len(five) != 5:
         label = "test lineup" if testing else "Discord signup profiles"
         return {"active": False, "disabled": False, "reason": f"Waiting for all five {label}", "matched": len(five), **merged_gate, **party}
-    effective_state = _state_for_test(state) if testing else state
+    effective_state = _apply_test_overrides(_state_for_test(state)) if testing else state
     locked = _locked_by_role(effective_state)
     unavailable = _unavailable(effective_state)
     cache_key = json.dumps({
         "side": state.get("side") or "blue",
         "active": state.get("active") or {},
-        "our_bans": state.get("our_bans") or [],
-        "enemy_bans": state.get("enemy_bans") or [],
+        "our_bans": effective_state.get("our_bans") or [],
+        "enemy_bans": effective_state.get("enemy_bans") or [],
         "locked": locked,
-        "enemy_locked": [row.get("locked") for row in state.get("enemy_team", []) if row.get("locked")],
+        "enemy_locked": [row.get("locked") for row in effective_state.get("enemy_team", []) if row.get("locked")],
         "players": [int(row["user_id"]) for row in five],
     }, sort_keys=True)
     global _response_cache_key, _response_cache_value, _response_cache_at
@@ -508,7 +601,7 @@ def build_response():
             limit=6,
             rotation_token=None,
         )
-        response = {"active": True, "disabled": False, "reason": "Intent backend active", "guidance": _guidance_from_result(result, effective_state), **merged_gate, **party}
+        response = {"active": True, "disabled": False, "reason": "Intent backend active", "testing": testing, "guidance": _guidance_from_result(result, effective_state), **merged_gate, **party}
         _response_cache_key = cache_key
         _response_cache_value = response
         _response_cache_at = now
@@ -516,16 +609,43 @@ def build_response():
 
 
 class Handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        if self.path.split("?", 1)[0] != "/api/guidance":
-            self.send_response(404); self.end_headers(); return
-        payload = json.dumps(build_response()).encode("utf-8")
-        self.send_response(200)
+    def _reply(self, obj: dict, status: int = 200) -> None:
+        payload = json.dumps(obj).encode("utf-8")
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Cache-Control", "no-store")
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(payload)
+
+    def do_GET(self):
+        path = self.path.split("?", 1)[0]
+        if path == "/api/guidance":
+            self._reply(build_response())
+            return
+        if path == "/api/test":
+            with _test_lock:
+                current = {"bans": list(_test_overrides["bans"]), "enemy": dict(_test_overrides["enemy"]), "ours": dict(_test_overrides["ours"])}
+            self._reply({"ok": True, "test": current})
+            return
+        self._reply({"error": "not found"}, 404)
+
+    def do_POST(self):
+        if self.path.split("?", 1)[0] != "/api/test":
+            self._reply({"error": "not found"}, 404)
+            return
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+            payload = json.loads(self.rfile.read(length) or b"{}")
+            if not isinstance(payload, dict):
+                raise ValueError("expected object")
+        except Exception as exc:
+            self._reply({"error": str(exc)}, 400)
+            return
+        global _response_cache_key
+        current = _set_test_overrides(payload)
+        _response_cache_key = None
+        self._reply({"ok": True, "test": current})
 
     def log_message(self, fmt, *args):
         return

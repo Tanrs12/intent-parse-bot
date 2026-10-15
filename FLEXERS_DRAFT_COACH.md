@@ -121,3 +121,25 @@ anyone without Northflank access.
 `tools/patch_flexers_intent_ui.py <FlexersDraftCoach folder>` patches the packaged Coach/HUD HTML so its visible pick and ban recommendations come from that bridge instead of the packaged advisor. The original HTML files are preserved as `.intent.bak` files.
 
 The bridge deliberately disables Flex recommendations in standard ARAM and ARAM: Mayhem. It detects both the known queue IDs (450 and 2400) and the League Client gameflow mode/name (`ARAM`, `Mayhem`, `KIWI`, or Howling Abyss) so the HUD does not appear in those lobbies. It also requires a confirmed five-player premade: the League lobby must contain exactly five party members before guidance is enabled, and that confirmation is cached briefly so it survives the transition from lobby into champion select.
+
+## Live UI split
+
+During champion select the six composition cards are docked **outside the left edge** of the League client. Each card shows the five champion portraits, the player/role assignment, and a 1-5 badge for that composition's planned reveal order. The cards are ordered by the same shared backend score; Rat's bounded live matchup adjustment can move close plans up/down when an enemy role is revealed. The number shown is a **draft score, not a literal calibrated win percentage**.
+
+The familiar bottom-right HUD has a different job: it shows only the **next action now** (pick or ban) and keeps the Hover / Lock-in buttons. In packaged builds it is fed through `tools/intent_hud_proxy.py`, so it uses the same INTent recommendation as the left-side cards instead of a second advisor result.
+
+If a displayed plan becomes impossible because one of its champions is banned or taken by the enemy, the left card is kept temporarily as a red/grey `OUT` card with an X on the affected portrait while the surviving/new plans move ahead of it.
+
+### Custom / bot visual testing
+
+Custom and versus-AI champ selects can inject **local-only test events** through `http://127.0.0.1:8766/api/test`. They are ignored outside test queues and never click the League client. Helpers:
+
+```powershell
+python tools/intent_draft_test.py ban Camille
+python tools/intent_draft_test.py enemy Top Rumble
+python tools/intent_draft_test.py ours Jungle Amumu
+python tools/intent_draft_test.py clear
+python tools/intent_draft_demo.py
+```
+
+`intent_draft_demo.py` demonstrates a plan being invalidated, live matchup-driven re-ranking, and one of our planned locks while leaving the real client untouched.
