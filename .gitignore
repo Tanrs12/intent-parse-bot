@@ -5,3 +5,8 @@ _tmp_*.html
 data/*.tmp
 data/live_flex_signups.json
 data/live_league_recent_pro.json
+
+# Draft Coach runtime state and build output
+var/
+dist/
+build/
