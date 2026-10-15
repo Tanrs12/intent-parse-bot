@@ -110,5 +110,47 @@ def main(argv: list[str] | None = None) -> None:
         thread.join(timeout=5)
 
 
+def _entry() -> None:
+    """Log to var/draftcoach.log and never die silently: a crash lands in var/crash.log and a dialog."""
+    import logging
+    import traceback
+
+    try:
+        VAR_DIR.mkdir(parents=True, exist_ok=True)
+        handler = logging.FileHandler(VAR_DIR / "draftcoach.log", encoding="utf-8")
+        handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s"))
+        logging.getLogger().addHandler(handler)
+        logging.getLogger().setLevel(logging.INFO)
+    except OSError:
+        pass
+    try:
+        main()
+    except SystemExit:
+        raise
+    except BaseException:  # noqa: BLE001 - report everything, including import errors in the frozen build
+        text = traceback.format_exc()
+        try:
+            (VAR_DIR / "crash.log").write_text(text, encoding="utf-8")
+            where = str(VAR_DIR / "crash.log")
+        except OSError:
+            where = "(could not write var/crash.log)"
+        print(text, file=sys.stderr)
+        print(f"Flexers Draft Coach stopped. Details: {where}", file=sys.stderr)
+        if sys.platform == "win32":
+            try:
+                import ctypes
+
+                ctypes.windll.user32.MessageBoxW(
+                    0, "Flexers Draft Coach stopped with an error.
+
+" + text[-1500:] + "
+
+Saved to: " + where,
+                    "Flexers Draft Coach", 0x10)
+            except Exception:  # noqa: BLE001
+                pass
+        raise
+
+
 if __name__ == "__main__":
-    main()
+    _entry()

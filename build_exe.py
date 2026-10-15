@@ -66,6 +66,10 @@ Double-click one of these:
                                          IP, and gets the shared roster with their own client.
   Coach PC (share roster on the LAN).bat The coach runs this one so the players can sync.
 
+If it stops with an error, the details are in var\crash.log (and a dialog shows them); the normal
+log is var\draftcoach.log. Both sit next to the exe. "Failed to load Python DLL" means the exe was run
+from inside the zip or moved away from its _internal folder: extract the whole zip first.
+
 Windows SmartScreen may warn the first time because the .exe is unsigned: choose
 "More info" > "Run anyway". Windows Firewall may ask to allow it on private networks
 (needed only for the sync between machines).
