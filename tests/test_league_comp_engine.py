@@ -755,3 +755,36 @@ def test_high_carry_top_gets_opportunity_cost_on_low_econ_tank(monkeypatch):
     assert carry_fit["role_details"]["Top"]["adjustment"] >= tank_fit["role_details"]["Top"]["adjustment"] + 1.5
     assert tank_fit["adjustment"] < carry_fit["adjustment"]
 
+
+
+
+def test_strongest_flex_adc_pays_shared_lane_snowball_opportunity_cost(monkeypatch):
+    meta = load_meta()
+    scores = {
+        1: {"carry_index": 100.0, "reliability_index": 95.0, "metrics": {}, "roles": {}},
+        2: {"carry_index": 55.0, "reliability_index": 60.0, "metrics": {}, "roles": {}},
+        3: {"carry_index": 50.0, "reliability_index": 60.0, "metrics": {}, "roles": {}},
+        4: {"carry_index": 45.0, "reliability_index": 55.0, "metrics": {}, "roles": {}},
+        5: {"carry_index": 40.0, "reliability_index": 55.0, "metrics": {}, "roles": {}},
+    }
+    monkeypatch.setattr(engine, "load_player_score_index", lambda: scores)
+    monkeypatch.setattr(engine, "_champion_comfort", lambda *args, **kwargs: 5.0)
+    monkeypatch.setattr(engine, "_champion_ownership", lambda *args, **kwargs: 5.0)
+    monkeypatch.setattr(engine, "_mastery_points_for", lambda *args, **kwargs: 0)
+    champions = {"Top": "Ornn", "Jungle": "Vi", "Mid": "Orianna", "ADC": "Ezreal", "Support": "Lulu"}
+
+    flex_adc = {
+        "Top": {"user_id": 2, "display_name": "Top"},
+        "Jungle": {"user_id": 3, "display_name": "Jungle"},
+        "Mid": {"user_id": 4, "display_name": "Mid"},
+        "ADC": {"user_id": 1, "display_name": "Flex carry", "_role_priority_level": 2},
+        "Support": {"user_id": 5, "display_name": "Support"},
+    }
+    p1_adc = {role: dict(player) for role, player in flex_adc.items()}
+    p1_adc["ADC"] = dict(flex_adc["ADC"], _role_priority_level=1)
+
+    flex_fit = engine._player_fit_adjustment(flex_adc, champions, [], meta)
+    p1_fit = engine._player_fit_adjustment(p1_adc, champions, [], meta)
+    assert flex_fit["agency_allocation_adjustment"] <= p1_fit["agency_allocation_adjustment"] - 2.0
+    assert any("solo-lane snowball agency" in note for note in flex_fit["notes"])
+    assert not any("solo-lane snowball agency" in note for note in p1_fit["notes"])

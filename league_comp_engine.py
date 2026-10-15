@@ -1373,6 +1373,34 @@ def _player_fit_adjustment(
             allocation_adjustment += leverage_bonus
             notes.append("highest carry-profile player is on a high-agency win condition")
 
+    # Bot lane shares early-lane agency with another player. If the lineup's strongest
+    # snowball/carry profile is only flexing ADC (P2/P3), charge an opportunity cost for
+    # giving up a solo lane/jungle where that player can build a lead independently.
+    # Do NOT apply this to a genuine P1 ADC: a true ADC main should be allowed to own the
+    # role (e.g. Jack) without the portfolio trying to rotate him out for fairness.
+    adc_player = assignment["ADC"]
+    adc_priority = adc_player.get("_role_priority_level")
+    if adc_priority not in {1, 2, 3}:
+        try:
+            adc_priority = int((adc_player.get("role_priority") or {}).get("ADC"))
+        except (TypeError, ValueError):
+            adc_priority = None
+    if strongest_player_role == "ADC" and adc_priority in {2, 3}:
+        carry_gap = strongest_player_carry - team_carry_avg
+        support_gap = strongest_player_carry - carry_values.get("Support", 50.0)
+        if carry_gap >= 8.0:
+            shared_lane_penalty = min(
+                4.8,
+                1.6
+                + max(0.0, carry_gap - 8.0) / 18.0 * 1.4
+                + max(0.0, support_gap - 10.0) / 30.0 * 1.5,
+            )
+            total -= shared_lane_penalty
+            allocation_adjustment -= shared_lane_penalty
+            notes.append(
+                "strongest carry-profile player loses solo-lane snowball agency by flexing ADC"
+            )
+
     # Do not stack the two strongest carry profiles into bot lane unless the quality
     # gain is large enough to justify surrendering a strong solo-lane/jungle resource.
     top_two_roles = set(carry_order[:2])

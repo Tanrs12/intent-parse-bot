@@ -294,3 +294,46 @@ def test_draft_portfolio_balances_adc_between_viable_holders():
         uid = int(row["players"]["ADC"]["user_id"])
         counts[uid] = counts.get(uid, 0) + 1
     assert counts == {101: 2, 202: 2, 303: 2}
+
+
+
+def test_draft_portfolio_does_not_force_even_adc_rotation_when_p1_adc_exists():
+    from cogs.league_flex import _select_diverse_recommendations
+    roles = ("Top", "Jungle", "Mid", "ADC", "Support")
+
+    def rec(idx, adc_uid, adc_priority, score):
+        player_ids = [10 + idx, 20 + idx, 30 + idx, adc_uid, 50 + idx]
+        players = {}
+        for i, role in enumerate(roles):
+            players[role] = {
+                "user_id": player_ids[i],
+                "display_name": str(player_ids[i]),
+                "roles": list(roles),
+                "role_priority": {r: 2 for r in roles},
+            }
+        players["ADC"]["role_priority"]["ADC"] = adc_priority
+        return {
+            "score": score,
+            "team_plan_score": 8.0,
+            "team_plan": f"plan-{idx}",
+            "carry_plan": {"role": "Mid"},
+            "archetypes": [f"a-{idx}"],
+            "credible_mixed_damage": True,
+            "champions": {role: f"{role}-{idx}" for role in roles},
+            "players": players,
+        }
+
+    # A real P1 ADC (Jack-like case) can own most of the portfolio. P2/P3 swaps remain
+    # available, but there is no fairness rule forcing a 2-2-2 split.
+    rows = [
+        rec(0, 101, 1, 100.0), rec(1, 101, 1, 99.8), rec(2, 101, 1, 99.6), rec(3, 101, 1, 99.4),
+        rec(4, 202, 2, 99.2), rec(5, 303, 3, 99.0),
+    ]
+    chosen = _select_diverse_recommendations(rows, limit=6)
+    counts = {}
+    for row in chosen:
+        uid = int(row["players"]["ADC"]["user_id"])
+        counts[uid] = counts.get(uid, 0) + 1
+    assert counts[101] == 4
+    assert counts[202] == 1
+    assert counts[303] == 1

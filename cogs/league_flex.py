@@ -1236,15 +1236,24 @@ def _select_diverse_recommendations(
             if float(rec.get("team_plan_score", 5.0) or 5.0) >= plan_floor
         ] or score_pool
 
-        # Share ADC duty across every viable selected ADC player before repeating
-        # the same holder. Once everyone represented in the quality pool has appeared,
-        # keep counts as even as possible across the six prepared drafts.
-        adc_usage = {}
-        for prev in chosen:
-            uid = int(prev["players"]["ADC"]["user_id"])
-            adc_usage[uid] = adc_usage.get(uid, 0) + 1
-        candidate_adc_users = {int(rec["players"]["ADC"]["user_id"]) for rec in quality_pool}
-        if candidate_adc_users:
+        # Only rotate ADC duty deliberately when this five has no true P1 ADC.
+        # In that fallback-only case, spreading viable ADC assignments stops a P2
+        # flex carry from being funnelled bot every draft just because P3 teammates
+        # are slightly less preferred there. If a genuine P1 ADC is available (e.g.
+        # Jack), role priority and comp/player-fit scoring take over instead: the P1
+        # ADC may appear in most drafts, while swaps remain legal when they improve
+        # the actual composition.
+        adc_priorities = {
+            int(rec["players"]["ADC"]["user_id"]):
+            (_role_priority_level(rec["players"]["ADC"], "ADC") or 3)
+            for rec in quality_pool
+        }
+        if adc_priorities and min(adc_priorities.values()) > 1:
+            adc_usage = {}
+            for prev in chosen:
+                uid = int(prev["players"]["ADC"]["user_id"])
+                adc_usage[uid] = adc_usage.get(uid, 0) + 1
+            candidate_adc_users = set(adc_priorities)
             least_used = min(adc_usage.get(uid, 0) for uid in candidate_adc_users)
             balanced_adc = [
                 rec for rec in quality_pool
