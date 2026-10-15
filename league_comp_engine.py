@@ -1308,7 +1308,13 @@ def _player_fit_adjustment(
             tags = _tags(champion, meta)
             low_econ_frontline = bool(tags & {"TANK", "VANGUARD", "WARDEN"})
             if low_econ_frontline:
-                adjustment += (reliability - 50.0) / 50.0 * 0.4
+                # Reliable players can still be good tank pilots, but don't spend a
+                # clearly stronger carry profile on a low-economy Top by default.
+                # This is deliberately modest: a much better five-man comp can still
+                # justify the tank, while close drafts should preserve that player's agency.
+                adjustment += (reliability - 50.0) / 50.0 * 0.30
+                if carry > 50.0:
+                    adjustment -= (carry - 50.0) / 50.0 * 1.25
             else:
                 adjustment += (carry - 50.0) / 50.0 * 0.75
         elif role == "Jungle":
@@ -1887,9 +1893,14 @@ def recommend_comps(
             # carry/agency allocation layer is only a tie-breaker among otherwise
             # good compositions; it must not rescue a structurally worse five-man.
             agency_adjustment = float(player_fit.get("agency_allocation_adjustment", 0.0) or 0.0)
+            # Positive agency bonuses stay a light tie-breaker so we never force a bad
+            # composition just to put the strongest player on a carry. Negative agency
+            # mistakes count more strongly: wasting a top carry profile on low agency
+            # while weaker players get the demanding jobs should lose close drafts.
+            agency_weight = 0.55 if agency_adjustment < 0.0 else 0.35
             weighted_player_fit = (
                 float(player_fit["adjustment"]) - agency_adjustment
-                + agency_adjustment * 0.35
+                + agency_adjustment * agency_weight
             )
             # Player strength modifies a sound draft; it must not rescue a shell with
             # poor strategic completion. Positive player-fit is progressively capped

@@ -726,3 +726,32 @@ def test_two_strongest_carry_profiles_are_penalised_when_stacked_adc_support(mon
     stacked_fit = engine._player_fit_adjustment(stacked, champions, score_comp(champions, meta)["archetypes"], meta)
     spread_fit = engine._player_fit_adjustment(spread, champions, score_comp(champions, meta)["archetypes"], meta)
     assert stacked_fit["agency_allocation_adjustment"] <= spread_fit["agency_allocation_adjustment"] - 1.5
+
+
+def test_high_carry_top_gets_opportunity_cost_on_low_econ_tank(monkeypatch):
+    meta = load_meta()
+    scores = {
+        1: {"carry_index": 100.0, "reliability_index": 95.0, "metrics": {}, "roles": {}},
+        2: {"carry_index": 50.0, "reliability_index": 55.0, "metrics": {}, "roles": {}},
+        3: {"carry_index": 50.0, "reliability_index": 55.0, "metrics": {}, "roles": {}},
+        4: {"carry_index": 50.0, "reliability_index": 55.0, "metrics": {}, "roles": {}},
+        5: {"carry_index": 50.0, "reliability_index": 55.0, "metrics": {}, "roles": {}},
+    }
+    monkeypatch.setattr(engine, "load_player_score_index", lambda: scores)
+    monkeypatch.setattr(engine, "_champion_comfort", lambda *args, **kwargs: 5.0)
+    monkeypatch.setattr(engine, "_champion_ownership", lambda *args, **kwargs: 5.0)
+    monkeypatch.setattr(engine, "_mastery_points_for", lambda *args, **kwargs: 0)
+    assignment = {
+        "Top": {"user_id": 1, "display_name": "Carry Top"},
+        "Jungle": {"user_id": 2, "display_name": "Jungle"},
+        "Mid": {"user_id": 3, "display_name": "Mid"},
+        "ADC": {"user_id": 4, "display_name": "ADC"},
+        "Support": {"user_id": 5, "display_name": "Support"},
+    }
+    tank = {"Top": "Malphite", "Jungle": "Vi", "Mid": "Orianna", "ADC": "Jinx", "Support": "Lulu"}
+    carry = dict(tank, Top="Camille")
+    tank_fit = engine._player_fit_adjustment(assignment, tank, [], meta)
+    carry_fit = engine._player_fit_adjustment(assignment, carry, [], meta)
+    assert carry_fit["role_details"]["Top"]["adjustment"] >= tank_fit["role_details"]["Top"]["adjustment"] + 1.5
+    assert tank_fit["adjustment"] < carry_fit["adjustment"]
+

@@ -230,3 +230,18 @@ def test_team_option_search_preserves_selected_roles_for_top_carry_flex_player(m
         if int(option[role]["user_id"]) == 1
     }
     assert {"Top", "Jungle", "Mid"}.issubset(cian_roles)
+
+
+def test_role_priority_penalties_make_secondary_and_fill_true_fallbacks():
+    import cogs.league_flex as flex
+
+    base = {
+        "user_id": 1,
+        "display_name": "Flex",
+        "roles": ["Top", "Mid", "ADC"],
+        "role_priority": {"Top": 1, "Mid": 2, "ADC": 3},
+    }
+    assert flex._role_preference_penalty(base, "Top") == 0.0
+    assert flex._role_preference_penalty(base, "Mid") == 1.4
+    assert flex._role_preference_penalty(base, "ADC") == 3.75
+

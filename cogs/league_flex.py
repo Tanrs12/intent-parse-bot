@@ -191,9 +191,13 @@ def _role_preference_penalty(player: dict, role: str) -> float:
     if level == 1:
         return 0.0
     if level == 2:
-        return 1.0
+        # Secondary is genuinely available, but should normally lose to a good
+        # Priority-1 layout rather than behaving almost like an equal choice.
+        return 1.4
     if level == 3:
-        return 3.0
+        # Priority-3 remains legal for drafts that materially improve the comp,
+        # but it is a real fallback rather than routine role rotation.
+        return 3.75
     return 50.0
 
 
