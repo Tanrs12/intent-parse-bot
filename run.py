@@ -141,11 +141,7 @@ def _entry() -> None:
                 import ctypes
 
                 ctypes.windll.user32.MessageBoxW(
-                    0, "Flexers Draft Coach stopped with an error.
-
-" + text[-1500:] + "
-
-Saved to: " + where,
+                    0, "Flexers Draft Coach stopped with an error.\n\n" + text[-1500:] + "\n\nSaved to: " + where,
                     "Flexers Draft Coach", 0x10)
             except Exception:  # noqa: BLE001
                 pass
