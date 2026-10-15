@@ -159,3 +159,13 @@ def test_familiarity_words_are_kept_separately_from_preference(roster):
     cian = roster.find_player(name="Cian")
     assert [cian.familiarity("Jungle", c) for c in ("Sejuani", "Vi", "Amumu", "Olaf")] == ["comfort", "refresh", "developing", ""]
     assert all(cian.priority("Jungle", c) == 0 for c in ("Sejuani", "Vi", "Amumu", "Olaf"))
+
+
+def test_discord_signup_export_orders_roles_by_priority(roster):
+    result = lf.apply_loadfile(roster, {"format": "flexers-loadfile", "version": 1, "mode": "replace", "source": "discord-signups",
+                                        "players": [{"user_id": 555, "name": "Sig", "roles": ["Support", "Jungle", "Top"],
+                                                     "role_priority": {"Top": 1, "Jungle": 2, "Support": 3},
+                                                     "pools": {"Top": [{"champion": "Camille"}], "Jungle": [{"champion": "Zac"}]}}]}, "discord-signups.json")
+    assert result.ok, result.errors
+    sig = roster.find_player(name="Sig")
+    assert sig.roles == ["Top", "Jungle", "Support"] and sig.champions("Top") == ["Camille"] and sig.champions("Jungle") == ["Zac"]

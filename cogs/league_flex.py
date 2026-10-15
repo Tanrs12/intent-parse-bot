@@ -2034,6 +2034,47 @@ class LeagueFlexCog(commands.Cog):
             ephemeral=True,
         )
 
+    @league.command(
+        name="coach",
+        description="Export the current signups (roles, priorities, champion pools) as a Draft Coach loadfile.",
+    )
+    async def coach(self, interaction: discord.Interaction):
+        """Drop the attached file into Draft Coach's loadfiles folder (or onto its coach page) and the
+        desktop app ranks with exactly the pools and priorities people set up in Discord."""
+        if interaction.guild_id != LEAGUE_GUILD_ID:
+            await interaction.response.send_message("This command belongs in the League server.", ephemeral=True)
+            return
+        await interaction.response.defer(ephemeral=True)
+        signups = await self.list_signups(interaction.guild_id)
+        players = []
+        for signup in signups:
+            priority = {role: int(level) for role, level in (signup.get("role_priority") or {}).items() if role in ROLES}
+            roles = sorted([r for r in (signup.get("roles") or []) if r in ROLES], key=lambda r: priority.get(r, 9))
+            pools = {role: [{"champion": name} for name in names]
+                     for role, names in (signup.get("champions") or {}).items() if role in ROLES and names}
+            players.append({
+                "user_id": int(signup["user_id"]),
+                "name": signup.get("display_name") or str(signup["user_id"]),
+                "roles": roles,
+                "role_priority": priority,
+                "pools": pools,
+            })
+        payload = {
+            "format": "flexers-loadfile",
+            "version": 1,
+            "mode": "replace",
+            "source": "discord-signups",
+            "exported_at": now_iso(),
+            "players": players,
+        }
+        data = json.dumps(payload, indent=2, ensure_ascii=False).encode("utf-8")
+        await interaction.followup.send(
+            f"Draft Coach loadfile with **{len(players)}** signups. Drop it into Draft Coach's `loadfiles` folder "
+            "(or onto the coach page) and it replaces each player's pools and role priorities.",
+            file=discord.File(io.BytesIO(data), filename="discord-signups.json"),
+            ephemeral=True,
+        )
+
     @league.command(name="post", description="Post the Ranked Flex signup event.")
     @app_commands.describe(
         poster="Optional event image to show above the signup controls.",

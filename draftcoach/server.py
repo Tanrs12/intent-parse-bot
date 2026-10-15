@@ -101,7 +101,7 @@ def build_roster(config: dict, roster_path: Path | None, reset: bool = False) ->
 def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile: str | None = None,
                simulation: dict | None = None, roster_path: Path | None = None, watch_dir: Path | None = None,
                load_files: list[Path] | None = None, reset_roster: bool = False, sync_url: str | None = None,
-               sync_interval: float = 60.0) -> FastAPI:
+               sync_interval: float = 60.0, any_queue: bool = False) -> FastAPI:
     config = config or {}
     roster = build_roster(config, roster_path, reset=reset_roster)
     draft = ManualDraft(side=str(config.get("side") or "blue"))
@@ -180,10 +180,11 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
     app.state.roster = roster
     app.state.draft = draft
     app.state.config = config
+    hub.any_queue = bool(any_queue)
     icon_cache: dict[int, bytes] = {}
 
-    async def on_session(session: dict | None, phase: str | None) -> None:
-        await hub.ingest_lcu_session(session, phase)
+    async def on_session(session: dict | None, phase: str | None, queue: dict | None = None) -> None:
+        await hub.ingest_lcu_session(session, phase, queue)
         if session is None and hub.state is None:
             await hub.ingest_manual()
 

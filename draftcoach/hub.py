@@ -61,6 +61,7 @@ class Hub:
         self._submitted_seq = 0
         self._scored_seq = 0
         self.rest = None                 # LcuRest of the connected client (set by the server)
+        self.any_queue = False           # --any-queue: coach customs/normals too (testing)
         self.lockfile: str | None = None # explicit lockfile path, if the server was given one
         self.lcu_enabled = False         # the server runs a client watcher (lockfile fallback is allowed)
         self._sync_series()
@@ -122,7 +123,31 @@ class Hub:
             state.notes.append("client reports simultaneous bans (ranked draft)")
 
     # ---- inputs ------------------------------------------------------------
-    async def ingest_lcu_session(self, session: dict | None, gameflow_phase: str | None, source: str = "lcu") -> None:
+    def allowed_queues(self) -> list[int] | None:
+        """Queue ids the live coach reacts to; None means every queue (``--any-queue``)."""
+        if self.any_queue:
+            return None
+        raw = self.roster.settings.get("queues", [440])
+        try:
+            ids = [int(x) for x in (raw or [])]
+        except (TypeError, ValueError):
+            ids = [440]
+        return ids or None
+
+    async def ingest_lcu_session(self, session: dict | None, gameflow_phase: str | None, queue: dict | None = None,
+                                 source: str = "lcu") -> None:
+        allowed = self.allowed_queues() if source == "lcu" else None
+        self.status["queue"] = queue
+        if session and queue is not None and allowed is not None and int(queue.get("id", -1)) not in allowed:
+            # A normal, solo-queue or custom champ select: stand by rather than coach it.
+            name = queue.get("name") or f"queue {queue.get('id')}"
+            if self.state is not None and self.state.source == "lcu":
+                self.log_event(f"standing by: {name} is not ranked flex", "phase")
+            self.last_session = None
+            self.status["lcu_in_champ_select"] = False
+            self._last_input = None
+            await self.clear(detail=f"standing by: {name} is not ranked flex (set queues: [] or --any-queue to coach it)", source=source)
+            return
         self.last_session = session
         if not session:
             self.status["lcu_in_champ_select"] = False

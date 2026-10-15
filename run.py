@@ -7,6 +7,7 @@ python run.py                               # connect to the League client, coac
 python run.py --load loadfiles/week3.json   # import one or more loadfiles at start-up
 python run.py --simulate                    # no client needed: replays a scripted draft
 python run.py --no-lcu                      # manual board / REST only
+python run.py --any-queue                   # also coach customs / normals (default: Ranked Flex only)
 python run.py --reset-roster                # ignore var/roster.json and rebuild from config.json
 python run.py --window                      # also open the always-on-top overlay window
 python run.py --window-only                 # just the window, against a server that is already running
@@ -55,6 +56,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--window-only", action="store_true", help="only open the overlay window (server already running)")
     parser.add_argument("--hud", action="store_true", help="draw the in-client HUD over the League client (Windows)")
     parser.add_argument("--hud-only", action="store_true", help="only the HUD, against a server that is already running")
+    parser.add_argument("--any-queue", action="store_true",
+                        help="coach every champ select (customs, normals); default: Ranked Flex only (settings.queues)")
     parser.add_argument("--log-level", default="info")
     args = parser.parse_args(argv)
     if getattr(sys, "frozen", False) and not any((args.window, args.window_only, args.hud, args.hud_only, args.simulate, args.no_lcu)):
@@ -79,7 +82,7 @@ def main(argv: list[str] | None = None) -> None:
     app = create_app(config, enable_lcu=not args.no_lcu and not args.simulate, lockfile=args.lockfile, simulation=simulation,
                      roster_path=Path(args.roster) if args.roster else None, watch_dir=Path(args.watch) if args.watch else None,
                      load_files=[Path(p) for p in args.load], reset_roster=args.reset_roster,
-                     sync_url=args.sync, sync_interval=args.sync_interval)
+                     sync_url=args.sync, sync_interval=args.sync_interval, any_queue=args.any_queue)
 
     print(f"Coach panel: http://{args.host}:{args.port}/    Overlay: http://{args.host}:{args.port}/overlay    HUD demo: /demo")
     if not args.window and not args.hud:

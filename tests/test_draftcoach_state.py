@@ -198,9 +198,10 @@ def test_profile_players_populate_the_roster_and_draft_from_history():
 def test_client_champion_summary_duplicates_keep_the_real_id():
     from draftcoach import champions
     before = champions.id_for("Wukong")
+    snapshot = dict(champions.all_ids())                      # restore the full map afterwards
     try:
         n = champions.refresh_from_client([{"id": 62, "name": "Wukong"}, {"id": 60062, "name": "Wukong"}, {"id": 60, "name": "Elise"}, {"id": -1, "name": "None"}])
         assert n == 2 and champions.id_for("Wukong") == 62 and champions.name_for(60062) is None or champions.name_for(60062) == "Champion 60062"
         assert champions.id_for("Elise") == 60
     finally:
-        champions.refresh_from_client([{"id": i, "name": n} for n, i in {**champions.all_ids(), "Wukong": before}.items()])
+        champions.refresh_from_client([{"id": i, "name": n} for n, i in snapshot.items()])

@@ -70,6 +70,9 @@ Windows SmartScreen may warn the first time because the .exe is unsigned: choose
 "More info" > "Run anyway". Windows Firewall may ask to allow it on private networks
 (needed only for the sync between machines).
 
+The complete source code is in the source folder (the same repository): after
+pip install -r requirements.txt -r requirements-draftcoach.txt, python run.py there runs it uncompiled.
+
 Edit loadfiles\\flexers-team.json to change pools, familiarity (comfort / refresh / developing),
 preference, scouting and the playbook. Drop any JSON or CSV loadfile into loadfiles\\ while it
 runs and it is imported within seconds. Your merged roster is saved in var\\roster.json.
@@ -132,6 +135,18 @@ def main() -> int:
         if art.is_dir():
             shutil.copytree(art, DIST / "art", dirs_exist_ok=True)
             break
+    # The full source next to the exe, so the zip is also a runnable / readable checkout.
+    source = DIST / "source"
+    if source.exists():
+        shutil.rmtree(source)
+    skip_dirs = {".git", ".github", "dist", "build", "var", "__pycache__", ".pytest_cache", ".venv", "handoff"}
+    for item in sorted(ROOT.iterdir()):
+        if item.name in skip_dirs or item.name.startswith("."):
+            continue
+        if item.is_dir():
+            shutil.copytree(item, source / item.name, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".pytest_cache"))
+        elif item.suffix.lower() in (".py", ".txt", ".md", ".json", ".yml", ".yaml", ".toml", ".cfg", ".ini") or item.name == "Dockerfile":
+            shutil.copy2(item, source / item.name)
     (DIST / "var").mkdir(exist_ok=True)
     for name, body in LAUNCHERS.items():
         (DIST / name).write_text(body, encoding="utf-8")

@@ -147,6 +147,23 @@ class LcuRest:
     def champ_select_session(self) -> dict | None:
         return self.get("/lol-champ-select/v1/session")
 
+    def queue(self) -> dict | None:
+        """``{"id", "name", "type"}`` of the lobby/game the client is in, or None."""
+        session = self.get("/lol-gameflow/v1/session") or {}
+        queue = ((session.get("gameData") or {}).get("queue") or {}) if isinstance(session, dict) else {}
+        if not queue:
+            lobby = self.get("/lol-lobby/v2/lobby") or {}
+            config = (lobby.get("gameConfig") or {}) if isinstance(lobby, dict) else {}
+            if config.get("queueId") is not None:
+                queue = {"id": config.get("queueId"), "name": config.get("gameMode") or "", "type": config.get("gameMode") or ""}
+        if not queue:
+            return None
+        try:
+            return {"id": int(queue.get("id", -1)), "name": str(queue.get("name") or queue.get("shortName") or ""),
+                    "type": str(queue.get("type") or queue.get("gameMode") or "")}
+        except (TypeError, ValueError):
+            return None
+
     def gameflow_phase(self) -> str | None:
         value = self.get("/lol-gameflow/v1/gameflow-phase")
         return str(value).strip('"') if value else None
@@ -168,7 +185,7 @@ StatusCallback = Callable[[str, str], Awaitable[None]]
 class LcuWatcher:
     """Keeps a connection to the client and streams champ select sessions.
 
-    ``on_session(session_or_none, gameflow_phase)`` is awaited for every change.
+    ``on_session(session_or_none, gameflow_phase, queue_or_none)`` is awaited for every change.
     ``on_status(state, detail)`` reports ``waiting`` / ``connected`` / ``error``.
     """
 
@@ -180,6 +197,7 @@ class LcuWatcher:
         self.poll_interval = poll_interval
         self.rest: LcuRest | None = None
         self.gameflow_phase: str | None = None
+        self.queue: dict | None = None
         self._summoner_cache: dict[str, dict] = {}
         self._stop = asyncio.Event()
         self.champion_names_loaded = 0
@@ -236,7 +254,14 @@ class LcuWatcher:
     async def _emit(self, session: dict | None) -> None:
         if session:
             await self._fill_names(session)
-        await self.on_session(session, self.gameflow_phase)
+            if self.queue is None:
+                try:
+                    self.queue = await asyncio.to_thread(self.rest.queue)
+                except Exception:  # noqa: BLE001
+                    self.queue = None
+        else:
+            self.queue = None
+        await self.on_session(session, self.gameflow_phase, self.queue)
 
     async def _fill_names(self, session: dict) -> None:
         """Older clients omit gameName/tagLine on team members; look them up once."""
@@ -290,11 +315,13 @@ class LcuWatcher:
                 if event == GAMEFLOW_EVENT:
                     self.gameflow_phase = str(data).strip('"') if data else None
                     if self.gameflow_phase != "ChampSelect":
-                        await self.on_session(None, self.gameflow_phase)
+                        self.queue = None
+                        await self.on_session(None, self.gameflow_phase, None)
                     continue
                 if event == CHAMP_SELECT_EVENT:
                     if event_type == "Delete":
-                        await self.on_session(None, self.gameflow_phase)
+                        self.queue = None
+                        await self.on_session(None, self.gameflow_phase, None)
                     else:
                         await self._emit(data if isinstance(data, dict) else None)
         await self._status("waiting", "client websocket closed")

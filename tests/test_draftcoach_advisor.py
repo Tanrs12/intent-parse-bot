@@ -9,7 +9,7 @@ from draftcoach import loadfiles as lf
 from draftcoach import state as ds
 from draftcoach.draft_order import ManualDraft
 from draftcoach.roster import Roster
-from tests.test_state import POOLS, session
+from tests.test_draftcoach_state import POOLS, session
 
 
 @pytest.fixture
@@ -191,5 +191,5 @@ def test_pick_order_exposes_real_flexes_and_safe_blinds_before_counter_prone_sol
 
 def test_guidance_carries_a_pick_order_for_the_target_five(roster):
     g = advisor.advise(ds.state_from_lcu_session(session({}, {}, [], [], [0]), roster), roster)
-    assert len(g["pick_order"]) == 5 and g["pick_order_source"] in ("comp",) or g["pick_order_source"].startswith("plan:")
+    assert len(g["pick_order"]) == 5 and (g["pick_order_source"] in ("comp", "backend") or g["pick_order_source"].startswith("plan:"))
     assert g["pick_order"][0]["status"] == "next" and all("order_adjustment" in p for p in g["picks"])

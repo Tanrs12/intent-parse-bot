@@ -22,6 +22,7 @@ import math
 import time
 from typing import Any
 
+from . import backend
 from . import champions as champ_map
 from . import engine_cache
 from .roster import Roster
@@ -456,7 +457,37 @@ def advise(state: DraftState, roster: Roster | None = None, *, meta: dict | None
         elif source == "meta":
             alerts.append({"level": "warn", "text": f"{role}: no pool or history, using current role meta"})
 
-    comps, missing = engine.recommend_comps(engine_assignments, limit=comps_limit, pool_limit=pool_limit, meta=meta)
+    # The ranking brain is the repository's /league game backend. The engine search is only the
+    # fallback when the backend is unavailable or cannot place these five (e.g. pinned roles it
+    # never generates).
+    use_backend = str(settings.get("ranking", "backend")).casefold() == "backend" and backend.available()
+    comps: list[dict] = []
+    missing: list = []
+    backend_result = None
+    backend_pick_order: list[dict] = []
+    if use_backend and engine_assignments:
+        signups = []
+        role_players: dict[str, int] = {}
+        for role in ROLES:
+            seat = engine_assignments[0][role]
+            slot = slot_by_role[role]
+            signups.append(backend.signup_for_seat(slot, role, pools_by_role.get(role, []), roster, seat["user_id"]))
+            if slot.user_id and slot.role_source in ("client", "config"):
+                role_players[role] = int(slot.user_id)
+        backend_result = backend.recommend(signups, unavailable=unavailable, locked=our_locked, role_players=role_players,
+                                           side=state.side, limit=comps_limit)
+        if backend_result and not backend_result.get("recommendations") and role_players:
+            # Pinning every seat can leave the search empty: let the backend choose roles itself.
+            backend_result = backend.recommend(signups, unavailable=unavailable, locked=our_locked, role_players={},
+                                               side=state.side, limit=comps_limit)
+        comps = backend.as_comps(backend_result)
+        if comps:
+            notes.append("ranking: shared /league game backend")
+            backend_pick_order = list(comps[0].get("pick_order") or [])
+    if not comps:
+        comps, missing = engine.recommend_comps(engine_assignments, limit=comps_limit, pool_limit=pool_limit, meta=meta)
+        if use_backend:
+            notes.append("ranking: engine search (backend returned no composition for these seats)")
     comps.sort(key=lambda c: float(c.get("rank_score", c["score"])), reverse=True)
     if missing:
         notes.append("missing pools: " + ", ".join(missing))
@@ -784,6 +815,17 @@ def advise(state: DraftState, roster: Roster | None = None, *, meta: dict | None
         order_source = "comp"
     target.update(our_locked)
     order_rows = plan_pick_order(target, state.side, meta, matchups, pools_all, our_locked) if len(target) == 5 else []
+    if order_rows and source_plan is None and backend_pick_order and {r["champion"] for r in backend_pick_order} == set(target.values()):
+        # The backend's roster-real _pro_pick_order decides the sequence; our rows only add the tags.
+        by_champion = {r["champion"]: r for r in order_rows}
+        revealed = [r for r in order_rows if r["locked"]]
+        ordered = revealed + [by_champion[b["champion"]] for b in backend_pick_order if not by_champion[b["champion"]]["locked"]]
+        letter = "R" if str(state.side).casefold() == "red" else "B"
+        for i, row in enumerate(ordered):
+            row["slot"] = f"{letter}{i + 1}"
+            row["status"] = "locked" if row["locked"] else ("next" if i == len(revealed) else "later")
+        order_rows = ordered
+        order_source = "backend"
     if order_rows:
         # The current slot should reveal what the order schedules now, not what it holds for later.
         scheduled_now = {(r["role"], r["champion"]) for r in order_rows if r["status"] == "next"}

@@ -372,6 +372,10 @@ def _apply_player(roster: Roster, row: dict, default_mode: str, result: ImportRe
     if row.get("roles") is not None:
         roles = [r for r in (role_name(x) for x in row["roles"]) if r]
         bad = [x for x in row["roles"] if not role_name(x)]
+        if isinstance(row.get("role_priority"), dict):
+            # Discord signups carry 1/2/3 role priorities: the roster keeps roles ordered by them.
+            levels = {role_name(k): int(v) for k, v in row["role_priority"].items() if role_name(k) and str(v).lstrip("-").isdigit()}
+            roles = sorted(roles, key=lambda r: (levels.get(r, 9), roles.index(r)))
         for b in bad:
             result.warnings.append(f"{player.name}: unknown role '{b}' ignored")
         if roles != player.roles:
