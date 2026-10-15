@@ -1,4 +1,4 @@
-"""Launch Rat's native HUD styling against the merged INTent guidance proxy."""
+"""Launch Rat's actual native HUD unchanged; only its data endpoint is adapted to INTent."""
 from __future__ import annotations
 
 import sys

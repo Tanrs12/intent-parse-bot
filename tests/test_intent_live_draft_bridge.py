@@ -215,3 +215,19 @@ def test_custom_test_overrides_apply_without_touching_original():
 def test_bridge_has_champion_ids_for_overlay_icons():
     assert bridge._champion_id("Camille") == 164
     assert bridge._champion_id("LeBlanc") == 7
+
+
+def test_live_guidance_exposes_same_plan_role_options(monkeypatch):
+    monkeypatch.setattr(bridge, "_live_lane_adjustment", lambda rec, state: (0.0, []))
+    rec = {
+        "score": 91.0,
+        "champions": {"Top": "Sion", "Jungle": "Vi", "Mid": "Orianna", "ADC": "Ezreal", "Support": "Karma"},
+        "role_alternatives": {"Top": ["Shen", "Ornn"]},
+        "players": {role: {"display_name": role, "role_priority": {role: 1}, "user_id": i + 1}
+                    for i, role in enumerate(bridge.ROLES)},
+        "pick_order": [{"role": "Top", "champion": "Sion"}],
+    }
+    state = {"our_team": [{"role": role, "locked": None} for role in bridge.ROLES], "enemy_team": [], "active": {}}
+    comp = bridge._guidance_from_result({"recommendations": [rec]}, state)["comps"][0]
+    assert comp["role_options"]["Top"] == ["Sion", "Shen", "Ornn"]
+    assert comp["role_option_ids"]["Top"] == [14, 98, 516]

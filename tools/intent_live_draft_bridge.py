@@ -505,7 +505,22 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
             "lane_edges": list(rec.get("live_lane_edges") or []),
             "champions": rec.get("champions") or {},
             "champion_ids": {role: _champion_id((rec.get("champions") or {}).get(role)) for role in ROLES},
+            "role_options": {
+                role: [champion for champion in dict.fromkeys([
+                    (rec.get("champions") or {}).get(role),
+                    *((rec.get("role_alternatives") or {}).get(role) or [])[:2],
+                ]) if champion]
+                for role in ROLES
+            },
+            "role_option_ids": {
+                role: [_champion_id(champion) for champion in [champion for champion in dict.fromkeys([
+                    (rec.get("champions") or {}).get(role),
+                    *((rec.get("role_alternatives") or {}).get(role) or [])[:2],
+                ]) if champion]]
+                for role in ROLES
+            },
             "players": {role: (rec.get("players", {}).get(role) or {}).get("display_name", role) for role in ROLES},
+            "player_ids": {role: int((rec.get("players", {}).get(role) or {}).get("user_id") or 0) for role in ROLES},
             "team_plan": rec.get("team_plan"),
             "pick_order": list(rec.get("pick_order") or []),
         })

@@ -95,11 +95,6 @@ def main(argv: list[str] | None = None) -> None:
         _start_bridge()          # INTent bridge on 8766, in every mode of the packaged build
     if args.comp_overlay or (args.comp_overlay is None and getattr(sys, "frozen", False) and args.hud):
         _start_comp_overlay()
-    hud_url = f"http://{args.host}:{args.port}"
-    if args.hud and bridge_enabled:
-        _start_hud_proxy()
-        hud_url = "http://127.0.0.1:8767"
-
     print(f"Coach panel: http://{args.host}:{args.port}/    Overlay: http://{args.host}:{args.port}/overlay    HUD demo: /demo")
     if not args.window and not args.hud:
         uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level, access_log=False)
@@ -115,10 +110,10 @@ def main(argv: list[str] | None = None) -> None:
     try:
         if args.hud and args.window:
             # Panel on the main thread (WebView2 needs it), HUD on its own tkinter thread.
-            threading.Thread(target=hud.run, args=(hud_url,), daemon=True).start()
+            threading.Thread(target=hud.run, args=(f"http://{args.host}:{args.port}",), daemon=True).start()
             window.run(f"http://{args.host}:{args.port}")
         elif args.hud:
-            hud.run(hud_url)
+            hud.run(f"http://{args.host}:{args.port}")
         else:
             window.run(f"http://{args.host}:{args.port}")
     finally:
@@ -151,35 +146,6 @@ def _start_comp_overlay() -> None:
             logging.getLogger("draftcoach").warning("INTent comp overlay stopped: %s", exc)
 
     threading.Thread(target=run_overlay, daemon=True, name="intent-comp-overlay").start()
-
-
-def _start_hud_proxy(port: int = 8767) -> None:
-    """Feed Rat's native HUD the same INTent guidance used by the six-card overlay."""
-    import importlib
-    import logging
-
-    from draftcoach import ENGINE_DIR
-
-    tools_dir = ENGINE_DIR / "tools"
-    if str(tools_dir) not in sys.path:
-        sys.path.insert(0, str(tools_dir))
-    try:
-        proxy = importlib.import_module("intent_hud_proxy")
-    except Exception as exc:  # noqa: BLE001
-        logging.getLogger("draftcoach").warning("INTent HUD proxy not started: %s", exc)
-        return
-
-    def serve() -> None:
-        try:
-            from http.server import ThreadingHTTPServer
-
-            httpd = ThreadingHTTPServer(("127.0.0.1", port), proxy.Handler)
-            httpd.serve_forever()
-        except Exception as exc:  # noqa: BLE001
-            logging.getLogger("draftcoach").warning("INTent HUD proxy stopped: %s", exc)
-
-    threading.Thread(target=serve, daemon=True, name="intent-hud-proxy").start()
-
 
 
 def _start_bridge(port: int = 8766) -> None:

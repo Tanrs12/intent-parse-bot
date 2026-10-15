@@ -27,9 +27,10 @@ KEY = "#010203"
 GWL_EXSTYLE = -20
 WS_EX_TRANSPARENT, WS_EX_TOOLWINDOW, WS_EX_NOACTIVATE = 0x20, 0x80, 0x08000000
 ROLES = ["Top", "Jungle", "Mid", "ADC", "Support"]
-ROLE_SHORT = {"Top": "T", "Jungle": "J", "Mid": "M", "ADC": "A", "Support": "S"}
+ROLE_SHORT = {"Top": "TOP", "Jungle": "JGL", "Mid": "MID", "ADC": "ADC", "Support": "SUP"}
 SM_XVIRTUALSCREEN = 76
 DEAD_HOLD_SECONDS = 20.0
+LIVE_GRACE_SECONDS = 4.0
 
 
 def _get(url: str, timeout: float = 2.0) -> dict:
@@ -80,6 +81,8 @@ class CompOverlay:
         self.cards: list[dict] = []
         self.dead_archive: dict[tuple, dict] = {}
         self.in_draft = False
+        self._last_live_at = 0.0
+        self._last_focus_at = 0.0
         self._stop = False
 
         self.font_title = tkfont.Font(family="Segoe UI", size=8, weight="bold")
@@ -126,69 +129,88 @@ class CompOverlay:
         bans, enemy, ours = self._effective_marks()
         marks: dict[str, str] = {}
         dead = False
-        for role, champ in (comp.get("champions") or {}).items():
-            if not champ:
+        champions = comp.get("champions") or {}
+        role_options = comp.get("role_options") or {}
+        for role in ROLES:
+            primary = champions.get(role)
+            options = [champ for champ in (role_options.get(role) or [primary]) if champ]
+            if not options:
                 continue
-            if champ in bans:
+            unavailable = [champ for champ in options if champ in bans or champ in enemy]
+            if len(unavailable) == len(options):
+                marks[role] = "OUT"
+                dead = True
+            elif primary in bans:
                 marks[role] = "BAN"
-                dead = True
-            elif champ in enemy:
+            elif primary in enemy:
                 marks[role] = "ENEMY"
-                dead = True
-            elif champ in ours:
+            elif any(champ in ours for champ in options):
                 marks[role] = "LOCKED"
         return dead, marks
 
     def _poll(self) -> None:
         while not self._stop:
+            # Keep the last good payload during a slow backend recompute instead of flashing the
+            # whole panel off. A pick/ban can make /api/guidance take a couple of seconds.
             try:
-                bridge = _get(GUIDANCE_URL)
+                bridge = _get(GUIDANCE_URL, timeout=8.0)
+                if bridge:
+                    self.bridge = bridge
             except Exception:
-                bridge = {}
+                bridge = self.bridge
             try:
-                snap = _get(STATE_URL)
+                snap = _get(STATE_URL, timeout=3.0)
+                if snap:
+                    self.snapshot = snap
             except Exception:
-                snap = {}
-            self.bridge = bridge
-            self.snapshot = snap
+                snap = self.snapshot
+
+            bridge = self.bridge
+            snap = self.snapshot
             state = snap.get("state") or {}
             status = snap.get("status") or {}
-            live = bool(
+            now = time.time()
+            live_now = bool(
                 bridge.get("active")
                 and state.get("source") in ("lcu", "simulation", "manual")
                 and state.get("phase") not in (None, "IDLE", "GAME_STARTING")
                 and not status.get("stale")
             )
+            if live_now:
+                self._last_live_at = now
+            live = live_now or (self.in_draft and now - self._last_live_at <= LIVE_GRACE_SECONDS)
             fresh = [dict(c) for c in ((bridge.get("guidance") or {}).get("comps") or [])[:6]]
-            now = time.time()
 
             if live:
                 if not self.in_draft:
                     self.dead_archive.clear()
                     self.in_draft = True
-                fresh_sigs = {_signature(card) for card in fresh}
-                for old_rank, card in enumerate(self.cards, start=1):
-                    sig = _signature(card)
-                    dead, _ = self._status(card)
-                    if dead and sig not in fresh_sigs and sig not in self.dead_archive:
-                        archived = dict(card)
-                        archived["_was_rank"] = old_rank
-                        archived["_dead_until"] = now + DEAD_HOLD_SECONDS
-                        self.dead_archive[sig] = archived
+                # Only replace the visible live list when a real fresh result exists. During a
+                # recompute, retain the existing six cards rather than collapsing them to zero.
+                if fresh:
+                    fresh_sigs = {_signature(card) for card in fresh}
+                    for old_rank, card in enumerate(self.cards, start=1):
+                        sig = _signature(card)
+                        dead, _ = self._status(card)
+                        if dead and sig not in fresh_sigs and sig not in self.dead_archive:
+                            archived = dict(card)
+                            archived["_was_rank"] = old_rank
+                            archived["_dead_until"] = now + DEAD_HOLD_SECONDS
+                            self.dead_archive[sig] = archived
 
-                for sig, card in list(self.dead_archive.items()):
-                    dead, _ = self._status(card)
-                    if not dead or now >= float(card.get("_dead_until", 0)):
-                        self.dead_archive.pop(sig, None)
+                    for sig, card in list(self.dead_archive.items()):
+                        dead, _ = self._status(card)
+                        if not dead or now >= float(card.get("_dead_until", 0)):
+                            self.dead_archive.pop(sig, None)
 
-                dead_cards = sorted(self.dead_archive.values(), key=lambda c: float(c.get("_dead_until", 0)), reverse=True)
-                reserve = min(3, len(dead_cards))
-                self.cards = fresh[: max(0, 6 - reserve)] + dead_cards[:reserve]
+                    dead_cards = sorted(self.dead_archive.values(), key=lambda c: float(c.get("_dead_until", 0)), reverse=True)
+                    reserve = min(3, len(dead_cards))
+                    self.cards = fresh[: max(0, 6 - reserve)] + dead_cards[:reserve]
             else:
                 self.cards = []
                 self.dead_archive.clear()
                 self.in_draft = False
-            time.sleep(0.30)
+            time.sleep(0.25)
 
     def _icon(self, champion_id: int | None, size: int) -> tk.PhotoImage | None:
         if not champion_id:
@@ -248,12 +270,12 @@ class CompOverlay:
         w, h = self.rect[2], self.rect[3]
         if w <= 0 or h <= 0:
             return
-        u = max(0.75, min(1.2, h / 900.0))
+        u = max(0.85, min(1.3, h / 900.0))
         px = lambda n: max(1, round(n * u))
-        self.font_title.configure(size=-px(10))
-        self.font_role.configure(size=-px(8))
-        self.font_player.configure(size=-px(8))
-        self.font_tiny.configure(size=-px(7))
+        self.font_title.configure(size=-px(13))
+        self.font_role.configure(size=-px(10))
+        self.font_player.configure(size=-px(9))
+        self.font_tiny.configure(size=-px(8))
         c = self.canvas
         c.delete("all")
 
@@ -296,46 +318,72 @@ class CompOverlay:
 
             champions = comp.get("champions") or {}
             champion_ids = comp.get("champion_ids") or {}
+            role_options = comp.get("role_options") or {}
+            role_option_ids = comp.get("role_option_ids") or {}
             players = comp.get("players") or {}
             pick_nums = self._pick_numbers(comp)
-            cell_w = max(px(23), (w - px(10)) // 5)
-            icon_size = min(px(24), max(px(17), cell_w - px(5)))
-            icons_y = y0 + px(24)
-            labels_y = icons_y + icon_size + px(2)
-            player_y = labels_y + px(11)
+            cell_w = max(px(48), (w - px(10)) // 5)
+            icons_y = y0 + px(25)
+            labels_y = icons_y + px(45)
+            player_y = labels_y + px(13)
             locked = set((g.get("our_locked") or {}).values())
+            bans, enemy_taken, ours_taken = self._effective_marks()
             next_role = next((row.get("role") for row in (comp.get("pick_order") or []) if row.get("champion") not in locked), None)
 
             for ri, role in enumerate(ROLES):
                 cx = px(5) + ri * cell_w + cell_w // 2
-                champ = champions.get(role) or "—"
-                mark = marks.get(role)
-                cid = champion_ids.get(role)
-                img = self._icon(cid, icon_size)
-                x0 = cx - icon_size // 2
-                outline = "#0ac8b9" if role == next_role and not dead else ("#ee7d87" if mark in ("BAN", "ENEMY") else ("#c8aa6e" if mark == "LOCKED" else border))
-                c.create_rectangle(x0 - 1, icons_y - 1, x0 + icon_size + 1, icons_y + icon_size + 1, fill="#101820", outline=outline, width=1)
-                if img is not None:
-                    c.create_image(cx, icons_y + icon_size // 2, image=img, anchor="center")
+                primary = champions.get(role) or "—"
+                options = [champ for champ in (role_options.get(role) or [primary]) if champ][:3]
+                ids = list(role_option_ids.get(role) or [])[:len(options)]
+                if not ids:
+                    ids = [champion_ids.get(role)] + [None] * max(0, len(options) - 1)
+
+                n = max(1, len(options))
+                if n == 1:
+                    icon_size = min(px(42), cell_w - px(10))
+                elif n == 2:
+                    icon_size = min(px(30), max(px(24), (cell_w - px(8)) // 2))
                 else:
-                    initials = "".join(part[0] for part in str(champ).replace("'", " ").split()[:2]).upper()[:2]
-                    c.create_text(cx, icons_y + icon_size // 2, text=initials, font=self.font_role, fill=secondary)
+                    icon_size = min(px(22), max(px(18), (cell_w - px(10)) // 3))
+                opt_gap = px(2)
+                total_w = n * icon_size + (n - 1) * opt_gap
+                start_x = cx - total_w // 2
 
-                number = pick_nums.get(role)
-                if number:
-                    badge_r = px(7)
-                    bx, by = x0 + icon_size - px(2), icons_y + px(2)
-                    c.create_oval(bx - badge_r, by - badge_r, bx + badge_r, by + badge_r, fill="#14212b", outline=accent)
-                    c.create_text(bx, by, text=str(number), font=self.font_tiny, fill=accent)
+                for oi, champ in enumerate(options):
+                    cid = ids[oi] if oi < len(ids) else None
+                    ix = start_x + oi * (icon_size + opt_gap)
+                    option_mark = "BAN" if champ in bans else ("ENEMY" if champ in enemy_taken else ("LOCKED" if champ in ours_taken else None))
+                    outline = border
+                    if option_mark in ("BAN", "ENEMY"):
+                        outline = "#ee7d87"
+                    elif option_mark == "LOCKED":
+                        outline = "#c8aa6e"
+                    elif role == next_role and oi == 0 and not dead:
+                        outline = "#0ac8b9"
 
-                if mark in ("BAN", "ENEMY"):
-                    c.create_line(x0, icons_y, x0 + icon_size, icons_y + icon_size, fill="#ee7d87", width=px(2))
-                    c.create_line(x0 + icon_size, icons_y, x0, icons_y + icon_size, fill="#ee7d87", width=px(2))
+                    c.create_rectangle(ix - 1, icons_y - 1, ix + icon_size + 1, icons_y + icon_size + 1, fill="#101820", outline=outline, width=1)
+                    img = self._icon(cid, icon_size)
+                    if img is not None:
+                        c.create_image(ix + icon_size // 2, icons_y + icon_size // 2, image=img, anchor="center")
+                    else:
+                        initials = "".join(part[0] for part in str(champ).replace("'", " ").split()[:2]).upper()[:2]
+                        c.create_text(ix + icon_size // 2, icons_y + icon_size // 2, text=initials, font=self.font_role, fill=secondary)
 
-                role_colour = "#ee7d87" if mark in ("BAN", "ENEMY") else ("#c8aa6e" if mark == "LOCKED" else ink)
+                    if option_mark in ("BAN", "ENEMY"):
+                        c.create_line(ix, icons_y, ix + icon_size, icons_y + icon_size, fill="#ee7d87", width=px(2))
+                        c.create_line(ix + icon_size, icons_y, ix, icons_y + icon_size, fill="#ee7d87", width=px(2))
+
+                    # Pick order belongs to the role, so keep one badge on the primary option.
+                    if oi == 0 and pick_nums.get(role):
+                        badge_r = px(7)
+                        bx, by = ix + icon_size - px(1), icons_y + px(1)
+                        c.create_oval(bx - badge_r, by - badge_r, bx + badge_r, by + badge_r, fill="#14212b", outline=accent)
+                        c.create_text(bx, by, text=str(pick_nums[role]), font=self.font_tiny, fill=accent)
+
+                role_colour = "#ee7d87" if marks.get(role) == "OUT" else ("#c8aa6e" if marks.get(role) == "LOCKED" else ink)
                 c.create_text(cx, labels_y, text=ROLE_SHORT[role], anchor="n", font=self.font_role, fill=role_colour)
                 player = str(players.get(role) or role)
-                c.create_text(cx, player_y, text=self._fit(player, self.font_player, cell_w - px(2)), anchor="n", font=self.font_player, fill=secondary)
+                c.create_text(cx, player_y, text=self._fit(player, self.font_player, cell_w - px(4)), anchor="n", font=self.font_player, fill=secondary)
 
             # Tiny footer makes test events and counter-driven movement obvious without calling the score a win %.
             footer = "DRAFT SCORE"
@@ -346,18 +394,30 @@ class CompOverlay:
 
     def _tick(self) -> None:
         client_rect = self._client_rect()
+        # League swaps focus between several child/host HWNDs during champ select. Compare the
+        # foreground *process* rather than one exact HWND: stable in-client, but still hides on alt-tab.
         foreground = self.u.GetForegroundWindow()
-        show = bool(
-            client_rect and self.in_draft and self.cards and not self.u.IsIconic(self.client)
-            and foreground in (self.client, self.hwnd)
-        )
+        focus_ok = foreground == self.hwnd
+        if client_rect and foreground and not focus_ok:
+            client_pid = wintypes.DWORD()
+            foreground_pid = wintypes.DWORD()
+            self.u.GetWindowThreadProcessId(self.client, ctypes.byref(client_pid))
+            self.u.GetWindowThreadProcessId(foreground, ctypes.byref(foreground_pid))
+            focus_ok = bool(client_pid.value and client_pid.value == foreground_pid.value)
+        now = time.time()
+        if focus_ok:
+            self._last_focus_at = now
+        # Rat's native HUD briefly takes foreground while its Hover/Lock buttons are clicked.
+        # A short grace period prevents the left panel blinking during that interaction.
+        focus_ok = focus_ok or (self.in_draft and now - self._last_focus_at <= 1.5)
+        show = bool(client_rect and self.in_draft and self.cards and not self.u.IsIconic(self.client) and focus_ok)
         if show:
             cx, cy, cw, ch = client_rect
             virtual_left = self.u.GetSystemMetrics(SM_XVIRTUALSCREEN)
             available = max(0, cx - virtual_left - 4)
-            panel_w = min(310, available)
+            panel_w = min(330, available)
             if panel_w < 105:
-                panel_w = min(130, max(90, cx - virtual_left))
+                panel_w = min(150, max(90, cx - virtual_left))
             panel_x = max(virtual_left, cx - panel_w - 4)
             rect = (panel_x, cy, panel_w, ch)
             if rect != self.rect:
