@@ -1,3 +1,5 @@
 ﻿__pycache__/
 *.py[cod]
 _tmp_*.html
+
+data/*.tmp
