@@ -14,6 +14,7 @@ from __future__ import annotations
 import ctypes
 import ctypes.wintypes as wintypes
 import json
+import socket
 import threading
 import time
 import tkinter as tk
@@ -44,6 +45,14 @@ def _signature(comp: dict) -> tuple:
 
 class CompOverlay:
     def __init__(self) -> None:
+        # A tiny localhost bind is a reliable cross-process singleton.  The named mutex remains as
+        # a second guard for packaged builds, but old launcher copies cannot stack six-card overlays.
+        self._lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            self._lock_socket.bind(("127.0.0.1", 18767))
+        except OSError:
+            self._lock_socket.close()
+            raise SystemExit(0)
         self.u = ctypes.windll.user32
         try:
             ctypes.windll.shcore.SetProcessDpiAwareness(2)
@@ -145,7 +154,8 @@ class CompOverlay:
     def _status(self, comp: dict, state: dict) -> tuple[bool, dict[str, str]]:
         bans = set(state.get("our_bans") or []) | set(state.get("enemy_bans") or [])
         enemy = {row.get("locked") for row in (state.get("enemy_team") or []) if row.get("locked")}
-        ours = {row.get("locked") for row in (state.get("our_team") or []) if row.get("locked")}
+        # Use the bridge's effective locks, not literal ally-bot locks in solo test games.
+        ours = set((((self.bridge.get("guidance") or {}).get("our_locked") or {}).values()))
         marks: dict[str, str] = {}
         dead = False
         for role, champ in (comp.get("champions") or {}).items():
@@ -183,11 +193,14 @@ class CompOverlay:
         c = self.canvas
         c.delete("all")
 
-        x0 = round(w * 0.018)
-        x1 = round(w * 0.205)
-        top = round(h * 0.070)
-        bottom = round(h * 0.790)
-        gap = px(7)
+        # Match Rat's existing bottom-right recommendation card: dark League-client surface,
+        # cyan action accent, gold team accents and parchment text. Keep the six cards down the
+        # left edge so bot/custom drafts are easy to inspect without opening Discord.
+        x0 = round(w * 0.010)
+        x1 = round(w * 0.235)
+        top = round(h * 0.060)
+        bottom = round(h * 0.805)
+        gap = px(6)
         count = max(1, len(self.cards))
         card_h = max(px(72), (bottom - top - gap * (count - 1)) // count)
         live_top = None
@@ -201,23 +214,23 @@ class CompOverlay:
             dead, marks = self._status(comp, state)
             sig = _signature(comp)
             is_best = sig == live_top and not dead
-            surface = "#07131c" if not dead else "#11161b"
-            border = "#c8aa6e" if is_best else ("#43515c" if not dead else "#552f34")
-            ink = "#f0e6d2" if not dead else "#72777d"
-            secondary = "#a09b90" if not dead else "#5b6065"
+            surface = "#0a1219" if not dead else "#0b0f13"
+            raised = "#14212b"
+            border = "#35434a" if not dead else "#512d32"
+            ink = "#f0e6d2" if not dead else "#676d72"
+            secondary = "#b2ada1" if not dead else "#555b60"
+            accent = "#ee7d87" if dead else ("#0ac8b9" if is_best else "#c8aa6e")
+            shadow = px(2)
+            c.create_rectangle(x0 + shadow, y0 + shadow, x1 + shadow, y1 + shadow, fill="#000000", outline="")
             c.create_rectangle(x0, y0, x1, y1, fill=surface, outline=border, width=max(1, px(1)))
-            c.create_rectangle(x0, y0, x0 + px(3), y1, fill=("#0ac8b9" if is_best else border), outline="")
+            c.create_rectangle(x0, y0, x0 + px(2), y1, fill=accent, outline="")
             score = comp.get("live_score", comp.get("score", 0.0))
             lane = float(comp.get("lane_adjustment", 0.0) or 0.0)
-            head = f"COMP {i + 1}  {float(score):.1f}"
+            status = "DEAD" if dead else ("BEST NOW" if is_best else "LIVE PLAN")
+            head = f"COMP {i + 1}  |  {status}  |  {float(score):.1f}"
             if lane:
-                head += f"  lane {lane:+.1f}"
-            if dead:
-                head += "  DEAD"
-            elif is_best:
-                head += "  BEST NOW"
-            c.create_text(x0 + px(9), y0 + px(5), text=head, anchor="nw", font=self.font_title,
-                          fill=("#0ac8b9" if is_best else ink))
+                head += f"  |  LANE {lane:+.1f}"
+            c.create_text(x0 + px(9), y0 + px(5), text=head, anchor="nw", font=self.font_title, fill=accent)
 
             champions = comp.get("champions") or {}
             players = comp.get("players") or {}

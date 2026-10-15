@@ -24,9 +24,13 @@ LAUNCHERS = {
     "Draft Coach (live client).bat": r'''@echo off
 cd /d "%~dp0"
 echo Starting Flexers Draft Coach against your League client...
+echo Six INTent composition cards appear on the left during champ select.
 echo Coach page: http://127.0.0.1:8765/   (close this window to stop)
-FlexersDraftCoach.exe --load "loadfiles\flexers-team.json" --window --hud
-pause
+:restart
+FlexersDraftCoach.exe --load "loadfiles\flexers-team.json" --hud
+if errorlevel 1 echo Draft Coach stopped unexpectedly; restarting in 2 seconds...
+timeout /t 2 /nobreak >nul
+goto restart
 ''',
     "Draft Coach (practice, no client).bat": r'''@echo off
 cd /d "%~dp0"

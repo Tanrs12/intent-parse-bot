@@ -169,7 +169,6 @@ def _start_bridge(port: int = 8766) -> None:
     def serve() -> None:
         try:
             bridge._load_cached_signups()
-            bridge.refresh_signups(force=True)
             from http.server import ThreadingHTTPServer
 
             httpd = ThreadingHTTPServer(("127.0.0.1", port), bridge.Handler)

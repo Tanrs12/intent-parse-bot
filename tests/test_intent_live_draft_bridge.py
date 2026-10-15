@@ -159,3 +159,40 @@ def test_live_guidance_exposes_six_compositions(monkeypatch):
     state = {"our_team": [{"role": role, "locked": None} for role in bridge.ROLES], "enemy_team": [], "active": {}}
     guidance = bridge._guidance_from_result({"recommendations": recs}, state)
     assert len(guidance["comps"]) == 6
+
+
+def test_current_five_fills_solo_bot_test_lineup(monkeypatch):
+    rows = [
+        {"user_id": uid, "display_name": f"P{i}", "roles": ["Top"], "role_priority": {"Top": 1}, "champions": {"Top": ["Gnar"]}}
+        for i, uid in enumerate((101, 102, 103, 104, 105), start=1)
+    ]
+    monkeypatch.setattr(bridge, "_signups", rows)
+    monkeypatch.setattr(bridge, "TEST_LINEUP_IDS", [101, 102, 103, 104, 105])
+    state = {"our_team": [{"user_id": 101}]}
+    assert bridge._current_five(state) == []
+    filled = bridge._current_five(state, fill_for_test=True)
+    assert [row["user_id"] for row in filled] == [101, 102, 103, 104, 105]
+
+
+def test_queue_traits_recognises_bot_queue_from_coach_status():
+    gate = bridge._queue_traits({"id": 850, "name": "Intermediate", "category": "VersusAi", "type": "BOT"})
+    assert gate["is_bot"] is True
+    assert gate["disabled"] is False
+
+
+def test_bot_test_state_ignores_auto_selected_ally_bots(monkeypatch):
+    monkeypatch.setattr(bridge, "_signups", [{"user_id": 101}])
+    state = {
+        "local_cell_id": 0,
+        "our_team": [
+            {"cell_id": 0, "user_id": 101, "role": "Mid", "locked": "LeBlanc"},
+            {"cell_id": 1, "user_id": None, "role": "Jungle", "locked": "Master Yi"},
+            {"cell_id": 2, "user_id": None, "role": "Top", "locked": "Fiddlesticks"},
+        ],
+        "enemy_team": [{"role": "Top", "locked": "Sett"}],
+    }
+    effective = bridge._state_for_test(state)
+    assert effective["our_team"][0]["locked"] == "LeBlanc"
+    assert effective["our_team"][1]["locked"] is None
+    assert effective["our_team"][2]["locked"] is None
+    assert effective["enemy_team"][0]["locked"] == "Sett"

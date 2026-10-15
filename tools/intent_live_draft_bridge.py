@@ -145,6 +145,19 @@ def _mode_gate():
     }
 
 
+def _queue_traits(queue: dict | None) -> dict:
+    queue = queue or {}
+    try:
+        queue_id = int(queue.get("id")) if queue.get("id") is not None else None
+    except (TypeError, ValueError):
+        queue_id = None
+    text = " ".join(str(queue.get(k, "")) for k in ("name", "shortName", "description", "gameMode", "type", "category")).casefold()
+    is_custom = queue_id == 0 or "custom" in text
+    is_bot = queue_id in {830, 840, 850, 870} or "versusai" in text or "co-op vs ai" in text or " bot" in (" " + text)
+    disabled = queue_id in ARAM_QUEUE_IDS or any(token in text for token in ("aram", "mayhem", "kiwi", "howling abyss"))
+    return {"disabled": disabled, "queue_id": queue_id, "queue_name": queue.get("name") or queue.get("description"), "is_custom": is_custom, "is_bot": is_bot}
+
+
 def _load_cached_signups():
     global _signups
     try:
@@ -199,17 +212,87 @@ def refresh_pro_snapshot(force: bool = False):
         pass
 
 
-def _current_five(state: dict) -> list[dict]:
-    ids = [int(row["user_id"]) for row in state.get("our_team", []) if row.get("user_id")]
-    if len(ids) != 5:
+def _test_lineup_ids() -> list[int]:
+    """Stable five used only to make solo custom / versus-AI champ select testable.
+
+    The profiles themselves still come from the live Discord signup cache.  The loadfile only
+    chooses which five people stand in for the four bot ally seats that LCU does not identify as
+    real Discord users.
+    """
+    try:
+        data = json.loads((REPO / "loadfiles" / "flexers-team.json").read_text(encoding="utf-8"))
+    except Exception:
         return []
+    by_name: dict[str, int] = {}
+    for row in data.get("players") or []:
+        uid = row.get("user_id")
+        name = row.get("rename") or row.get("name")
+        if uid and name:
+            by_name[str(name).casefold()] = int(uid)
+    out = []
+    for name in data.get("lineup") or []:
+        uid = by_name.get(str(name).casefold())
+        if uid and uid not in out:
+            out.append(uid)
+    return out[:5]
+
+
+TEST_LINEUP_IDS = _test_lineup_ids()
+
+
+def _current_five(state: dict, *, fill_for_test: bool = False) -> list[dict]:
+    ids = []
+    for row in state.get("our_team", []) or []:
+        if row.get("user_id"):
+            uid = int(row["user_id"])
+            if uid not in ids:
+                ids.append(uid)
     with _cache_lock:
         by_id = {int(row["user_id"]): row for row in _signups}
-    return [by_id[uid] for uid in ids if uid in by_id]
+    matched = [uid for uid in ids if uid in by_id]
+    if fill_for_test and len(matched) < 5:
+        for uid in TEST_LINEUP_IDS:
+            if uid in by_id and uid not in matched:
+                matched.append(uid)
+            if len(matched) >= 5:
+                break
+        if len(matched) < 5:
+            for uid in by_id:
+                if uid not in matched:
+                    matched.append(uid)
+                if len(matched) >= 5:
+                    break
+    if len(matched) != 5:
+        return []
+    return [by_id[uid] for uid in matched]
 
 
 def _locked_by_role(state: dict) -> dict[str, str]:
     return {row["role"]: row["locked"] for row in state.get("our_team", []) if row.get("role") in ROLES and row.get("locked")}
+
+
+def _state_for_test(state: dict) -> dict:
+    """Ignore auto-selected ally bots while preserving the local/known humans.
+
+    Versus-AI reveals four ally bots immediately.  Those champions are useful for testing LCU
+    ingestion, but they must not become fake locks in the five real-player draft we are previewing.
+    Enemy bots stay intact so the live matchup layer can still be tested against all five reveals.
+    """
+    with _cache_lock:
+        known_ids = {int(row["user_id"]) for row in _signups if row.get("user_id")}
+    local_cell = state.get("local_cell_id")
+    out = dict(state)
+    team = []
+    for original in state.get("our_team", []) or []:
+        row = dict(original)
+        uid = int(row["user_id"]) if row.get("user_id") else None
+        known_human = uid in known_ids or (local_cell is not None and row.get("cell_id") == local_cell) or bool(row.get("is_local"))
+        if not known_human:
+            row["locked"] = None
+            row["hover"] = None
+        team.append(row)
+    out["our_team"] = team
+    return out
 
 
 def _unavailable(state: dict) -> set[str]:
@@ -365,26 +448,44 @@ def build_response():
     gate = _mode_gate()
     if gate["disabled"]:
         return {"active": False, "disabled": True, "reason": f"Disabled in {gate['queue_name'] or 'ARAM'}", **gate}
-    party = _party_gate()
-    # Custom and versus-AI lobbies are allowed for solo bot testing.
-    # Real PvP matchmaking still requires a confirmed five-player premade.
-    if not (gate.get("is_custom") or gate.get("is_bot")) and not party["party_confirmed"]:
-        size = party.get("party_size")
-        reason = "Draft Coach only runs in a 5-man party" if size is None else f"Draft Coach only runs in a 5-man party ({size}/5 currently)"
-        return {"active": False, "disabled": True, "reason": reason, **gate, **party}
     try:
         snap = _json_get(COACH_STATE_URL, timeout=2.0)
     except Exception as exc:
+        party = _party_gate()
         return {"active": False, "disabled": False, "reason": "Draft Coach server unavailable", "error": str(exc), **gate, **party}
+
     status = snap.get("status") or {}
     state = snap.get("state") or {}
+    # The League gameflow endpoint can be sparse in custom / bot champ select.  The Draft Coach
+    # watcher also records the queue, so use either source to recognise test lobbies and ARAM.
+    qgate = _queue_traits(status.get("queue"))
+    merged_gate = dict(gate)
+    for key in ("is_custom", "is_bot", "disabled"):
+        merged_gate[key] = bool(gate.get(key) or qgate.get(key))
+    if merged_gate.get("queue_id") is None and qgate.get("queue_id") is not None:
+        merged_gate["queue_id"] = qgate["queue_id"]
+    if not merged_gate.get("queue_name") and qgate.get("queue_name"):
+        merged_gate["queue_name"] = qgate["queue_name"]
+    if merged_gate["disabled"]:
+        return {"active": False, "disabled": True, "reason": f"Disabled in {merged_gate['queue_name'] or 'ARAM'}", **merged_gate}
+
+    party = _party_gate()
+    testing = bool(merged_gate.get("is_custom") or merged_gate.get("is_bot"))
+    # Custom and versus-AI lobbies are allowed for solo bot testing. Real PvP matchmaking still
+    # requires a confirmed five-player premade.
+    if not testing and not party["party_confirmed"]:
+        size = party.get("party_size")
+        reason = "Draft Coach only runs in a 5-man party" if size is None else f"Draft Coach only runs in a 5-man party ({size}/5 currently)"
+        return {"active": False, "disabled": True, "reason": reason, **merged_gate, **party}
     if not status.get("lcu_in_champ_select") and state.get("source") != "manual":
-        return {"active": False, "disabled": False, "reason": "Waiting for champion select", **gate, **party}
-    five = _current_five(state)
+        return {"active": False, "disabled": False, "reason": "Waiting for champion select", **merged_gate, **party}
+    five = _current_five(state, fill_for_test=testing)
     if len(five) != 5:
-        return {"active": False, "disabled": False, "reason": "Waiting for all five Discord signup profiles", "matched": len(five), **gate, **party}
-    locked = _locked_by_role(state)
-    unavailable = _unavailable(state)
+        label = "test lineup" if testing else "Discord signup profiles"
+        return {"active": False, "disabled": False, "reason": f"Waiting for all five {label}", "matched": len(five), **merged_gate, **party}
+    effective_state = _state_for_test(state) if testing else state
+    locked = _locked_by_role(effective_state)
+    unavailable = _unavailable(effective_state)
     cache_key = json.dumps({
         "side": state.get("side") or "blue",
         "active": state.get("active") or {},
@@ -407,7 +508,7 @@ def build_response():
             limit=6,
             rotation_token=None,
         )
-        response = {"active": True, "disabled": False, "reason": "Intent backend active", "guidance": _guidance_from_result(result, state), **gate, **party}
+        response = {"active": True, "disabled": False, "reason": "Intent backend active", "guidance": _guidance_from_result(result, effective_state), **merged_gate, **party}
         _response_cache_key = cache_key
         _response_cache_value = response
         _response_cache_at = now
@@ -454,7 +555,8 @@ def main():
     parser.add_argument("--port", type=int, default=8766)
     args = parser.parse_args()
     _load_cached_signups()
-    refresh_signups(force=True)
+    # Serve the cached signup data immediately. Northflank refresh happens in the background;
+    # champ-select overlays should not wait up to 25 seconds just to bind this local port.
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     threading.Thread(target=background_refresh, args=(server,), daemon=True).start()
     print(f"Intent live draft bridge: http://127.0.0.1:{args.port}/api/guidance")
