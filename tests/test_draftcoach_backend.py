@@ -77,7 +77,7 @@ def test_live_sessions_outside_ranked_flex_stand_by(roster):
     sess = session({}, {}, [], [], [0])
     _ingest(hub, sess, {"id": 430, "name": "Normal Draft", "type": "NORMAL"})
     assert hub.state is None or hub.state.source != "lcu"
-    assert "standing by" in hub.status.get("detail", "") and hub.status["queue"]["id"] == 430
+    assert "Standing by" in hub.status.get("detail", "") and hub.status["queue"]["id"] == 430
     _ingest(hub, sess, {"id": 440, "name": "Ranked Flex", "type": "RANKED_FLEX_SR"})
     assert hub.state is not None and hub.state.source == "lcu"
     # Unknown queue (REST failure) is not a reason to go silent; --any-queue coaches customs too.
