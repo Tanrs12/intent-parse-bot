@@ -1,0 +1,9 @@
+# Flexers Draft Coach (desktop overlay) on top of requirements.txt
+fastapi>=0.110
+uvicorn[standard]>=0.27
+websockets>=12
+pywebview>=5.0
+pyinstaller>=6.11
+# tests
+pytest>=8
+httpx>=0.27

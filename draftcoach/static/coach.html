@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Draft Coach</title>
+<link rel="stylesheet" href="/static/mm/tokens.css">
+<link rel="stylesheet" href="/static/mm/draft-ui.css">
+<link rel="stylesheet" href="/static/mm/draft-coach.css">
+</head>
+<body class="coach-page">
+<header class="coach-mast">
+  <div class="coach-brand">
+    <svg class="ov-mark" viewBox="0 0 36 30" aria-hidden="true"><path fill="currentColor" d="M4 28V2h26v6H11v5h16v6H11v9z"/></svg>
+    <div>
+      <div class="coach-wordmark">FLEXERS DRAFT COACH</div>
+      <div class="mm-meta">Lobby &middot; Draft &middot; Guidance</div>
+    </div>
+  </div>
+  <div class="coach-mast-actions">
+    <span class="mm-meta coach-status" id="status" data-mode="connecting">Connecting</span>
+    <button class="fd-button" id="open-roster" type="button"><span class="mm-icon" data-icon="book" aria-hidden="true"></span>Roster &amp; imports</button>
+    <a class="fd-button" href="/overlay" target="_blank" rel="noopener"><span class="mm-icon" data-icon="overlay" aria-hidden="true"></span>Preview overlay</a>
+  </div>
+</header>
+
+<main class="coach-main">
+  <section class="mm-card coach-lobby" id="lobby-card" aria-labelledby="lobby-title">
+    <header class="fd-card-head"><h2 id="lobby-title">Lobby</h2><span class="mm-meta" id="lobby-sub">Waiting for players</span></header>
+    <div class="coach-seats" id="lobby"></div>
+    <p class="fd-note">Link an account to use that player&rsquo;s champion pools. Default pools remain available for unlinked players.</p>
+  </section>
+
+  <div class="coach-workspace">
+    <section class="mm-card coach-board" id="board" aria-labelledby="board-title">
+      <header class="fd-card-head"><h2 id="board-title">Draft board</h2><span class="mm-meta" id="turn">Waiting for draft</span></header>
+      <div class="coach-board-controls">
+        <label class="fd-field"><span>Draft format</span><select id="draft-type"></select></label>
+        <fieldset class="coach-side"><legend class="mm-meta">Our side</legend>
+          <button class="fd-button" id="side-blue" type="button" aria-pressed="true">Blue side</button>
+          <button class="fd-button" id="side-red" type="button" aria-pressed="false">Red side</button>
+        </fieldset>
+        <div class="coach-history">
+          <button class="fd-button" id="undo" type="button">Undo</button>
+          <button class="fd-button" id="redo" type="button">Redo</button>
+          <button class="fd-text-button" id="reset" type="button"><span class="mm-icon" data-icon="reset" aria-hidden="true"></span>Reset draft</button>
+        </div>
+      </div>
+      <p class="fd-note" id="board-mode">Manual board &middot; Changes apply here</p>
+
+      <div class="coach-teams">
+        <section class="coach-team" data-owner="ours">
+          <header class="team-header"><h3>Our team</h3><span class="mm-meta" id="ours-side">Blue side</span></header>
+          <div id="ours-slots"></div>
+          <div class="bans-row" id="ours-bans"></div>
+        </section>
+        <section class="coach-team" data-owner="enemy">
+          <header class="team-header"><h3>Enemy team</h3><span class="mm-meta" id="enemy-side">Red side</span></header>
+          <div id="enemy-slots"></div>
+          <div class="bans-row" id="enemy-bans"></div>
+        </section>
+      </div>
+
+      <details class="fd-details" id="champion-browser">
+        <summary>Browse champions</summary>
+        <label class="fd-field"><span>Champion</span><input type="search" id="search" autocomplete="off" placeholder="Search champions" aria-describedby="champion-help"></label>
+        <p class="fd-note" id="champion-help">Select a champion to review it, then add it to the manual board. Enter selects the first match.</p>
+        <div class="coach-champion-grid" id="grid" role="group" aria-label="Champions"></div>
+        <div class="coach-selection">
+          <span id="selected-champion">No champion selected</span>
+          <div class="coach-selection-actions">
+            <button class="fd-button" id="preview-hover" type="button" disabled>Set hover</button>
+            <button class="fd-button primary" id="commit-champion" type="button" disabled>Add to board</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="fd-details"><summary>Draft order</summary><p class="fd-note" id="order-sub"></p><div class="seq" id="seq"></div></details>
+
+      <details class="fd-details" id="series-tools" hidden>
+        <summary>Fearless series</summary>
+        <p class="fd-note" id="series-note">Champions used in previous games are unavailable in this series.</p>
+        <div class="coach-inline-actions">
+          <button class="fd-button" id="series-next" type="button">Record game &amp; start next</button>
+          <button class="fd-text-button" id="series-clear" type="button">Clear series history</button>
+        </div>
+      </details>
+
+      <details class="fd-details"><summary>Draft activity</summary><div class="events" id="events"></div></details>
+    </section>
+
+    <aside class="coach-guidance" aria-label="Draft guidance">
+      <section class="mm-card">
+        <div class="coach-hero" aria-hidden="true"><img id="hero-art" alt="" decoding="async"></div>
+        <div class="coach-guidance-head"><p class="mm-meta" id="statekey">Current decision</p><span id="timer" role="timer" aria-live="off"></span></div>
+        <h2 class="coach-headline" id="headline">Waiting for champion select</h2>
+        <p class="coach-reason" id="reason"></p>
+        <div class="change" id="change" hidden></div>
+        <div id="alerts"></div>
+        <div class="coach-inline-actions" id="client-actions" hidden>
+          <button class="fd-button primary" id="accept" type="button"></button>
+          <button class="fd-button" id="hover-btn" type="button">Hover</button>
+          <span class="mm-meta" id="action-note"></span>
+        </div>
+
+        <section id="order-section" hidden>
+          <header class="coach-section-head"><h3>Pick order</h3><span class="mm-meta" id="order-sub"></span></header>
+          <div class="plan-steps" id="order"></div>
+          <p class="plan-note" id="order-note"></p>
+        </section>
+        <section id="plans-section" hidden>
+          <header class="coach-section-head"><h3>Plans</h3><span class="mm-meta" id="plans-sub"></span></header>
+          <div id="plans"></div>
+        </section>
+        <section id="pick-section">
+          <header class="coach-section-head"><h3>Pick</h3><span class="mm-meta" id="pick-pill">Next</span><span class="mm-meta" id="pick-roles"></span></header>
+          <div class="list" id="picks"></div>
+        </section>
+        <section id="ban-section">
+          <header class="coach-section-head"><h3>Ban</h3><span class="mm-meta" id="ban-pill">Targets</span></header>
+          <div class="list" id="bans"></div>
+        </section>
+        <details class="fd-details" id="other-section"><summary id="other-summary">Ban targets</summary><div class="list" id="other"></div></details>
+
+        <details class="fd-details"><summary>Draft analysis</summary>
+          <h3 class="coach-analysis-title">Likely enemy picks</h3><div class="chips" id="likely"></div>
+          <h3 class="coach-analysis-title">Available flex picks</h3><div class="chips" id="flex"></div>
+          <h3 class="coach-analysis-title">Answers to enemy picks</h3><div class="list" id="counters"></div>
+          <h3 class="coach-analysis-title">Suggested completion</h3><div class="comp" id="comp"></div><span class="mm-meta" id="comp-score"></span>
+          <p class="fd-note">Ranking and composition scores are model estimates, not win probabilities.</p>
+          <div class="coach-score-row"><span>Our composition</span><span id="ours-score"></span></div>
+          <div class="coach-score-row"><span>Enemy composition</span><span id="enemy-score"></span></div>
+        </details>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<dialog class="coach-drawer" id="drawer" aria-labelledby="roster-title">
+  <header class="coach-drawer-head">
+    <div><p class="mm-meta">Setup</p><h2 id="roster-title">Roster &amp; imports</h2></div>
+    <button class="fd-icon-button" id="close-roster" type="button" aria-label="Close roster and imports" autofocus><span class="mm-icon" data-icon="close" aria-hidden="true"></span></button>
+  </header>
+  <section>
+    <h3>Import player pools</h3>
+    <div class="dropzone" id="dropzone">
+      <label for="file-input">Choose JSON or CSV loadfiles, or drop them here.</label>
+      <input type="file" id="file-input" multiple accept=".json,.csv,application/json,text/csv">
+    </div>
+    <div class="coach-inline-actions">
+      <a class="fd-link" href="/api/roster/export?format=json" download>Export JSON</a>
+      <a class="fd-link" href="/api/roster/export?format=csv" download>Export CSV</a>
+    </div>
+    <details class="fd-details"><summary>Automatic folder import</summary><p class="fd-note">Files placed in <code id="watch-dir">loadfiles/</code> are imported automatically. Pools, priorities, scouting, ban policy and engine data snapshots are all loadfiles.</p></details>
+  </section>
+  <section>
+    <h3>Players</h3>
+    <div class="coach-table-scroll"><table><thead><tr><th>Player</th><th>Roles</th><th>Pools</th><th>Actions</th></tr></thead><tbody id="players"></tbody></table></div>
+  </section>
+  <section>
+    <h3>Manual lineup</h3>
+    <p class="fd-note">Used by the manual board. Live lobbies are detected separately.</p>
+    <div class="lineup" id="lineup"></div>
+  </section>
+  <details class="fd-details"><summary>Opponent scouting</summary>
+    <div class="lineup" id="enemy-lineup"></div>
+    <div class="coach-table-scroll"><table><thead><tr><th>Player</th><th>Team</th><th>Pools</th><th>Actions</th></tr></thead><tbody id="opponents"></tbody></table></div>
+  </details>
+  <details class="fd-details"><summary>Ban policy and exclusions</summary><div class="data-card" id="policy"></div></details>
+  <details class="fd-details"><summary>Import results</summary><div class="imports" id="imports"></div></details>
+  <details class="fd-details"><summary>Diagnostics</summary><div class="data-card" id="engine-data"></div></details>
+</dialog>
+<div class="sr-only" id="app-announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+
+<script src="/static/common.js"></script>
+<script>
+(function () {
+  const D = window.Draft;
+  const $ = D.$;
+  const ROLE_LONG = { Top: "Top", Jungle: "Jungle", Mid: "Mid", ADC: "Bot", Support: "Support" };
+  const POOL_LABELS = { pool: "Pool available", partial: "Pool for another role", default: "Default pool", history: "Account history", none: "Role meta only" };
+  let latest = null, champions = {}, names = [], popover = null, rosterCache = null, typesFilled = false, deadline = 0, changeKey = "", selectedChampion = null, lastStepIndex = null, browserInitialised = false;
+  const drawer = $("drawer");
+  let drawerInvoker = null;
+
+  function toast(text, isError) { const t = D.el("div", "toast" + (isError ? " error" : ""), text); document.body.appendChild(t); setTimeout(() => t.remove(), isError ? 4500 : 2400); }
+  async function act(path, body) { try { return await D.api("POST", path, body); } catch (e) { toast(e.message, true); return null; } }
+  function editingText(target) { return target instanceof Element && Boolean(target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')); }
+  D.hydrateIcons(document);
+
+  // ---- drawer ---------------------------------------------------------------------
+  function openRoster() { if (drawer.open) return; drawerInvoker = document.activeElement; drawer.showModal(); loadRoster(); }
+  function closeRoster() { drawer.close(); }
+  $("open-roster").onclick = openRoster;
+  $("close-roster").onclick = closeRoster;
+  drawer.addEventListener("close", () => { if (drawerInvoker && drawerInvoker.isConnected) drawerInvoker.focus(); });
+  drawer.addEventListener("click", (event) => { if (event.target !== drawer) return; const r = drawer.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) drawer.close(); });
+
+  // ---- imports -----------------------------------------------------------------------
+  const dz = $("dropzone");
+  ["dragenter", "dragover"].forEach((t) => dz.addEventListener(t, (ev) => { ev.preventDefault(); dz.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((t) => dz.addEventListener(t, (ev) => { ev.preventDefault(); dz.classList.remove("over"); }));
+  dz.addEventListener("drop", (ev) => importFiles(ev.dataTransfer.files));
+  document.addEventListener("dragover", (ev) => ev.preventDefault());
+  document.addEventListener("drop", (ev) => { ev.preventDefault(); if (!drawer.open) { openRoster(); importFiles(ev.dataTransfer.files); } });
+  $("file-input").addEventListener("change", (ev) => { importFiles(ev.target.files); ev.target.value = ""; });
+  async function importFiles(fileList) {
+    const files = [...fileList]; if (!files.length) return;
+    const payload = [];
+    for (const f of files) payload.push({ name: f.name, text: await f.text() });
+    try {
+      const res = await D.api("POST", "/api/import", { files: payload });
+      const bad = res.results.filter((r) => !r.ok || r.warnings.length).length;
+      toast("Imported " + res.results.length + " file" + (res.results.length === 1 ? "" : "s") + "." + (bad ? " " + bad + " need" + (bad === 1 ? "s" : "") + " attention." : ""), false);
+      loadRoster();
+    } catch (e) { toast(e.message, true); }
+  }
+
+  // ---- roster drawer content -----------------------------------------------------------
+  async function loadRoster() { try { rosterCache = await (await fetch("/api/roster")).json(); } catch (e) { return; } renderRoster(); }
+  function champList(pools) {
+    const parts = [];
+    for (const role of D.ROLES) { const entries = pools[role] || []; if (entries.length) parts.push((ROLE_LONG[role] || role) + ": " + entries.map((e) => (e.priority === 1 ? "★ " : e.priority ? "p" + e.priority + " " : "") + e.champion).join(", ")); }
+    if (pools.Any && pools.Any.length) parts.push("Any: " + pools.Any.map((e) => e.champion).join(", "));
+    return parts.join(" · ");
+  }
+  function renderRoster() {
+    const r = rosterCache; if (!r) return;
+    const players = $("players"); players.replaceChildren();
+    for (const p of r.players) {
+      const tr = D.el("tr");
+      const who = D.el("td"); who.append(D.el("b", "", p.name)); if (p.riot_ids.length) who.append(D.el("div", "champs", p.riot_ids.join(", "))); if (p.user_id) who.append(D.el("div", "champs", "Engine profile linked"));
+      tr.append(who, D.el("td", "", p.roles.map((x) => ROLE_LONG[x] || x).join(", ")));
+      const pools = D.el("td", "champs", champList(p.pools) || "None (default pools apply)"); if (p.avoid && p.avoid.length) pools.append(D.el("div", "", "Avoid: " + p.avoid.join(", ")));
+      tr.append(pools);
+      const del = D.el("td"); const b = D.el("button", "fd-link danger", "Remove"); b.type = "button";
+      b.onclick = async () => { if (confirm("Remove " + p.name + " from the roster?")) { await fetch("/api/roster/player/" + p.key, { method: "DELETE" }); loadRoster(); } };
+      del.append(b); tr.append(del); players.append(tr);
+    }
+    if (!r.players.length) { const td = D.el("td", "champs", "No players yet. Import a loadfile."); td.colSpan = 4; players.append(D.el("tr")).append(td); }
+    const opps = $("opponents"); opps.replaceChildren();
+    for (const o of r.opponents) {
+      const tr = D.el("tr"); const who = D.el("td"); who.append(D.el("b", "", o.name)); if (o.riot_ids.length) who.append(D.el("div", "champs", o.riot_ids.join(", ")));
+      tr.append(who, D.el("td", "", o.team || ""), D.el("td", "champs", champList(o.pools) || "No pools"));
+      const del = D.el("td"); const b = D.el("button", "fd-link danger", "Remove"); b.type = "button";
+      b.onclick = async () => { if (confirm("Remove " + o.name + "?")) { await fetch("/api/roster/opponent/" + o.key, { method: "DELETE" }); loadRoster(); } };
+      del.append(b); tr.append(del); opps.append(tr);
+    }
+    if (!r.opponents.length) { const td = D.el("td", "champs", "No scouting yet."); td.colSpan = 4; opps.append(D.el("tr")).append(td); }
+    lineupSelects($("lineup"), r.lineup, r.players.map((p) => [p.key, p.name]), "/api/roster/lineup", ["Seat 1", "Seat 2", "Seat 3", "Seat 4", "Seat 5"]);
+    lineupSelects($("enemy-lineup"), r.enemy_lineup, r.opponents.map((o) => [o.key, o.name]), "/api/roster/enemy-lineup", ["Enemy 1", "Enemy 2", "Enemy 3", "Enemy 4", "Enemy 5"]);
+    const policy = $("policy"); policy.replaceChildren();
+    const add = (k, v) => { policy.append(D.el("span", "mm-meta", k), D.el("b", "", v)); };
+    add("Ban priority", r.ban_priority.map((b) => b.champion + " (weight " + b.weight + ")").join(", ") || "None");
+    add("Never pick", r.never_pick.join(", ") || "None");
+    add("Settings", Object.entries(r.settings).map(([k, v]) => k + " = " + v).join("  ·  "));
+    add("Fearless series", (r.series || []).length ? r.series.length + " game(s) recorded" : "None");
+    renderImports(r.history || []);
+    if (latest) renderLobby(latest);
+  }
+  function lineupSelects(box, current, options, path, labels) {
+    box.replaceChildren();
+    for (let i = 0; i < 5; i++) {
+      const wrap = D.el("div"); const label = D.el("label", "", labels[i]); label.htmlFor = path.replace(/\W/g, "") + i;
+      const sel = D.el("select"); sel.id = label.htmlFor;
+      sel.append(new Option("—", ""));
+      for (const [key, name] of options) sel.append(new Option(name, key, false, current[i] === key));
+      sel.onchange = async () => { await act(path, { lineup: [...box.querySelectorAll("select")].map((s) => s.value || null) }); loadRoster(); };
+      wrap.append(label, sel); box.append(wrap);
+    }
+  }
+  function renderImports(history) {
+    const box = $("imports"); box.replaceChildren();
+    if (!history.length) { box.append(D.el("p", "fd-note", "Nothing imported yet.")); return; }
+    for (const h of [...history].reverse().slice(0, 20)) {
+      const row = D.el("div", "row " + (h.errors.length ? "error" : h.warnings.length ? "warn" : ""));
+      row.append(D.el("b", "", h.name), document.createTextNode(" · " + h.kind + " · " + (h.errors.length ? "failed" : h.changes + " change(s)")));
+      row.append(D.el("small", "", new Date(h.at * 1000).toLocaleString() + (h.note ? " · " + h.note : "")));
+      if (h.applied.length || h.warnings.length || h.errors.length) { const det = D.el("details"); det.append(D.el("summary", "", "Details")); const ul = D.el("ul"); for (const e of h.errors) ul.append(D.el("li", "", "Error: " + e)); for (const w of h.warnings) ul.append(D.el("li", "", "Warning: " + w)); for (const a of h.applied) ul.append(D.el("li", "", a)); det.append(ul); row.append(det); }
+      box.append(row);
+    }
+  }
+  function renderEngineData(info) {
+    const box = $("engine-data"); box.replaceChildren();
+    for (const [name, meta] of Object.entries(info || {})) box.append(D.el("span", "mm-meta", name), D.el("b", "", meta ? ((meta.generated_at ? "generated " + meta.generated_at.slice(0, 10) + " · " : "") + Math.round(meta.size / 1024) + " KB") : "missing"));
+  }
+
+  // ---- lobby --------------------------------------------------------------------------
+  function renderLobby(snapshot) {
+    const box = $("lobby"); box.replaceChildren();
+    const lobby = (snapshot.lobby || []).slice(0, 5);
+    const players = (rosterCache && rosterCache.players) || [];
+    const live = snapshot.state && snapshot.state.source !== "manual";
+    $("lobby-sub").textContent = !snapshot.state ? "Waiting for players" : live ? (snapshot.state.source === "lcu" ? "Detected from the League client" : "Simulated lobby") : "Manual lineup";
+    for (let i = 0; i < 5; i++) {
+      const l = lobby[i];
+      const seat = D.el("div", "coach-seat"); seat.dataset.matched = String(Boolean(l && l.matched));
+      const head = D.el("span", "mm-meta"); head.append(D.el("span", "", l && l.role ? (ROLE_LONG[l.role] || l.role) : "Seat " + (i + 1)));
+      const icon = D.el("span", "mm-icon"); icon.dataset.icon = l && l.matched ? "check" : "unknown"; head.append(icon);
+      seat.append(head);
+      const body = D.el("div");
+      body.append(D.el("div", "coach-seat-name", l ? l.name : "Waiting"));
+      const sub = D.el("small");
+      if (l) {
+        sub.append(document.createTextNode((l.matched ? "Linked" : "Unlinked") + " · "));
+        sub.append(D.el("span", l.pool_status === "pool" ? "pool-ok" : l.pool_status === "partial" ? "pool-partial" : "", POOL_LABELS[l.pool_status] || "Pool unknown"));
+        if (l.riot_id) sub.append(document.createTextNode(" · " + l.riot_id));
+      } else sub.textContent = "Waiting for player";
+      body.append(sub); seat.append(body);
+      if (l && live) {
+        if (l.riot_id) {
+          const sel = D.el("select"); sel.setAttribute("aria-label", "Link " + l.name + " to roster player");
+          sel.append(new Option(l.matched ? "Linked" : "Link to…", ""));
+          for (const p of players) sel.append(new Option(p.name, p.key, false, p.key === l.player_key));
+          sel.append(new Option("+ New player (" + l.name + ")", "__new__"));
+          sel.onchange = async () => { if (!sel.value) return; const body2 = sel.value === "__new__" ? { riot_id: l.riot_id, name: l.name } : { riot_id: l.riot_id, player_key: sel.value }; const res = await act("/api/roster/link", body2); if (res) { toast(l.riot_id + " linked to " + res.player.name); loadRoster(); } };
+          seat.append(sel);
+        } else seat.append(D.el("small", "", "Account ID unavailable"));
+      }
+      box.append(seat);
+    }
+    D.hydrateIcons(box);
+  }
+
+  // ---- teams -------------------------------------------------------------------------------
+  function renderTeam(box, slots, ours, activeCells, swaps, editable) {
+    box.replaceChildren();
+    const swapTo = {}; for (const sw of swaps || []) swapTo[sw.from_cell] = sw;
+    const sorted = [...slots].sort((a, b) => (D.ROLES.indexOf(a.role) - D.ROLES.indexOf(b.role)) || (a.cell_id - b.cell_id));
+    for (const slot of sorted) {
+      const champ = slot.locked || slot.hover;
+      const row = D.el("div", "slot" + (activeCells.includes(slot.cell_id) ? " active" : "") + (slot.locked ? " locked-art" : ""));
+      if (slot.locked && D.idFor(slot.locked)) row.style.setProperty("--slot-art", "url(" + D.artUrl("tile", slot.locked) + ")");
+      row.append(champ ? D.portrait(champ, slot.locked ? "" : "hover", D.idFor(champ)) : D.el("span", "portrait", D.initials(slot.display_name)));
+      const mid = D.el("div");
+      mid.append(D.el("div", "name", champ || slot.display_name));
+      mid.append(D.el("div", "sub", champ ? (ours ? slot.display_name : (slot.scouted ? slot.scouted.name + " · scouted" : slot.display_name)) : (ours ? ({ player: "Own pool", history: "Account history", default: "Default pool", payload: "Given pool" }[slot.pool_source] || "Role meta") : (slot.scouted ? "Scouted" : "Unknown"))));
+      row.append(mid);
+      const right = D.el("div");
+      const boardAction = editable && slot.locked ? (latest.draft.actions || []).find((a) => a.kind === "pick" && a.champion === slot.locked) : null;
+      if (boardAction) {
+        const sel = D.el("select", "role-select"); sel.setAttribute("aria-label", "Role for " + slot.locked);
+        for (const r of D.ROLES) sel.append(new Option((ROLE_LONG[r] || r).toUpperCase(), r, false, r === slot.role));
+        sel.onchange = () => act("/api/draft/role", { index: boardAction.index, role: sel.value });
+        right.append(sel);
+      } else right.append(D.el("div", "role" + (slot.role_source === "inferred" ? " inferred" : ""), (ROLE_LONG[slot.role] || "?").toUpperCase()));
+      const sw = swapTo[slot.cell_id];
+      right.append(D.el("div", "state " + (slot.locked ? (sw ? "hover" : "lock") : champ ? "hover" : ""), slot.locked ? (sw ? "→ " + (ROLE_LONG[sw.to_role] || sw.to_role).toUpperCase() : "Locked") : champ ? "Hover" : ""));
+      row.append(right); box.append(row);
+    }
+  }
+  function renderBans(box, bans) {
+    box.replaceChildren(); box.append(D.el("span", "label", "Bans"));
+    if (!bans.length) box.append(D.el("span", "empty", "None yet"));
+    for (const name of bans) { const b = D.el("span", "ban"); const p = D.portrait(name, "small"); p.removeAttribute("aria-hidden"); p.setAttribute("aria-label", name); b.title = name; b.append(p); box.append(b); }
+  }
+
+  // ---- champion browser -----------------------------------------------------------------
+  fetch("/api/champions").then((r) => r.json()).then((d) => { champions = d.champions; names = Object.keys(champions).sort(); D.learnIds(champions); buildGrid(); refreshGrid(); });
+  function buildGrid() {
+    const grid = $("grid"); grid.replaceChildren();
+    for (const name of names) {
+      const tile = D.el("button", "tile"); tile.type = "button"; tile.dataset.name = name; tile.setAttribute("aria-pressed", "false");
+      tile.append(D.portrait(name, "", champions[name]), D.el("span", "nm", name), D.el("small", "", ""));
+      tile.onclick = () => selectChampion(name);
+      grid.append(tile);
+    }
+  }
+  function currentStep() { return latest && latest.draft ? latest.draft.current : null; }
+  function boardLocked() { return !!(latest && latest.state && latest.state.source !== "manual"); }
+  function liveLabel() { const s = latest && latest.state && latest.state.source; return s === "lcu" ? "Following League" : s === "simulation" ? "Simulation" : s === "rest" ? "External draft state" : ""; }
+  function refreshGrid() {
+    const state = latest && latest.state, g = latest && latest.guidance;
+    const picked = new Set(), banned = new Set(), series = new Set(), hovered = new Set(), poolNow = new Set(), rec = new Set(), banrec = new Set();
+    if (state) {
+      for (const n of state.our_bans.concat(state.enemy_bans)) banned.add(n);
+      for (const n of state.series_unavailable || []) series.add(n);
+      for (const s of state.our_team.concat(state.enemy_team)) { if (s.locked) picked.add(s.locked); if (s.hover && !s.locked) hovered.add(s.hover); }
+      const activeRoles = (g && g.roles_now) || [];
+      for (const s of state.our_team) if (!s.locked && activeRoles.includes(s.role)) for (const c of (s.pool && s.pool[s.role]) || []) poolNow.add(c);
+    }
+    const step = currentStep();
+    const ourPick = step && step.kind === "pick" && step.ours, banTurn = step && step.kind === "ban";
+    if (g) { for (const p of (g.picks || []).slice(0, 6)) rec.add(p.champion); for (const b of (g.bans || []).slice(0, 5)) banrec.add(b.champion); }
+    const q = $("search").value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+    for (const tile of $("grid").children) {
+      const name = tile.dataset.name, key = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+      tile.classList.toggle("hidden", !!q && !key.includes(q));
+      const unavailable = picked.has(name) || banned.has(name) || series.has(name);
+      tile.disabled = unavailable;
+      tile.classList.toggle("rec", ourPick && rec.has(name) && !unavailable);
+      tile.classList.toggle("banrec", banTurn && banrec.has(name) && !unavailable);
+      tile.classList.toggle("hovered", hovered.has(name));
+      tile.querySelector("small").textContent = picked.has(name) ? "Picked" : banned.has(name) ? "Banned" : series.has(name) ? "Series" : (ourPick && rec.has(name)) ? "Recommended" : (banTurn && banrec.has(name)) ? "Ban target" : (ourPick && poolNow.has(name)) ? "Pool" : "";
+    }
+    if (selectedChampion && (picked.has(selectedChampion) || banned.has(selectedChampion) || series.has(selectedChampion))) selectChampion(null);
+    updateCommitControls();
+  }
+  function selectChampion(name) {
+    selectedChampion = name;
+    for (const tile of $("grid").children) tile.setAttribute("aria-pressed", String(tile.dataset.name === name));
+    $("selected-champion").textContent = name || "No champion selected";
+    updateCommitControls();
+  }
+  function updateCommitControls() {
+    const tile = [...$("grid").children].find((n) => n.dataset.name === selectedChampion);
+    const step = currentStep();
+    const canAct = Boolean(tile && !tile.disabled && step && !boardLocked());
+    $("commit-champion").disabled = !canAct;
+    $("preview-hover").disabled = !canAct || !step || step.kind !== "pick";
+    $("commit-champion").textContent = !step ? "Add to board" : step.kind === "ban" ? "Ban " + (selectedChampion || "champion") : "Lock " + (selectedChampion || "champion");
+  }
+  function openRoles() { const state = latest && latest.state; if (!state) return D.ROLES; const locked = new Set(state.our_team.filter((s) => s.locked).map((s) => s.role)); return D.ROLES.filter((r) => !locked.has(r)); }
+  function commit(name, anchor) {
+    if (boardLocked()) return;
+    const step = currentStep(); if (!step) return;
+    if (step.kind === "pick" && step.ours) {
+      const owners = latest.state.our_team.filter((s) => !s.locked && s.role && (s.pool[s.role] || []).includes(name));
+      const open = openRoles();
+      if (owners.length === 1 && open.length > 1) return pick(name, owners[0].role);
+      if (open.length === 1) return pick(name, open[0]);
+      return showRolePopover(anchor, open, (role) => pick(name, role));
+    }
+    pick(name, null);
+  }
+  async function pick(name, role) {
+    closePopover();
+    const res = await act("/api/draft/action", { champion: name, role: role || undefined });
+    if (res) { selectChampion(null); $("app-announcement").textContent = (role ? "Locked " : "Added ") + name + (role ? " for " + (ROLE_LONG[role] || role) : "") + "."; }
+  }
+  async function hover(name) { const step = currentStep(); if (!step || boardLocked()) return; await act("/api/draft/hover", { team: step.team, champion: name }); }
+  function showRolePopover(anchor, roles, cb) {
+    closePopover();
+    popover = D.el("div", "popover"); popover.setAttribute("role", "group"); popover.setAttribute("aria-label", "Choose the role for this pick");
+    for (const r of roles) { const b = D.el("button", "fd-button", ROLE_LONG[r] || r); b.type = "button"; b.onclick = (e) => { e.stopPropagation(); cb(r); }; popover.append(b); }
+    document.body.append(popover);
+    const rect = anchor.getBoundingClientRect();
+    popover.style.left = Math.min(rect.left, window.innerWidth - 340) + "px"; popover.style.top = Math.min(rect.bottom + 6, window.innerHeight - 60) + "px";
+    popover.querySelector("button").focus();
+    setTimeout(() => document.addEventListener("click", closePopover, { once: true }), 0);
+  }
+  function closePopover() { if (popover) { popover.remove(); popover = null; } }
+  $("commit-champion").onclick = () => { if (!selectedChampion) return; commit(selectedChampion, $("commit-champion")); };
+  $("preview-hover").onclick = () => { if (selectedChampion && !boardLocked()) hover(selectedChampion); };
+  $("search").addEventListener("input", refreshGrid);
+  $("search").addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") { ev.preventDefault(); const first = [...$("grid").children].find((t) => !t.classList.contains("hidden") && !t.disabled); if (first) selectChampion(first.dataset.name); }
+    if (ev.key === "Escape") { $("search").value = ""; refreshGrid(); }
+  });
+
+  // ---- board controls ----------------------------------------------------------------------
+  document.addEventListener("keydown", (event) => {
+    if (drawer.open || editingText(event.target) || boardLocked()) return;
+    const key = event.key.toLowerCase(), modifier = event.ctrlKey || event.metaKey;
+    if (modifier && key === "z") { event.preventDefault(); act(event.shiftKey ? "/api/draft/redo" : "/api/draft/undo"); }
+    else if (modifier && key === "y") { event.preventDefault(); act("/api/draft/redo"); }
+  });
+  $("undo").onclick = () => act("/api/draft/undo");
+  $("redo").onclick = () => act("/api/draft/redo");
+  $("reset").onclick = () => { if (confirm("Reset the draft board? All picks and bans on it are cleared.")) act("/api/draft/reset", {}); };
+  $("side-blue").onclick = () => act("/api/draft/side", { side: "blue" });
+  $("side-red").onclick = () => act("/api/draft/side", { side: "red" });
+  $("draft-type").onchange = async () => {
+    const draft = latest && latest.draft;
+    if (draft && draft.actions && draft.actions.length && !confirm("Changing the format resets the turn order. Continue with the current board?")) { $("draft-type").value = latest.draft_type; return; }
+    const res = await act("/api/draft/type", { draft_type: $("draft-type").value });
+    if (!res && latest) { $("draft-type").value = latest.draft_type; toast("Couldn’t change draft format. Try again.", true); }
+  };
+  $("series-next").onclick = () => { if (confirm("Record this game’s picks for the series and start the next game?")) act("/api/series/next"); };
+  $("series-clear").onclick = () => { if (confirm("Forget the fearless series?")) act("/api/series/clear"); };
+
+  // ---- guidance rail ----------------------------------------------------------------------
+  function cardRow(r, onClick, lead) {
+    const card = D.el(onClick ? "button" : "div", "card" + (lead ? " top" : ""));
+    if (onClick) { card.type = "button"; card.onclick = () => onClick(r); card.setAttribute("aria-label", (r.action || "Choose") + " " + r.champion); }
+    card.append(D.portrait(r.champion, "", r.champion_id));
+    const mid = D.el("div"); const title = D.el("div", "title"); title.append(D.el("span", "champ", r.champion));
+    if (r.role) title.append(D.el("span", "role", (ROLE_LONG[r.role] || r.role) + (r.player && r.player !== r.role ? " · " + r.player : "")));
+    mid.append(title); if (r.why) mid.append(D.el("div", "why", r.why));
+    if (r.tags && r.tags.length) { const tags = D.el("div", "tags"); for (const t of r.tags) tags.append(D.el("span", "tag " + (t.cls || ""), t.text)); mid.append(tags); }
+    card.append(mid);
+    const score = D.el("div", "score", r.score); if (r.sub) score.append(D.el("small", "", r.sub)); card.append(score);
+    return card;
+  }
+  function pickRows(picks, limit, onClick) { return picks.slice(0, limit).map((p, i) => cardRow({ champion: p.champion, champion_id: p.champion_id, role: p.role, player: p.player, why: D.shortPickReason(p), score: p.score.toFixed(0), sub: "estimate", action: "Lock", tags: [p.plan ? { text: "plan: " + p.plan.name, cls: "blue" } : null, p.familiarity === "comfort" ? { text: "comfort", cls: "blue" } : p.familiarity === "developing" ? { text: "developing", cls: "warn" } : null, p.priority === 1 ? { text: "preferred" } : null, p.source === "exhausted" ? { text: "emergency", cls: "warn" } : null, (p.flex_roles || []).length ? { text: "flex " + p.flex_roles.map((x) => D.ROLE_SHORT[x] || x).join("/") } : null, (p.source === "history" || p.source === "history-fallback") ? { text: "history" } : p.source === "meta" ? { text: "meta", cls: "warn" } : null].filter(Boolean) }, onClick, i === 0)); }
+  function renderPickOrder(g) {
+    const section = $("order-section"), box = $("order");
+    const rows = (g && g.pick_order) || [];
+    box.replaceChildren();
+    if (!rows.length) { section.hidden = true; return; }
+    section.hidden = false;
+    const src = g.pick_order_source || "";
+    $("order-sub").textContent = src.startsWith("plan:") ? "for " + src.slice(5) : "for the leading composition";
+    for (const r of rows) {
+      const c = D.el("span", "chip" + (r.status === "locked" ? " on" : r.status === "next" ? " next" : ""));
+      c.append(D.el("small", "", r.slot), D.portrait(r.champion, "tiny", r.champion_id), D.el("b", "", r.champion), D.el("small", "", D.ROLE_SHORT[r.role] || r.role));
+      c.title = (r.tags || []).join(", ");
+      box.append(c);
+    }
+    const next = rows.find((r) => r.status === "next");
+    const held = rows.filter((r) => r.status === "later" && (r.tags || []).some((t) => t.startsWith("counter-prone")));
+    $("order-note").textContent = (next ? "Reveal " + next.champion + " next" + ((next.tags || []).length ? " (" + next.tags.join(", ") + ")" : "") + ". " : "") +
+      (held.length ? "Hold " + held.map((r) => r.champion).join(", ") + " for later slots." : "");
+  }
+  function renderPlans(g, state) {
+    const box = $("plans"), section = $("plans-section");
+    const plans = (g && g.plans) || [];
+    box.replaceChildren();
+    if (!plans.length || !state) { section.hidden = true; return; }
+    section.hidden = false;
+    const live = plans.filter((p) => p.viable);
+    $("plans-sub").textContent = live.length + " of " + plans.length + " still open";
+    const committed = g.committed_plan && g.committed_plan.id;
+    if (committed) $("plans-sub").textContent = "going with " + (g.committed_plan.name || committed) + (g.committed_plan.viable ? "" : " (blocked)") + " · " + live.length + " of " + plans.length + " open";
+    for (const plan of plans.slice(0, 6)) {
+      const row = D.el("div", "plan-row" + (plan.viable ? "" : " dead") + (plan.committed ? " committed" : ""));
+      const head = D.el("div", "plan-head");
+      const choose = D.el("button", "fd-button small" + (plan.committed ? " primary" : ""), plan.committed ? "Going with this" : "Go with this");
+      choose.type = "button";
+      choose.onclick = async () => { choose.disabled = true; try { await D.api("POST", "/api/plan/commit", { id: plan.committed ? null : plan.id }); } catch (e) { choose.disabled = false; } };
+      head.append(D.el("b", "", plan.name), D.el("span", "mm-meta", plan.viable ? plan.progress + "/5 locked" : "blocked"), choose);
+      row.append(head);
+      const steps = D.el("div", "plan-steps");
+      for (const m of plan.matched) { const c = D.el("span", "chip on"); c.append(D.portrait(m.champion, "tiny"), D.el("b", "", m.champion), D.el("small", "", D.ROLE_SHORT[m.role] || m.role)); steps.append(c); }
+      for (const n of plan.next) { const c = D.el("span", "chip" + (n.substitute ? " sub" : "")); c.append(D.portrait(n.champion, "tiny"), D.el("b", "", n.champion), D.el("small", "", (D.ROLE_SHORT[n.role] || n.role) + (n.player ? " \u00b7 " + n.player : ""))); steps.append(c); }
+      row.append(steps);
+      const notes = [];
+      if (plan.blocked.length) notes.push(plan.blocked.map((b) => b.reason).join("; "));
+      if (plan.mismatches.length) notes.push(plan.mismatches.map((m) => m.wants + " is not seated " + (D.ROLE_SHORT[m.role] || m.role).toLowerCase()).join("; "));
+      if (notes.length) row.append(D.el("div", "plan-note", notes.join(" \u00b7 ")));
+      else if (plan.win) row.append(D.el("div", "plan-note", plan.win));
+      box.append(row);
+    }
+  }
+  function banRows(bans, limit, onClick) { return bans.slice(0, limit).map((b, i) => cardRow({ champion: b.champion, champion_id: b.champion_id, why: D.shortBanReason(b), score: b.score.toFixed(1), sub: "estimate", action: "Ban", tags: (b.tags || []).map((t) => ({ text: t, cls: t === "hover" ? "warn" : "blue" })) }, onClick, i === 0)); }
+  function fill(box, rows, empty) { box.replaceChildren(); if (!rows.length) { box.append(D.el("p", "fd-note", empty)); return; } for (const r of rows) box.append(r); }
+  function chips(box, rows, labelFn, emptyText) { box.replaceChildren(); if (!rows || !rows.length) { box.append(D.el("p", "fd-note", emptyText)); return; } for (const r of rows) { const c = D.el("span", "chip"); c.append(D.portrait(r.champion, "small", r.champion_id), D.el("b", "", r.champion)); const l = labelFn(r); if (l) c.append(D.el("small", "", l)); box.append(c); } }
+
+  let heroFor = "";
+  function setHero(name) {
+    const img = $("hero-art");
+    if (!name) { img.classList.remove("on"); heroFor = ""; return; }
+    if (name === heroFor) return;
+    heroFor = name;
+    D.artReady.then(() => {
+      if (heroFor !== name) return;
+      const porcelain = D.hasArt("porcelain", name);
+      const url = porcelain ? D.artUrl("porcelain", name) : D.artUrl("centered", name);
+      if (!url) { img.classList.remove("on"); return; }
+      img.classList.remove("on"); img.dataset.kind = porcelain ? "porcelain" : "splash";
+      img.onload = () => { if (heroFor === name) img.classList.add("on"); };
+      img.src = url;
+    });
+  }
+  let acting = false;
+  async function clientAct(what, body) {
+    if (acting) return;
+    acting = true;
+    try { await D.api("POST", "/api/client/" + what, body || {}); $("action-note").textContent = ""; }
+    catch (e) { toast(e.message, true); }
+    finally { acting = false; }
+  }
+  function renderClientActions(snapshot) {
+    const box = $("client-actions"), local = snapshot.local, accept = $("accept"), hoverBtn = $("hover-btn");
+    box.hidden = true; hoverBtn.hidden = true; $("action-note").textContent = "";
+    if (!local || !local.client) return;
+    if (local.can_act && local.suggestion) {
+      const sg = local.suggestion;
+      accept.textContent = (sg.kind === "ban" ? "Accept \u00b7 Ban " : "Accept \u00b7 Lock ") + sg.champion;
+      accept.onclick = () => clientAct("lock", { champion: sg.champion });
+      hoverBtn.hidden = sg.kind !== "pick"; hoverBtn.onclick = () => clientAct("hover", { champion: sg.champion });
+      $("action-note").textContent = "Acts through this machine\u2019s League client for " + local.name + ".";
+      box.hidden = false; return;
+    }
+    if (local.incoming_swap && local.incoming_swap.can_accept) {
+      const sw = local.incoming_swap;
+      accept.textContent = "Accept swap from " + sw.from_player + (sw.champion ? " (" + sw.champion + ")" : "");
+      accept.onclick = () => clientAct("swap_accept", { trade_id: sw.trade_id });
+      $("action-note").textContent = sw.expected ? "This is the planned swap." : "Not a planned swap.";
+      box.hidden = false; return;
+    }
+    if (local.swap && local.swap.can_request) {
+      const sw = local.swap;
+      accept.textContent = "Swap " + sw.give + " with " + sw.with_player + (sw.receive ? " for " + sw.receive : "");
+      accept.onclick = () => clientAct("swap_request");
+      box.hidden = false;
+    }
+  }
+
+  function render(snapshot) {
+    latest = snapshot;
+    const st = snapshot.status || {}, state = snapshot.state, g = snapshot.guidance, draft = snapshot.draft || {};
+    D.learnFromGuidance(g);
+    const status = $("status");
+    status.textContent = ({ connected: "Following League", simulation: "Simulation", manual: "Manual board", waiting: "Client not detected", error: "Client error" }[st.connection] || st.connection || "");
+    status.dataset.mode = st.connection || "connecting";
+    if (!typesFilled && snapshot.draft_types) { for (const [k, v] of Object.entries(snapshot.draft_types)) $("draft-type").append(new Option(v.label, k)); typesFilled = true; }
+    if (snapshot.draft_type && $("draft-type").value !== snapshot.draft_type) $("draft-type").value = snapshot.draft_type;
+    $("series-tools").hidden = snapshot.draft_type !== "fearless";
+    $("series-note").textContent = "Game " + ((snapshot.series || []).length + 1) + " of the series. " + ((snapshot.series || []).length ? (state && state.series_unavailable ? state.series_unavailable.length : 0) + " champions used in earlier games are unavailable." : "No games recorded yet.");
+    renderLobby(snapshot); renderEngineData(snapshot.engine_data);
+    if (snapshot.roster && (!rosterCache || rosterCache.version !== snapshot.roster.version)) loadRoster();
+
+    const locked = boardLocked();
+    $("board-mode").textContent = locked ? liveLabel() + " · Board read-only" : "Manual board · Changes apply here";
+    $("side-blue").disabled = locked; $("side-red").disabled = locked; $("reset").disabled = locked; $("draft-type").disabled = locked;
+    $("undo").disabled = locked || !draft.can_undo; $("redo").disabled = locked || !draft.can_redo;
+    const side = state ? state.side : draft.side;
+    $("side-blue").setAttribute("aria-pressed", String(side === "blue")); $("side-red").setAttribute("aria-pressed", String(side === "red"));
+    $("ours-side").textContent = side === "red" ? "Red side" : "Blue side"; $("enemy-side").textContent = side === "red" ? "Blue side" : "Red side";
+    if (!browserInitialised && state) { $("champion-browser").open = !locked; browserInitialised = true; }
+    const turn = $("turn");
+    if (locked) turn.textContent = liveLabel() + (state && state.phase ? " · " + state.phase.toLowerCase().replace("_", " ") : "");
+    else if (draft.current) turn.textContent = (draft.current.ours ? "Our " : "Enemy ") + draft.current.kind + " · " + draft.current.label;
+    else turn.textContent = draft.complete ? "Draft complete" : "Waiting for draft";
+    const stepIndex = draft.current ? draft.current.index : null;
+    if (stepIndex !== lastStepIndex) { lastStepIndex = stepIndex; if (selectedChampion) selectChampion(null); }
+
+    // draft order + events
+    const seq = $("seq"); seq.replaceChildren();
+    const live = state && state.source !== "manual";
+    const doneCount = live ? (state.step_index === null || state.step_index === undefined ? (draft.sequence || []).length : state.step_index) : (draft.actions || []).length;
+    const currentIndex = live ? state.step_index : stepIndex;
+    for (const s of draft.sequence || []) { const span = D.el("span", (s.index < doneCount ? "done" : "") + (currentIndex !== null && s.index === currentIndex ? " current" : ""), s.label); const a = (draft.actions || [])[s.index]; if (a) span.title = a.champion + (a.role ? " (" + a.role + ")" : ""); seq.append(span); }
+    $("order-sub").textContent = (snapshot.draft_types && snapshot.draft_types[snapshot.draft_type] || {}).description || "";
+    const ev = $("events"); ev.replaceChildren();
+    for (const e of snapshot.events || []) { const row = D.el("div", "ev-" + (e.kind || "info")); row.append(D.el("time", "", new Date(e.t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })), document.createTextNode(e.text)); ev.append(row); }
+
+    // teams
+    if (state) {
+      renderTeam($("ours-slots"), state.our_team, true, state.active.ours ? state.active.cell_ids : [], g && g.swaps, !locked);
+      renderTeam($("enemy-slots"), state.enemy_team, false, state.active.ours ? [] : state.active.cell_ids, [], !locked);
+      renderBans($("ours-bans"), state.our_bans); renderBans($("enemy-bans"), state.enemy_bans);
+    } else { $("ours-slots").replaceChildren(); $("enemy-slots").replaceChildren(); renderBans($("ours-bans"), []); renderBans($("enemy-bans"), []); }
+
+    // guidance
+    const picks = (g && g.picks) || [], bans = (g && g.bans) || [];
+    const rolesNow = (g && g.roles_now || []).map((r) => ROLE_LONG[r] || r).join(" / ");
+    const oursLocked = state ? state.our_team.filter((p) => p.locked).length : 0, theirsLocked = state ? state.enemy_team.filter((p) => p.locked).length : 0;
+    const ourBan = state && state.active.kind === "ban" && state.active.ours, ourPick = state && state.active.kind === "pick" && state.active.ours;
+    const head = $("headline"); head.replaceChildren();
+    const reason = $("reason");
+    deadline = (state && state.deadline && oursLocked < 5) ? state.deadline * 1000 : 0;
+    let key = "Current decision";
+    if (!state || !g) { key = st.connection === "manual" ? "Manual board" : "Standby"; head.textContent = st.connection === "manual" ? "Start a draft on the board" : "Waiting for champion select"; reason.textContent = st.connection === "manual" ? "Choose your lineup and draft format, then add picks and bans below." : "Your lobby and champion pools appear here automatically."; }
+    else if (oursLocked === 5 && theirsLocked === 5) { const t = g.team || {}; key = "Draft complete"; head.textContent = "Draft complete"; reason.textContent = [t.team_plan ? "Plan: " + t.team_plan + "." : "", (t.strengths || [])[0] ? "Strength: " + t.strengths[0] + "." : "", (t.gaps || [])[0] ? "Gap: " + t.gaps[0] + "." : ""].filter(Boolean).join(" "); }
+    else if (oursLocked === 5) { const t = g.team || {}; key = "Our team locked"; head.textContent = "Waiting for enemy picks"; reason.textContent = t.team_plan ? "Plan: " + t.team_plan + "." : ""; }
+    else if (ourBan) { const b = bans[0]; key = "Our ban"; if (b) { head.append(D.portrait(b.champion, "", b.champion_id), document.createTextNode("Ban " + b.champion)); reason.textContent = D.shortBanReason(b); } else { head.textContent = "No ban recommendation"; reason.textContent = "Review scouting and ban policy in the roster drawer."; } }
+    else { const top = picks[0]; key = ourPick ? "Our pick · " + rolesNow : state.active.kind === "ban" ? "Enemy ban · preparing our pick" : state.active.kind === "pick" ? "Enemy pick · preparing our pick" : "Planning"; if (top) { head.append(D.portrait(top.champion, "", top.champion_id), document.createTextNode(ourPick ? "Pick " + top.champion : top.champion + " leads"), D.el("small", "", (ROLE_LONG[top.role] || top.role) + (top.player && top.player !== top.role ? " · " + top.player : ""))); reason.textContent = D.shortPickReason(top); } else { head.textContent = "No recommendation available"; reason.textContent = "Check player links and pools."; } }
+    $("statekey").textContent = key;
+    setHero((head.querySelector(".portrait") || {}).title || "");
+    const ch = $("change");
+    if (snapshot.last_change && Date.now() / 1000 - snapshot.last_change.at < 40 && state && oursLocked < 5) { const k = snapshot.last_change.at + "|" + snapshot.last_change.event; if (k !== changeKey) { changeKey = k; ch.replaceChildren(D.el("b", "", snapshot.last_change.event)); if (snapshot.last_change.effect) ch.append(document.createTextNode(" → "), D.el("span", "effect", snapshot.last_change.effect)); } ch.hidden = false; } else ch.hidden = true;
+    const alerts = $("alerts"); alerts.replaceChildren();
+    const alertRows = ((g && g.alerts) || []).filter((x) => x.level === "error" || /hover|swap/i.test(x.text));
+    const poolAlerts = ((g && g.alerts) || []).filter((x) => /pool|history|meta/i.test(x.text));
+    if (!alertRows.length && poolAlerts.length) alertRows.push({ level: "warn", text: poolAlerts.length === 1 ? poolAlerts[0].text : poolAlerts.length + " seats are drafting from account history or role meta, not a submitted pool." });
+    for (const a of alertRows.slice(0, 1)) alerts.append(D.el("div", "alert " + (a.level || ""), a.text));
+
+    const canPick = ourPick && !locked && draft.current && draft.current.kind === "pick", canBan = ourBan && !locked && draft.current && draft.current.kind === "ban";
+    const showBan = !!ourBan;
+    renderPickOrder(g);
+    renderPlans(g, state);
+    $("pick-section").hidden = showBan || !state || oursLocked === 5; $("ban-section").hidden = !showBan;
+    $("pick-pill").textContent = ourPick ? "Now" : "Next"; $("pick-roles").textContent = rolesNow;
+    $("ban-pill").textContent = "Now";
+    fill($("picks"), pickRows(picks, 3, canPick ? (r) => pick(r.champion, r.role) : null), "No pick to rank yet.");
+    fill($("bans"), banRows(bans, 3, canBan ? (r) => pick(r.champion, null) : null), "No ban stands out.");
+    $("other-summary").textContent = showBan ? "Pick preparation" : "Ban targets";
+    $("other-section").hidden = !state || oursLocked === 5;
+    fill($("other"), showBan ? pickRows(picks, 3, null) : banRows(bans, 3, null), showBan ? "No pick to rank yet." : "No ban stands out.");
+    chips($("likely"), g && g.likely_enemy, (r) => (ROLE_LONG[r.role] || r.role) + (r.priority === 1 ? " · signature" : "") + " · " + r.player, "No scouting for the enemy’s open roles.");
+    chips($("flex"), g && g.flex, (r) => r.roles.map((x) => ROLE_LONG[x] || x).join(" / "), "None in our pools.");
+    const counters = $("counters"); counters.replaceChildren();
+    if (!(g && g.counters && g.counters.length)) counters.append(D.el("p", "fd-note", "No enemy locks in roles we still have open."));
+    for (const c of (g && g.counters) || []) { const row = D.el("div", "counter"); const left = D.el("div"); left.append(D.el("b", "", c.enemy + " "), D.el("span", "mm-meta", ROLE_LONG[c.role] || c.role)); row.append(left); const ch2 = D.el("div", "chips"); for (const r of c.responses) { const s = D.el("span", "chip"); s.append(D.portrait(r.champion, "small", r.champion_id), D.el("b", "", r.champion), D.el("small", "", D.signed(r.advantage))); ch2.append(s); } if (!c.responses.length) ch2.append(D.el("span", "fd-note", "no matchup data")); row.append(ch2); counters.append(row); }
+    const comp = g && g.comps && g.comps[0]; const cbox = $("comp"); cbox.replaceChildren();
+    if (comp) { $("comp-score").textContent = "Estimate " + comp.score.toFixed(0) + (comp.team_plan ? " · " + comp.team_plan : ""); for (const role of D.ROLES) { const s = D.el("span", "chip"); s.append(D.portrait(comp.champions[role], "small"), D.el("b", "", comp.champions[role]), D.el("small", "", ROLE_LONG[role])); cbox.append(s); } } else $("comp-score").textContent = "";
+    $("ours-score").textContent = g && g.team ? g.team.score.toFixed(0) : "—"; $("enemy-score").textContent = g && g.enemy_team_score ? g.enemy_team_score.score.toFixed(0) : "—";
+    refreshGrid();
+    renderClientActions(snapshot);
+    D.hydrateIcons($("headline"));
+  }
+
+  setInterval(() => { const t = $("timer"); if (!deadline) { t.textContent = ""; return; } const left = Math.max(0, deadline - Date.now()); t.textContent = String(Math.ceil(left / 1000)).padStart(2, "0") + "s"; t.dataset.urgent = String(left > 0 && left < 8000); }, 250);
+  fetch("/api/config").then((r) => r.json()).then((c) => { if (c.watch_dir) $("watch-dir").textContent = c.watch_dir; }).catch(() => {});
+  D.connect(render, (s) => { if (s === "closed") { $("status").textContent = "Server unreachable"; $("status").dataset.mode = "error"; deadline = 0; } });
+})();
+</script>
+</body>
+</html>

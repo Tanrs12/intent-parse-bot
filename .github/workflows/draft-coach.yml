@@ -1,0 +1,62 @@
+name: Draft Coach build
+
+# Every push to main rebuilds the desktop app and publishes it as the "draft-coach-latest"
+# release, so the download link never changes:
+#   https://github.com/Tanrs12/intent-parse-bot/releases/latest/download/FlexersDraftCoach.zip
+# Pushes to dev build the zip as a workflow artifact only.
+
+on:
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-draftcoach.txt
+
+      - name: Test
+        run: python -m pytest -q tests
+
+      - name: Build the desktop app
+        run: python build_exe.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FlexersDraftCoach
+          path: dist/FlexersDraftCoach.zip
+          if-no-files-found: error
+
+      - name: Move the latest tag
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git tag -f draft-coach-latest
+          git push -f origin draft-coach-latest
+
+      - name: Publish the latest release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: draft-coach-latest
+          name: Flexers Draft Coach (latest)
+          body: |
+            Built from ${{ github.sha }} on ${{ github.event.head_commit.timestamp }}.
+            Unzip, open the folder and double-click FlexersDraftCoach.exe. See START HERE.txt.
+          files: dist/FlexersDraftCoach.zip
+          make_latest: true

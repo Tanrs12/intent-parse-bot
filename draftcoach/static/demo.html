@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HUD demo: mock champion select</title>
+<style>
+  /* A 1280x720 stand-in for the League client's champion select, fed by the same websocket
+     as the HUD, so the in-client layer can be previewed and iterated without League. */
+  :root { --gold: #c8aa6e; --gold-dim: #785a28; --cyan: #0ac8b9; --red: #e84057; --text: #f0e6d2; --muted: #a09b8c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0b0f15; color: var(--text); font-family: "Segoe UI", system-ui, sans-serif; display: grid; place-items: start center; padding: 20px; }
+  .stage { position: relative; width: 1280px; height: 720px; overflow: hidden; background: radial-gradient(ellipse at 50% 35%, #0f2d40 0%, #061520 55%, #03090f 100%); border: 1px solid #1e2a36; }
+  .el { position: absolute; }
+  .bans { top: 3%; height: 6%; display: flex; gap: 6px; }
+  .bans.left { left: 3%; } .bans.right { right: 3%; }
+  .ban-slot { width: 43px; height: 100%; border: 1px solid var(--gold-dim); background: #0d1b26; position: relative; overflow: hidden; display: grid; place-items: center; font-size: 10px; color: var(--muted); }
+  .ban-slot img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(.7); }
+  .ban-slot.filled::after { content: ""; position: absolute; inset: 0; background: linear-gradient(135deg, transparent 45%, var(--red) 47%, var(--red) 53%, transparent 55%); }
+  .center-top { left: 44%; width: 12%; top: 2%; text-align: center; }
+  .center-top .phase { font-size: 11px; letter-spacing: .25em; text-transform: uppercase; color: var(--gold); }
+  .center-top .timer { font-size: 42px; font-weight: 300; line-height: 1; }
+  .team { top: 14%; width: 21%; display: flex; flex-direction: column; }
+  .team.left { left: 2%; } .team.right { right: 2%; }
+  .member { height: 12.8%; min-height: 86px; display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: linear-gradient(90deg, rgba(1,10,19,.9), rgba(1,10,19,.5)); background-size: cover; background-position: center 20%; border-left: 3px solid #1e2328; margin-bottom: 6px; }
+  .team.right .member { flex-direction: row-reverse; text-align: right; border-left: 0; border-right: 3px solid #1e2328; background: linear-gradient(270deg, rgba(1,10,19,.9), rgba(1,10,19,.5)); }
+  .member.active { border-color: var(--gold); box-shadow: inset 0 0 18px rgba(200,170,110,.25); }
+  .member.locked { border-color: var(--cyan); }
+  .member .face { width: 58px; height: 58px; border: 1px solid var(--gold-dim); background: #10202c; display: grid; place-items: center; font-weight: 700; color: var(--gold); overflow: hidden; flex: none; }
+  .member .face img { width: 100%; height: 100%; object-fit: cover; }
+  .member .face.hover { opacity: .6; border-style: dashed; }
+  .member .who { font-size: 13px; font-weight: 600; }
+  .member .what { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .member .what.lock { color: var(--cyan); } .member .what.hover { color: var(--gold); }
+  .grid-wrap { left: 26%; width: 48%; top: 12%; height: 66%; }
+  .tools { height: 6%; display: flex; align-items: center; gap: 8px; padding: 0 8px; border-bottom: 1px solid var(--gold-dim); }
+  .tools span { width: 22px; height: 22px; border: 1px solid #3c3c41; }
+  .tools input { margin-left: auto; width: 180px; background: #0d1b26; border: 1px solid var(--gold-dim); color: var(--text); padding: 4px 8px; font-size: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; padding: 8px; }
+  .tile { aspect-ratio: 1; border: 1px solid #2a3a46; background: linear-gradient(180deg, #16232e, #0a141c); display: grid; place-items: center; font-size: 10px; color: #8a97a3; }
+  .tile.taken { opacity: .3; }
+  .lock { left: 44%; width: 12%; top: 86%; height: 7%; border: 2px solid var(--gold); background: linear-gradient(180deg, #1e2328, #0d1b26); color: var(--gold); font-size: 13px; letter-spacing: .2em; text-transform: uppercase; font-weight: 700; display: grid; place-items: center; }
+  .spells { left: 30%; top: 87%; display: flex; gap: 6px; } .spells span { width: 40px; height: 40px; border: 1px solid var(--gold-dim); background: #0d1b26; }
+  .chat { left: 2%; width: 21%; top: 80%; height: 17%; background: rgba(1,10,19,.85); border: 1px solid #1e2328; padding: 8px; font-size: 11px; color: var(--muted); }
+  #hud { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; }
+  .hint { max-width: 1280px; color: #8a97a3; font-size: 12px; margin-top: 10px; line-height: 1.6; }
+  .hint a { color: #9cb6ff; }
+
+/* Codex 004: match the real client's geometry */
+.team {
+  top: 18%;
+  height: 60%;
+  display: grid;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.member {
+  height: auto;
+  min-height: 0;
+  margin-bottom: 0;
+}
+
+.grid-wrap {
+  left: 27%;
+  width: 46%;
+  top: 12%;
+  height: 68%;
+}
+
+.chat {
+  top: 86%;
+  height: 10%;
+}
+
+.lock {
+  top: 84%;
+  height: 7%;
+}
+
+.spells {
+  left: 31%;
+  top: 92%;
+}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="el bans left" id="left-bans"></div>
+  <div class="el center-top"><div class="phase" id="phase">Champion Select</div><div class="timer" id="timer">--</div></div>
+  <div class="el bans right" id="right-bans"></div>
+  <div class="el team left" id="left-team"></div>
+  <div class="el team right" id="right-team"></div>
+  <div class="el grid-wrap"><div class="tools"><span></span><span></span><span></span><span></span><span></span><input placeholder="Search"></div><div class="grid" id="grid"></div></div>
+  <div class="el spells"><span></span><span></span></div>
+  <div class="el lock">Lock in</div>
+  <div class="el chat"><div><b>Chud:</b> gl hf</div><div><b>Atomic:</b> i can top or jg</div></div>
+  <iframe id="hud" src="/hud" title="Draft HUD" allowtransparency="true"></iframe>
+</div>
+<p class="hint">Mock champion select at 1280 × 720 with the HUD layer on top. Run the server with <code>--simulate</code> to watch a draft play through, or drive the manual board from the <a href="/">coach panel</a>. In League, <code>python run.py --hud</code> draws the same layer over the real client.</p>
+<script src="/static/common.js"></script>
+<script>
+(function () {
+  const D = window.Draft;
+  fetch("/api/champions").then((r) => r.json()).then((d) => { D.learnIds(d.champions); const g = document.getElementById("grid"); for (const n of Object.keys(d.champions).sort().slice(0, 60)) { const t = D.el("div", "tile", n.slice(0, 3).toUpperCase()); t.dataset.name = n; g.append(t); } }).catch(() => {});
+  function face(name, cls) { const f = D.el("div", "face " + (cls || ""), name ? name.slice(0, 2).toUpperCase() : ""); const id = D.idFor(name); if (id) { const img = document.createElement("img"); img.src = "/api/champion-icon/" + id; img.onload = () => { f.textContent = ""; f.append(img); }; } return f; }
+  function team(box, slots, active) {
+    box.replaceChildren();
+    for (const s of [...slots].sort((a, b) => a.cell_id - b.cell_id)) {
+      const m = D.el("div", "member" + (s.locked ? " locked" : "") + (active.includes(s.cell_id) ? " active" : ""));
+      const champ = s.locked || s.hover;
+      if (champ && D.idFor(champ)) m.style.backgroundImage = (box.classList.contains("right") ? "linear-gradient(270deg, rgba(1,10,19,.92) 35%, rgba(1,10,19,.35))" : "linear-gradient(90deg, rgba(1,10,19,.92) 35%, rgba(1,10,19,.35))") + ", url(/api/art/centered/" + D.idFor(champ) + ")";
+      m.append(face(champ, s.locked ? "" : "hover"));
+      const t = D.el("div"); t.append(D.el("div", "who", s.display_name), D.el("div", "what " + (s.locked ? "lock" : champ ? "hover" : ""), s.locked ? champ : champ ? "hovering " + champ : (D.ROLE_SHORT[s.role] || "")));
+      m.append(t); box.append(m);
+    }
+  }
+  function bans(box, names) { box.replaceChildren(); for (let i = 0; i < 5; i++) { const slot = D.el("div", "ban-slot" + (names[i] ? " filled" : "")); const id = names[i] ? D.idFor(names[i]) : null; if (id) { const img = document.createElement("img"); img.src = "/api/champion-icon/" + id; slot.append(img); } else if (names[i]) slot.textContent = names[i].slice(0, 3); box.append(slot); } }
+  D.connect((snap) => {
+    const s = snap.state;
+    const taken = new Set();
+    if (!s) { document.getElementById("phase").textContent = "Lobby"; document.getElementById("timer").textContent = "--"; return; }
+    document.getElementById("phase").textContent = (s.phase || "").replace("_", " ");
+    document.getElementById("timer").textContent = D.fmtTimer(s.time_left_ms);
+    team(document.getElementById("left-team"), s.our_team, s.active.ours ? s.active.cell_ids : []);
+    team(document.getElementById("right-team"), s.enemy_team, s.active.ours ? [] : s.active.cell_ids);
+    bans(document.getElementById("left-bans"), s.our_bans); bans(document.getElementById("right-bans"), s.enemy_bans);
+    for (const n of s.our_bans.concat(s.enemy_bans)) taken.add(n);
+    for (const p of s.our_team.concat(s.enemy_team)) if (p.locked) taken.add(p.locked);
+    for (const t of document.querySelectorAll("#grid .tile")) t.classList.toggle("taken", taken.has(t.dataset.name));
+  });
+})();
+</script>
+</body>
+</html>

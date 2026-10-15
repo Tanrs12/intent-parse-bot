@@ -4,6 +4,25 @@ This repository is the source of truth for the Ranked Flex drafting logic used b
 
 If Flexers Draft Coach should sort recommendations the same way as the Discord command, do **not** maintain a second independent ranking formula in the desktop app.  Use `league_draft_backend.recommend_live_drafts()` and keep the desktop app focused on League Client (LCU) state, UI, hovers/locks and presentation.
 
+## Where the desktop app lives now
+
+The desktop app is in this repository: `draftcoach/` (package), `run.py` (launcher),
+`build_exe.py` (PyInstaller package + zip), `loadfiles/` (team loadfiles, playbook),
+`tests/test_draftcoach_*.py` and `docs/draftcoach/`. `league_flex_core.py` holds the
+discord-free drafting functions that both `cogs/league_flex.py` and `league_draft_backend.py`
+import, so the desktop build never needs discord.py, asyncpg or Pillow.
+
+`draftcoach/backend.py` turns the seated five into `/league game` signups (roles, role
+priorities and champion pools from the roster and loadfiles) and calls
+`recommend_live_drafts()` after every pick or ban. The overlay then only adds what the live
+draft knows and the bot cannot: calibrated matchups against enemy locks, how answerable a blind
+pick still is, scouting-based bans, the team's chosen playbook plan, and the client actions.
+`settings.ranking = "engine"` switches back to the raw composition search for comparison.
+
+The app reacts only to Ranked Flex champion selects (`settings.queues = [440]`).
+
+Download: https://github.com/Tanrs12/intent-parse-bot/releases/latest/download/FlexersDraftCoach.zip
+
 ## Stable integration entry point
 
 ```python

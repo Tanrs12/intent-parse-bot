@@ -1,0 +1,123 @@
+/* Shared theme for the overlay and the coach panel. */
+:root {
+  --bg: rgba(10, 12, 18, 0.86);
+  --bg-soft: rgba(22, 26, 36, 0.78);
+  --bg-solid: #0c0f16;
+  --panel-solid: #141822;
+  --line: rgba(255, 255, 255, 0.09);
+  --text: #e9edf4;
+  --muted: #97a1b4;
+  --blue: #3b8bff;
+  --red: #ff4d5e;
+  --gold: #f2c14e;
+  --green: #48d597;
+  --amber: #ffb547;
+  --purple: #b48cff;
+  --ours: var(--blue);
+  --enemy: var(--red);
+  --radius: 10px;
+  --scale: 1;
+  font-family: "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; color: var(--text); }
+body.side-red { --ours: var(--red); --enemy: var(--blue); }
+.hidden { display: none !important; }
+button { font: inherit; }
+
+/* ---- generic pieces ---- */
+.portrait { width: 40px; height: 40px; border-radius: 8px; background: #1d2230; display: grid; place-items: center; overflow: hidden;
+            font-weight: 700; color: var(--muted); font-size: 13px; position: relative; flex: none; }
+.portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.portrait.hover img { opacity: .55; filter: grayscale(.4); }
+.portrait.small { width: 30px; height: 30px; border-radius: 6px; font-size: 11px; }
+.portrait.tiny { width: 22px; height: 22px; border-radius: 5px; font-size: 8px; }
+.tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
+.tag { font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px; border-radius: 999px;
+       background: rgba(255,255,255,0.08); color: var(--muted); white-space: nowrap; }
+.tag.good { background: rgba(72,213,151,.18); color: var(--green); }
+.tag.warn { background: rgba(255,181,71,.18); color: var(--amber); }
+.tag.bad { background: rgba(255,77,94,.18); color: var(--red); }
+.tag.gold { background: rgba(242,193,78,.2); color: var(--gold); }
+.tag.purple { background: rgba(180,140,255,.18); color: var(--purple); }
+.empty { color: var(--muted); font-size: 12px; padding: 6px 2px; }
+.pill { background: var(--gold); color: #1a1500; font-size: 10px; padding: 2px 7px; border-radius: 999px; letter-spacing: .06em; font-weight: 700; }
+.pill.quiet { background: rgba(255,255,255,0.12); color: var(--text); }
+.pill.now { animation: pulse 1.2s infinite; }
+
+.panel { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+.panel h2 { margin: 0 0 8px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.panel h2 .sub { text-transform: none; letter-spacing: 0; font-weight: 500; }
+.list { display: flex; flex-direction: column; gap: 6px; }
+.card { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 8px;
+        background: var(--bg-soft); border: 1px solid transparent; }
+.card.top { border-color: rgba(242,193,78,.55); background: linear-gradient(90deg, rgba(242,193,78,.14), var(--bg-soft) 60%); }
+.card .portrait { width: 44px; height: 44px; }
+.card .title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.card .title .champ { font-weight: 700; font-size: 15px; }
+.card .title .role { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.card .why { font-size: 11px; color: var(--muted); line-height: 1.3; margin-top: 2px; }
+.card .score { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 20px; text-align: right; line-height: 1; }
+.card .score small { display: block; font-size: 9px; color: var(--muted); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin-top: 3px; }
+.bar-track { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.08); margin-top: 5px; overflow: hidden; }
+.bar-fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--green)); width: 0; transition: width .4s ease; }
+
+.headline { font-size: 20px; font-weight: 800; letter-spacing: .01em; line-height: 1.2; }
+.headline.pick { color: var(--gold); }
+.headline.ban { color: var(--red); }
+.headline.complete { color: var(--green); }
+.headline.idle, .headline.wait, .headline.plan { color: var(--text); }
+
+.counter { display: grid; grid-template-columns: 34px 1fr; gap: 8px; align-items: center; padding: 5px 8px; border-radius: 8px; background: var(--bg-soft); }
+.counter .enemy { font-weight: 700; font-size: 13px; }
+.counter .enemy small { color: var(--muted); font-weight: 500; margin-left: 6px; }
+.counter .answers { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 3px; }
+.answer { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; background: rgba(255,255,255,0.06); padding: 2px 6px 2px 2px; border-radius: 6px; }
+.answer .portrait { width: 20px; height: 20px; border-radius: 4px; font-size: 8px; }
+.answer .adv { font-variant-numeric: tabular-nums; font-weight: 700; }
+.answer .adv.pos { color: var(--green); } .answer .adv.neg { color: var(--red); }
+
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; background: rgba(255,255,255,0.06); padding: 2px 8px 2px 2px; border-radius: 6px; }
+.chip .portrait { width: 22px; height: 22px; border-radius: 5px; font-size: 8px; }
+.chip b { font-weight: 600; }
+.chip small { color: var(--muted); }
+
+.comp { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; }
+.comp .portrait { width: 28px; height: 28px; border-radius: 6px; font-size: 9px; }
+.comp .plan { color: var(--muted); margin-left: auto; }
+.alerts { display: flex; flex-direction: column; gap: 4px; }
+.alert { font-size: 11px; padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,0.06); border-left: 3px solid var(--muted); }
+.alert.warn { border-left-color: var(--amber); color: var(--amber); }
+.alert.error { border-left-color: var(--red); color: var(--red); }
+.alert.info { border-left-color: var(--blue); }
+
+/* ---- teams ---- */
+.team { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.team h3 { margin: 0 0 4px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+.team.ours h3 span:first-child { color: var(--ours); }
+.team.enemy h3 span:first-child { color: var(--enemy); }
+.slot { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 8px; background: var(--bg-soft);
+        border: 1px solid transparent; transition: border-color .25s, background .25s; }
+.slot.locked { border-color: rgba(255,255,255,0.14); }
+.slot.active { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+.slot.flash { animation: flash 1.2s ease-out; }
+.slot .name { font-weight: 600; font-size: 14px; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slot .sub { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slot .role { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-align: right; }
+.slot .role.inferred::after { content: "?"; opacity: .7; }
+.slot .role.clickable { cursor: pointer; text-decoration: underline dotted; }
+.state { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; text-align: right; }
+.state.lock { color: var(--green); }
+.state.hover { color: var(--amber); }
+.bans-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 8px;
+            padding: 6px 8px; min-height: 46px; margin-top: 4px; }
+.bans-row .label { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+.ban { position: relative; }
+.ban::after { content: ""; position: absolute; inset: 0; border-radius: 6px;
+              background: linear-gradient(135deg, transparent 44%, rgba(255,70,90,.95) 46%, rgba(255,70,90,.95) 54%, transparent 56%); pointer-events: none; }
+.ban.flash { animation: flash 1.4s ease-out; }
+.ban .portrait { filter: grayscale(.6); }
+
+@keyframes flash { 0% { background: rgba(242,193,78,.55); } 100% { background: var(--bg-soft); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }

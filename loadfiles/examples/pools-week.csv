@@ -1,0 +1,13 @@
+kind,player,role,champion,priority,action,note
+pool,Chud,Jungle,Lee Sin,1,add,signature
+pool,Chud,Jungle,Vi,2,add,
+pool,Chud,Jungle,Nocturne,,add,
+pool,Chud,Jungle,Viego,,remove,
+pool,Atomic,Top,Ornn,1,add,
+pool,Atomic,Top,K'Sante,,add,
+pool,,ADC,Jinx,,add,default pool when a seat has no player
+pool,,ADC,Kai'Sa,,add,
+scout,RivalMid,Mid,Yone,1,add,one-trick
+scout,RivalMid,Mid,Sylas,,add,
+ban,,,Yone,2,add,their mid one-trick
+avoid,,,Teemo,,add,

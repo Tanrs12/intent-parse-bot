@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flexers Draft Overlay</title>
+<link rel="stylesheet" href="/static/mm/tokens.css">
+<link rel="stylesheet" href="/static/mm/draft-ui.css">
+<link rel="stylesheet" href="/static/mm/draft-overlay.css">
+</head>
+<body class="fd-overlay graphite">
+  <section class="draft-overlay" id="panel" aria-label="Flexers Draft Coach" data-mode="idle" data-turn="">
+    <header class="ov-head">
+      <!-- Only this area drags. Controls are siblings, never descendants. -->
+      <div class="ov-brand pywebview-drag-region" id="brand" title="Drag to move">
+        <span class="mm-icon ov-grip" data-icon="drag" aria-hidden="true"></span>
+        <svg class="ov-mark" viewBox="0 0 36 30" aria-hidden="true"><path fill="currentColor" d="M4 28V2h26v6H11v5h16v6H11v9z"/></svg>
+        <div>
+          <div class="ov-wordmark">FLEXERS DRAFT</div>
+          <div class="mm-meta" id="head-sub">WAITING FOR LOBBY</div>
+        </div>
+      </div>
+      <button class="fd-text-button" id="theme" type="button" aria-pressed="false" aria-label="Use graphite theme">Graphite</button>
+      <button class="fd-icon-button" id="close" type="button" aria-label="Close overlay"><span class="mm-icon" data-icon="close" aria-hidden="true"></span></button>
+    </header>
+
+    <div class="ov-controls">
+      <label class="ov-format">
+        <span class="mm-meta">Draft</span>
+        <select id="type" aria-describedby="format-help"></select>
+      </label>
+      <span id="format-help" class="sr-only">Choose the draft format before the draft begins.</span>
+      <label class="ov-format">
+        <span class="mm-meta">Plan</span>
+        <select id="plan" aria-label="Composition the team is drafting towards"><option value="">Any plan</option></select>
+      </label>
+      <div class="ov-clock" id="clock-wrap" hidden>
+        <span class="mm-icon" data-icon="clock" aria-hidden="true"></span>
+        <span role="timer" aria-live="off" aria-label="Time remaining" id="timer">&mdash;</span>
+      </div>
+    </div>
+
+    <main class="ov-body">
+      <div class="ov-art" aria-hidden="true">
+        <img id="art" alt="" decoding="async">
+      </div>
+
+      <p class="ov-phase mm-meta" id="statekey">STANDBY</p>
+
+      <section class="ov-decision" aria-labelledby="lead">
+        <div class="ov-hero">
+          <div id="hero-portrait" hidden></div>
+          <div class="ov-hero-copy">
+            <h1 id="lead">Waiting for champion select</h1>
+            <p class="ov-recipient mm-meta" id="recipient" hidden></p>
+          </div>
+        </div>
+
+        <p class="ov-reason" id="detail">
+          Your lobby and champion pools appear here automatically.
+        </p>
+      </section>
+
+      <div class="ov-actions" id="actions" hidden>
+        <button class="fd-button" id="hover-btn" type="button">Hover</button>
+        <button class="fd-button primary" id="accept" type="button"></button>
+      </div>
+
+      <p
+        id="action-note"
+        class="ov-action-note"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      ></p>
+
+      <div id="order" hidden>
+        <p class="ov-list-label mm-meta" id="order-label">Pick order</p>
+        <ol class="ov-order" id="order-list" aria-labelledby="order-label"></ol>
+      </div>
+      <div id="alternatives" hidden>
+        <p class="ov-list-label mm-meta" id="alternatives-label">Alternatives</p>
+        <ol class="ov-alternatives" id="alts" aria-labelledby="alternatives-label"></ol>
+      </div>
+
+      <div class="ov-change-slot">
+        <p class="ov-change" id="change" hidden>
+          <span class="mm-icon" data-icon="arrow-right" aria-hidden="true"></span>
+          <span id="change-copy"></span>
+        </p>
+      </div>
+    </main>
+
+    <footer class="ov-foot">
+      <div class="ov-foot-meta">
+        <span class="ov-connection mm-meta" id="conn" data-mode="connecting">CONNECTING</span>
+        <span class="mm-meta" id="lobby-count">0/5 LINKED · 0/5 POOLS</span>
+      </div>
+      <ol class="ov-seats" id="lobby" aria-label="Our five lobby seats"></ol>
+      <a class="fd-link ov-open-coach" id="open-coach" href="/" target="_blank" rel="noopener">Open Coach <span class="mm-icon" data-icon="arrow-up-right" aria-hidden="true"></span></a>
+    </footer>
+    <p class="sr-only" id="decision-announcement" role="status" aria-live="polite" aria-atomic="true"></p>
+  </section>
+
+<script src="/static/common.js"></script>
+<script>
+(function () {
+  const D = window.Draft;
+  const $ = D.$;
+  const params = new URLSearchParams(location.search);
+  const hosted = params.get("host") === "webview";
+  if (!hosted) document.body.classList.add("embedded");
+  const ROLE_LONG = { Top: "Top", Jungle: "Jungle", Mid: "Mid", ADC: "Bot", Support: "Support" };
+  const POOL_LABELS = { pool: "Pool", partial: "Partial", default: "Default", history: "History", none: "Meta only" };
+  let typesFilled = false, deadline = 0, changeExpiry = 0, changeKey = "", leadKey = "", announced = "", typePending = false, planPending = false, plansKey = "", lastSnapshot = null;
+
+  // ---- theme ----------------------------------------------------------------
+  function setTheme(graphite) {
+    document.body.classList.toggle("graphite", graphite);
+    $("theme").setAttribute("aria-pressed", String(graphite));
+    $("theme").textContent = graphite ? "Light" : "Dark";
+    $("theme").setAttribute(
+      "aria-label",
+      graphite ? "Use light theme" : "Use dark theme"
+    );
+
+    try {
+      localStorage.setItem(
+        "fd-overlay-theme",
+        graphite ? "graphite" : "porcelain"
+      );
+    } catch {}
+  }
+
+  let graphite = hosted;
+  let savedTheme = null;
+
+  try {
+    savedTheme = localStorage.getItem("fd-overlay-theme");
+  } catch {}
+
+  const requestedTheme = params.get("theme") || savedTheme;
+  if (requestedTheme === "graphite" || requestedTheme === "client") {
+    graphite = true;
+  } else if (requestedTheme === "porcelain") {
+    graphite = false;
+  }
+
+  setTheme(graphite);
+  $("theme").onclick = () => setTheme(!document.body.classList.contains("graphite"));
+  $("close").onclick = () => { const api = window.pywebview && window.pywebview.api; if (api && api.close) api.close(); else window.close(); };
+  if (!hosted) $("close").hidden = true;
+  $("open-coach").addEventListener("click", (event) => { const api = window.pywebview && window.pywebview.api; if (!api || !api.open_coach) return; event.preventDefault(); api.open_coach(); });
+  D.hydrateIcons(document);
+  fetch("/api/champions").then((r) => r.json()).then((d) => D.learnIds(d.champions)).catch(() => {});
+
+  // ---- draft format -----------------------------------------------------------
+  $("type").onchange = async () => {
+    const wanted = $("type").value;
+    typePending = true; $("type").disabled = true;
+    try { await D.api("POST", "/api/draft/type", { draft_type: wanted }); }
+    catch (e) { $("detail").textContent = "Couldn’t change draft format. Try again."; if (lastSnapshot) $("type").value = lastSnapshot.draft_type; }
+    finally { typePending = false; $("type").disabled = false; }
+  };
+
+  // ---- plan the team is going with --------------------------------------------
+  $("plan").onchange = async () => {
+    const wanted = $("plan").value;
+    planPending = true; $("plan").disabled = true;
+    try { await D.api("POST", "/api/plan/commit", { id: wanted || null }); }
+    catch (e) { $("detail").textContent = "Couldn’t change the plan. Try again."; }
+    finally { planPending = false; $("plan").disabled = false; }
+  };
+  function renderPlanSelect(g) {
+    const plans = (g && g.plans) || [];
+    const committed = (g && g.committed_plan && g.committed_plan.id) || "";
+    const key = plans.map((p) => p.id + ":" + (p.viable ? 1 : 0)).join(",");
+    const sel = $("plan");
+    if (key !== plansKey) {
+      plansKey = key;
+      sel.replaceChildren(new Option("Any plan", ""));
+      for (const p of plans) sel.append(new Option(p.name + (p.viable ? "" : " (blocked)"), p.id));
+    }
+    sel.parentElement.hidden = !plans.length;
+    if (!planPending && sel.value !== committed) sel.value = committed;
+  }
+
+  let orderKey = "";
+  function renderOrder(g) {
+    const rows = (g && g.pick_order) || [];
+    const box = $("order"), list = $("order-list");
+    box.hidden = !rows.length;
+    const key = rows.map((r) => r.slot + r.champion + r.status).join("|");
+    if (key === orderKey) return;
+    orderKey = key;
+    list.replaceChildren();
+    for (const r of rows) {
+      const li = D.el("li", "ov-order-item"); li.dataset.status = r.status;
+      li.append(D.el("small", "", r.slot), D.el("b", "", r.champion));
+      li.title = (D.ROLE_SHORT[r.role] || r.role) + ((r.tags || []).length ? " · " + r.tags.join(", ") : "");
+      list.append(li);
+    }
+  }
+
+  // ---- helpers ----------------------------------------------------------------
+  function overlayMode(snap) {
+    const s = snap.state, g = snap.guidance, st = snap.status || {};
+    if (st.connection === "error" || st.stale) return "unavailable";
+    if (!s) return st.connection === "manual" ? "manual-idle" : st.connection === "waiting" ? "no-client" : "idle";
+    const ours = (s.our_team || []).filter((p) => p.locked).length, theirs = (s.enemy_team || []).filter((p) => p.locked).length;
+    if (ours === 5 && theirs === 5) return "complete";
+    if (ours === 5) return "ours-locked";
+    if (!g) return "updating";
+    const a = s.active || {};
+    if (a.kind === "ban") return a.ours ? "our-ban" : "enemy-ban";
+    if (a.kind === "pick") return a.ours ? "our-pick" : "enemy-pick";
+    return "plan";
+  }
+  let artFor = "";
+  function setArt() {
+    // The compact panel uses the champion portrait only.
+  }
+  function setLead(key, title, portraitName, portraitId, recipient) {
+    setArt(portraitName);
+    const h = $("lead");
+    if (key !== leadKey) { leadKey = key; h.textContent = title; h.classList.remove("fd-arrive"); void h.offsetWidth; h.classList.add("fd-arrive"); }
+    const slot = $("hero-portrait");
+    if (portraitName) { slot.replaceChildren(D.portrait(portraitName, "", portraitId)); slot.hidden = false; } else { slot.replaceChildren(); slot.hidden = true; }
+    $("recipient").textContent = recipient || ""; $("recipient").hidden = !recipient;
+  }
+  function setReason(text, warning) { const r = $("detail"); r.textContent = text || ""; r.dataset.warning = String(!!warning); }
+  function renderAlternatives(rows) {
+    const list = $("alts"); list.replaceChildren();
+    for (const row of rows) {
+      const li = D.el("li");
+      li.append(D.portrait(row.champion, "", row.champion_id));
+      const identity = D.el("span");
+      identity.append(D.el("span", "ov-alt-name", row.champion));
+      if (row.role) identity.append(D.el("span", "ov-alt-role", (ROLE_LONG[row.role] || row.role).toUpperCase()));
+      const reason = D.el("span", "ov-alt-reason", row.reason || ""); reason.title = row.reason || "";
+      li.append(identity, reason); list.append(li);
+    }
+    $("alternatives").hidden = rows.length === 0;
+  }
+  function renderChange(change, allowed) {
+    const row = $("change"), copy = $("change-copy");
+    const ageMs = change ? Date.now() - Number(change.at) * 1000 : Infinity;
+    if (!allowed || !change || !Number.isFinite(ageMs) || ageMs < -5000 || ageMs >= 12000) { row.hidden = true; changeExpiry = 0; return; }
+    changeExpiry = Date.now() + Math.max(0, 12000 - Math.max(0, ageMs));
+    const key = change.at + "|" + change.event + "|" + (change.effect || "");
+    if (key !== changeKey) {
+      changeKey = key;
+      copy.replaceChildren(D.el("strong", "", change.event));
+      if (change.effect) copy.append(document.createTextNode(" → "), D.el("span", "effect", change.effect));
+    }
+    row.hidden = false;
+  }
+  function renderLobby(snap) {
+    const box = $("lobby"); const seats = (snap.lobby || []).slice(0, 5);
+    $("lobby-count").textContent = seats.filter((s) => s.matched).length + "/5 LINKED · " + seats.filter((s) => s.pool_status === "pool").length + "/5 POOLS";
+    box.replaceChildren();
+    for (let i = 0; i < 5; i++) {
+      const seat = seats[i];
+      const li = D.el("li", "ov-seat");
+      li.dataset.matched = String(Boolean(seat && seat.matched));
+      li.dataset.pool = (seat && seat.pool_status) || "none";
+      const top = D.el("span", "ov-seat-head");
+      top.append(D.el("span", "", seat && seat.role ? (D.ROLE_SHORT[seat.role] || seat.role) : "SEAT " + (i + 1)));
+      const icon = D.el("span", "mm-icon"); icon.dataset.icon = seat && seat.matched ? "check" : "unknown"; icon.setAttribute("aria-hidden", "true");
+      top.append(icon);
+      li.append(top, D.el("span", "ov-seat-name", (seat && seat.name) || "Waiting"), D.el("span", "ov-seat-pool", seat ? (POOL_LABELS[seat.pool_status] || "Unknown") : "—"));
+      const description = seat ? [seat.name, seat.role || "Role unknown", seat.matched ? "Linked" : "Unlinked", POOL_LABELS[seat.pool_status] || "Pool unknown", seat.riot_id, seat.detail].filter(Boolean).join(". ") : "Seat " + (i + 1) + ". Waiting for player.";
+      li.title = description; li.setAttribute("aria-label", description);
+      box.append(li);
+    }
+    D.hydrateIcons(box);
+  }
+  function announce(text) { if (text && text !== announced) { announced = text; $("decision-announcement").textContent = text; } }
+
+  // ---- acting through this machine's League client ----------------------------------------
+  let acting = false;
+  let actionFeedback = null;
+  let actionHint = "";
+
+  function renderActionNote() {
+    if (actionFeedback && Date.now() >= actionFeedback.until) {
+      actionFeedback = null;
+    }
+
+    const node = $("action-note");
+    node.dataset.state = actionFeedback?.state || "";
+    node.textContent = actionFeedback?.text || actionHint;
+    node.title = node.textContent;
+  }
+
+  async function clientAct(what, body, pending, success) {
+    if (acting) return;
+
+    acting = true;
+    actionFeedback = {
+      what,
+      text: pending,
+      state: "pending",
+      until: Infinity
+    };
+    renderActions(lastSnapshot);
+
+    try {
+      await D.api("POST", "/api/client/" + what, body || {});
+      actionFeedback = {
+        what,
+        text: success,
+        state: "success",
+        until: Date.now() + 5000
+      };
+    } catch (e) {
+      actionFeedback = {
+        what,
+        text: "Client refused: " + e.message,
+        state: "error",
+        until: Date.now() + 5000
+      };
+    } finally {
+      acting = false;
+      renderActions(lastSnapshot);
+    }
+  }
+
+  function renderActions(snap) {
+    const panel = $("panel");
+    const box = $("actions");
+    const accept = $("accept");
+    const hover = $("hover-btn");
+    const local = snap?.local;
+    const mode = snap ? overlayMode(snap) : "unavailable";
+    const ourTurn = mode === "our-ban" || mode === "our-pick";
+
+    panel.dataset.owner = ourTurn ? "team" : "";
+    panel.dataset.kind = mode === "our-ban" ? "ban" : "pick";
+    panel.setAttribute("aria-busy", String(acting));
+
+    box.hidden = true;
+    hover.hidden = true;
+    accept.onclick = null;
+    hover.onclick = null;
+    accept.disabled = acting;
+    hover.disabled = acting;
+    actionHint = "";
+
+    const unavailable = !snap || [
+      "unavailable", "idle", "manual-idle", "no-client", "updating"
+    ].includes(mode);
+
+    if (unavailable) {
+      actionFeedback = null;
+      renderActionNote();
+      return;
+    }
+
+    if (!local?.client) {
+      renderActionNote();
+      return;
+    }
+
+    const incoming = local.incoming_swap;
+    const swap = local.swap;
+
+    // Swaps take precedence over completed-pick state.
+    if (incoming?.can_accept) {
+      panel.dataset.owner = "local";
+      panel.dataset.kind = "swap";
+      $("statekey").textContent = "SWAP REQUEST";
+
+      setLead(
+        "local-incoming:" + incoming.trade_id,
+        "Receive " + (incoming.champion || "their champion"),
+        incoming.champion,
+        D.idFor(incoming.champion),
+        "GIVE " + (local.locked || "YOUR CHAMPION").toUpperCase()
+      );
+      setReason(
+        incoming.expected
+          ? incoming.from_player + " requested the planned swap"
+          : incoming.from_player + " requested an unplanned swap",
+        !incoming.expected
+      );
+      renderAlternatives([]);
+
+      accept.textContent = "Accept swap";
+      accept.onclick = () => clientAct(
+        "swap_accept",
+        { trade_id: incoming.trade_id },
+        "Accepting swap…",
+        "Swap accepted"
+      );
+      actionHint = "Exchange champions with " + incoming.from_player + ".";
+      box.hidden = false;
+    } else if (swap) {
+      panel.dataset.owner = "local";
+      panel.dataset.kind = "swap";
+      $("statekey").textContent = "PLANNED SWAP";
+
+      setLead(
+        "local-swap:" + swap.give + ":" + swap.receive,
+        "Receive " + (swap.receive || "their champion"),
+        swap.receive,
+        D.idFor(swap.receive),
+        "GIVE " + String(swap.give || "YOUR CHAMPION").toUpperCase()
+      );
+      setReason("Swap with " + swap.with_player, false);
+      renderAlternatives([]);
+
+      if (String(swap.trade_state || "").toUpperCase() === "SENT") {
+        accept.textContent = "Request sent";
+        accept.disabled = true;
+        actionHint = "Waiting for " + swap.with_player + ".";
+        box.hidden = false;
+      } else if (swap.can_request) {
+        accept.textContent = "Request swap";
+        accept.onclick = () => clientAct(
+          "swap_request",
+          {},
+          "Requesting swap…",
+          "Swap request sent"
+        );
+        actionHint = swap.with_player + " confirms in League.";
+        box.hidden = false;
+      }
+    } else if (local.can_act && local.suggestion && ourTurn) {
+      const sg = local.suggestion;
+      const ban = sg.kind === "ban";
+      const rows = ban
+        ? (snap.guidance?.bans || [])
+        : (snap.guidance?.picks || []);
+
+      const entry = rows.find(row =>
+        row.champion === sg.champion &&
+        (ban || !sg.role || row.role === sg.role)
+      ) || sg;
+
+      panel.dataset.owner = "local";
+      panel.dataset.kind = ban ? "ban" : "pick";
+
+      $("statekey").textContent = ban
+        ? "YOUR BAN"
+        : "YOUR PICK · " +
+          (ROLE_LONG[sg.role || local.role] || sg.role || local.role || "")
+            .toUpperCase();
+
+      setLead(
+        "local:" + sg.kind + ":" + sg.champion,
+        (ban ? "Ban " : "Pick ") + sg.champion,
+        sg.champion,
+        sg.champion_id || entry.champion_id,
+        entry.plan
+          ? entry.plan.name.toUpperCase() + " " + entry.plan.progress + "/5"
+          : ""
+      );
+
+      setReason(
+        ban ? D.overlayBanReason(entry) : D.overlayPickReason(entry),
+        !ban && entry.counter_risk >= 0.5 &&
+          !!entry.counter_risk_by?.length
+      );
+
+      renderAlternatives(
+        rows.filter(row =>
+          row.champion !== sg.champion &&
+          (ban || !sg.role || row.role === sg.role)
+        ).slice(0, 2).map(row => ({
+          champion: row.champion,
+          champion_id: row.champion_id,
+          role: ban ? null : row.role,
+          reason: ban
+            ? D.overlayBanReason(row)
+            : D.overlayPickReason(row)
+        }))
+      );
+
+      hover.hidden = false;
+      hover.textContent = ban ? "Select" : "Hover";
+      accept.textContent = (ban ? "Ban " : "Lock in ") + sg.champion;
+
+      hover.onclick = () => clientAct(
+        "hover",
+        { champion: sg.champion },
+        `${ban ? "Selecting" : "Hovering"} ${sg.champion}…`,
+        `${sg.champion} ${ban ? "selected" : "hovered"}`
+      );
+
+      accept.onclick = () => clientAct(
+        "lock",
+        { champion: sg.champion },
+        `${ban ? "Banning" : "Locking"} ${sg.champion}…`,
+        `${sg.champion} ${ban ? "banned" : "locked in"}`
+      );
+
+      actionHint = ban
+        ? "Select previews in League. Ban confirms."
+        : "Hover previews in League. Lock in confirms.";
+      box.hidden = false;
+    }
+
+    if (acting && actionFeedback) {
+      if (actionFeedback.what === "hover") {
+        hover.textContent = panel.dataset.kind === "ban"
+          ? "Selecting…" : "Hovering…";
+      } else {
+        accept.textContent = {
+          lock: panel.dataset.kind === "ban" ? "Banning…" : "Locking…",
+          swap_accept: "Accepting…",
+          swap_request: "Requesting…"
+        }[actionFeedback.what] || "Working…";
+      }
+    }
+
+    renderActionNote();
+  }
+
+  // ---- render --------------------------------------------------------------------
+  function render(snap) {
+    lastSnapshot = snap;
+    const st = snap.status || {}, s = snap.state, g = snap.guidance;
+    D.learnFromGuidance(g);
+    if (!typesFilled && snap.draft_types) { for (const [k, v] of Object.entries(snap.draft_types)) $("type").appendChild(new Option(v.label.replace(/ draft| \(series\)/gi, ""), k)); typesFilled = true; }
+    if (!typePending && snap.draft_type && $("type").value !== snap.draft_type) $("type").value = snap.draft_type;
+    const populated = s && s.source === "manual" && (snap.draft && snap.draft.actions || []).length > 0;
+    $("type").disabled = typePending || !!populated;        // live client too: fearless / ranked rules apply to any source
+    renderPlanSelect(snap.guidance);
+    renderOrder(snap.guidance);
+    $("type").title = populated ? "Change format in Coach after resetting this draft." : "";
+
+    const conn = $("conn");
+    const connLabel = { connected: "LIVE", simulation: "SIMULATION", manual: "MANUAL BOARD", waiting: "CLIENT NOT DETECTED", error: "CLIENT ERROR" }[st.connection] || (st.connection || "").toUpperCase();
+    conn.textContent = connLabel; conn.dataset.mode = st.connection || "connecting";
+    $("head-sub").textContent = s ? "OUR TEAM · " + (s.side === "red" ? "RED SIDE" : "BLUE SIDE") : "WAITING FOR LOBBY";
+    renderLobby(snap);
+
+    const mode = overlayMode(snap);
+    const panel = $("panel"); panel.dataset.mode = mode;
+    const ourTurn = mode === "our-ban" || mode === "our-pick";
+    panel.dataset.turn = ourTurn ? "ours" : (mode === "enemy-ban" || mode === "enemy-pick") ? "enemy" : "";
+    deadline = (s && s.deadline && !["complete", "ours-locked", "idle", "unavailable", "no-client", "manual-idle"].includes(mode)) ? s.deadline * 1000 : 0;
+    $("clock-wrap").hidden = !deadline;
+    const picks = (g && g.picks) || [], bans = (g && g.bans) || [];
+    const rolesNow = (g && g.roles_now || []).map((r) => (ROLE_LONG[r] || r).toUpperCase()).join(" / ");
+    const top = picks[0];
+    let alts = [];
+    let changeAllowed = true;
+    switch (mode) {
+      case "unavailable": $("statekey").textContent = st.connection === "error" ? "CLIENT ERROR" : "CONNECTION LOST"; setLead("lost", "Reconnecting to Draft Coach"); setReason("Live recommendations are unavailable."); changeAllowed = false; break;
+      case "no-client": $("statekey").textContent = "CLIENT NOT DETECTED"; setLead("noclient", "Open League to begin"); setReason("Enter champion select to receive live guidance."); changeAllowed = false; break;
+      case "manual-idle": $("statekey").textContent = "MANUAL BOARD"; setLead("manual", "Start a draft in Coach"); setReason("Choose your lineup and draft format in the coach app."); changeAllowed = false; break;
+      case "idle": $("statekey").textContent = "STANDBY"; setLead("idle", "Waiting for champion select"); setReason("Your lobby and champion pools appear here automatically."); changeAllowed = false; break;
+      case "updating": $("statekey").textContent = "UPDATING"; setLead("updating", "Updating recommendations"); setReason(""); break;
+      case "complete": {
+        const t = (g && g.team) || {};
+        $("statekey").textContent = "DRAFT COMPLETE"; setLead("complete", "Draft complete");
+        setReason([t.team_plan ? "Plan: " + t.team_plan + "." : "", (t.strengths || [])[0] ? "Strength: " + t.strengths[0] + "." : "", (t.gaps || [])[0] ? "Gap: " + t.gaps[0] + "." : ""].filter(Boolean).join(" ") || "Both teams are locked.");
+        break;
+      }
+      case "ours-locked": { const t = (g && g.team) || {}; $("statekey").textContent = "OUR TEAM LOCKED"; setLead("ourslocked", "Waiting for enemy picks"); setReason(t.team_plan ? "Plan: " + t.team_plan + "." : "Our five champions are locked."); break; }
+      case "our-ban": {
+        const b = bans[0];
+        $("statekey").textContent = "OUR BAN";
+        if (b) { setLead("ban:" + b.champion, "Ban " + b.champion, b.champion, b.champion_id); setReason(D.overlayBanReason(b)); alts = bans.slice(1, 3).map((x) => ({ champion: x.champion, champion_id: x.champion_id, reason: D.overlayBanReason(x).replace(/\.$/, "") })); announce("Our ban. Ban " + b.champion + "."); }
+        else { setLead("ban:none", "No ban recommendation"); setReason("Review scouting and ban policy in Coach."); }
+        break;
+      }
+      case "our-pick": case "enemy-ban": case "enemy-pick": case "plan": {
+        const eyebrow = mode === "our-pick" ? "OUR PICK · " + rolesNow : mode === "enemy-ban" ? "ENEMY BAN · PREPARING OUR PICK" : mode === "enemy-pick" ? "ENEMY PICK · PREPARING OUR PICK" : "PLANNING";
+        $("statekey").textContent = eyebrow;
+        if (top) {
+          const mine = snap.local && snap.local.can_act && snap.local.suggestion && snap.local.suggestion.champion === top.champion;
+          const who = mine ? snap.local.name : (top.player && top.player !== top.role ? top.player : "");
+          const recipient = (ROLE_LONG[top.role] || top.role).toUpperCase() + (who ? " · " + String(who).toUpperCase() : "") + (mine ? " · YOU" : "") + (top.plan ? " · PLAN " + top.plan.name.toUpperCase() : "");
+          setLead("pick:" + top.champion + ":" + mode, mode === "our-pick" ? "Pick " + top.champion : top.champion + " leads", top.champion, top.champion_id, recipient);
+          const warn = top.counter_risk >= 0.5 && top.counter_risk_by && top.counter_risk_by.length;
+          setReason(D.overlayPickReason(top), warn);
+          alts = picks.slice(1, mode === "our-pick" ? 3 : 2).map((p) => ({ champion: p.champion, champion_id: p.champion_id, role: p.role, reason: D.overlayPickReason(p).replace(/\.$/, "") }));
+          announce((mode === "our-pick" ? "Our pick. Pick " : "") + top.champion + " for " + (ROLE_LONG[top.role] || top.role) + ".");
+        } else { setLead("pick:none", "No recommendation available"); setReason("Check player links and pools in Coach."); }
+        break;
+      }
+    }
+    renderAlternatives(alts);
+    renderChange(snap.last_change, changeAllowed);
+    renderActions(snap);
+  }
+
+  // ---- clocks -----------------------------------------------------------------
+  setInterval(() => {
+    const wrap = $("clock-wrap"), t = $("timer");
+    renderActionNote();
+    if (changeExpiry && Date.now() >= changeExpiry) { $("change").hidden = true; changeExpiry = 0; }
+    if (!deadline) { wrap.hidden = true; return; }
+    const left = Math.max(0, deadline - Date.now());
+    t.textContent = String(Math.ceil(left / 1000)).padStart(2, "0") + "s";
+    wrap.dataset.urgent = String(left > 0 && left < 8000);
+    wrap.hidden = false;
+  }, 250);
+
+  D.connect(render, (state) => {
+    if (state === "closed") {
+      lastSnapshot = null; actionFeedback = null; renderActions(null);
+      deadline = 0; $("clock-wrap").hidden = true;
+      $("conn").textContent = "SERVER UNREACHABLE"; $("conn").dataset.mode = "error";
+      $("panel").dataset.mode = "unavailable"; $("panel").dataset.turn = "";
+      $("statekey").textContent = "CONNECTION LOST"; setLead("lost", "Reconnecting to Draft Coach"); setReason("Live recommendations are unavailable.");
+      renderAlternatives([]); $("change").hidden = true;
+    }
+  });
+})();
+</script>
+</body>
+</html>

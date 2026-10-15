@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 from typing import Iterable, Mapping
 
-from cogs.league_flex import (
+from league_flex_core import (
     _attach_role_alternatives,
     _filter_unavailable,
     _pro_pick_order,
