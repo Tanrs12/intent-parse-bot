@@ -997,35 +997,58 @@ async def _build_draft_visuals(recommendations: list[dict], unavailable: set[str
 
 
 
+def _roster_real_flex_value(rec: dict, champion: str) -> float:
+    """Return flex value only when this exact five can credibly move the champion.
+
+    Global meta flexes are not useful draft concealment if only one assigned player has
+    the champion in a submitted pool. That is a bluff, not a real flex.
+    """
+    submitted = rec.get("submitted_pools", {}) or {}
+    credible_roles = sum(
+        champion in set(submitted.get(role, []) or [])
+        for role in ROLES
+    )
+    return min(1.0, max(0, credible_roles - 1) / 2.0)
+
+
 def _pro_pick_order(rec: dict, meta: dict, side: str = "blue") -> list[tuple[str, str]]:
-    """Plan our five slots inside the real sequence:
+    """Plan our five slots for flex queue, prioritising real blindability over pro fashion.
 
     B1 -> R1/R2 -> B2/B3 -> R3/R4 -> B4/B5 -> R5.
     Red deliberately saves a solo-lane R5 counter where possible.
     """
     role_stats = meta.get("role_stats", {})
+    solo_index = load_solo_queue_winrates()
+    matchup_data = load_lane_matchups()
     role_counter_cost = {"Jungle": 0.10, "ADC": 0.14, "Support": 0.26, "Mid": 0.34, "Top": 0.46}
     rows = []
     for role in ROLES:
         champion = rec["champions"][role]
         entry = role_stats.get(role, {}).get(champion, {})
         games = float(entry.get("games", 0) or 0)
-        bayes = float(entry.get("bayes_win_rate", 0.5) or 0.5)
-        flex_roles = sum(champion in role_stats.get(r, {}) for r in ROLES)
         pro_priority = min(1.0, math.log1p(games) / math.log1p(30))
-        flex_value = min(1.0, max(0, flex_roles - 1) / 2.0)
-        early_score = pro_priority * 0.52 + flex_value * 0.28 + (bayes - 0.5) * 1.2 - role_counter_cost[role]
+        flex_value = _roster_real_flex_value(rec, champion)
 
-        # How valuable would true last-pick protection be for this champion?
+        # How punishable is revealing this exact role/champion before the opponent answers?
         counter_edges = []
-        for enemy_data in load_lane_matchups().get("matchups", {}).get(role, {}).values():
+        for enemy_data in matchup_data.get("matchups", {}).get(role, {}).values():
             response = enemy_data.get("responses", {}).get(champion)
             if response:
                 edge = -float(response.get("response_advantage", 0.0) or 0.0)
                 if edge > 0:
                     counter_edges.append(edge)
         matchup_risk = (sum(sorted(counter_edges, reverse=True)[:3]) / min(3, len(counter_edges))) if counter_edges else 0.0
-        late_value = role_counter_cost[role] + min(0.35, matchup_risk / 20.0) - flex_value * 0.18 - pro_priority * 0.08
+        counter_cost = role_counter_cost[role] + min(0.35, matchup_risk / 25.0)
+
+        # LoLalytics SoloQ strength is relevant to our games; current pro presence is only
+        # a tiny tie-breaker. It should never turn a counter-sensitive Top carry into an
+        # early blind merely because pros happened to draft it often.
+        solo_entry = solo_index.get(role, {}).get(champion, {})
+        solo_wr = float(solo_entry.get("win_rate", 50.0) or 50.0)
+        solo_conf = min(1.0, float(solo_entry.get("weight", 0) or 0) / 5000.0)
+        solo_strength = ((solo_wr - 50.0) / 10.0) * 0.08 * solo_conf
+        early_score = flex_value * 0.30 + solo_strength + pro_priority * 0.05 - counter_cost
+        late_value = counter_cost - flex_value * 0.20 - pro_priority * 0.03
         rows.append({"early": early_score, "late": late_value, "role": role, "champion": champion})
 
     rows.sort(key=lambda row: row["early"], reverse=True)

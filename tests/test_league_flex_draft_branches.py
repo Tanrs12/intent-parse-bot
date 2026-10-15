@@ -337,3 +337,47 @@ def test_draft_portfolio_does_not_force_even_adc_rotation_when_p1_adc_exists():
     assert counts[101] == 4
     assert counts[202] == 1
     assert counts[303] == 1
+
+
+
+def test_roster_real_flex_value_ignores_global_flex_bluff():
+    from cogs.league_flex import _roster_real_flex_value
+
+    rec = {
+        "submitted_pools": {
+            "Top": ["Camille"],
+            "Jungle": ["Zac"],
+            "Mid": ["Orianna"],
+            "ADC": ["Ezreal"],
+            "Support": ["Zyra"],
+        }
+    }
+    assert _roster_real_flex_value(rec, "Camille") == 0.0
+    rec["submitted_pools"]["Support"].append("Camille")
+    assert _roster_real_flex_value(rec, "Camille") > 0.0
+
+
+def test_flex_queue_pick_order_exposes_zac_and_zyra_before_single_player_camille():
+    from cogs.league_flex import _pro_pick_order
+    from league_comp_engine import load_meta
+
+    rec = {
+        "champions": {
+            "Top": "Camille",
+            "Jungle": "Zac",
+            "Mid": "Orianna",
+            "ADC": "Ezreal",
+            "Support": "Zyra",
+        },
+        "submitted_pools": {
+            "Top": ["Camille"],
+            "Jungle": ["Zac"],
+            "Mid": ["Orianna"],
+            "ADC": ["Ezreal"],
+            "Support": ["Zyra"],
+        },
+    }
+    order = _pro_pick_order(rec, load_meta(), "blue")
+    roles = [role for role, _ in order]
+    assert roles.index("Jungle") < roles.index("Top")
+    assert roles.index("Support") < roles.index("Top")
