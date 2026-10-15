@@ -124,9 +124,11 @@ def _party_gate():
 def _mode_gate():
     flow = _gameflow()
     if not isinstance(flow, dict):
-        return {"disabled": False, "queue_id": None, "queue_name": None}
-    queue = ((flow.get("gameData") or {}).get("queue") or {})
+        return {"disabled": False, "queue_id": None, "queue_name": None, "is_custom": False}
+    game_data = flow.get("gameData") or {}
+    queue = (game_data.get("queue") or {})
     queue_id = queue.get("id")
+    is_custom = bool(game_data.get("isCustomGame") or queue.get("isCustom") or str(queue.get("category", "")).casefold() == "custom")
     name = " ".join(str(queue.get(k, "")) for k in ("name", "shortName", "description", "gameMode", "type")).casefold()
     map_data = flow.get("map") or {}
     map_name = " ".join(str(map_data.get(k, "")) for k in ("name", "gameModeName", "gameMode")).casefold()
@@ -135,6 +137,7 @@ def _mode_gate():
         "disabled": bool(disabled),
         "queue_id": queue_id,
         "queue_name": queue.get("name") or queue.get("description") or queue.get("shortName"),
+        "is_custom": is_custom,
     }
 
 
@@ -299,7 +302,9 @@ def build_response():
     if gate["disabled"]:
         return {"active": False, "disabled": True, "reason": f"Disabled in {gate['queue_name'] or 'ARAM'}", **gate}
     party = _party_gate()
-    if not party["party_confirmed"]:
+    # Custom Summoner's Rift / practice lobbies are allowed for solo bot testing.
+    # Real matchmaking still requires a confirmed five-player premade.
+    if not gate.get("is_custom") and not party["party_confirmed"]:
         size = party.get("party_size")
         reason = "Draft Coach only runs in a 5-man party" if size is None else f"Draft Coach only runs in a 5-man party ({size}/5 currently)"
         return {"active": False, "disabled": True, "reason": reason, **gate, **party}
