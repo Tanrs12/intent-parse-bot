@@ -89,4 +89,4 @@ When changing the drafting brain, update the shared backend here first. Draft Co
 
 `tools/patch_flexers_intent_ui.py <FlexersDraftCoach folder>` patches the packaged Coach/HUD HTML so its visible pick and ban recommendations come from that bridge instead of the packaged advisor. The original HTML files are preserved as `.intent.bak` files.
 
-The bridge deliberately disables Flex recommendations in standard ARAM and ARAM: Mayhem. It detects both the known queue IDs (450 and 2400) and the League Client gameflow mode/name (`ARAM`, `Mayhem`, `KIWI`, or Howling Abyss) so the HUD does not appear in those lobbies.
+The bridge deliberately disables Flex recommendations in standard ARAM and ARAM: Mayhem. It detects both the known queue IDs (450 and 2400) and the League Client gameflow mode/name (`ARAM`, `Mayhem`, `KIWI`, or Howling Abyss) so the HUD does not appear in those lobbies. It also requires a confirmed five-player premade: the League lobby must contain exactly five party members before guidance is enabled, and that confirmation is cached briefly so it survives the transition from lobby into champion select.

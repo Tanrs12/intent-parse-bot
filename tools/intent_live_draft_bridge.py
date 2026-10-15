@@ -47,6 +47,9 @@ _compute_lock = threading.Lock()
 _response_cache_key = None
 _response_cache_value = None
 _response_cache_at = 0.0
+_party_size_cache: int | None = None
+_party_size_at = 0.0
+PARTY_CACHE_SECONDS = 15 * 60
 
 
 def _json_get(url: str, *, headers: dict | None = None, context=None, timeout: float = 2.0):
@@ -70,21 +73,52 @@ def _lcu_credentials():
     return None
 
 
-def _gameflow():
+def _lcu_json(path: str):
     creds = _lcu_credentials()
     if not creds:
         return None
     port, password = creds
     auth = base64.b64encode(("riot:" + password).encode()).decode()
+    return _json_get(
+        f"https://127.0.0.1:{port}{path}",
+        headers={"Authorization": "Basic " + auth},
+        context=ssl._create_unverified_context(),
+        timeout=1.5,
+    )
+
+
+def _gameflow():
     try:
-        return _json_get(
-            f"https://127.0.0.1:{port}/lol-gameflow/v1/session",
-            headers={"Authorization": "Basic " + auth},
-            context=ssl._create_unverified_context(),
-            timeout=1.5,
-        )
+        return _lcu_json("/lol-gameflow/v1/session")
     except Exception:
         return None
+
+
+def _party_gate():
+    """Require a confirmed five-player premade before enabling Flex guidance.
+
+    League's lobby endpoint disappears once champion select begins, so remember the
+    most recent lobby size briefly and carry that confirmation into champion select.
+    """
+    global _party_size_cache, _party_size_at
+    now = time.time()
+    live_size = None
+    try:
+        lobby = _lcu_json("/lol-lobby/v2/lobby")
+        if isinstance(lobby, dict) and isinstance(lobby.get("members"), list):
+            live_size = len(lobby["members"])
+            _party_size_cache = live_size
+            _party_size_at = now
+    except Exception:
+        pass
+
+    fresh_cached = _party_size_cache is not None and now - _party_size_at <= PARTY_CACHE_SECONDS
+    size = live_size if live_size is not None else (_party_size_cache if fresh_cached else None)
+    return {
+        "party_confirmed": size == 5,
+        "party_size": size,
+        "party_cached": live_size is None and fresh_cached,
+    }
 
 
 def _mode_gate():
@@ -264,17 +298,22 @@ def build_response():
     gate = _mode_gate()
     if gate["disabled"]:
         return {"active": False, "disabled": True, "reason": f"Disabled in {gate['queue_name'] or 'ARAM'}", **gate}
+    party = _party_gate()
+    if not party["party_confirmed"]:
+        size = party.get("party_size")
+        reason = "Draft Coach only runs in a 5-man party" if size is None else f"Draft Coach only runs in a 5-man party ({size}/5 currently)"
+        return {"active": False, "disabled": True, "reason": reason, **gate, **party}
     try:
         snap = _json_get(COACH_STATE_URL, timeout=2.0)
     except Exception as exc:
-        return {"active": False, "disabled": False, "reason": "Draft Coach server unavailable", "error": str(exc)}
+        return {"active": False, "disabled": False, "reason": "Draft Coach server unavailable", "error": str(exc), **gate, **party}
     status = snap.get("status") or {}
     state = snap.get("state") or {}
     if not status.get("lcu_in_champ_select") and state.get("source") != "manual":
-        return {"active": False, "disabled": False, "reason": "Waiting for champion select", **gate}
+        return {"active": False, "disabled": False, "reason": "Waiting for champion select", **gate, **party}
     five = _current_five(state)
     if len(five) != 5:
-        return {"active": False, "disabled": False, "reason": "Waiting for all five Discord signup profiles", "matched": len(five), **gate}
+        return {"active": False, "disabled": False, "reason": "Waiting for all five Discord signup profiles", "matched": len(five), **gate, **party}
     locked = _locked_by_role(state)
     unavailable = _unavailable(state)
     cache_key = json.dumps({
@@ -299,7 +338,7 @@ def build_response():
             limit=6,
             rotation_token=None,
         )
-        response = {"active": True, "disabled": False, "reason": "Intent backend active", "guidance": _guidance_from_result(result, state), **gate}
+        response = {"active": True, "disabled": False, "reason": "Intent backend active", "guidance": _guidance_from_result(result, state), **gate, **party}
         _response_cache_key = cache_key
         _response_cache_value = response
         _response_cache_at = now
