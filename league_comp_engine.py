@@ -256,6 +256,12 @@ def load_solo_queue_winrates(path: str | None = None) -> dict[str, dict[str, dic
                 games = int(response.get("games", 0) or 0)
                 if win_rate is None:
                     continue
+                # FLEXERS: in LoLalytics snapshots the stored baseline is the opponents' expected
+                # win rate into this champion, i.e. 100 - the champion's own win rate (it equals
+                # enemy_win_rate - enemy_delta1 on every row). Complement it unless the snapshot
+                # declares response-side semantics.
+                if str(data.get("source", {}).get("baseline_semantics", "opponent")) != "response":
+                    win_rate = 100.0 - float(win_rate)
                 samples[role].setdefault(champion, []).append((float(win_rate), max(games, 1)))
 
     index: dict[str, dict[str, dict]] = {role: {} for role in ROLES}
@@ -1295,6 +1301,9 @@ def _player_fit_adjustment(
         # Comfort captures results/form; ownership captures long-term champion identity.
         # Keep them separate so a short hot sample does not erase a genuine signature pick.
         adjustment = (comfort - 5.0) * 0.40 + (ownership - 5.0) * 0.34
+        if not _profile_for(uid):
+            # FLEXERS: no profile means no evidence, not a penalty.
+            adjustment = 0.0
 
         if role == "ADC":
             # ADC is not automatically the team's main win condition. Utility/poke ADCs
@@ -1597,8 +1606,10 @@ def score_comp(champions: dict[str, str], meta: dict | None = None) -> dict:
         confidence = min(1.0, weight / 1500.0)
         solo_wr_terms.append((win_rate - 50.0) * confidence)
         solo_wr_display.append(win_rate)
-    solo_signal = sum(solo_wr_terms) / len(solo_wr_terms) if solo_wr_terms else 0.0
-    solo_queue_score = max(0.0, min(10.0, 5.0 + solo_signal * 1.15))
+    # FLEXERS: average over all five roles (missing = neutral) and cap the contribution at 4 points,
+    # so one covered champion cannot carry the whole solo-queue term.
+    solo_signal = sum(solo_wr_terms) / 5.0 if solo_wr_terms else 0.0
+    solo_queue_score = max(0.0, min(4.0, 2.0 + solo_signal * 0.35 * 5.0 / max(1, len(solo_wr_terms))))
     avg_solo_wr = round(sum(solo_wr_display) / len(solo_wr_display), 2) if solo_wr_display else None
 
     meta_terms = []
@@ -1653,7 +1664,8 @@ def score_comp(champions: dict[str, str], meta: dict | None = None) -> dict:
         + team_plan_adjustment + top_structure_adjustment
         + (0.0 if credible_mixed_damage else -16.0)
     )
-    total = max(0.0, min(100.0, total))
+    raw_total = total
+    total = max(0.0, min(100.0, raw_total))
 
     strengths = []
     gaps = []
@@ -1682,6 +1694,7 @@ def score_comp(champions: dict[str, str], meta: dict | None = None) -> dict:
     difficulty = sum(_rating(c, "difficulty", meta) for c in champs) / 5.0
     return {
         "score": round(total, 1),
+        "rank_score": round(raw_total, 3),   # FLEXERS: unclamped, for ordering
         "archetypes": _archetypes(champions, meta),
         "strengths": strengths[:4],
         "gaps": gaps[:4],
@@ -1977,6 +1990,8 @@ def recommend_comps(
                 },
                 **scored,
                 "composition_score": round(composition_score, 1),
+                "rank_score": round(float(scored.get("rank_score", composition_score)) + weighted_player_fit - suggestion_penalty
+                                    - role_preference_penalty - draft_structure_penalty, 3),
                 "player_fit_adjustment": round(weighted_player_fit, 2),
                 "raw_player_fit_adjustment": player_fit["adjustment"],
                 "draft_structure_penalty": round(draft_structure_penalty, 2),
@@ -2250,6 +2265,23 @@ def counter_ban_recommendations(
         row["score"] = round(float(row["score"]), 2)
         row["reasons"] = sorted(row["reasons"], key=lambda x: x["score"], reverse=True)[:2]
     return ranked[:limit]
+
+
+# FLEXERS: one calibrated matchup signal. The snapshot is D2+ game-outcome evidence conditioned
+# on role, not a measured lane advantage: shrink by sample size, cap, and weight by how much the
+# role's matchup actually decides the game.
+_MATCHUP_K = {"Top": 400.0, "Mid": 400.0, "Jungle": 600.0, "ADC": 600.0, "Support": 600.0}
+_MATCHUP_POINTS = {"Top": 0.90, "Mid": 0.75, "Jungle": 0.35, "ADC": 0.35, "Support": 0.25}
+
+
+def calibrated_matchup(role: str, advantage: float | None, games: int, *, quality: float = 1.0) -> tuple[float, float]:
+    """Return (shrunk percentage-point residual, ranking contribution) for a raw response advantage."""
+    if advantage is None or games <= 0 or not math.isfinite(float(advantage)):
+        return 0.0, 0.0
+    quality = max(0.0, min(1.0, float(quality)))
+    shrunk = float(advantage) * games / (games + _MATCHUP_K.get(role, 500.0))
+    shrunk = max(-2.5, min(2.5, shrunk))
+    return round(shrunk, 3), round(shrunk * quality * _MATCHUP_POINTS.get(role, 0.5), 3)
 
 
 def matchup_response(
