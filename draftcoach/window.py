@@ -94,7 +94,13 @@ def run(url: str, *, x: int = 40, y: int = 120, theme: str | None = None) -> Non
         time.sleep(0.15)
         round_corners(title)
 
-    webview.start(on_start)
+    try:
+        webview.start(on_start)
+    except Exception as exc:  # noqa: BLE001 - e.g. .NET refusing a blocked Python.Runtime.dll
+        print(f"WebView2 panel unavailable ({exc.__class__.__name__}: {str(exc)[:160]}); using the tkinter window instead")
+        from .window_tk import OverlayWindow
+
+        OverlayWindow(url).run()
 
 
 def main(argv: list[str] | None = None) -> None:

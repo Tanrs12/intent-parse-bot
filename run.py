@@ -110,10 +110,42 @@ def main(argv: list[str] | None = None) -> None:
         thread.join(timeout=5)
 
 
+def _unblock_bundle() -> int:
+    """Strip Windows' "downloaded from the internet" mark from the packaged files.
+
+    A zip saved by a browser carries a Zone.Identifier stream, and Explorer copies it onto every
+    file it extracts. .NET then refuses to load the marked Python.Runtime.dll that the WebView2
+    panel needs ("Failed to resolve Python.Runtime.Loader.Initialize"). Removing the stream is
+    exactly what Explorer's "Unblock" button does, and it needs no elevation for the user's own files.
+    """
+    if sys.platform != "win32" or not getattr(sys, "frozen", False):
+        return 0
+    import os
+
+    removed = 0
+    roots = {Path(sys.executable).resolve().parent, Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))}
+    for root in roots:
+        for dirpath, _dirs, files in os.walk(root):
+            for name in files:
+                try:
+                    os.remove(os.path.join(dirpath, name) + ":Zone.Identifier")
+                    removed += 1
+                except OSError:
+                    pass
+    return removed
+
+
 def _entry() -> None:
     """Log to var/draftcoach.log and never die silently: a crash lands in var/crash.log and a dialog."""
     import logging
     import traceback
+
+    try:
+        unblocked = _unblock_bundle()
+        if unblocked:
+            print(f"Removed the 'downloaded from the internet' mark from {unblocked} packaged files.")
+    except Exception:  # noqa: BLE001
+        pass
 
     try:
         VAR_DIR.mkdir(parents=True, exist_ok=True)
