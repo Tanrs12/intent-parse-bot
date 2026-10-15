@@ -115,3 +115,47 @@ def test_versus_ai_bypasses_five_man_gate(monkeypatch):
     result = bridge.build_response()
     assert result["reason"] == "Draft Coach server unavailable"
     assert result["party_size"] == 1
+
+
+def test_live_guidance_uses_revealed_enemy_lane_matchup(monkeypatch):
+    monkeypatch.setattr(bridge.league_comp_engine, "load_lane_matchups", lambda: {})
+    def matchup(role, enemy, ours, _data):
+        assert role == "Top" and enemy == "Sett"
+        return ((-4.0, 1000) if ours == "Ornn" else (4.0, 1000))
+    monkeypatch.setattr(bridge.league_comp_engine, "matchup_response", matchup)
+    monkeypatch.setattr(
+        bridge.league_comp_engine,
+        "calibrated_matchup",
+        lambda role, advantage, games, quality=1.0: (advantage, advantage * quality),
+    )
+    def rec(champ, score):
+        champions = {"Top": champ, "Jungle": "Vi", "Mid": "Orianna", "ADC": "Ezreal", "Support": "Karma"}
+        players = {role: {"display_name": role, "role_priority": {role: 1}} for role in bridge.ROLES}
+        return {"score": score, "rank_score": score, "champions": champions, "players": players,
+                "pick_order": [{"role": "Top", "champion": champ}]}
+    result = {"recommendations": [rec("Ornn", 90.0), rec("Gwen", 89.0)]}
+    state = {
+        "our_team": [{"role": role, "locked": None} for role in bridge.ROLES],
+        "enemy_team": [{"role": "Top", "locked": "Sett"}],
+        "active": {"kind": "pick", "ours": True},
+    }
+    guidance = bridge._guidance_from_result(result, state)
+    assert guidance["comps"][0]["champions"]["Top"] == "Gwen"
+    assert guidance["picks"][0]["champion"] == "Gwen"
+    assert guidance["picks"][0]["lane"][0]["enemy"] == "Sett"
+
+
+def test_live_guidance_exposes_six_compositions(monkeypatch):
+    monkeypatch.setattr(bridge, "_live_lane_adjustment", lambda rec, state: (0.0, []))
+    recs = []
+    for index in range(6):
+        champ = f"Top{index}"
+        recs.append({
+            "score": 100 - index,
+            "champions": {"Top": champ, "Jungle": "Vi", "Mid": "Orianna", "ADC": "Ezreal", "Support": "Karma"},
+            "players": {role: {"display_name": role, "role_priority": {role: 1}} for role in bridge.ROLES},
+            "pick_order": [{"role": "Top", "champion": champ}],
+        })
+    state = {"our_team": [{"role": role, "locked": None} for role in bridge.ROLES], "enemy_team": [], "active": {}}
+    guidance = bridge._guidance_from_result({"recommendations": recs}, state)
+    assert len(guidance["comps"]) == 6

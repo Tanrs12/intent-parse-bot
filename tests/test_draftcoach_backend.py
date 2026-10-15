@@ -90,6 +90,9 @@ def test_live_sessions_outside_ranked_flex_stand_by(roster):
     hub3b = Hub(roster)
     _ingest(hub3b, sess, {"id": 420, "name": "Ranked Solo/Duo", "type": "RANKED_SOLO_5x5"})
     assert hub3b.state is None and "Standing by" in hub3b.status.get("detail", "")
+    hub_bot = Hub(roster)                                    # versus-AI is always available for solo testing
+    _ingest(hub_bot, sess, {"id": 850, "name": "Intermediate", "type": "BOT", "category": "VersusAi"})
+    assert hub_bot.state is not None and hub_bot.state.source == "lcu"
     hub3c = Hub(roster); hub3c.any_queue = True
     _ingest(hub3c, sess, {"id": 420, "name": "Ranked Solo/Duo", "type": "RANKED_SOLO_5x5"})
     assert hub3c.state is not None

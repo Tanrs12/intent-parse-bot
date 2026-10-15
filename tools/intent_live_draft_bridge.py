@@ -220,8 +220,55 @@ def _unavailable(state: dict) -> set[str]:
     return names
 
 
+def _live_lane_adjustment(rec: dict, state: dict) -> tuple[float, list[dict]]:
+    """Rat's live counter layer on top of the shared comp score.
+
+    The shared backend decides *which complete drafts fit our five*.  Once the enemy has
+    revealed a champion in a known/inferred role, apply the same calibrated lane matchup
+    evidence used by Draft Coach so a good counter/composition completion rises above an
+    otherwise similar draft.  This is deliberately bounded: lane counter data can break a
+    close score, not override a much better five-man composition.
+    """
+    matchups = league_comp_engine.load_lane_matchups()
+    champions = rec.get("champions") or {}
+    edges: list[dict] = []
+    total = 0.0
+    for enemy in state.get("enemy_team") or []:
+        role = enemy.get("role")
+        enemy_champion = enemy.get("locked") or enemy.get("hover")
+        our_champion = champions.get(role) if role in ROLES else None
+        if not role or not enemy_champion or not our_champion:
+            continue
+        advantage, games = league_comp_engine.matchup_response(role, enemy_champion, our_champion, matchups)
+        if advantage is None:
+            continue
+        residual, points = league_comp_engine.calibrated_matchup(role, advantage, games, quality=0.7)
+        total += points
+        edges.append({
+            "role": role,
+            "enemy": enemy_champion,
+            "ours": our_champion,
+            "advantage": round(float(advantage), 2),
+            "adjusted": residual,
+            "points": points,
+            "games": games,
+            "locked": bool(enemy.get("locked")),
+        })
+    return round(max(-6.0, min(6.0, total)), 3), edges
+
+
 def _guidance_from_result(result: dict, state: dict) -> dict:
-    recs = result.get("recommendations") or []
+    raw_recs = result.get("recommendations") or []
+    recs = []
+    for original in raw_recs:
+        rec = dict(original)
+        lane_adjustment, lane_edges = _live_lane_adjustment(rec, state)
+        rec["live_lane_adjustment"] = lane_adjustment
+        rec["live_lane_edges"] = lane_edges
+        rec["live_rank_score"] = float(rec.get("rank_score", rec.get("score", 0.0)) or 0.0) + lane_adjustment
+        recs.append(rec)
+    recs.sort(key=lambda rec: float(rec.get("live_rank_score", 0.0)), reverse=True)
+
     locked_roles = {row["role"] for row in state.get("our_team", []) if row.get("locked") and row.get("role") in ROLES}
     picks = []
     seen = set()
@@ -235,17 +282,26 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
             continue
         seen.add((champ, role))
         player = (rec.get("players", {}).get(role) or {}).get("display_name", role)
+        lane = [edge for edge in rec.get("live_lane_edges", []) if edge.get("role") == role]
+        why = ["same comp/player ranking brain as /league game"]
+        if lane:
+            edge = lane[0]
+            if edge["points"] > 0:
+                why.append(f"counter edge into {edge['enemy']}")
+            elif edge["points"] < 0:
+                why.append(f"matchup cost into {edge['enemy']}")
         picks.append({
             "role": role,
             "champion": champ,
             "champion_id": None,
             "score": float(rec.get("score", rec.get("composition_score", 0.0)) or 0.0),
-            "rank": float(rec.get("score", 0.0) or 0.0),
+            "rank": float(rec.get("live_rank_score", rec.get("score", 0.0)) or 0.0),
             "comp_score": float(rec.get("composition_score", rec.get("score", 0.0)) or 0.0),
             "familiarity": None,
             "risk_known": True,
             "flex_roles": [],
-            "lane": [],
+            "lane": lane,
+            "lane_adjustment": round(sum(float(edge.get("points", 0.0) or 0.0) for edge in lane), 3),
             "counter_risk": 0.0,
             "counter_risk_by": [],
             "blind_safe": True,
@@ -253,7 +309,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
             "source": "intent",
             "player": player,
             "team_plan": rec.get("team_plan"),
-            "why": ["same ranking brain as /league game"],
+            "why": why,
         })
         if len(picks) >= 6:
             break
@@ -269,16 +325,20 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
                     bans.append({"champion": champ, "champion_id": None, "score": float(item.get("score", 1.0) or 1.0), "reasons": item.get("reasons") or [item.get("reason") or "protects the planned Intent draft"], "tags": list(item.get("tags") or ["intent"])})
 
     comps = []
-    if recs:
-        top = recs[0]
+    for rec in recs[:6]:
         comps.append({
-            "score": float(top.get("score", 0.0) or 0.0),
-            "champions": top.get("champions") or {},
-            "players": {role: (top.get("players", {}).get(role) or {}).get("display_name", role) for role in ROLES},
-            "team_plan": top.get("team_plan"),
+            "score": float(rec.get("score", rec.get("composition_score", 0.0)) or 0.0),
+            "live_score": round(float(rec.get("live_rank_score", rec.get("score", 0.0)) or 0.0), 2),
+            "lane_adjustment": float(rec.get("live_lane_adjustment", 0.0) or 0.0),
+            "lane_edges": list(rec.get("live_lane_edges") or []),
+            "champions": rec.get("champions") or {},
+            "players": {role: (rec.get("players", {}).get(role) or {}).get("display_name", role) for role in ROLES},
+            "team_plan": rec.get("team_plan"),
+            "pick_order": list(rec.get("pick_order") or []),
         })
     active = state.get("active") or {}
     roles_now = [row["role"] for row in state.get("our_team", []) if row.get("role") in ROLES and not row.get("locked")]
+    enemy_locked = {row["role"]: row["locked"] for row in state.get("enemy_team", []) if row.get("role") in ROLES and row.get("locked")}
     return {
         "headline": ("Ban now: " + bans[0]["champion"]) if active.get("kind") == "ban" and active.get("ours") and bans else (("Pick " + picks[0]["champion"]) if picks else "Intent draft ready"),
         "phase_kind": active.get("kind") or "idle",
@@ -286,14 +346,14 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         "picking_now": bool(active.get("kind") == "pick" and active.get("ours")),
         "draft_complete": len(locked_roles) == 5,
         "our_locked": _locked_by_role(state),
-        "enemy_locked": {},
+        "enemy_locked": enemy_locked,
         "swaps": [],
         "picks": picks,
         "bans": bans,
         "comps": comps,
         "team": {"score": comps[0]["score"] if comps else 0.0, "team_plan": comps[0].get("team_plan") if comps else None, "strengths": [], "gaps": []},
         "enemy_team_score": None,
-        "alerts": [{"level": "info", "text": "INTent /league game backend is controlling live recommendations."}],
+        "alerts": [{"level": "info", "text": "INTent comp/player ranking + Draft Coach live matchup layer."}],
         "plans": [],
         "likely_enemy": [],
         "flex": [],

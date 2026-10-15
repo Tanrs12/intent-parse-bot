@@ -139,15 +139,18 @@ class Hub:
         allowed = self.allowed_queues() if source == "lcu" else None
         self.status["queue"] = queue
         is_custom = queue is not None and (int(queue.get("id", -1)) == 0 or "CUSTOM" in str(queue.get("type") or "").upper())
-        if session and queue is not None and allowed is not None and int(queue.get("id", -1)) not in allowed and not (is_custom and 0 in allowed):
-            # A normal, solo-queue or custom champ select: stand by rather than coach it.
+        category = str((queue or {}).get("category") or "").casefold()
+        qtype = str((queue or {}).get("type") or "").casefold()
+        is_bot = category == "versusai" or "bot" in qtype or int((queue or {}).get("id", -1)) in {830, 840, 850}
+        if session and queue is not None and allowed is not None and int(queue.get("id", -1)) not in allowed and not (is_custom and 0 in allowed) and not is_bot:
+            # Normal / solo-queue champ select: stand by. Customs and versus-AI are test modes.
             name = queue.get("name") or f"queue {queue.get('id')}"
             if self.state is not None and self.state.source == "lcu":
                 self.log_event(f"standing by: {name} is not ranked flex", "phase")
             self.last_session = None
             self.status["lcu_in_champ_select"] = False
             self._last_input = None
-            await self.clear(detail=f"Standing by: {name} is not Ranked Flex or a custom game. Start with --any-queue to coach it.", source=source)
+            await self.clear(detail=f"Standing by: {name} is not Ranked Flex, custom, or versus-AI. Start with --any-queue to coach it.", source=source)
             return
         self.last_session = session
         if not session:

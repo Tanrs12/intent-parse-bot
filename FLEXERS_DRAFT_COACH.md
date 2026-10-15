@@ -19,7 +19,7 @@ draft knows and the bot cannot: calibrated matchups against enemy locks, how ans
 pick still is, scouting-based bans, the team's chosen playbook plan, and the client actions.
 `settings.ranking = "engine"` switches back to the raw composition search for comparison.
 
-The app reacts only to Ranked Flex champion selects (`settings.queues = [440]`).
+The live coach is intended for **5-man Ranked Flex**. Custom games and versus-AI queues are also allowed as solo test modes, while ARAM / ARAM: Mayhem stay disabled. The in-client left overlay freezes the six opening `/league game` plans, shows the player/role assignment from each plan (not Riot's seat labels), and marks plans when a champion is banned or taken by the enemy. Revealed enemy lane picks add the Draft Coach calibrated matchup layer on top of the shared composition/player score; the adjustment is deliberately bounded so a nominal counter cannot rescue a much worse five-man composition.
 
 Download: https://github.com/Tanrs12/intent-parse-bot/releases/latest/download/FlexersDraftCoach.zip
 

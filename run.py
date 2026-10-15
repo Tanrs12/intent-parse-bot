@@ -57,6 +57,9 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--window-only", action="store_true", help="only open the overlay window (server already running)")
     parser.add_argument("--hud", action="store_true", help="draw the in-client HUD over the League client (Windows)")
     parser.add_argument("--hud-only", action="store_true", help="only the HUD, against a server that is already running")
+    parser.add_argument("--comp-overlay", dest="comp_overlay", action="store_true", default=None,
+                        help="show the six INTent composition cards on the left of the League client")
+    parser.add_argument("--no-comp-overlay", dest="comp_overlay", action="store_false")
     parser.add_argument("--bridge", dest="bridge", action="store_true", default=None,
                         help="run Tanoras's INTent live bridge on port 8766 in-process (default in the packaged build)")
     parser.add_argument("--no-bridge", dest="bridge", action="store_false")
@@ -89,6 +92,8 @@ def main(argv: list[str] | None = None) -> None:
                      sync_url=args.sync, sync_interval=args.sync_interval, any_queue=args.any_queue)
     if args.bridge or (args.bridge is None and getattr(sys, "frozen", False)):
         _start_bridge()          # Tanoras's INTent bridge on 8766, in every mode of the packaged build
+    if args.comp_overlay or (args.comp_overlay is None and getattr(sys, "frozen", False) and args.hud):
+        _start_comp_overlay()
 
     print(f"Coach panel: http://{args.host}:{args.port}/    Overlay: http://{args.host}:{args.port}/overlay    HUD demo: /demo")
     if not args.window and not args.hud:
@@ -114,6 +119,33 @@ def main(argv: list[str] | None = None) -> None:
     finally:
         server.should_exit = True
         thread.join(timeout=5)
+
+
+def _start_comp_overlay() -> None:
+    """Run the six-plan left-side overlay in its own Tk interpreter/thread."""
+    import importlib
+    import logging
+
+    from draftcoach import ENGINE_DIR
+
+    tools_dir = ENGINE_DIR / "tools"
+    if str(tools_dir) not in sys.path:
+        sys.path.insert(0, str(tools_dir))
+    try:
+        overlay = importlib.import_module("intent_comp_overlay")
+    except Exception as exc:  # noqa: BLE001
+        logging.getLogger("draftcoach").warning("INTent comp overlay not started: %s", exc)
+        return
+
+    def run_overlay() -> None:
+        try:
+            overlay.CompOverlay().run()
+        except SystemExit:
+            return
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger("draftcoach").warning("INTent comp overlay stopped: %s", exc)
+
+    threading.Thread(target=run_overlay, daemon=True, name="intent-comp-overlay").start()
 
 
 def _start_bridge(port: int = 8766) -> None:
