@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Draft Overlay</title>
+<link rel="stylesheet" href="/static/app.css">
+<style>
+  html, body { background: transparent; }
+  body { padding: 12px; transform-origin: top left; transform: scale(var(--scale)); width: calc(100% / var(--scale)); }
+  .shell { display: grid; grid-template-columns: 300px 1fr 300px; gap: 12px; max-width: 1500px; }
+  body.layout-panel .shell { grid-template-columns: 1fr; max-width: 560px; }
+  body.layout-panel .team, body.layout-panel .side-panels { display: none; }
+  body.layout-bar .shell { grid-template-columns: 1fr; max-width: 1400px; }
+  body.layout-bar .team, body.layout-bar .center > *:not(.headline-panel), body.layout-bar .bar .status { display: none; }
+  body.layout-bar .headline-panel { display: grid; grid-template-columns: auto 1fr 1fr; gap: 16px; align-items: center; }
+  body.layout-bar .headline-panel .quick { display: flex; }
+  .bar { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; white-space: nowrap; overflow: hidden; background: var(--bg);
+         border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 14px; font-size: 14px; }
+  .bar .phase { font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .bar .timer { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 18px; min-width: 44px; }
+  .bar .timer.low { color: var(--red); }
+  .bar .side { padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 12px; text-transform: uppercase; background: var(--ours); color: #fff; }
+  .bar .spacer { flex: 1; }
+  .bar .status { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 8px var(--amber); flex: none; }
+  .dot.connected, .dot.simulation { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot.error { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .center { display: flex; flex-direction: column; gap: 10px; }
+  .headline-panel .quick { display: none; gap: 6px; flex-wrap: wrap; }
+  .side-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .waiting { grid-column: 1 / -1; text-align: center; color: var(--muted); padding: 20px; font-size: 14px; background: var(--bg); border-radius: var(--radius); border: 1px dashed var(--line); }
+</style>
+</head>
+<body>
+<div class="shell" id="shell">
+  <div class="bar">
+    <span class="phase" id="phase">Waiting</span>
+    <span class="timer" id="timer">--</span>
+    <span class="side" id="side">blue</span>
+    <span id="pickno" class="sub"></span>
+    <span class="spacer"></span>
+    <span class="status"><span class="dot" id="dot"></span><span id="status">connecting</span></span>
+  </div>
+
+  <div class="team ours" id="ours"><h3><span>Our team</span><span id="ours-score"></span></h3><div id="ours-slots"></div>
+    <div class="bans-row" id="ours-bans"><span class="label">Our bans</span></div></div>
+
+  <div class="center">
+    <div class="panel headline-panel">
+      <div class="headline idle" id="headline">Waiting for champion select</div>
+      <div class="quick" id="quick-picks"></div>
+      <div class="quick" id="quick-bans"></div>
+    </div>
+    <div class="alerts panel hidden" id="alerts"></div>
+    <div class="panel picks">
+      <h2>Pick <span class="pill now" id="pick-pill">next</span><span id="pick-roles" class="sub"></span></h2>
+      <div class="list" id="picks"><div class="empty">No draft in progress.</div></div>
+    </div>
+    <div class="panel bans-panel">
+      <h2>Ban <span class="pill quiet" id="ban-pill">targets</span></h2>
+      <div class="list" id="bans"><div class="empty">&mdash;</div></div>
+    </div>
+    <div class="side-panels">
+      <div class="panel"><h2>Enemy likely picks</h2><div class="chips" id="likely"><span class="empty">&mdash;</span></div></div>
+      <div class="panel"><h2>Flex picks open</h2><div class="chips" id="flex"><span class="empty">&mdash;</span></div></div>
+    </div>
+    <div class="panel counters-panel">
+      <h2>Answers to enemy locks</h2>
+      <div class="list" id="counters"><div class="empty">&mdash;</div></div>
+    </div>
+    <div class="panel comp-panel">
+      <h2>Best draft from here <span class="pill quiet" id="comp-score"></span></h2>
+      <div class="comp" id="comp"><span class="empty">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="team enemy" id="enemy"><h3><span>Enemy</span><span id="enemy-score"></span></h3><div id="enemy-slots"></div>
+    <div class="bans-row" id="enemy-bans"><span class="label">Enemy bans</span></div></div>
+</div>
+
+<script src="/static/common.js"></script>
+<script>
+(function () {
+  const D = window.Draft;
+  const $ = D.$;
+  const params = new URLSearchParams(location.search);
+  document.documentElement.style.setProperty("--scale", String(parseFloat(params.get("scale") || "1")));
+  const layout = params.get("layout");
+  if (layout === "panel") document.body.classList.add("layout-panel");
+  if (layout === "bar") document.body.classList.add("layout-bar");
+  const maxPicks = parseInt(params.get("picks") || "5", 10);
+  const maxBans = parseInt(params.get("bans") || "4", 10);
+  let previous = { enemyBans: [], ourBans: [], enemyLocks: {}, ourLocks: {} };
+  let timerEnd = 0;
+
+  fetch("/api/champions").then((r) => r.json()).then((d) => D.learnIds(d.champions)).catch(() => {});
+
+  function quick(box, rows, max) {
+    box.innerHTML = "";
+    for (const r of (rows || []).slice(0, max)) {
+      const chip = D.el("span", "chip");
+      chip.appendChild(D.portrait(r.champion, "", r.champion_id));
+      chip.appendChild(D.el("b", "", r.champion));
+      chip.appendChild(D.el("small", "", r.role ? (D.ROLE_SHORT[r.role] || r.role) : (r.score ? r.score.toFixed(1) : "")));
+      box.appendChild(chip);
+    }
+  }
+
+  function render(snapshot) {
+    const status = snapshot.status || {};
+    const state = snapshot.state;
+    const g = snapshot.guidance;
+    D.learnFromGuidance(g);
+
+    $("dot").className = "dot " + (status.connection === "connected" ? "connected" : status.connection === "error" ? "error" : status.connection === "simulation" ? "simulation" : "");
+    $("status").textContent = (status.connection || "") + (status.detail ? " · " + status.detail : "") +
+      (status.compute_ms ? " · " + status.compute_ms + " ms" : "") + (status.stale ? " · STALE" : "");
+
+    if (!state) {
+      $("phase").textContent = "Waiting for champ select";
+      $("timer").textContent = "--";
+      $("pickno").textContent = "";
+      document.body.classList.remove("side-red");
+      $("ours-slots").innerHTML = ""; $("enemy-slots").innerHTML = "";
+      D.renderBans($("ours-bans"), "Our bans", [], new Set());
+      D.renderBans($("enemy-bans"), "Enemy bans", [], new Set());
+      D.renderHeadline($("headline"), null, null);
+      D.renderPicks($("picks"), null, maxPicks); D.renderBanTargets($("bans"), null, null, maxBans); D.renderCounters($("counters"), null);
+      D.renderComp($("comp"), $("comp-score"), null); D.renderAlerts($("alerts"), null);
+      D.renderChips($("likely"), [], () => "", "—"); D.renderChips($("flex"), [], () => "", "—");
+      $("ours-score").textContent = ""; $("enemy-score").textContent = "";
+      previous = { enemyBans: [], ourBans: [], enemyLocks: {}, ourLocks: {} };
+      return;
+    }
+
+    document.body.classList.toggle("side-red", state.side === "red");
+    $("side").textContent = state.side + " side";
+    $("phase").textContent = (state.phase || "").replace("_", " / ").toLowerCase();
+    $("pickno").textContent = state.pick_number ? "pick " + state.pick_number : (state.active.kind === "ban" ? "ban phase" : "");
+    timerEnd = state.time_left_ms ? Date.now() + state.time_left_ms : 0;
+    $("timer").textContent = D.fmtTimer(state.time_left_ms);
+
+    const newEnemyBans = new Set(state.enemy_bans.filter((b) => !previous.enemyBans.includes(b)));
+    const newOurBans = new Set(state.our_bans.filter((b) => !previous.ourBans.includes(b)));
+    const flashEnemy = new Set(); const flashOurs = new Set();
+    const enemyLocks = {}; const ourLocks = {};
+    for (const s of state.enemy_team) { enemyLocks[s.cell_id] = s.locked; if (s.locked && previous.enemyLocks[s.cell_id] !== s.locked) flashEnemy.add(s.cell_id); }
+    for (const s of state.our_team) { ourLocks[s.cell_id] = s.locked; if (s.locked && previous.ourLocks[s.cell_id] !== s.locked) flashOurs.add(s.cell_id); }
+
+    D.renderTeam($("ours-slots"), state.our_team, true, state.active.ours ? state.active.cell_ids : [], flashOurs, g && g.swaps);
+    D.renderTeam($("enemy-slots"), state.enemy_team, false, state.active.ours ? [] : state.active.cell_ids, flashEnemy, []);
+    D.renderBans($("ours-bans"), "Our bans", state.our_bans, newOurBans);
+    D.renderBans($("enemy-bans"), "Enemy bans", state.enemy_bans, newEnemyBans);
+
+    D.renderHeadline($("headline"), g, state);
+    quick($("quick-picks"), g && g.picks, 3);
+    quick($("quick-bans"), g && g.bans, 3);
+    D.renderAlerts($("alerts"), g);
+    const pill = $("pick-pill");
+    pill.textContent = g && g.draft_complete ? "locked" : g && g.picking_now ? "now" : "next";
+    pill.classList.toggle("now", !!(g && g.picking_now));
+    $("pick-roles").textContent = g && g.roles_now && !g.draft_complete ? g.roles_now.map((r) => D.ROLE_SHORT[r] || r).join(" / ") : "";
+    D.renderPicks($("picks"), g, maxPicks);
+    const ourBanTurn = state.active.kind === "ban" && state.active.ours;
+    const banPill = $("ban-pill"); banPill.textContent = ourBanTurn ? "now" : "targets"; banPill.className = "pill " + (ourBanTurn ? "now" : "quiet");
+    document.querySelector(".bans-panel").classList.toggle("hidden", !!(g && g.draft_complete));
+    D.renderBanTargets($("bans"), g, state, maxBans);
+    D.renderCounters($("counters"), g);
+    D.renderChips($("likely"), g && g.likely_enemy, (r) => (D.ROLE_SHORT[r.role] || r.role) + (r.priority === 1 ? " ★" : ""), "no scouting for open roles");
+    D.renderChips($("flex"), g && g.flex, (r) => r.roles.map((x) => D.ROLE_SHORT[x] || x).join("/"), "none in our pools");
+    D.renderComp($("comp"), $("comp-score"), g);
+    $("ours-score").textContent = g && g.team ? "comp " + g.team.score : "";
+    $("enemy-score").textContent = g && g.enemy_team_score ? "comp " + g.enemy_team_score.score : "";
+    previous = { enemyBans: [...state.enemy_bans], ourBans: [...state.our_bans], enemyLocks, ourLocks };
+  }
+
+  setInterval(() => {
+    if (!timerEnd) return;
+    const left = timerEnd - Date.now();
+    const t = $("timer");
+    t.textContent = D.fmtTimer(left);
+    t.classList.toggle("low", left > 0 && left < 8000);
+  }, 250);
+
+  D.connect(render, (s) => { if (s === "closed") { $("dot").className = "dot error"; $("status").textContent = "overlay server disconnected, retrying"; } });
+  window.__render = render;
+})();
+</script>
+</body>
+</html>

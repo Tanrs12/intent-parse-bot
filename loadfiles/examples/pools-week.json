@@ -1,0 +1,32 @@
+{
+  "format": "flexers-loadfile",
+  "version": 1,
+  "note": "Example: weekly pool update. Merge mode adds champions and updates priorities; nothing is removed unless listed under remove.",
+  "mode": "merge",
+  "players": [
+    {
+      "name": "Chud",
+      "roles": ["Jungle", "Mid"],
+      "pools": {
+        "Jungle": [{"champion": "Lee Sin", "priority": 1, "note": "signature"}, {"champion": "Vi", "priority": 2}, "Nocturne", "Sejuani"],
+        "Mid": ["Ahri", {"champion": "Galio", "priority": 2}]
+      },
+      "remove": {"Jungle": ["Viego"]},
+      "avoid": ["Teemo"]
+    },
+    {
+      "name": "Atomic",
+      "riot_ids": ["Atomic#wuE"],
+      "roles": ["Top"],
+      "mode": "replace",
+      "pools": {"Top": [{"champion": "Ornn", "priority": 1}, "K'Sante", "Gnar", "Jax"]}
+    }
+  ],
+  "default_pools": {
+    "ADC": ["Jinx", "Kai'Sa", "Ezreal", "Ashe"],
+    "Support": ["Nautilus", "Rell", "Lulu", "Karma"]
+  },
+  "ban_priority": [{"champion": "Yone", "weight": 2, "note": "their mid one-trick"}, "Rumble"],
+  "never_pick": ["Teemo"],
+  "lineup": ["Atomic", "Chud", null, null, null]
+}

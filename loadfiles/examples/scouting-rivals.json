@@ -1,0 +1,18 @@
+{
+  "format": "flexers-loadfile",
+  "version": 1,
+  "note": "Example: scouting the next opponent. Riot ids let the overlay match them automatically in champ select; enemy_lineup is the fallback seat order for the manual board.",
+  "opponents": [
+    {"name": "RivalTop", "team": "Rivals", "riot_ids": ["RivalTop#EUW"], "roles": ["Top"],
+     "pools": {"Top": [{"champion": "Rumble", "priority": 1}, "Jax", "Aatrox", "Gnar"]}},
+    {"name": "RivalJg", "team": "Rivals", "roles": ["Jungle"],
+     "pools": {"Jungle": [{"champion": "Lee Sin", "priority": 1}, "Viego", "Xin Zhao"]}},
+    {"name": "RivalMid", "team": "Rivals", "roles": ["Mid"],
+     "pools": {"Mid": [{"champion": "Yone", "priority": 1}, "Sylas", "Akali"]}},
+    {"name": "RivalBot", "team": "Rivals", "roles": ["ADC"],
+     "pools": {"ADC": ["Kai'Sa", "Jinx", "Xayah"]}},
+    {"name": "RivalSup", "team": "Rivals", "roles": ["Support"],
+     "pools": {"Support": ["Nautilus", "Rakan", "Thresh"]}}
+  ],
+  "enemy_lineup": ["RivalTop", "RivalJg", "RivalMid", "RivalBot", "RivalSup"]
+}

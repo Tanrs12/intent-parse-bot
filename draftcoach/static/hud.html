@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flexers Draft HUD</title>
+<link rel="stylesheet" href="/static/mm/tokens.css">
+<link rel="stylesheet" href="/static/mm/draft-ui.css">
+<link rel="stylesheet" href="/static/mm/draft-hud.css">
+</head>
+<body class="fd-hud">
+<main id="hud" aria-label="Flexers Draft Coach">
+  <section
+    id="decision"
+    class="hud-surface hud-decision"
+    aria-labelledby="decision-title"
+    aria-describedby="decision-meta decision-reason"
+    data-turn=""
+    data-kind=""
+    data-actionable="false"
+    hidden
+  >
+    <p id="decision-meta" class="hud-meta"></p>
+    <div id="decision-portrait" aria-hidden="true"></div>
+    <strong id="decision-title"></strong>
+    <p id="decision-reason" class="hud-reason"></p>
+
+    <p
+      id="decision-feedback"
+      class="hud-feedback"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      hidden
+    ></p>
+
+    <div id="actions" class="hud-actions" hidden>
+      <button id="hover" class="hud-button" type="button" data-hotspot>
+        Hover
+      </button>
+      <button id="lock" class="hud-button primary" type="button" data-hotspot>
+        Lock in
+      </button>
+    </div>
+  </section>
+
+  <aside
+    id="notice"
+    class="hud-surface hud-notice"
+    aria-label="Recommendation update"
+    hidden
+  >
+    <strong id="notice-event"></strong>
+    <span id="notice-effect"></span>
+  </aside>
+
+  <p
+    id="announcement"
+    class="sr-only"
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+  ></p>
+</main>
+<script src="/static/common.js"></script>
+<script>
+(function () {
+  const D = window.Draft;
+  const $ = D.$;
+  const params = new URLSearchParams(location.search);
+  const hosted = params.get("host") === "webview";
+  const ROLE_LONG = { Top: "Top", Jungle: "Jungle", Mid: "Mid", ADC: "Bot", Support: "Support" };
+  if (params.get("theme") === "graphite") document.body.classList.add("graphite");
+  let decisionKey = "", noticeKey = "", noticeExpiry = 0, acting = false, lastHotspots = "", announced = "";
+  let lastSnapshot = null;
+  let actionFeedback = null;
+  let portraitKey = "";
+  fetch("/api/champions").then((r) => r.json()).then((d) => D.learnIds(d.champions)).catch(() => {});
+
+  function reportHotspots() {
+    if (!hosted || !(window.pywebview && window.pywebview.api && window.pywebview.api.set_hotspots)) return;
+    const rects = [...document.querySelectorAll("[data-hotspot]")].filter((el) => el.offsetParent !== null).map((el) => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+    const key = JSON.stringify(rects);
+    if (key !== lastHotspots) { lastHotspots = key; window.pywebview.api.set_hotspots(rects); }
+  }
+async function clientAct(what, champion) {
+  if (acting || $("decision").hidden || $("actions").hidden) return;
+
+  const ban = $("decision").dataset.kind === "ban";
+  const pending = what === "hover"
+    ? `${ban ? "Selecting" : "Hovering"} ${champion}…`
+    : `${ban ? "Banning" : "Locking"} ${champion}…`;
+
+  acting = true;
+  actionFeedback = {
+    what,
+    state: "pending",
+    text: pending,
+    until: Infinity
+  };
+
+  $("announcement").textContent = pending;
+  if (lastSnapshot) render(lastSnapshot);
+
+  try {
+    await D.api("POST", "/api/client/" + what, { champion });
+
+    actionFeedback = {
+      what,
+      state: "success",
+      text: what === "hover"
+        ? `${champion} ${ban ? "selected" : "hovered"}`
+        : `${champion} ${ban ? "banned" : "locked in"}`,
+      until: Date.now() + 5000
+    };
+  } catch (e) {
+    actionFeedback = {
+      what,
+      state: "error",
+      text: "Client refused: " + e.message,
+      until: Date.now() + 5000
+    };
+  } finally {
+    acting = false;
+    $("announcement").textContent = actionFeedback.text;
+    if (lastSnapshot) render(lastSnapshot);
+  }
+}
+
+function decision(
+  key, turn, kind, title, reason, meta,
+  portraitName, portraitId, warning, champion
+) {
+  const el = $("decision");
+  const canAct = turn === "local" && kind !== "swap" && !!champion;
+
+  el.dataset.turn = turn;
+  el.dataset.kind = kind;
+  el.dataset.actionable = String(canAct);
+  el.setAttribute("aria-busy", String(acting));
+
+  const shownTitle = kind === "swap"
+    ? title.replace(" → receive ", "\nReceive ")
+    : title;
+
+  $("decision-title").textContent = shownTitle;
+  $("decision-title").title = title;
+  $("decision-reason").textContent = reason || "";
+  $("decision-reason").title = reason || "";
+  $("decision-reason").dataset.warning = String(!!warning);
+  $("decision-meta").textContent = meta || "";
+  $("decision-meta").title = meta || "";
+
+  const nextPortraitKey = `${portraitName || ""}:${portraitId || ""}`;
+  if (nextPortraitKey !== portraitKey) {
+    portraitKey = nextPortraitKey;
+    const slot = $("decision-portrait");
+    slot.replaceChildren();
+    if (portraitName) slot.append(D.portrait(portraitName, "", portraitId));
+  }
+
+  $("actions").hidden = !canAct;
+  $("hover").disabled = acting;
+  $("lock").disabled = acting;
+
+  const ban = kind === "ban";
+  $("hover").textContent = ban ? "Select" : "Hover";
+  $("lock").textContent = ban ? "Lock ban" : "Lock in";
+
+  if (acting && actionFeedback) {
+    if (actionFeedback.what === "hover") {
+      $("hover").textContent = ban ? "Selecting…" : "Hovering…";
+    } else {
+      $("lock").textContent = ban ? "Banning…" : "Locking…";
+    }
+  }
+
+  if (canAct) {
+    $("hover").onclick = () => clientAct("hover", champion);
+    $("lock").onclick = () => clientAct("lock", champion);
+
+    $("hover").setAttribute(
+      "aria-label",
+      `${ban ? "Select" : "Hover"} ${champion} in League`
+    );
+    $("lock").setAttribute(
+      "aria-label",
+      `${ban ? "Confirm ban of" : "Lock in"} ${champion} in League`
+    );
+  } else {
+    $("hover").onclick = null;
+    $("lock").onclick = null;
+  }
+
+  if (key !== decisionKey) {
+    decisionKey = key;
+    if (title !== announced) {
+      announced = title;
+      $("announcement").textContent =
+        title + (reason ? ". " + reason : "");
+    }
+  }
+
+  el.hidden = false;
+}
+
+function notice(change, allowed) {
+  const el = $("notice");
+  const age = change ? Date.now() - Number(change.at) * 1000 : Infinity;
+
+  el.dataset.state = "";
+
+  if (
+    !allowed || !change || !change.effect ||
+    !Number.isFinite(age) || age < -5000 || age >= 12000
+  ) {
+    el.hidden = true;
+    noticeExpiry = 0;
+    return;
+  }
+
+  const parts = String(change.event || "").split("; ");
+  $("notice-event").textContent = parts[parts.length - 1];
+  $("notice-effect").textContent = change.effect;
+  $("notice-event").title = $("notice-event").textContent;
+  $("notice-effect").title = change.effect;
+
+  noticeExpiry = Number(change.at) * 1000 + 12000;
+  el.hidden = false;
+}
+
+function paintFeedback() {
+  if (actionFeedback && Date.now() >= actionFeedback.until) {
+    actionFeedback = null;
+  }
+
+  const feedback = actionFeedback;
+  const node = $("decision-feedback");
+
+  node.hidden = !feedback;
+  $("decision-reason").hidden = !!feedback;
+
+  if (!feedback) return;
+
+  node.textContent = feedback.text;
+  node.title = feedback.text;
+  node.dataset.state = feedback.state;
+
+  // Successful lock-in can remove the decision immediately.
+  // Keep its acknowledgement visible in the existing notice slot.
+  if ($("decision").hidden) {
+    $("notice").hidden = false;
+    $("notice").dataset.state = feedback.state;
+    $("notice-event").textContent = "CLIENT ACTION";
+    $("notice-effect").textContent = feedback.text;
+    $("notice-effect").title = feedback.text;
+  }
+}
+  function hide(id) { $(id).hidden = true; }
+
+  function render(snap) {
+    lastSnapshot = snap;
+    const s = snap.state, g = snap.guidance, local = snap.local, st = snap.status || {};
+    D.learnFromGuidance(g);
+    const live = s && (s.source === "lcu" || s.source === "simulation") && s.phase !== "IDLE" && s.phase !== "GAME_STARTING";
+    if (!live || !g || st.stale) { actionFeedback = null; hide("decision"); hide("notice"); reportHotspots(); return; }
+    const picks = g.picks || [], bans = g.bans || [];
+    const oursLocked = s.our_team.filter((p) => p.locked).length, theirsLocked = s.enemy_team.filter((p) => p.locked).length;
+    const ours = s.active.kind !== "none" && s.active.ours;
+    const me = local && local.can_act && local.suggestion ? local.suggestion : null;
+    const myRole = local && (local.picking_role || local.role);
+    const role = (r) => (ROLE_LONG[r] || r || "").toUpperCase();
+    const planFor = picks.find((p) => myRole && p.role === myRole) || picks[0];
+    if (local && local.incoming_swap && local.incoming_swap.can_accept) {
+      const sw = local.incoming_swap;
+      decision("inswap:" + sw.trade_id, "local", "swap", "Give " + (local.locked || "your champion") + " → receive " + (sw.champion || "theirs"), sw.expected ? "" : "Not part of the plan", (sw.from_player + " requested · confirm in League").toUpperCase(), sw.champion, D.idFor(sw.champion), !sw.expected);
+    } else if (local && local.swap) {
+      const sw = local.swap;
+      const sent = (sw.trade_state || "").toUpperCase() === "SENT";
+      decision("swap:" + sw.give, "local", "swap", "Give " + sw.give + " → receive " + (sw.receive || "their pick"), "", (sent ? "waiting for " + sw.with_player : "swap with " + sw.with_player + " in League").toUpperCase(), sw.receive, D.idFor(sw.receive));
+    } else if (oursLocked === 5) {
+      hide("decision");
+    } else if (s.active.kind === "ban" && ours) {
+      const b = me && me.kind === "ban" ? (bans.find((x) => x.champion === me.champion) || { champion: me.champion, champion_id: me.champion_id }) : bans[0];
+      if (!b) decision("ban:none", me ? "local" : "team", "ban", me ? "No ban stands out" : "No ban suggestion", "Review scouting in Coach", me ? "YOUR BAN" : "TEAM BAN");
+      else decision("ban:" + b.champion + (me ? ":me" : ""), me ? "local" : "team", "ban", (me ? "Ban " : "Suggest banning ") + b.champion, D.overlayBanReason(b).replace(/\.$/, ""), me ? "YOUR BAN" : "TEAM BAN", b.champion, b.champion_id, false, me ? b.champion : null);
+    } else if (ours) {
+      const top = me && me.kind === "pick" ? (picks.find((p) => p.champion === me.champion) || { champion: me.champion, champion_id: me.champion_id, role: me.role, why: [me.reason] }) : picks[0];
+      if (!top) decision("pick:none", me ? "local" : "team", "pick", "No recommendation", "Check pools in Coach", me ? "YOUR PICK" : "TEAM PICK");
+      else decision("pick:" + top.champion + (me ? ":me" : ""), me ? "local" : "team", "pick", (me ? "Pick " : "Suggest ") + top.champion, D.overlayPickReason(top).replace(/\.$/, ""), (me ? "YOUR PICK · " : "TEAM PICK · ") + role(top.role) + (top.plan ? " · " + top.plan.name.toUpperCase() + " " + top.plan.progress + "/5" : ""), top.champion, top.champion_id, top.counter_risk >= 0.5 && top.counter_risk_by && top.counter_risk_by.length, me ? top.champion : null);
+    } else if (planFor) {
+      const meta = (s.active.kind === "ban" ? "ENEMY BAN" : s.active.kind === "pick" ? "ENEMY PICK" : "PLANNING") + (myRole ? " · YOUR " + role(myRole) + " PLAN" : " · " + role(planFor.role));
+      decision("prep:" + planFor.champion, "", "pick", (s.active.kind === "none" ? "Consider " : "Prepare ") + planFor.champion, D.overlayPickReason(planFor).replace(/\.$/, ""), meta, planFor.champion, planFor.champion_id);
+    } else hide("decision");
+    notice(snap.last_change, oursLocked < 5);
+    paintFeedback();
+    reportHotspots();
+  }
+setInterval(() => {
+  if (lastSnapshot) render(lastSnapshot);
+}, 200);
+
+D.connect(render, (state) => {
+  if (state === "closed") {
+    lastSnapshot = null;
+    actionFeedback = null;
+    hide("decision");
+    hide("notice");
+    reportHotspots();
+  }
+});
+})();
+</script>
+</body>
+</html>

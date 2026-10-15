@@ -1,0 +1,633 @@
+{
+  "format": "flexers-loadfile",
+  "version": 1,
+  "note": "Flexers squad roster from the Codex team review (10 October 2026): 23 confirmed accounts across seven people, pools with familiarity tiers (1 = comfort, 2 = refresh, 3 = developing), and the six target compositions as a playbook.",
+  "mode": "merge",
+  "players": [
+    {
+      "user_id": 139837324438536193,
+      "rename": "Cian",
+      "riot_ids": [
+        "FakerChovyHilary#ALLY",
+        "Atomic#wuE",
+        "Loot Lake Loony#FOR",
+        "xX2Skill4uXx#PRIDE",
+        "Schyaitale#6131",
+        "BotIanebanter#EUW",
+        "vlwaurept#EUW",
+        "KINGOFFORTNITE#FOR"
+      ],
+      "roles": [
+        "Jungle",
+        "Top",
+        "ADC",
+        "Mid"
+      ],
+      "pools": {
+        "Jungle": [
+          {
+            "champion": "Sejuani",
+            "priority": 1,
+            "note": "native role; recorded shared win",
+            "familiarity": "comfort"
+          },
+          {
+            "champion": "Lee Sin",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Xin Zhao",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Vi",
+            "familiarity": "refresh"
+          }
+        ],
+        "Top": [
+          {
+            "champion": "Camille",
+            "priority": 1,
+            "note": "two strong recent shared wins",
+            "familiarity": "comfort"
+          },
+          {
+            "champion": "Gnar",
+            "note": "refresh rage timing",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Fiora",
+            "note": "recent Atomic game",
+            "familiarity": "refresh"
+          }
+        ],
+        "ADC": [
+          {
+            "champion": "Aphelios",
+            "note": "recent ADC games; lane partnership needs repetition",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Ezreal",
+            "familiarity": "refresh"
+          }
+        ]
+      },
+      "notes": "Seasoned flexible anchor and jungle main; 42% of team damage in the squad games. Judge readiness through rehearsed role decisions."
+    },
+    {
+      "user_id": 332490596004659201,
+      "rename": "Jack",
+      "riot_ids": [
+        "JackJak#EUW",
+        "Tilt with Tilt#EUW",
+        "DylFan1#EUW"
+      ],
+      "roles": [
+        "ADC",
+        "Top",
+        "Support"
+      ],
+      "pools": {
+        "ADC": [
+          {
+            "champion": "Ashe",
+            "note": "established role; recent Ashe sample",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Jinx",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Kai'Sa",
+            "familiarity": "refresh"
+          }
+        ],
+        "Top": [
+          {
+            "champion": "Sion",
+            "note": "recent Sion flex game",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Shen",
+            "familiarity": "refresh"
+          }
+        ],
+        "Support": [
+          {
+            "champion": "Thresh",
+            "note": "two recent shared wins; deliberate backup trial",
+            "familiarity": "developing"
+          }
+        ]
+      },
+      "notes": "Established ADC main with some top; refresh lane execution, rehearse support cover."
+    },
+    {
+      "user_id": 270517092703272960,
+      "rename": "Aristo",
+      "riot_ids": [
+        "RISE OF PETE#PING",
+        "BAN EVADER BARRY#RIVEN",
+        "PINGINGPETER#R0PE",
+        "CHATBANCHARLIE#7782",
+        "GRASS Q GARY#QIQI"
+      ],
+      "roles": [
+        "Mid",
+        "Top",
+        "Jungle"
+      ],
+      "pools": {
+        "Mid": [
+          {
+            "champion": "Yasuo",
+            "priority": 1,
+            "note": "Yasuo OTP to Emerald",
+            "familiarity": "comfort"
+          },
+          {
+            "champion": "Jayce",
+            "note": "2025 solo 27W-17L",
+            "familiarity": "refresh"
+          }
+        ],
+        "Top": [
+          {
+            "champion": "Gnar",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Jax",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Rumble",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Riven",
+            "note": "2025 solo 30W-34L, older practice",
+            "familiarity": "refresh"
+          }
+        ],
+        "Jungle": [
+          {
+            "champion": "Wukong",
+            "note": "6-4 on main; learning role",
+            "familiarity": "developing"
+          },
+          {
+            "champion": "Graves",
+            "familiarity": "developing"
+          }
+        ]
+      },
+      "notes": "Deliberate learning path: Yasuo mid -> Gnar/Jax/Rumble top -> jungle. Last ten solo jungle games 6-4; wider month poor."
+    },
+    {
+      "user_id": 265219035019477002,
+      "rename": "Sasha",
+      "riot_ids": [
+        "SneakyFerret#74741",
+        "CaptainUsov#EUW"
+      ],
+      "roles": [
+        "Jungle",
+        "Support",
+        "Top",
+        "Mid"
+      ],
+      "pools": {
+        "Jungle": [
+          {
+            "champion": "Warwick",
+            "priority": 1,
+            "note": "Warwick OTP to Platinum",
+            "familiarity": "comfort"
+          }
+        ],
+        "Support": [
+          {
+            "champion": "Zyra",
+            "note": "one recent shared win; coached secondary trial",
+            "familiarity": "developing"
+          },
+          {
+            "champion": "Nami",
+            "familiarity": "developing"
+          }
+        ],
+        "Mid": [
+          {
+            "champion": "Malzahar",
+            "familiarity": "refresh"
+          }
+        ]
+      },
+      "notes": "Rebuild Warwick decision-making, stop unsuccessful chases, then validate top cover."
+    },
+    {
+      "user_id": 286592835850076162,
+      "rename": "Ste",
+      "riot_ids": [
+        "LargeLarry#EUW",
+        "ScubbaSte#EUWW",
+        "HaroldHaroldson#5048"
+      ],
+      "roles": [
+        "Mid",
+        "ADC"
+      ],
+      "pools": {
+        "Mid": [
+          {
+            "champion": "Anivia",
+            "note": "historical LargeLarry record; refresh wave control",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Xerath",
+            "note": "historical flex success",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Vex",
+            "note": "current-year records",
+            "familiarity": "refresh"
+          }
+        ]
+      },
+      "notes": "Restore mid readiness, wave decisions and timely movement. Older ADC experience would need a separate refresh."
+    },
+    {
+      "user_id": 548212317515677697,
+      "rename": "Kayla",
+      "riot_ids": [
+        "Adittive#EUW"
+      ],
+      "roles": [
+        "Jungle",
+        "Support",
+        "Mid",
+        "ADC"
+      ],
+      "pools": {
+        "Jungle": [
+          {
+            "champion": "Karthus",
+            "note": "66W in 103 historical ranked games",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Amumu",
+            "note": "two recent flex games; coordination project",
+            "familiarity": "developing"
+          }
+        ],
+        "Support": [
+          {
+            "champion": "Leona",
+            "familiarity": "developing"
+          },
+          {
+            "champion": "Nautilus",
+            "familiarity": "developing"
+          }
+        ]
+      },
+      "notes": "Improve farming-versus-helping decisions; 74 champions across 296 solo games in 2025, needs a narrower pool."
+    },
+    {
+      "user_id": 400745307467415553,
+      "rename": "Jezz",
+      "riot_ids": [
+        "ReformUKGaming#7710"
+      ],
+      "roles": [
+        "Support"
+      ],
+      "pools": {
+        "Support": [
+          {
+            "champion": "Lulu",
+            "note": "support background; active protection needs coached repetition",
+            "familiarity": "developing"
+          },
+          {
+            "champion": "Leona",
+            "note": "after an engage-follow-up practice block",
+            "familiarity": "developing"
+          }
+        ]
+      },
+      "notes": "Build active support pressure, engage/peel judgment and independent decisions. Top assignment poorly matched."
+    }
+  ],
+  "lineup": [
+    "Cian",
+    "Sasha",
+    "Aristo",
+    "Jack",
+    "Jezz"
+  ],
+  "playbook": [
+    {
+      "id": "original-five",
+      "name": "Catch → commit",
+      "style": "Original five · grouped engage",
+      "picks": {
+        "Top": {
+          "player": "Cian",
+          "champion": "Gnar",
+          "familiarity": "refresh"
+        },
+        "Jungle": {
+          "player": "Kayla",
+          "champion": "Amumu",
+          "familiarity": "developing"
+        },
+        "Mid": {
+          "player": "Aristo",
+          "champion": "Yasuo",
+          "familiarity": "comfort"
+        },
+        "ADC": {
+          "player": "Jack",
+          "champion": "Ashe",
+          "familiarity": "refresh"
+        },
+        "Support": {
+          "player": "Jezz",
+          "champion": "Lulu",
+          "familiarity": "developing"
+        }
+      },
+      "win": "A reachable catch becomes a coordinated fight, then a tower or neutral objective.",
+      "fail": "Amumu goes in alone, or the squad treats every stun as a Yasuo ultimate trigger.",
+      "substitutions": [
+        {
+          "role": "Support",
+          "player": "Jezz",
+          "champion": "Leona",
+          "note": "adds initiation, removes protection"
+        },
+        {
+          "role": "Jungle",
+          "player": "Kayla",
+          "champion": "Karthus",
+          "note": "restores farming identity, removes the tank"
+        }
+      ],
+      "readiness": "First repeatable original-five trial, not a proven optimal lineup."
+    },
+    {
+      "id": "airborne",
+      "name": "Lift → finish",
+      "style": "Yasuo setup · Sasha jungle",
+      "picks": {
+        "Top": {
+          "player": "Jack",
+          "champion": "Sion",
+          "familiarity": "refresh"
+        },
+        "Jungle": {
+          "player": "Sasha",
+          "champion": "Warwick",
+          "familiarity": "comfort"
+        },
+        "Mid": {
+          "player": "Aristo",
+          "champion": "Yasuo",
+          "familiarity": "comfort"
+        },
+        "ADC": {
+          "player": "Cian",
+          "champion": "Aphelios",
+          "familiarity": "refresh"
+        },
+        "Support": {
+          "player": "Jezz",
+          "champion": "Lulu",
+          "familiarity": "developing"
+        }
+      },
+      "win": "Sion creates a real airborne opening and Yasuo follows while Aphelios remains protected.",
+      "fail": "All three melee champions chase forward and Lulu is forced to cover two separate fights.",
+      "substitutions": [
+        {
+          "role": "Top",
+          "player": "Jack",
+          "champion": "Shen",
+          "note": "global protection instead of setup"
+        },
+        {
+          "role": "ADC",
+          "player": "Cian",
+          "champion": "Ezreal",
+          "note": "less dependence on backline protection"
+        }
+      ],
+      "readiness": "Rehearse the Sion-Yasuo timing and the Cian-Jezz lane first."
+    },
+    {
+      "id": "ste-refresh",
+      "name": "Hold → punish",
+      "style": "Ste mid · controlled teamfights",
+      "picks": {
+        "Top": {
+          "player": "Aristo",
+          "champion": "Gnar",
+          "familiarity": "refresh"
+        },
+        "Jungle": {
+          "player": "Cian",
+          "champion": "Sejuani",
+          "familiarity": "comfort"
+        },
+        "Mid": {
+          "player": "Ste",
+          "champion": "Anivia",
+          "familiarity": "refresh"
+        },
+        "ADC": {
+          "player": "Jack",
+          "champion": "Ashe",
+          "familiarity": "refresh"
+        },
+        "Support": {
+          "player": "Jezz",
+          "champion": "Lulu",
+          "familiarity": "developing"
+        }
+      },
+      "win": "The opponent must approach controlled space, giving Ashe and Anivia time to deal damage.",
+      "fail": "The squad leaves its controlled area to chase.",
+      "substitutions": [
+        {
+          "role": "Mid",
+          "player": "Ste",
+          "champion": "Xerath",
+          "note": "zone control becomes range and poke"
+        },
+        {
+          "role": "Support",
+          "player": "Jezz",
+          "champion": "Leona",
+          "note": "adds engage, removes defensive coverage"
+        }
+      ],
+      "readiness": "Good structure once Anivia and bot-lane basics have been rehearsed."
+    },
+    {
+      "id": "jack-support",
+      "name": "Protect → outlast",
+      "style": "Jack support · farming jungle",
+      "picks": {
+        "Top": {
+          "player": "Aristo",
+          "champion": "Gnar",
+          "familiarity": "refresh"
+        },
+        "Jungle": {
+          "player": "Kayla",
+          "champion": "Karthus",
+          "familiarity": "refresh"
+        },
+        "Mid": {
+          "player": "Ste",
+          "champion": "Vex",
+          "familiarity": "refresh"
+        },
+        "ADC": {
+          "player": "Cian",
+          "champion": "Aphelios",
+          "familiarity": "refresh"
+        },
+        "Support": {
+          "player": "Jack",
+          "champion": "Thresh",
+          "familiarity": "developing"
+        }
+      },
+      "win": "Aphelios gets sustained uptime while the enemy commits into Karthus and Vex damage.",
+      "fail": "Jack spends every tool going forward, leaving Aphelios exposed behind a thin frontline.",
+      "substitutions": [
+        {
+          "role": "Jungle",
+          "player": "Kayla",
+          "champion": "Amumu",
+          "note": "frontline and initiation instead of farming"
+        },
+        {
+          "role": "Mid",
+          "player": "Ste",
+          "champion": "Anivia",
+          "note": "wave and zone control"
+        }
+      ],
+      "readiness": "A deliberate Jack support test after a paired lane block."
+    },
+    {
+      "id": "poke",
+      "name": "Range → catch",
+      "style": "Poke and vision · Sasha support",
+      "picks": {
+        "Top": {
+          "player": "Aristo",
+          "champion": "Gnar",
+          "familiarity": "refresh"
+        },
+        "Jungle": {
+          "player": "Cian",
+          "champion": "Sejuani",
+          "familiarity": "comfort"
+        },
+        "Mid": {
+          "player": "Ste",
+          "champion": "Xerath",
+          "familiarity": "refresh"
+        },
+        "ADC": {
+          "player": "Jack",
+          "champion": "Ashe",
+          "familiarity": "refresh"
+        },
+        "Support": {
+          "player": "Sasha",
+          "champion": "Zyra",
+          "familiarity": "developing"
+        }
+      },
+      "win": "Repeated ranged damage creates a favourable catch before the full fight.",
+      "fail": "The team rushes a healthy opponent, face-checks alone or lets a flank reach the fragile backline.",
+      "substitutions": [
+        {
+          "role": "Support",
+          "player": "Sasha",
+          "champion": "Nami",
+          "note": "sustain instead of zone damage"
+        },
+        {
+          "role": "Mid",
+          "player": "Ste",
+          "champion": "Anivia",
+          "note": "local zone control instead of poke"
+        }
+      ],
+      "readiness": "Use only after the group can enter and leave objective space together."
+    },
+    {
+      "id": "sidelane",
+      "name": "Pressure → collapse",
+      "style": "Side lane · Aristo jungle learning",
+      "picks": {
+        "Top": {
+          "player": "Cian",
+          "champion": "Camille",
+          "familiarity": "comfort"
+        },
+        "Jungle": {
+          "player": "Aristo",
+          "champion": "Wukong",
+          "familiarity": "developing"
+        },
+        "Mid": {
+          "player": "Ste",
+          "champion": "Anivia",
+          "familiarity": "refresh"
+        },
+        "ADC": {
+          "player": "Jack",
+          "champion": "Ashe",
+          "familiarity": "refresh"
+        },
+        "Support": {
+          "player": "Jezz",
+          "champion": "Lulu",
+          "familiarity": "developing"
+        }
+      },
+      "win": "Side pressure forces a visible response that the grouped four convert elsewhere.",
+      "fail": "The four engage before Camille can join, or Camille extends without enough information.",
+      "substitutions": [
+        {
+          "role": "Top",
+          "player": "Cian",
+          "champion": "Fiora",
+          "note": "side-lane refresh alternative"
+        },
+        {
+          "role": "Jungle",
+          "player": "Aristo",
+          "champion": "Graves",
+          "note": "farming and ranged damage, loses the engage"
+        }
+      ],
+      "readiness": "Introduce after the squad consistently respects a hold/abort call."
+    }
+  ]
+}

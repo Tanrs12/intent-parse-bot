@@ -1,0 +1,31 @@
+{
+  "port": 8765,
+  "lockfile": null,
+  "debounce_ms": 30,
+  "auto_profiles": true,
+  "side": "blue",
+  "settings": {"pool_limit": 8, "picks_shown": 6, "bans_shown": 5, "priority_weight": 1.5, "scouting_weight": 1.0},
+  "players": [
+    {
+      "name": "Chud",
+      "user_id": 139837324438536193,
+      "riot_ids": ["FakerChovyHilary#ALLY", "Atomic#wuE"],
+      "roles": ["Jungle", "Mid", "Top"],
+      "pools": {
+        "Jungle": [{"champion": "Lee Sin", "priority": 1}, "Vi", "Jarvan IV", "Nocturne", "Sejuani", "Viego"],
+        "Mid": ["Ahri", "Yasuo", "Syndra", "Galio", "Taliyah"],
+        "Top": ["Gnar", "Jax", "Camille"]
+      }
+    }
+  ],
+  "default_pools": {
+    "Top": ["Ornn", "Gnar", "K'Sante", "Jax", "Camille", "Malphite", "Renekton", "Rumble"],
+    "Jungle": ["Vi", "Jarvan IV", "Sejuani", "Nocturne", "Viego", "Lee Sin", "Xin Zhao", "Maokai"],
+    "Mid": ["Ahri", "Orianna", "Syndra", "Galio", "Taliyah", "Viktor", "Azir", "Yasuo"],
+    "ADC": ["Jinx", "Kai'Sa", "Ezreal", "Ashe", "Caitlyn", "Xayah", "Jhin", "Varus"],
+    "Support": ["Nautilus", "Rell", "Lulu", "Karma", "Rakan", "Leona", "Braum", "Alistar"]
+  },
+  "ban_priority": [{"champion": "Yone", "weight": 1, "note": "nobody on the team likes playing into it"}],
+  "never_pick": ["Teemo"],
+  "lineup": ["Chud"]
+}

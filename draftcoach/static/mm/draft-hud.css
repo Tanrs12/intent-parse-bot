@@ -1,0 +1,304 @@
+/* Client-relative geometry. One unit = one pixel at 1280 × 720. */
+html:has(body.fd-hud),
+body.fd-hud {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent !important;
+}
+
+body.fd-hud {
+  --u: min(calc(100vw / 1280), calc(100vh / 720));
+  --hud-surface: #0a1219;
+  --hud-raised: #14212b;
+  --hud-border: #35434a;
+  --hud-ink: #f0e6d2;
+  --hud-secondary: #b2ada1;
+  --hud-local: #0ac8b9;
+  --hud-team: #c8aa6e;
+  --hud-ban: #ee7d87;
+  --hud-warn: #e8b35a;
+  --hud-action-ink: #04100f;
+
+  color-scheme: dark;
+  color: var(--hud-ink);
+  font-family: "Segoe UI", sans-serif;
+  pointer-events: none;
+  user-select: none;
+}
+
+.fd-hud [hidden] {
+  display: none !important;
+}
+
+#hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hud-surface {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid var(--hud-border);
+  border-radius: 0;
+  background: var(--hud-surface);
+  box-shadow: calc(2 * var(--u)) calc(2 * var(--u)) 0 #000;
+}
+
+/* Priority: ban colour > local action > team advice > preparation. */
+.hud-decision {
+  --accent: var(--hud-secondary);
+  left: 76.2%;
+  top: 79.1%;
+  width: 21.6%;
+  height: 10.6%;
+}
+
+.hud-decision[data-turn="team"] {
+  --accent: var(--hud-team);
+}
+
+.hud-decision[data-turn="local"] {
+  --accent: var(--hud-local);
+}
+
+.hud-decision[data-kind="ban"] {
+  --accent: var(--hud-ban);
+}
+
+.hud-decision::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: calc(2 * var(--u));
+  background: var(--accent);
+}
+
+#decision-meta {
+  position: absolute;
+  top: calc(4 * var(--u));
+  left: calc(8 * var(--u));
+  right: calc(8 * var(--u));
+  margin: 0;
+  color: var(--accent);
+  font: 400 calc(9 * var(--u))/calc(11 * var(--u)) Consolas, monospace;
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#decision-portrait {
+  position: absolute;
+  left: calc(8 * var(--u));
+  top: calc(16 * var(--u));
+  width: calc(32 * var(--u));
+  height: calc(32 * var(--u));
+}
+
+.fd-hud #decision-portrait .portrait {
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--hud-border);
+  border-radius: 0;
+  background: var(--hud-raised);
+  color: var(--hud-secondary);
+  font: 600 calc(11 * var(--u))/1 "Segoe UI", sans-serif;
+}
+
+.fd-hud #decision-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: none;
+  opacity: 1;
+}
+
+#decision-title {
+  position: absolute;
+  top: calc(15 * var(--u));
+  left: calc(48 * var(--u));
+  right: calc(8 * var(--u));
+  margin: 0;
+  color: var(--hud-ink);
+  font: 700 calc(16 * var(--u))/calc(21 * var(--u)) "Segoe UI", sans-serif;
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud-reason,
+.hud-feedback {
+  position: absolute;
+  top: calc(36 * var(--u));
+  left: calc(48 * var(--u));
+  right: calc(8 * var(--u));
+  margin: 0;
+  color: var(--hud-secondary);
+  font: 400 calc(11 * var(--u))/calc(13 * var(--u)) "Segoe UI", sans-serif;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.hud-decision[data-actionable="true"] .hud-reason,
+.hud-decision[data-actionable="true"] .hud-feedback {
+  display: block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.hud-reason[data-warning="true"] {
+  color: var(--hud-warn);
+}
+
+.hud-feedback {
+  color: var(--hud-local);
+}
+
+.hud-feedback[data-state="error"] {
+  color: var(--hud-ban);
+}
+
+.hud-actions {
+  position: absolute;
+  left: calc(48 * var(--u));
+  right: calc(8 * var(--u));
+  bottom: calc(4 * var(--u));
+  height: calc(22 * var(--u));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: calc(6 * var(--u));
+}
+
+.hud-button {
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0 calc(4 * var(--u));
+  border: 1px solid var(--accent);
+  border-radius: 0;
+  background: var(--hud-raised);
+  color: var(--hud-ink);
+  font: 600 calc(11 * var(--u))/1 "Segoe UI", sans-serif;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: none;
+}
+
+.hud-button.primary {
+  background: var(--accent);
+  color: var(--hud-action-ink);
+}
+
+.hud-button:hover:not(:disabled) {
+  background: var(--hud-border);
+}
+
+.hud-button.primary:hover:not(:disabled) {
+  background: var(--hud-ink);
+  border-color: var(--hud-ink);
+}
+
+.hud-button:active:not(:disabled) {
+  background: var(--hud-surface);
+  color: var(--accent);
+}
+
+.hud-button:focus-visible {
+  outline: 1px solid var(--hud-ink);
+  outline-offset: -3px;
+}
+
+.hud-button:disabled {
+  background: var(--hud-raised);
+  border-color: var(--hud-border);
+  color: var(--hud-secondary);
+  opacity: 1;
+  cursor: default;
+}
+
+/* Preserve both champion names; only player/meta text may truncate. */
+.hud-decision[data-kind="swap"] #decision-portrait {
+  display: none;
+}
+
+.hud-decision[data-kind="swap"] #decision-title {
+  left: calc(8 * var(--u));
+  top: calc(16 * var(--u));
+  white-space: pre-line;
+  height: calc(42 * var(--u));
+}
+
+.hud-decision[data-kind="swap"] .hud-reason,
+.hud-decision[data-kind="swap"] .hud-feedback {
+  left: calc(8 * var(--u));
+  top: auto;
+  bottom: calc(3 * var(--u));
+  display: block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.hud-notice {
+  left: 2.2%;
+  top: 79.1%;
+  width: 21.6%;
+  height: 5.6%;
+}
+
+.hud-notice > * {
+  position: absolute;
+  left: calc(8 * var(--u));
+  right: calc(8 * var(--u));
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 400 calc(11 * var(--u))/calc(13 * var(--u)) "Segoe UI", sans-serif;
+}
+
+#notice-event {
+  top: calc(7 * var(--u));
+  color: var(--hud-secondary);
+}
+
+#notice-effect {
+  top: calc(22 * var(--u));
+  color: var(--hud-ink);
+  font-weight: 600;
+}
+
+.hud-notice[data-state="success"] #notice-effect,
+.hud-notice[data-state="pending"] #notice-effect {
+  color: var(--hud-local);
+}
+
+.hud-notice[data-state="error"] #notice-effect {
+  color: var(--hud-ban);
+}
+
+.fd-hud .enter {
+  animation: none;
+}
+
+.fd-hud .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
