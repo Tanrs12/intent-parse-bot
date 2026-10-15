@@ -91,3 +91,27 @@ def test_custom_lobby_bypasses_five_man_gate(monkeypatch):
     result = bridge.build_response()
     assert result["reason"] == "Draft Coach server unavailable"
     assert result["party_size"] == 1
+
+def test_mode_gate_marks_versus_ai_as_bot(monkeypatch):
+    monkeypatch.setattr(
+        bridge,
+        "_gameflow",
+        lambda: {
+            "gameData": {"queue": {"id": 850, "name": "Intermediate", "category": "VersusAi", "gameMode": "CLASSIC", "type": "BOT"}},
+            "map": {"name": "Summoner's Rift", "gameMode": "CLASSIC"},
+        },
+    )
+    gate = bridge._mode_gate()
+    assert gate["disabled"] is False
+    assert gate["is_bot"] is True
+
+
+def test_versus_ai_bypasses_five_man_gate(monkeypatch):
+    monkeypatch.setattr(bridge, "_mode_gate", lambda: {"disabled": False, "queue_id": 850, "queue_name": "Intermediate", "is_custom": False, "is_bot": True})
+    monkeypatch.setattr(bridge, "_party_gate", lambda: {"party_confirmed": False, "party_size": 1, "party_cached": False})
+    def unavailable(*_args, **_kwargs):
+        raise RuntimeError("coach unavailable")
+    monkeypatch.setattr(bridge, "_json_get", unavailable)
+    result = bridge.build_response()
+    assert result["reason"] == "Draft Coach server unavailable"
+    assert result["party_size"] == 1
