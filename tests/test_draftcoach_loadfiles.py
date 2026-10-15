@@ -169,3 +169,14 @@ def test_discord_signup_export_orders_roles_by_priority(roster):
     assert result.ok, result.errors
     sig = roster.find_player(name="Sig")
     assert sig.roles == ["Top", "Jungle", "Support"] and sig.champions("Top") == ["Camille"] and sig.champions("Jungle") == ["Zac"]
+
+
+def test_bridge_signup_cache_imports_as_players(roster):
+    rows = [{"user_id": 777, "display_name": "Cache Cat", "roles": ["Mid", "Top"], "role_priority": {"Top": 1, "Mid": 2},
+             "champions": {"Mid": ["Ahri", "Syndra"], "Top": ["Gnar"]}}]
+    result = lf.import_document(roster, rows, "live_flex_signups.json")
+    assert result.ok, result.errors
+    cat = roster.find_player(name="Cache Cat")
+    assert cat.user_id == 777 and cat.roles == ["Top", "Mid"] and cat.champions("Mid") == ["Ahri", "Syndra"]
+    again = lf.import_document(roster, {"signups": rows}, "live_flex_signups.json")
+    assert again.ok

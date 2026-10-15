@@ -717,7 +717,35 @@ def flush_engine_caches() -> None:
     engine_cache.clear()
 
 
+def signups_to_loadfile(rows: list[dict], source: str = "discord-signups") -> dict:
+    """Discord `/league` signup rows (the shape `league_flex_core` consumes, also what the live
+    bridge caches in ``data/live_flex_signups.json``) as a replace-mode loadfile."""
+    players = []
+    for row in rows or []:
+        if not isinstance(row, dict) or row.get("user_id") is None:
+            continue
+        priority = {}
+        for role, level in (row.get("role_priority") or {}).items():
+            canon = role_name(role)
+            if canon and str(level).lstrip("-").isdigit():
+                priority[canon] = int(level)
+        roles = [r for r in (role_name(x) for x in (row.get("roles") or [])) if r]
+        roles = sorted(dict.fromkeys(roles), key=lambda r: (priority.get(r, 9), roles.index(r)))
+        pools = {}
+        for role, names in (row.get("champions") or {}).items():
+            canon = role_name(role)
+            if canon and names:
+                pools[canon] = [{"champion": str(n)} for n in names]
+        players.append({"user_id": int(row["user_id"]), "name": str(row.get("display_name") or row["user_id"]),
+                        "roles": roles, "role_priority": priority, "pools": pools})
+    return {"format": LOADFILE_FORMAT, "version": 1, "mode": "replace", "source": source, "players": players}
+
+
 def import_document(roster: Roster, data: dict, name: str, **engine_kwargs) -> ImportResult:
+    if isinstance(data, list):
+        data = signups_to_loadfile(data, source=name)
+    elif isinstance(data, dict) and isinstance(data.get("signups"), list) and "players" not in data:
+        data = signups_to_loadfile(data["signups"], source=name)
     kind, filename = detect_kind(data)
     if kind == "loadfile":
         return apply_loadfile(roster, data, name)

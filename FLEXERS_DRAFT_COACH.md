@@ -104,6 +104,14 @@ When changing the drafting brain, update the shared backend here first. Draft Co
 
 ## Local live bridge
 
+Note: the desktop app now lives in this repository and calls `recommend_live_drafts()` itself
+(`draftcoach/backend.py`), so `tools/patch_flexers_intent_ui.py` is no longer needed for builds from
+`main`. The bridge's signup cache is still the way the Discord pools reach the app: Draft Coach watches
+`data/live_flex_signups.json` (next to the exe: `_internal/engine/data/`, or the repo's `data/`) and
+imports it whenever it changes, and `/league coach` in Discord exports the same rows as a loadfile for
+anyone without Northflank access.
+
+
 `tools/intent_live_draft_bridge.py` is the local adapter for the packaged Flexers Draft Coach build. It reads the app's live champion-select state, refreshes the canonical Discord signup rows from the deployed service, calls `league_draft_backend.recommend_live_drafts()`, and exposes the result at `http://127.0.0.1:8766/api/guidance`.
 
 `tools/patch_flexers_intent_ui.py <FlexersDraftCoach folder>` patches the packaged Coach/HUD HTML so its visible pick and ban recommendations come from that bridge instead of the packaged advisor. The original HTML files are preserved as `.intent.bak` files.

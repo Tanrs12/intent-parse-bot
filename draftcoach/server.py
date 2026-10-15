@@ -587,7 +587,20 @@ async def _watch_loadfiles(hub: Hub, folder: Path, interval: float = 2.0) -> Non
     folder.mkdir(parents=True, exist_ok=True)
     watcher = loadfiles.LoadfileWatcher(folder, VAR_DIR / "loadfiles-seen.json")
     hub.log_event(f"watching {folder} for loadfiles", "info")
+    # The live bridge (tools/intent_live_draft_bridge.py) caches the Discord signups here; import it
+    # whenever it changes so the app ranks with the pools and priorities people set in Discord.
+    from . import ENGINE_DIR
+    signup_cache = ENGINE_DIR / "data" / "live_flex_signups.json"
+    signup_seen: float | None = None
     while True:
+        try:
+            stamp = signup_cache.stat().st_mtime if signup_cache.exists() else None
+        except OSError:
+            stamp = None
+        if stamp is not None and stamp != signup_seen:
+            signup_seen = stamp
+            result = await hub.import_path(signup_cache)
+            log.info("discord signups %s: %s", signup_cache.name, "ok" if result.ok else result.errors)
         for path in watcher.pending():
             # Wait for the file to stop growing (editors and copies write in chunks).
             try:
