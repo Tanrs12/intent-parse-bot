@@ -86,14 +86,14 @@ def main(argv: list[str] | None = None) -> None:
 
     print(f"Coach panel: http://{args.host}:{args.port}/    Overlay: http://{args.host}:{args.port}/overlay    HUD demo: /demo")
     if not args.window and not args.hud:
-        uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
+        uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level, access_log=False)
         return
 
     import threading
 
     from draftcoach import hud, window
 
-    server = uvicorn.Server(uvicorn.Config(app, host=args.host, port=args.port, log_level=args.log_level))
+    server = uvicorn.Server(uvicorn.Config(app, host=args.host, port=args.port, log_level=args.log_level, access_log=False))
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
     try:
