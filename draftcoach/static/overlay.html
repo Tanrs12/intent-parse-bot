@@ -551,7 +551,7 @@
       case "unavailable": $("statekey").textContent = st.connection === "error" ? "CLIENT ERROR" : "CONNECTION LOST"; setLead("lost", "Reconnecting to Draft Coach"); setReason("Live recommendations are unavailable."); changeAllowed = false; break;
       case "no-client": $("statekey").textContent = "CLIENT NOT DETECTED"; setLead("noclient", "Open League to begin"); setReason("Enter champion select to receive live guidance."); changeAllowed = false; break;
       case "manual-idle": $("statekey").textContent = "MANUAL BOARD"; setLead("manual", "Start a draft in Coach"); setReason("Choose your lineup and draft format in the coach app."); changeAllowed = false; break;
-      case "idle": $("statekey").textContent = "STANDBY"; setLead("idle", "Waiting for champion select"); setReason("Your lobby and champion pools appear here automatically."); changeAllowed = false; break;
+      case "idle": $("statekey").textContent = "STANDBY"; setLead("idle", "Waiting for champion select"); setReason((st.detail && /^Standing by/.test(st.detail)) ? st.detail : "Your lobby and champion pools appear here automatically."); changeAllowed = false; break;
       case "updating": $("statekey").textContent = "UPDATING"; setLead("updating", "Updating recommendations"); setReason(""); break;
       case "complete": {
         const t = (g && g.team) || {};

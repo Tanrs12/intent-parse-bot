@@ -35,6 +35,12 @@ echo Coach page: http://127.0.0.1:8765/   (close this window to stop)
 FlexersDraftCoach.exe --simulate --load "loadfiles\flexers-team.json" --window
 pause
 ''',
+    "Draft Coach (any queue).bat": r'''@echo off
+cd /d "%~dp0"
+echo Coaching every champion select (normals too). Default launchers: Ranked Flex and custom games only.
+FlexersDraftCoach.exe --load "loadfileslexers-team.json" --window --hud --any-queue
+pause
+''',
     "Player (sync from coach PC).bat": r'''@echo off
 cd /d "%~dp0"
 set /p COACH=Coach PC address (for example 192.168.1.20:8765):
@@ -62,6 +68,7 @@ Double-click one of these:
                                          always-on-top panel and the in-client HUD, and the full
                                          coach page at http://127.0.0.1:8765/
   Draft Coach (practice, no client).bat  Replays a scripted draft so you can see how it works.
+  Draft Coach (any queue).bat            Also coaches normals / solo queue (default: Ranked Flex + customs).
   Player (sync from coach PC).bat        Five machines: each player runs this, types the coach's
                                          IP, and gets the shared roster with their own client.
   Coach PC (share roster on the LAN).bat The coach runs this one so the players can sync.

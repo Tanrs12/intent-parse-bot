@@ -179,7 +179,7 @@ DEFAULT_SETTINGS = {
     "mode": "competitive",    # competitive | practice: how hard developing picks are penalised
     "committed_plan": "",     # playbook id the team has chosen to draft towards ("" = weigh every open plan)
     "ranking": "backend",     # backend = the repository's /league game brain; engine = the raw composition search
-    "queues": [440],          # League queue ids the live coach reacts to (440 = Ranked Flex); [] = any queue
+    "queues": [440, 0],       # queue ids the live coach reacts to: 440 = Ranked Flex, 0 = custom games; [] = any queue
     "scouting_weight": 1.0,   # how much scouted enemy pools move ban/counter scores
     "draft_type": "tournament",  # tournament | ranked | fearless
     "plan_weight": 4.0,       # pick-score bonus for completing a viable playbook composition

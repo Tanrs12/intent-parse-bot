@@ -138,7 +138,8 @@ class Hub:
                                  source: str = "lcu") -> None:
         allowed = self.allowed_queues() if source == "lcu" else None
         self.status["queue"] = queue
-        if session and queue is not None and allowed is not None and int(queue.get("id", -1)) not in allowed:
+        is_custom = queue is not None and (int(queue.get("id", -1)) == 0 or "CUSTOM" in str(queue.get("type") or "").upper())
+        if session and queue is not None and allowed is not None and int(queue.get("id", -1)) not in allowed and not (is_custom and 0 in allowed):
             # A normal, solo-queue or custom champ select: stand by rather than coach it.
             name = queue.get("name") or f"queue {queue.get('id')}"
             if self.state is not None and self.state.source == "lcu":
@@ -146,7 +147,7 @@ class Hub:
             self.last_session = None
             self.status["lcu_in_champ_select"] = False
             self._last_input = None
-            await self.clear(detail=f"standing by: {name} is not ranked flex (set queues: [] or --any-queue to coach it)", source=source)
+            await self.clear(detail=f"Standing by: {name} is not Ranked Flex or a custom game. Start with --any-queue to coach it.", source=source)
             return
         self.last_session = session
         if not session:

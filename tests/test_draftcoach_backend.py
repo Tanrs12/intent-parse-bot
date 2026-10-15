@@ -84,9 +84,15 @@ def test_live_sessions_outside_ranked_flex_stand_by(roster):
     hub2 = Hub(roster)
     _ingest(hub2, sess, None)
     assert hub2.state is not None and hub2.state.source == "lcu"
-    hub3 = Hub(roster); hub3.any_queue = True
+    hub3 = Hub(roster)                                        # custom games are coached by default
     _ingest(hub3, sess, {"id": 0, "name": "Custom", "type": "CUSTOM"})
     assert hub3.state is not None and hub3.state.source == "lcu"
+    hub3b = Hub(roster)
+    _ingest(hub3b, sess, {"id": 420, "name": "Ranked Solo/Duo", "type": "RANKED_SOLO_5x5"})
+    assert hub3b.state is None and "Standing by" in hub3b.status.get("detail", "")
+    hub3c = Hub(roster); hub3c.any_queue = True
+    _ingest(hub3c, sess, {"id": 420, "name": "Ranked Solo/Duo", "type": "RANKED_SOLO_5x5"})
+    assert hub3c.state is not None
     roster.settings["queues"] = []
     hub4 = Hub(roster)
     _ingest(hub4, sess, {"id": 0, "name": "Custom", "type": "CUSTOM"})
