@@ -262,6 +262,7 @@ def generate_team_options(signups: list[dict], limit: int = 5) -> list[dict[str,
 
     varied: list[dict[str, dict]] = []
     seen_signatures: set[tuple[int, ...]] = set()
+    best_cost = _assignment_preference_cost(results[0])
 
     def add(result: dict[str, dict]) -> bool:
         signature = tuple(int(result[role]["user_id"]) for role in ROLES)
@@ -282,10 +283,39 @@ def generate_team_options(signups: list[dict], limit: int = 5) -> list[dict[str,
         if len(varied) >= limit:
             return varied
 
+    # ADC is often the bottleneck role for this flex group. Preserve the best legal
+    # assignment for each player who explicitly selected ADC so the composition solver
+    # can compare them instead of silently funnelling every prepared draft to one person.
+    adc_players = sorted(
+        [player for player in eligible if "ADC" in (player.get("roles") or [])],
+        key=lambda player: (
+            _role_preference_penalty(player, "ADC"),
+            -role_experience_score(int(player["user_id"]), "ADC"),
+        ),
+    )
+    for player in adc_players:
+        uid = int(player["user_id"])
+        candidates = [
+            result for result in results
+            if int(result["ADC"]["user_id"]) == uid
+            and tuple(int(result[role]["user_id"]) for role in ROLES) not in seen_signatures
+            and _assignment_preference_cost(result) <= best_cost + 8.0
+        ]
+        if not candidates:
+            continue
+        candidates.sort(
+            key=lambda result: (
+                _assignment_preference_cost(result),
+                -sum(role_experience_score(int(result[role]["user_id"]), role) for role in ROLES),
+            )
+        )
+        add(candidates[0])
+        if len(varied) >= limit:
+            return varied
+
     # Preserve role variety for the strongest flexible carry profiles before the
     # composition solver runs. Otherwise an excellent Mid/Jungle option can disappear
     # simply because only a handful of role layouts survive this pre-search stage.
-    best_cost = _assignment_preference_cost(results[0])
     player_scores = load_player_score_index()
     carry_ranked_users = sorted(
         {int(player["user_id"]) for player in eligible},
@@ -1205,6 +1235,23 @@ def _select_diverse_recommendations(
             rec for rec in score_pool
             if float(rec.get("team_plan_score", 5.0) or 5.0) >= plan_floor
         ] or score_pool
+
+        # Share ADC duty across every viable selected ADC player before repeating
+        # the same holder. Once everyone represented in the quality pool has appeared,
+        # keep counts as even as possible across the six prepared drafts.
+        adc_usage = {}
+        for prev in chosen:
+            uid = int(prev["players"]["ADC"]["user_id"])
+            adc_usage[uid] = adc_usage.get(uid, 0) + 1
+        candidate_adc_users = {int(rec["players"]["ADC"]["user_id"]) for rec in quality_pool}
+        if candidate_adc_users:
+            least_used = min(adc_usage.get(uid, 0) for uid in candidate_adc_users)
+            balanced_adc = [
+                rec for rec in quality_pool
+                if adc_usage.get(int(rec["players"]["ADC"]["user_id"]), 0) == least_used
+            ]
+            if balanced_adc:
+                quality_pool = balanced_adc
 
         # One-pick changes are already shown as alternatives inside a role slot.
         different_shells = [rec for rec in quality_pool if min_champion_difference(rec) >= 2]

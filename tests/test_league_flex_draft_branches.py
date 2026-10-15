@@ -245,3 +245,52 @@ def test_role_priority_penalties_make_secondary_and_fill_true_fallbacks():
     assert flex._role_preference_penalty(base, "Mid") == 1.4
     assert flex._role_preference_penalty(base, "ADC") == 3.75
 
+
+
+def test_team_option_search_preserves_each_selected_adc_holder(monkeypatch):
+    import cogs.league_flex as flex
+
+    signups = [
+        {"user_id": 1, "display_name": "Cian", "roles": ["Top", "Jungle", "Mid", "ADC"], "role_priority": {"Top": 1, "Jungle": 1, "Mid": 1, "ADC": 2}},
+        {"user_id": 2, "display_name": "Rat", "roles": ["Top", "Jungle", "Mid", "ADC", "Support"], "role_priority": {"Top": 2, "Jungle": 2, "Mid": 1, "ADC": 3, "Support": 3}},
+        {"user_id": 3, "display_name": "Ste", "roles": ["Mid", "ADC", "Support"], "role_priority": {"Mid": 1, "ADC": 3, "Support": 3}},
+        {"user_id": 4, "display_name": "Kayla", "roles": ["Top", "Jungle", "Mid"], "role_priority": {"Top": 3, "Jungle": 1, "Mid": 2}},
+        {"user_id": 5, "display_name": "Sasha", "roles": ["Top", "Jungle", "Mid", "Support"], "role_priority": {"Top": 2, "Jungle": 1, "Mid": 2, "Support": 1}},
+    ]
+    monkeypatch.setattr(flex, "load_player_score_index", lambda: {uid: {"carry_index": 50.0} for uid in range(1, 6)})
+    monkeypatch.setattr(flex, "role_experience_score", lambda uid, role: 3.0)
+    options = flex.generate_team_options(signups, limit=8)
+    assert {int(option["ADC"]["user_id"]) for option in options} == {1, 2, 3}
+
+
+def test_draft_portfolio_balances_adc_between_viable_holders():
+    from cogs.league_flex import _select_diverse_recommendations
+    roles = ("Top", "Jungle", "Mid", "ADC", "Support")
+
+    def rec(idx, adc_uid):
+        player_ids = [10 + idx, 20 + idx, 30 + idx, adc_uid, 50 + idx]
+        return {
+            "score": 100.0 - idx * 0.5,
+            "team_plan_score": 8.0,
+            "team_plan": f"plan-{idx}",
+            "carry_plan": {"role": "Mid"},
+            "archetypes": [f"a-{idx}"],
+            "credible_mixed_damage": True,
+            "champions": {role: f"{role}-{idx}" for role in roles},
+            "players": {
+                role: {"user_id": player_ids[i], "display_name": str(player_ids[i]), "roles": list(roles)}
+                for i, role in enumerate(roles)
+            },
+        }
+
+    rows = [
+        rec(0, 101), rec(1, 101),
+        rec(2, 202), rec(3, 202),
+        rec(4, 303), rec(5, 303),
+    ]
+    chosen = _select_diverse_recommendations(rows, limit=6)
+    counts = {}
+    for row in chosen:
+        uid = int(row["players"]["ADC"]["user_id"])
+        counts[uid] = counts.get(uid, 0) + 1
+    assert counts == {101: 2, 202: 2, 303: 2}
