@@ -363,7 +363,9 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
         payload = await request.json()
         session = payload.get("session") if isinstance(payload, dict) and "session" in payload else payload
         phase = payload.get("gameflow_phase") if isinstance(payload, dict) else None
-        await hub.ingest_lcu_session(session or None, phase or "ChampSelect", source="simulation")
+        source = "lcu" if isinstance(payload, dict) and payload.get("source") == "lcu" else "simulation"
+        queue = payload.get("queue") if isinstance(payload, dict) and isinstance(payload.get("queue"), dict) else None
+        await hub.ingest_lcu_session(session or None, phase or "ChampSelect", queue, source=source)
         await hub.settle()
         return JSONResponse({"ok": True, "events": hub.status["events"], "compute_ms": hub.status["compute_ms"]})
 
@@ -589,15 +591,21 @@ async def _watch_loadfiles(hub: Hub, folder: Path, interval: float = 2.0) -> Non
     hub.log_event(f"watching {folder} for loadfiles", "info")
     # The live bridge (tools/intent_live_draft_bridge.py) caches the Discord signups here; import it
     # whenever it changes so the app ranks with the pools and priorities people set in Discord.
-    from . import ENGINE_DIR
+    from . import ENGINE_DIR, backend
     signup_cache = ENGINE_DIR / "data" / "live_flex_signups.json"
     signup_seen: float | None = None
     while True:
+        # Keep the bridge's signup cache in step with the roster (unless the bridge owns it).
+        if backend.write_signup_cache(hub.roster, signup_cache):
+            try:
+                signup_seen = signup_cache.stat().st_mtime
+            except OSError:
+                pass
         try:
             stamp = signup_cache.stat().st_mtime if signup_cache.exists() else None
         except OSError:
             stamp = None
-        if stamp is not None and stamp != signup_seen:
+        if stamp is not None and stamp != signup_seen and not signup_cache.with_name(backend.SEED_MARKER).exists():
             signup_seen = stamp
             result = await hub.import_path(signup_cache)
             log.info("discord signups %s: %s", signup_cache.name, "ok" if result.ok else result.errors)

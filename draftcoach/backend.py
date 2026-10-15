@@ -84,3 +84,49 @@ def as_comps(result: dict | None) -> list[dict]:
         row["backend"] = True
         comps.append(row)
     return comps
+
+
+SEED_MARKER = "live_flex_signups.seeded"
+
+
+def signup_rows_from_roster(roster: Any) -> list[dict]:
+    """The roster's players with a Discord id, in the signup shape the bridge and the cog use."""
+    rows = []
+    for player in roster.players.values():
+        if not player.user_id:
+            continue
+        roles = [r for r in player.roles if r in ROLES]
+        champions = {r: [e.champion for e in player.pools.get(r, [])] for r in ROLES if player.pools.get(r)}
+        if not champions:
+            continue
+        rows.append({"user_id": int(player.user_id), "display_name": player.name, "roles": roles,
+                     "role_priority": {r: min(3, i + 1) for i, r in enumerate(roles[:3])}, "champions": champions})
+    return rows
+
+
+def write_signup_cache(roster: Any, path: Any) -> bool:
+    """Write ``data/live_flex_signups.json`` from the roster unless Northflank (the bridge) owns it.
+
+    The bridge refreshes that file from the deployed bot's database when the Northflank CLI is
+    available. On every other machine the roster (team loadfile, `/league coach` export) is the
+    source, and a marker file records that the cache was seeded here so it may be rewritten."""
+    import json
+    from pathlib import Path as _Path
+
+    path = _Path(path)
+    marker = path.with_name(SEED_MARKER)
+    if path.exists() and not marker.exists():
+        return False                      # written by the bridge from the real signups: leave it
+    rows = signup_rows_from_roster(roster)
+    if not rows:
+        return False
+    text = json.dumps(rows, ensure_ascii=False, indent=2)
+    try:
+        if path.exists() and path.read_text(encoding="utf-8") == text:
+            return False
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        marker.write_text("seeded from the Draft Coach roster\n", encoding="utf-8")
+    except OSError:
+        return False
+    return True

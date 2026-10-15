@@ -119,10 +119,14 @@ def main() -> int:
         "--add-data", f"{ROOT / 'league_flex_core.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_draft_backend.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_player_data.py'}{sep}engine",
+        "--add-data", f"{ROOT / 'league_pro_data.py'}{sep}engine",
         "--add-data", f"{ROOT / 'data'}{sep}engine/data",
+        "--add-data", f"{ROOT / 'tools'}{sep}engine/tools",
         # The brain is imported from _internal/engine at runtime, exactly like the source tree.
         "--exclude-module", "league_comp_engine", "--exclude-module", "league_flex_core",
         "--exclude-module", "league_draft_backend", "--exclude-module", "league_player_data",
+        "--exclude-module", "league_pro_data",
+        "--collect-submodules", "aiohttp", "--hidden-import", "aiohttp",   # the bridge's pro-data refresh
         "--exclude-module", "discord", "--exclude-module", "asyncpg", "--exclude-module", "cogs",
         "--collect-submodules", "uvicorn", "--collect-submodules", "websockets",
         "--hidden-import", "anyio._backends._asyncio",
@@ -133,6 +137,17 @@ def main() -> int:
     ]
     print(" ".join(cmd))
     subprocess.run(cmd, check=True, cwd=ROOT)
+
+    # Tanoras's flow: the packaged coach page and HUD take their visible picks and bans from the
+    # in-process INTent bridge (tools/intent_live_draft_bridge.py), never from the packaged advisor.
+    sys.path.insert(0, str(ROOT / "tools"))
+    import patch_flexers_intent_ui as intent_ui
+    static = DIST / "_internal" / "draftcoach" / "static"
+    intent_ui.patch_coach(static / "coach.html")
+    intent_ui.patch_hud(static / "hud.html")
+    for backup in static.glob("*.intent.bak"):
+        backup.unlink()
+    print("packaged UI patched for the INTent live bridge")
 
     # Everything the team edits sits next to the executable.
     (DIST / "loadfiles").mkdir(exist_ok=True)

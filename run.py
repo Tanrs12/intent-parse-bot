@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+import threading
 from pathlib import Path
 
 ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
@@ -56,6 +57,9 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--window-only", action="store_true", help="only open the overlay window (server already running)")
     parser.add_argument("--hud", action="store_true", help="draw the in-client HUD over the League client (Windows)")
     parser.add_argument("--hud-only", action="store_true", help="only the HUD, against a server that is already running")
+    parser.add_argument("--bridge", dest="bridge", action="store_true", default=None,
+                        help="run Tanoras's INTent live bridge on port 8766 in-process (default in the packaged build)")
+    parser.add_argument("--no-bridge", dest="bridge", action="store_false")
     parser.add_argument("--any-queue", action="store_true",
                         help="coach every champ select (customs, normals); default: Ranked Flex only (settings.queues)")
     parser.add_argument("--log-level", default="info")
@@ -83,6 +87,8 @@ def main(argv: list[str] | None = None) -> None:
                      roster_path=Path(args.roster) if args.roster else None, watch_dir=Path(args.watch) if args.watch else None,
                      load_files=[Path(p) for p in args.load], reset_roster=args.reset_roster,
                      sync_url=args.sync, sync_interval=args.sync_interval, any_queue=args.any_queue)
+    if args.bridge or (args.bridge is None and getattr(sys, "frozen", False)):
+        _start_bridge()          # Tanoras's INTent bridge on 8766, in every mode of the packaged build
 
     print(f"Coach panel: http://{args.host}:{args.port}/    Overlay: http://{args.host}:{args.port}/overlay    HUD demo: /demo")
     if not args.window and not args.hud:
@@ -108,6 +114,40 @@ def main(argv: list[str] | None = None) -> None:
     finally:
         server.should_exit = True
         thread.join(timeout=5)
+
+
+def _start_bridge(port: int = 8766) -> None:
+    """Tanoras's live bridge (tools/intent_live_draft_bridge.py) inside this process: it reads our
+    /api/state, calls the shared backend and serves http://127.0.0.1:8766/api/guidance, which the
+    packaged coach page and HUD read for their visible picks and bans."""
+    import importlib
+    import logging
+
+    from draftcoach import ENGINE_DIR
+
+    tools_dir = ENGINE_DIR / "tools"
+    if str(tools_dir) not in sys.path:
+        sys.path.insert(0, str(tools_dir))
+    try:
+        bridge = importlib.import_module("intent_live_draft_bridge")
+    except Exception as exc:  # noqa: BLE001
+        logging.getLogger("draftcoach").warning("INTent bridge not started: %s", exc)
+        return
+
+    def serve() -> None:
+        try:
+            bridge._load_cached_signups()
+            bridge.refresh_signups(force=True)
+            from http.server import ThreadingHTTPServer
+
+            httpd = ThreadingHTTPServer(("127.0.0.1", port), bridge.Handler)
+            threading.Thread(target=bridge.background_refresh, args=(httpd,), daemon=True).start()
+            print(f"INTent live bridge: http://127.0.0.1:{port}/api/guidance")
+            httpd.serve_forever()
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger("draftcoach").warning("INTent bridge stopped: %s", exc)
+
+    threading.Thread(target=serve, daemon=True).start()
 
 
 def _unblock_bundle() -> int:

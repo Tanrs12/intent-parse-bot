@@ -97,3 +97,30 @@ def test_live_sessions_outside_ranked_flex_stand_by(roster):
     hub4 = Hub(roster)
     _ingest(hub4, sess, {"id": 0, "name": "Custom", "type": "CUSTOM"})
     assert hub4.state is not None and hub4.state.source == "lcu"
+
+
+def test_short_lobby_is_padded_to_five_seats_from_the_lineup(roster):
+    sess = session({}, {}, [], [], [0])
+    sess["myTeam"] = sess["myTeam"][:1]                     # solo custom: one human on our side
+    state = ds.state_from_lcu_session(sess, roster)
+    assert len(state.our_team) == 5
+    assert all(p.player_key for p in state.our_team[1:]) and len({p.player_key for p in state.our_team if p.player_key}) >= 4
+    assert len({p.cell_id for p in state.our_team}) == 5
+
+
+def test_signup_cache_is_seeded_from_the_roster(tmp_path, roster):
+    cache = tmp_path / "data" / "live_flex_signups.json"
+    assert backend.write_signup_cache(roster, cache)
+    import json
+    rows = json.loads(cache.read_text(encoding="utf-8"))
+    assert len(rows) >= 5 and all({"user_id", "display_name", "roles", "role_priority", "champions"} <= set(r) for r in rows)
+    assert not backend.write_signup_cache(roster, cache)   # unchanged roster: not rewritten
+    cache.with_name(backend.SEED_MARKER).unlink()           # a bridge-owned file is never overwritten
+    assert not backend.write_signup_cache(roster, cache)
+
+
+def test_bridge_module_imports_without_discord():
+    import importlib, sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+    bridge = importlib.import_module("intent_live_draft_bridge")
+    assert callable(bridge.build_response) and hasattr(bridge, "Handler")

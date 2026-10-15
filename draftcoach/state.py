@@ -405,6 +405,27 @@ def state_from_lcu_session(session: dict, roster: Roster | None = None, gameflow
 
     state.our_team = build(my_team, True)
     state.enemy_team = build(their_team, False)
+    # A solo custom / versus-AI lobby lists fewer than five humans. Pad the missing seats from the
+    # roster lineup so the draft can still be ranked as a full five (ranked flex always has five).
+    if len(state.our_team) < 5:
+        used_cells = {p.cell_id for p in state.our_team}
+        used_keys = {p.player_key for p in state.our_team if p.player_key}
+        for index in range(len(state.our_team), 5):
+            slot = PlayerSlot(cell_id=min(-1, -1 - index))
+            while slot.cell_id in used_cells:
+                slot.cell_id -= 1
+            used_cells.add(slot.cell_id)
+            slot.display_name = f"Seat {index + 1}"
+            slot.role_source = "unknown"
+            if roster is not None:
+                key = roster.lineup[index] if index < len(roster.lineup) else None
+                player = roster.players.get(key) if key else None
+                if player is None or player.key in used_keys:
+                    player = next((pl for pl in roster.lineup_players() if pl and pl.key not in used_keys), None)
+                if player is not None:
+                    used_keys.add(player.key)
+                    apply_player(slot, player, roster)
+            state.our_team.append(slot)
 
     our_cells = {p.cell_id for p in state.our_team}
     locked_by_cell: dict[int, str] = {}

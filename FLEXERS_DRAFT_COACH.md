@@ -104,9 +104,13 @@ When changing the drafting brain, update the shared backend here first. Draft Co
 
 ## Local live bridge
 
-Note: the desktop app now lives in this repository and calls `recommend_live_drafts()` itself
-(`draftcoach/backend.py`), so `tools/patch_flexers_intent_ui.py` is no longer needed for builds from
-`main`. The bridge's signup cache is still the way the Discord pools reach the app: Draft Coach watches
+The packaged build from `main` **is** this flow: `build_exe.py` applies `tools/patch_flexers_intent_ui.py`
+to the packaged coach page and HUD, and `run.py` starts `tools/intent_live_draft_bridge.py` inside the
+exe on port 8766 (`--no-bridge` turns it off; `--bridge` turns it on when running from source). The
+visible picks and bans therefore come from `recommend_live_drafts()` through the bridge. On machines
+without the Northflank CLI the bridge's signup cache is seeded from the Draft Coach roster (team
+loadfile or a `/league coach` export); a cache written by the bridge itself is never overwritten.
+A solo custom or versus-AI lobby is padded to five seats from the roster lineup so the backend can rank it. The bridge's signup cache is still the way the Discord pools reach the app: Draft Coach watches
 `data/live_flex_signups.json` (next to the exe: `_internal/engine/data/`, or the repo's `data/`) and
 imports it whenever it changes, and `/league coach` in Discord exports the same rows as a loadfile for
 anyone without Northflank access.
