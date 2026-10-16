@@ -11,7 +11,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import secrets
 import shutil
 import subprocess
 import sys
@@ -22,6 +21,8 @@ ROOT = Path(__file__).resolve().parent
 NAME = "FlexersDraftCoach"
 DIST = ROOT / "dist" / NAME
 ART_CANDIDATES = [ROOT / "art"]   # the MatchupMaster porcelain set is 143 MB; the app falls back to CommunityDragon art
+TEAM_SYNC_RELAY = "https://draft--intent-parse-bot--cdzz6bjv54yz.code.run"
+TEAM_SYNC_ROOM_KEY = "flexers-intent-ranked-flex-room-v1"  # shared room identity, not a credential
 
 LAUNCHERS = {
     "Draft Coach (live client).bat": r'''@echo off
@@ -72,7 +73,7 @@ Unzip the whole folder anywhere (keep FlexersDraftCoach.exe next to the _interna
 Double-click one of these:
 
   Draft Coach (live client).bat          Normal launcher for EVERYONE. It identifies your Riot
-                                         account and automatically joins the private Flexers draft room.
+                                         account and automatically joins the shared Flexers draft room.
                                          No code/IP needs to be pasted or shared.
   Draft Coach (practice, no client).bat  Replays a scripted draft so you can see how it works.
   Draft Coach (any queue).bat            Also coaches normals / solo queue (default: Ranked Flex + customs).
@@ -187,22 +188,12 @@ def main() -> int:
         elif item.suffix.lower() in (".py", ".txt", ".md", ".json", ".yml", ".yaml", ".toml", ".cfg", ".ini") or item.name == "Dockerfile":
             shutil.copy2(item, source / item.name)
     (DIST / "var").mkdir(exist_ok=True)
-    # Every copy from one Flexers build shares a strong private room key. Keep the source-side key
-    # untracked so it never lands in Git; local rebuilds reuse it, while a fresh CI release gets a
-    # fresh room. A short non-secret label is only for humans to confirm they are on the same build.
-    source_var = ROOT / "var"
-    source_var.mkdir(exist_ok=True)
-    room_file = source_var / "team-sync-room.txt"
-    try:
-        room_key = room_file.read_text(encoding="utf-8").strip()
-    except OSError:
-        room_key = ""
-    if len(room_key) < 16:
-        room_key = secrets.token_urlsafe(24)
-        room_file.write_text(room_key, encoding="utf-8")
+    # The same opaque Flexers room ID is shipped in every build, including GitHub Actions releases.
+    # It is coordination metadata rather than a credential: anyone with the app already has it.
+    room_key = TEAM_SYNC_ROOM_KEY
     room_label = "FLEX-" + hashlib.sha256(room_key.encode("utf-8")).hexdigest()[:6].upper()
     (DIST / "team-sync.json").write_text(json.dumps({
-        "relay": "https://draft--intent-parse-bot--cdzz6bjv54yz.code.run",
+        "relay": TEAM_SYNC_RELAY,
         "room_key": room_key,
         "room_label": room_label,
     }, indent=2), encoding="utf-8")

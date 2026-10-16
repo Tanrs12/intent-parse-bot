@@ -76,7 +76,7 @@ def main(argv: list[str] | None = None) -> None:
     frozen = getattr(sys, "frozen", False)
     if frozen:
         os.environ.setdefault("INTENT_LIVE", "1")
-    # Shared Flexers builds carry a private team room. Normal live launches join it automatically;
+    # Shared Flexers builds carry a shared team room. Normal live launches join it automatically;
     # explicit host/follow flags still override this for debugging and LAN/manual fallback work.
     if frozen and not args.no_auto_sync and not args.cloud_sync_mode and not args.sync and not args.simulate and not args.no_lcu:
         try:
