@@ -455,3 +455,40 @@ def test_hover_collection_ignores_locks_and_ban_phase():
     assert bridge._hovered_by_role(state) == {"Mid": "Sylas"}
     state["active"] = {"kind": "ban"}
     assert bridge._hovered_by_role(state) == {}
+
+
+
+def test_custom_test_roles_do_not_pin_synthetic_roster_seats():
+    five = [
+        {"user_id": 1}, {"user_id": 2}, {"user_id": 3}, {"user_id": 4}, {"user_id": 5},
+    ]
+    state = {
+        "local_cell_id": 0,
+        "our_team": [
+            {"cell_id": 0, "user_id": 1, "role": "Top", "is_local": True, "puuid": None, "riot_id": None},
+            {"cell_id": 1, "user_id": 2, "role": "Support", "puuid": None, "riot_id": None},
+            {"cell_id": 2, "user_id": 3, "role": "Jungle", "puuid": None, "riot_id": None},
+            {"cell_id": 3, "user_id": 4, "role": "Mid", "puuid": None, "riot_id": None},
+            {"cell_id": 4, "user_id": 5, "role": "ADC", "puuid": None, "riot_id": None},
+        ],
+    }
+    assert bridge._role_players_for_state(state, five, testing=True) == {"Top": 1}
+    assert bridge._role_players_for_state(state, five, testing=False) == {
+        "Top": 1, "Support": 2, "Jungle": 3, "Mid": 4, "ADC": 5,
+    }
+
+
+def test_custom_test_strips_bot_locks_even_when_placeholder_has_known_user_id():
+    state = {
+        "local_cell_id": 0,
+        "our_team": [
+            {"cell_id": 0, "user_id": 1, "role": "Top", "is_local": True, "locked": None, "hover": "Camille"},
+            {"cell_id": 1, "user_id": 2, "role": "Support", "locked": "Morgana", "hover": "Morgana", "puuid": None, "riot_id": None},
+            {"cell_id": 2, "user_id": 3, "role": "Jungle", "locked": "Amumu", "hover": "Amumu", "puuid": None, "riot_id": None},
+            {"cell_id": 3, "user_id": 4, "role": "Mid", "locked": "Galio", "hover": "Galio", "puuid": None, "riot_id": None},
+            {"cell_id": 4, "user_id": 5, "role": "ADC", "locked": "Ezreal", "hover": "Ezreal", "puuid": None, "riot_id": None},
+        ],
+    }
+    cleaned = bridge._state_for_test(state)
+    assert cleaned["our_team"][0]["hover"] == "Camille"
+    assert all(row.get("locked") is None and row.get("hover") is None for row in cleaned["our_team"][1:])

@@ -428,6 +428,26 @@ def _locked_by_role(state: dict) -> dict[str, str]:
     return {row["role"]: row["locked"] for row in state.get("our_team", []) if row.get("role") in ROLES and row.get("locked")}
 
 
+def _role_players_for_state(state: dict, five: list[dict], *, testing: bool) -> dict[str, int]:
+    """Hard role ownership from genuine live seats, never synthetic custom-test placeholders."""
+    five_ids = {int(row["user_id"]) for row in five if row.get("user_id")}
+    local_cell = state.get("local_cell_id")
+    result: dict[str, int] = {}
+    for row in state.get("our_team", []) or []:
+        if row.get("role") not in ROLES or not row.get("user_id"):
+            continue
+        uid = int(row["user_id"])
+        if uid not in five_ids:
+            continue
+        if testing:
+            is_local = bool(row.get("is_local")) or (local_cell is not None and row.get("cell_id") == local_cell)
+            live_identity = bool(row.get("puuid") or row.get("riot_id"))
+            if not (is_local or live_identity):
+                continue
+        result[row["role"]] = uid
+    return result
+
+
 def _hovered_by_role(state: dict) -> dict[str, str]:
     """Current ally pick intent. A lock always wins and ban-phase selections are ignored."""
     active = state.get("active") or {}
@@ -443,15 +463,17 @@ def _state_for_test(state: dict) -> dict:
     ingestion, but they must not become fake locks in the five real-player draft we are previewing.
     Enemy bots stay intact so the live matchup layer can still be tested against all five reveals.
     """
-    with _cache_lock:
-        known_ids = {int(row["user_id"]) for row in _signups if row.get("user_id")}
     local_cell = state.get("local_cell_id")
     out = dict(state)
     team = []
     for original in state.get("our_team", []) or []:
         row = dict(original)
-        uid = int(row["user_id"]) if row.get("user_id") else None
-        known_human = uid in known_ids or (local_cell is not None and row.get("cell_id") == local_cell) or bool(row.get("is_local"))
+        is_local = bool(row.get("is_local")) or (local_cell is not None and row.get("cell_id") == local_cell)
+        # Custom / versus-AI fills empty seats from our saved roster so the UI can exercise a
+        # five-player draft. Those synthetic seats can carry real Discord user_ids, but they do
+        # not have a live Riot identity. Do not mistake them for humans or preserve bot locks.
+        live_identity = bool(row.get("puuid") or row.get("riot_id"))
+        known_human = is_local or live_identity
         if not known_human:
             row["locked"] = None
             row["hover"] = None
@@ -925,12 +947,7 @@ def build_response():
     locked = _locked_by_role(effective_state)
     unavailable = _unavailable(effective_state)
     hovered = _hovered_by_role(effective_state)
-    five_ids = {int(row["user_id"]) for row in five if row.get("user_id")}
-    role_players = {
-        row["role"]: int(row["user_id"])
-        for row in effective_state.get("our_team", [])
-        if row.get("role") in ROLES and row.get("user_id") and int(row["user_id"]) in five_ids
-    }
+    role_players = _role_players_for_state(effective_state, five, testing=testing)
     cache_key = json.dumps({
         "side": state.get("side") or "blue",
         "active": state.get("active") or {},
