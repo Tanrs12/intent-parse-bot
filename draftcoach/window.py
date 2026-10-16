@@ -35,6 +35,10 @@ class Api:
         if self._window is not None:
             self._window.destroy()
 
+    def minimize(self) -> None:
+        if self._window is not None:
+            self._window.minimize()
+
     def open_coach(self) -> None:
         webbrowser.open(self.url + "/")
 
@@ -46,18 +50,40 @@ class Api:
                 pass
 
 
-def round_corners(title: str) -> None:
-    """Win11 DWM rounded corners on the frameless native window."""
+def style_windows_window(title: str) -> None:
+    """Apply Win11 corners plus the Flexers icon to the frameless native window."""
     try:
         import ctypes
+        from pathlib import Path
 
-        hwnd = ctypes.windll.user32.FindWindowW(None, title)
-        if hwnd:
-            DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND = 33, 2
-            ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE,
-                                                       ctypes.byref(ctypes.c_int(DWMWCP_ROUND)), 4)
+        user32 = ctypes.windll.user32
+        hwnd = user32.FindWindowW(None, title)
+        if not hwnd:
+            return
+
+        # Give Windows a stable application identity for taskbar grouping/branding.
+        try:
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Flexers.DraftCoach")
+        except Exception:
+            pass
+
+        DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND = 33, 2
+        ctypes.windll.dwmapi.DwmSetWindowAttribute(
+            hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ctypes.byref(ctypes.c_int(DWMWCP_ROUND)), 4
+        )
+
+        icon_path = Path(__file__).resolve().with_name("flexers_draft.ico")
+        if icon_path.exists():
+            IMAGE_ICON, LR_LOADFROMFILE = 1, 0x0010
+            WM_SETICON, ICON_SMALL, ICON_BIG = 0x0080, 0, 1
+            big = user32.LoadImageW(None, str(icon_path), IMAGE_ICON, 32, 32, LR_LOADFROMFILE)
+            small = user32.LoadImageW(None, str(icon_path), IMAGE_ICON, 16, 16, LR_LOADFROMFILE)
+            if big:
+                user32.SendMessageW(hwnd, WM_SETICON, ICON_BIG, big)
+            if small:
+                user32.SendMessageW(hwnd, WM_SETICON, ICON_SMALL, small)
     except Exception as exc:  # noqa: BLE001 - cosmetic
-        print(f"rounded corners unavailable: {exc!r}")
+        print(f"native window styling unavailable: {exc!r}")
 
 
 def wait_for_server(url: str, timeout: float = 20.0) -> bool:
@@ -92,7 +118,7 @@ def run(url: str, *, x: int = 40, y: int = 120, theme: str | None = None) -> Non
 
     def on_start() -> None:
         time.sleep(0.15)
-        round_corners(title)
+        style_windows_window(title)
 
     try:
         webview.start(on_start)

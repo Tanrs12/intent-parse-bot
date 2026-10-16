@@ -115,10 +115,12 @@ def main() -> int:
     sep = ";" if sys.platform == "win32" else ":"
     cmd = [
         sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onedir", "--console",
-        "--name", NAME, "--distpath", str(ROOT / "dist"), "--workpath", str(ROOT / "build"),
+        "--name", NAME, "--icon", str(ROOT / "draftcoach" / "flexers_draft.ico"),
+        "--distpath", str(ROOT / "dist"), "--workpath", str(ROOT / "build"),
         "--specpath", str(ROOT / "build"),
         "--add-data", f"{ROOT / 'draftcoach' / 'static'}{sep}draftcoach/static",
         "--add-data", f"{ROOT / 'draftcoach' / 'champion_ids.json'}{sep}draftcoach",
+        "--add-data", f"{ROOT / 'draftcoach' / 'flexers_draft.ico'}{sep}draftcoach",
         "--add-data", f"{ROOT / 'league_comp_engine.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_flex_core.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_draft_backend.py'}{sep}engine",

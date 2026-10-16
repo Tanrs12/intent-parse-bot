@@ -21,6 +21,7 @@
         </div>
       </div>
       <button class="fd-text-button" id="theme" type="button" aria-pressed="false" aria-label="Use graphite theme">Graphite</button>
+      <button class="fd-icon-button" id="minimize" type="button" aria-label="Minimize overlay"><span aria-hidden="true">&minus;</span></button>
       <button class="fd-icon-button" id="close" type="button" aria-label="Close overlay"><span class="mm-icon" data-icon="close" aria-hidden="true"></span></button>
     </header>
 
@@ -148,8 +149,9 @@
 
   setTheme(graphite);
   $("theme").onclick = () => setTheme(!document.body.classList.contains("graphite"));
+  $("minimize").onclick = () => { const api = window.pywebview && window.pywebview.api; if (api && api.minimize) api.minimize(); };
   $("close").onclick = () => { const api = window.pywebview && window.pywebview.api; if (api && api.close) api.close(); else window.close(); };
-  if (!hosted) $("close").hidden = true;
+  if (!hosted) { $("minimize").hidden = true; $("close").hidden = true; }
   $("open-coach").addEventListener("click", (event) => { const api = window.pywebview && window.pywebview.api; if (!api || !api.open_coach) return; event.preventDefault(); api.open_coach(); });
   D.hydrateIcons(document);
   fetch("/api/champions").then((r) => r.json()).then((d) => D.learnIds(d.champions)).catch(() => {});
