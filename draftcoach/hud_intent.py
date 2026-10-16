@@ -53,7 +53,7 @@ THEMES = {
 
 # Where the card sits, as fractions of the client window. The client leaves these corners empty in
 # every champ-select layout (team cards end around 78 %, chat and the quit button start around 90 %).
-DECISION_BOX = (0.762, 0.791, 0.978, 0.897)
+DECISION_BOX = (0.748, 0.744, 0.978, 0.897)
 NOTICE_BOX = (0.022, 0.791, 0.238, 0.847)
 VK_LBUTTON = 0x01
 
@@ -160,13 +160,13 @@ def decide(snapshot: dict) -> tuple[dict | None, dict | None]:
     elif local and local.get("incoming_swap") and local["incoming_swap"].get("can_accept"):
         sw = local["incoming_swap"]
         decision = {"key": f"inswap:{sw['trade_id']}", "turn": "local", "kind": "swap",
-                    "title": f"Give {local.get('locked') or 'your champion'} → receive {sw.get('champion') or 'theirs'}",
+                    "title": f"Give {local.get('locked') or 'your champion'} Ã¢â€ â€™ receive {sw.get('champion') or 'theirs'}",
                     "reason": "" if sw.get("expected") else "Not part of the plan",
-                    "meta": f"{sw['from_player']} requested · confirm in League".upper(), "champion": None, "warning": not sw.get("expected")}
+                    "meta": f"{sw['from_player']} requested Ã‚Â· confirm in League".upper(), "champion": None, "warning": not sw.get("expected")}
     elif local and local.get("swap"):
         sw = local["swap"]
         sent = str(sw.get("trade_state") or "").upper() == "SENT"
-        decision = {"key": f"swap:{sw['give']}", "turn": "local", "kind": "swap", "title": f"Give {sw['give']} → receive {sw.get('receive') or 'their pick'}",
+        decision = {"key": f"swap:{sw['give']}", "turn": "local", "kind": "swap", "title": f"Give {sw['give']} Ã¢â€ â€™ receive {sw.get('receive') or 'their pick'}",
                     "reason": "", "meta": (f"waiting for {sw['with_player']}" if sent else f"swap with {sw['with_player']} in League").upper(), "champion": None}
     elif ours_locked == 5:
         decision = None
@@ -184,8 +184,8 @@ def decide(snapshot: dict) -> tuple[dict | None, dict | None]:
         if top:
             decision = {"key": f"pick:{top['champion']}:{bool(me)}", "turn": "local" if me else "team", "kind": "pick",
                         "title": ("Pick " if me else "Suggest ") + top["champion"], "reason": short_pick_reason(top),
-                        "meta": ("YOUR PICK · " if me else "TEAM PICK · ") + role(top["role"])
-                        + (f" · {top['plan']['name'].upper()} {top['plan']['progress']}/5" if top.get("plan") else ""),
+                        "meta": ("YOUR PICK Ã‚Â· " if me else "TEAM PICK Ã‚Â· ") + role(top["role"])
+                        + (f" Ã‚Â· {top['plan']['name'].upper()} {top['plan']['progress']}/5" if top.get("plan") else ""),
                         "champion": top["champion"] if (me or visual_test) else None, "champion_id": top.get("champion_id"), "warning": top.get("counter_risk", 0) >= 0.5}
         else:
             decision = {"key": "pick:none", "turn": "local" if me else "team", "kind": "pick", "title": "No recommendation yet",
@@ -194,7 +194,7 @@ def decide(snapshot: dict) -> tuple[dict | None, dict | None]:
         plan = next((p for p in picks if my_role and p["role"] == my_role), None) or (picks[0] if picks else None)
         if plan:
             head = "ENEMY BAN" if active.get("kind") == "ban" else "ENEMY PICK" if active.get("kind") == "pick" else "PLANNING"
-            meta = head + (f" · YOUR {role(my_role)} PLAN" if my_role else f" · {role(plan['role'])}")
+            meta = head + (f" Ã‚Â· YOUR {role(my_role)} PLAN" if my_role else f" Ã‚Â· {role(plan['role'])}")
             decision = {"key": f"prep:{plan['champion']}", "turn": "", "kind": "pick",
                         "title": ("Consider " if active.get("kind") == "none" else "Prepare ") + plan["champion"],
                         "reason": short_pick_reason(plan), "meta": meta, "champion": plan["champion"] if visual_test else None, "champion_id": plan.get("champion_id")}
@@ -552,9 +552,9 @@ class NativeHud:
             text = " ".join(str(value or "").split())
             if font.measure(text) <= width:
                 return text
-            while text and font.measure(text + "…") > width:
+            while text and font.measure(text + "Ã¢â‚¬Â¦") > width:
                 text = text[:-1]
-            return text.rstrip() + "…" if text else ""
+            return text.rstrip() + "Ã¢â‚¬Â¦" if text else ""
 
         def wrap(
             value: str, font: tkfont.Font, width: int, count: int
@@ -664,7 +664,7 @@ class NativeHud:
             elif swap:
                 # Separate give/receive lines preserve the complete exchange.
                 title_lines = str(decision["title"]).replace(
-                    " → receive ", "\nReceive "
+                    " Ã¢â€ â€™ receive ", "\nReceive "
                 ).splitlines()
 
                 for index, value in enumerate(title_lines[:2]):
@@ -679,7 +679,7 @@ class NativeHud:
             else:
                 # Keep the TEAM PICK / TEAM BAN meta header clear. Actionable cards also need
                 # room for Rat's original Hover / Lock-in button row at the bottom.
-                content_y = 20 if can_act else 23
+                content_y = 25 if can_act else 27
                 portrait_x, portrait_y = full_x, y0 + px(content_y)
                 portrait_side = px(32)
 
@@ -709,10 +709,10 @@ class NativeHud:
 
                 reason_x = x0 + px(48)
                 reason_width = x1 - px(8) - reason_x
-                reason_y = y0 + px(38 if can_act else 43)
+                reason_y = y0 + px(50 if can_act else 50)
 
                 line(
-                    reason_x, y0 + px(19 if can_act else 22), decision["title"],
+                    reason_x, y0 + px(27 if can_act else 28), decision["title"],
                     self.fonts["title"], t["ink"], reason_width,
                 )
 
@@ -742,8 +742,8 @@ class NativeHud:
                 left = x0 + px(48)
                 right = x1 - px(8)
                 gap = px(6)
-                bh = px(22)
-                by = y1 - px(4) - bh
+                bh = px(24)
+                by = y1 - px(7) - bh
                 first_width = (right - left - gap) // 2
 
                 definitions = [
@@ -794,9 +794,9 @@ class NativeHud:
                             )
                         )
                         if pending_hover and what == "hover":
-                            label = "Selecting…" if kind == "ban" else "Hovering…"
+                            label = "SelectingÃ¢â‚¬Â¦" if kind == "ban" else "HoveringÃ¢â‚¬Â¦"
                         elif not pending_hover and what == "lock":
-                            label = "Banning…" if kind == "ban" else "Locking…"
+                            label = "BanningÃ¢â‚¬Â¦" if kind == "ban" else "LockingÃ¢â‚¬Â¦"
 
                     button.configure(
                         text=label,
