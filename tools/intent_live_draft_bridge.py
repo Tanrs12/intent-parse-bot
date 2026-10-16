@@ -767,28 +767,30 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
     roles_now = [row["role"] for row in state.get("our_team", []) if row.get("role") in ROLES and not row.get("locked")]
     enemy_locked = {row["role"]: row["locked"] for row in state.get("enemy_team", []) if row.get("role") in ROLES and row.get("locked")}
 
-    # Visual-test HUD preview is intentionally separate from the real team pick-order list.
-    # It answers: "what does the #1 current comp want THIS machine's role to play?"
-    # That lets a solo custom/bot test show TOP Camille even if ADC is the next planned reveal.
+    # Visual-test HUD preview follows the #1 comp's planned reveal order, not this machine's
+    # assigned role. Bot/custom ally locks are already stripped by _state_for_test(), so the HUD
+    # behaves like a real draft: show pick #1 first, then advance as our test picks are locked.
     visual_test_pick = None
     if visual_test and comps:
-        local_cell = state.get("local_cell_id")
-        local_row = next((
-            row for row in state.get("our_team", [])
-            if row.get("role") in ROLES and (
-                row.get("is_local") or (local_cell is not None and row.get("cell_id") == local_cell)
-            )
+        locked_test_roles = {
+            row.get("role") for row in state.get("our_team", [])
+            if row.get("role") in ROLES and row.get("locked")
+        }
+        next_row = next((
+            row for row in (comps[0].get("pick_order") or [])
+            if row.get("role") in ROLES
+            and row.get("role") not in locked_test_roles
+            and row.get("champion")
         ), None)
-        local_role = (local_row or {}).get("role")
-        if local_role in ROLES:
-            champ = (comps[0].get("champions") or {}).get(local_role)
-            if champ:
-                visual_test_pick = {
-                    "role": local_role,
-                    "champion": champ,
-                    "champion_id": _champion_id(champ),
-                    "source": "test-local-preview",
-                }
+        if next_row:
+            role = next_row["role"]
+            champ = next_row["champion"]
+            visual_test_pick = {
+                "role": role,
+                "champion": champ,
+                "champion_id": _champion_id(champ),
+                "source": "test-next-team-pick",
+            }
 
     return {
         "headline": ("Ban now: " + bans[0]["champion"]) if active.get("kind") == "ban" and active.get("ours") and bans else (("Pick " + picks[0]["champion"]) if picks else "Intent draft ready"),
