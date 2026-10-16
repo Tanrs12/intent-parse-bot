@@ -9,6 +9,7 @@ under _internal/, the team loadfiles, launcher .bat files and a START HERE.txt.
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import hashlib
 import json
 import shutil
@@ -32,7 +33,9 @@ echo Six INTent composition cards appear on the left during champ select.
 echo Coach page: http://127.0.0.1:8765/   (close this window to stop)
 :restart
 FlexersDraftCoach.exe --load "loadfiles\flexers-team.json" --hud
-if errorlevel 1 echo Draft Coach stopped unexpectedly; restarting in 2 seconds...
+set EXITCODE=%ERRORLEVEL%
+if "%EXITCODE%"=="42" exit /b 0
+if not "%EXITCODE%"=="0" echo Draft Coach stopped unexpectedly; restarting in 2 seconds...
 timeout /t 2 /nobreak >nul
 goto restart
 ''',
@@ -72,7 +75,7 @@ Unzip the whole folder anywhere (keep FlexersDraftCoach.exe next to the _interna
 
 Double-click one of these:
 
-  Draft Coach (live client).bat          Normal launcher for EVERYONE. It identifies your Riot
+  Draft Coach (live client).bat          Normal launcher for EVERYONE. It checks for updates, then identifies your Riot
                                          account and automatically joins the shared Flexers draft room.
                                          No code/IP needs to be pasted or shared.
   Draft Coach (practice, no client).bat  Replays a scripted draft so you can see how it works.
@@ -198,6 +201,15 @@ def main() -> int:
         "room_label": room_label,
     }, indent=2), encoding="utf-8")
     print(f"automatic Flexers sync room: {room_label}")
+    try:
+        commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    except Exception:
+        commit = ""
+    (DIST / "build-info.json").write_text(json.dumps({
+        "commit": commit,
+        "built_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "release_api": "https://api.github.com/repos/Tanrs12/intent-parse-bot/releases/latest",
+    }, indent=2), encoding="utf-8")
     for name, body in LAUNCHERS.items():
         (DIST / name).write_text(body, encoding="utf-8")
     (DIST / "START HERE.txt").write_text(START_HERE, encoding="utf-8")

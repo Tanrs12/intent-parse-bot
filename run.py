@@ -57,6 +57,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--sync-interval", type=float, default=60.0, help="seconds between roster syncs")
     parser.add_argument("--cloud-sync-mode", choices=["host", "follow", "auto"], help="internet sync: host/follow are manual fallbacks; auto elects a Flexers captain")
     parser.add_argument("--no-auto-sync", action="store_true", help="disable packaged Flexers automatic internet sync")
+    parser.add_argument("--no-update", action="store_true", help="skip the packaged GitHub release update check")
     parser.add_argument("--cloud-sync-url", default=os.environ.get("INTENT_SYNC_RELAY", ""), help="public draft relay base URL")
     parser.add_argument("--cloud-sync-key", default=os.environ.get("INTENT_SYNC_KEY", ""), help="shared 16+ character draft session key")
     parser.add_argument("--window", action="store_true", help="open the always-on-top overlay window as well")
@@ -78,7 +79,7 @@ def main(argv: list[str] | None = None) -> None:
         os.environ.setdefault("INTENT_LIVE", "1")
     # Shared Flexers builds carry a shared team room. Normal live launches join it automatically;
     # explicit host/follow flags still override this for debugging and LAN/manual fallback work.
-    if frozen and not args.no_auto_sync and not args.cloud_sync_mode and not args.sync and not args.simulate and not args.no_lcu:
+    if frozen and os.environ.get("INTENT_UPDATE_SKIPPED") != "1" and not args.no_auto_sync and not args.cloud_sync_mode and not args.sync and not args.simulate and not args.no_lcu:
         try:
             team_sync = json.loads((ROOT / "team-sync.json").read_text(encoding="utf-8"))
             relay = str(team_sync.get("relay") or "").rstrip("/")
@@ -283,6 +284,16 @@ def _entry() -> None:
             print(f"Removed the 'downloaded from the internet' mark from {unblocked} packaged files.")
     except Exception:  # noqa: BLE001
         pass
+
+    if getattr(sys, "frozen", False):
+        try:
+            from draftcoach.updater import UPDATE_EXIT_CODE, maybe_update
+            if maybe_update(ROOT):
+                raise SystemExit(UPDATE_EXIT_CODE)
+        except SystemExit:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            print(f"Update check skipped: {exc}")
 
     try:
         VAR_DIR.mkdir(parents=True, exist_ok=True)
