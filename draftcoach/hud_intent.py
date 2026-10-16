@@ -676,7 +676,9 @@ class NativeHud:
                 reason_y = y1 - px(16)
                 reason_width = full_width
             else:
-                portrait_x, portrait_y = full_x, y0 + px(16)
+                # Keep the TEAM PICK / TEAM BAN meta header on its own clear line.
+                # The champion portrait/title row starts lower so it never collides with the header.
+                portrait_x, portrait_y = full_x, y0 + px(23)
                 portrait_side = px(32)
 
                 c.create_rectangle(
@@ -705,10 +707,10 @@ class NativeHud:
 
                 reason_x = x0 + px(48)
                 reason_width = x1 - px(8) - reason_x
-                reason_y = y0 + px(36)
+                reason_y = y0 + px(43)
 
                 line(
-                    reason_x, y0 + px(15), decision["title"],
+                    reason_x, y0 + px(22), decision["title"],
                     self.fonts["title"], t["ink"], reason_width,
                 )
 

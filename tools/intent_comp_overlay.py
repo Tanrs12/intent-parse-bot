@@ -326,8 +326,8 @@ class CompOverlay:
         px = lambda n: max(1, round(n * u))
         self.font_title.configure(size=-px(13))
         self.font_order.configure(size=-px(17))
-        self.font_role.configure(size=-px(10))
-        self.font_player.configure(size=-px(9))
+        self.font_role.configure(size=-px(12))
+        self.font_player.configure(size=-px(8))
         self.font_tiny.configure(size=-px(8))
         c = self.canvas
         c.delete("all")
@@ -386,7 +386,7 @@ class CompOverlay:
             option_icon_size = min(px(30), max(px(22), (cell_w - px(8)) // 3))
             option_gap = px(2)
             labels_y = icons_y + option_icon_size + px(5)
-            player_y = labels_y + px(12)
+            player_y = labels_y + px(15)
             bans, enemy_taken, ours_taken = self._effective_marks()
             uncontrolled = set(comp.get("uncontrolled_roles") or [])
 
@@ -437,6 +437,8 @@ class CompOverlay:
                 player = str(players.get(role) or role)
                 if role in uncontrolled:
                     player = "PUG · " + player
+                elif len(player) > 10:
+                    player = player[:10]
                 c.create_text(cx, player_y, text=self._fit(player, self.font_player, cell_w - px(4)), anchor="n", font=self.font_player, fill=secondary)
 
             # Show only OUR side's ban plan for this exact composition. Portraits are much easier to
