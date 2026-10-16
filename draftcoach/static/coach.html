@@ -558,8 +558,11 @@
     if (!state || !comps.length) { section.hidden = true; captainRanks = new Map(); return; }
     section.hidden = false;
     const syncMode = (typeof intentBridge !== "undefined" && intentBridge.sync && intentBridge.sync.mode) || "local";
-    const syncLabel = syncMode === "cloud-host" ? "HOST" : (syncMode === "follower" || syncMode === "cloud-follower") ? "SYNCED" : "LOCAL";
-    $("captain-side").textContent = String((g.side || state.side || "")).toUpperCase() + " SIDE · " + syncLabel;
+    const syncLabel = (syncMode === "cloud-host" || syncMode === "auto-host") ? "HOST" : (syncMode === "follower" || syncMode === "cloud-follower" || syncMode === "auto-follower") ? "SYNCED" : "LOCAL";
+    const syncInfo = (typeof intentBridge !== "undefined" && intentBridge.sync) || {};
+    const roomText = syncInfo.room ? " · " + syncInfo.room : "";
+    const leaderText = syncInfo.leader ? " · CAPTAIN " + syncInfo.leader : "";
+    $("captain-side").textContent = String((g.side || state.side || "")).toUpperCase() + " SIDE · " + syncLabel + roomText + leaderText;
     phase.replaceChildren();
     const group = g.current_pick_group;
     if (group) {

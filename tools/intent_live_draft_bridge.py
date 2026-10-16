@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import base64
+import hashlib
 import json
 import os
 import socket
@@ -13,6 +14,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -69,8 +71,8 @@ def configure_cloud(base: str | None, key: str | None, mode: str | None) -> None
     _cloud_base = str(base or "").rstrip("/") or None
     _cloud_key = str(key or "").strip() or None
     _cloud_mode = str(mode or "").strip().casefold() or None
-    if _cloud_mode not in (None, "host", "follow"):
-        raise ValueError("cloud sync mode must be host or follow")
+    if _cloud_mode not in (None, "host", "follow", "auto"):
+        raise ValueError("cloud sync mode must be host, follow or auto")
     if _cloud_mode and (not _cloud_base or not _cloud_key or len(_cloud_key) < 16):
         raise ValueError("cloud sync needs a relay URL and a 16+ character session key")
 
@@ -104,18 +106,123 @@ def cloud_publish_loop() -> None:
             payload = build_response()
             payload = dict(payload)
             payload["sync"] = {"mode": "cloud-host", "source": _cloud_base}
-            req = urllib.request.Request(_cloud_url(), data=json.dumps(payload).encode("utf-8"),
-                                         headers={"Content-Type": "application/json"}, method="PUT")
-            with urllib.request.urlopen(req, timeout=6.0) as response:
-                control = json.loads(response.read())
-            version = int(control.get("preference_version") or 0)
-            if version > _cloud_pref_version:
-                _cloud_pref_version = version
-                _set_preference(control.get("preference"))
+            control = _cloud_publish(payload)
+            _apply_cloud_control(control)
         except Exception:
             pass
         time.sleep(0.8)
 
+
+
+def _room_label() -> str:
+    if not _cloud_key:
+        return ""
+    return "FLEX-" + hashlib.sha256(_cloud_key.encode("utf-8")).hexdigest()[:6].upper()
+
+
+def _team_loadfile() -> Path | None:
+    candidates = [
+        REPO / "loadfiles" / "flexers-team.json",
+        REPO.parent.parent / "loadfiles" / "flexers-team.json",
+        Path(sys.executable).resolve().parent / "loadfiles" / "flexers-team.json",
+    ]
+    return next((path for path in candidates if path.exists()), None)
+
+
+def _team_host_priorities() -> dict[int, int]:
+    try:
+        path = _team_loadfile()
+        data = json.loads(path.read_text(encoding="utf-8")) if path else {}
+        return {int(row["user_id"]): i for i, row in enumerate(data.get("players") or []) if row.get("user_id")}
+    except Exception:
+        return {}
+
+
+_HOST_PRIORITIES = _team_host_priorities()
+
+
+def _auto_identity() -> dict:
+    try:
+        snap = _json_get(COACH_STATE_URL, timeout=1.5)
+    except Exception:
+        snap = {}
+    status = (snap or {}).get("status") or {}
+    state = (snap or {}).get("state") or {}
+    local_cell = state.get("local_cell_id")
+    local = next((row for row in (state.get("our_team") or [])
+                  if row.get("is_local") or (local_cell is not None and row.get("cell_id") == local_cell)), {})
+    try:
+        player_id = int(local.get("user_id") or 0)
+    except (TypeError, ValueError):
+        player_id = 0
+    return {
+        "client_id": _auto_client_id,
+        "player_id": player_id,
+        "player_name": str(local.get("display_name") or local.get("riot_id") or socket.gethostname()),
+        "priority": int(_HOST_PRIORITIES.get(player_id, 9999)),
+        "in_champ_select": bool(status.get("lcu_in_champ_select")),
+    }
+
+
+def _auto_sync_meta(mode: str) -> dict:
+    with _auto_lock:
+        return {
+            "mode": mode,
+            "source": _cloud_base,
+            "room": _room_label(),
+            "leader": _auto_leader_name,
+            "participants": _auto_participant_count,
+        }
+
+
+def _cloud_heartbeat(identity: dict) -> dict:
+    payload = json.dumps(identity).encode("utf-8")
+    req = urllib.request.Request(_cloud_url("/heartbeat"), data=payload,
+                                 headers={"Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=5.0) as response:
+        return json.loads(response.read())
+
+
+def _cloud_publish(payload: dict, client_id: str | None = None) -> dict:
+    headers = {"Content-Type": "application/json"}
+    if client_id:
+        headers["X-Intent-Client"] = client_id
+    req = urllib.request.Request(_cloud_url(), data=json.dumps(payload).encode("utf-8"),
+                                 headers=headers, method="PUT")
+    with urllib.request.urlopen(req, timeout=6.0) as response:
+        return json.loads(response.read())
+
+
+def _apply_cloud_control(control: dict) -> None:
+    global _cloud_pref_version
+    version = int((control or {}).get("preference_version") or 0)
+    if version > _cloud_pref_version:
+        _cloud_pref_version = version
+        _set_preference((control or {}).get("preference"))
+
+
+def cloud_auto_loop() -> None:
+    global _auto_is_host, _auto_leader_id, _auto_leader_name, _auto_participant_count
+    while _cloud_mode == "auto":
+        try:
+            identity = _auto_identity()
+            control = _cloud_heartbeat(identity)
+            leader_id = control.get("leader_id")
+            with _auto_lock:
+                _auto_leader_id = str(leader_id) if leader_id else None
+                _auto_leader_name = str(control.get("leader_name") or "") or None
+                _auto_participant_count = int(control.get("participant_count") or 0)
+                _auto_is_host = bool(leader_id and leader_id == _auto_client_id)
+            _apply_cloud_control(control)
+            if leader_id == _auto_client_id:
+                payload = dict(build_response())
+                payload["sync"] = _auto_sync_meta("auto-host")
+                published = _cloud_publish(payload, _auto_client_id)
+                _apply_cloud_control(published)
+        except Exception:
+            with _auto_lock:
+                _auto_is_host = False
+        time.sleep(0.8)
 
 def _comp_signature(champions: dict | None) -> str:
     champions = champions or {}
@@ -182,6 +289,12 @@ _cloud_base: str | None = None
 _cloud_key: str | None = None
 _cloud_mode: str | None = None
 _cloud_pref_version = 0
+_auto_lock = threading.Lock()
+_auto_client_id = f"{socket.gethostname()}-{os.getpid()}-{uuid.uuid4().hex[:12]}"
+_auto_is_host = False
+_auto_leader_id: str | None = None
+_auto_leader_name: str | None = None
+_auto_participant_count = 0
 _preference_lock = threading.Lock()
 _preferred_signature: str | None = None
 PREFERENCE_MAX_GAP = 2.5
@@ -365,7 +478,8 @@ def _test_lineup_ids() -> list[int]:
     real Discord users.
     """
     try:
-        data = json.loads((REPO / "loadfiles" / "flexers-team.json").read_text(encoding="utf-8"))
+        path = _team_loadfile()
+        data = json.loads(path.read_text(encoding="utf-8")) if path else {}
     except Exception:
         return []
     by_name: dict[str, int] = {}
@@ -1136,7 +1250,23 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?", 1)[0]
         if path == "/api/guidance":
-            if _cloud_mode == "follow":
+            if _cloud_mode == "auto":
+                with _auto_lock:
+                    auto_host = _auto_is_host
+                if auto_host:
+                    data = dict(build_response())
+                    data["sync"] = _auto_sync_meta("auto-host")
+                    self._reply(data)
+                else:
+                    try:
+                        data = _cloud_get()
+                        data["sync"] = _auto_sync_meta("auto-follower")
+                        self._reply(data)
+                    except Exception as exc:
+                        self._reply({"active": False, "disabled": False,
+                                     "reason": "Waiting for the Flexers draft captain",
+                                     "sync": _auto_sync_meta("auto-follower"), "error": str(exc)}, 503)
+            elif _cloud_mode == "follow":
                 try:
                     self._reply(_cloud_get())
                 except Exception as exc:
@@ -1177,7 +1307,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/preference":
             signature = payload.get("signature")
             try:
-                if _cloud_mode == "follow":
+                if _cloud_mode in ("follow", "auto"):
                     self._reply(_cloud_preference(signature))
                 elif _upstream_base:
                     self._reply(_upstream_preference(signature))

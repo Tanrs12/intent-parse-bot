@@ -9,6 +9,9 @@ under _internal/, the team loadfiles, launcher .bat files and a START HERE.txt.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
+import secrets
 import shutil
 import subprocess
 import sys
@@ -45,32 +48,6 @@ echo Coaching every champion select (normals too). Default launchers: Ranked Fle
 FlexersDraftCoach.exe --load "loadfileslexers-team.json" --window --hud --any-queue
 pause
 ''',
-    "Coach PC (internet sync).bat": r'''@echo off
-cd /d "%~dp0"
-if not exist "var" mkdir "var"
-set SYNCKEY=
-if exist "var\internet-sync-key.txt" set /p SYNCKEY=<"var\internet-sync-key.txt"
-if "%SYNCKEY%"=="" for /f %%i in ('powershell -NoProfile -Command "[guid]::NewGuid().ToString('N')"') do set SYNCKEY=%%i
->"var\internet-sync-key.txt" echo %SYNCKEY%
-echo.
-echo INTERNET DRAFT SYNC HOST
-echo Share this private session code with the other Flexers:
-echo.
-echo     %SYNCKEY%
-echo.
-echo The other players should open "Player (internet sync).bat" and paste it.
-echo.
-FlexersDraftCoach.exe --load "loadfiles\flexers-team.json" --window --hud --cloud-sync-mode host --cloud-sync-url https://draft--intent-parse-bot--cdzz6bjv54yz.code.run --cloud-sync-key %SYNCKEY%
-pause
-''',
-    "Player (internet sync).bat": r'''@echo off
-cd /d "%~dp0"
-set /p SYNCKEY=Paste the coach's private draft sync code: 
-if "%SYNCKEY%"=="" exit /b 1
-echo Following the coach's authoritative INTent draft while using your own League client...
-FlexersDraftCoach.exe --load "loadfiles\flexers-team.json" --window --hud --cloud-sync-mode follow --cloud-sync-url https://draft--intent-parse-bot--cdzz6bjv54yz.code.run --cloud-sync-key %SYNCKEY%
-pause
-''',
     "Player (sync from coach PC).bat": r'''@echo off
 cd /d "%~dp0"
 set /p COACH=Coach PC address (for example 192.168.1.20:8765):
@@ -94,15 +71,11 @@ Unzip the whole folder anywhere (keep FlexersDraftCoach.exe next to the _interna
 
 Double-click one of these:
 
-  Draft Coach (live client).bat          You are in champ select on this PC. Opens the small
-                                         always-on-top panel and the in-client HUD, and the full
-                                         coach page at http://127.0.0.1:8765/
+  Draft Coach (live client).bat          Normal launcher for EVERYONE. It identifies your Riot
+                                         account and automatically joins the private Flexers draft room.
+                                         No code/IP needs to be pasted or shared.
   Draft Coach (practice, no client).bat  Replays a scripted draft so you can see how it works.
   Draft Coach (any queue).bat            Also coaches normals / solo queue (default: Ranked Flex + customs).
-  Coach PC (internet sync).bat           Recommended for the draft captain. Creates a private session code
-                                         and publishes one authoritative INTent draft through the League Bot relay.
-  Player (internet sync).bat             Recommended for teammates in other homes. Paste the coach's private
-                                         session code; your Hover/Lock buttons still act only on your League client.
   Player (sync from coach PC).bat        LAN-only alternative: type the coach PC's local IP.
   Coach PC (share roster on the LAN).bat LAN-only host for the above.
 
@@ -214,6 +187,26 @@ def main() -> int:
         elif item.suffix.lower() in (".py", ".txt", ".md", ".json", ".yml", ".yaml", ".toml", ".cfg", ".ini") or item.name == "Dockerfile":
             shutil.copy2(item, source / item.name)
     (DIST / "var").mkdir(exist_ok=True)
+    # Every copy from one Flexers build shares a strong private room key. Keep the source-side key
+    # untracked so it never lands in Git; local rebuilds reuse it, while a fresh CI release gets a
+    # fresh room. A short non-secret label is only for humans to confirm they are on the same build.
+    source_var = ROOT / "var"
+    source_var.mkdir(exist_ok=True)
+    room_file = source_var / "team-sync-room.txt"
+    try:
+        room_key = room_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        room_key = ""
+    if len(room_key) < 16:
+        room_key = secrets.token_urlsafe(24)
+        room_file.write_text(room_key, encoding="utf-8")
+    room_label = "FLEX-" + hashlib.sha256(room_key.encode("utf-8")).hexdigest()[:6].upper()
+    (DIST / "team-sync.json").write_text(json.dumps({
+        "relay": "https://draft--intent-parse-bot--cdzz6bjv54yz.code.run",
+        "room_key": room_key,
+        "room_label": room_label,
+    }, indent=2), encoding="utf-8")
+    print(f"automatic Flexers sync room: {room_label}")
     for name, body in LAUNCHERS.items():
         (DIST / name).write_text(body, encoding="utf-8")
     (DIST / "START HERE.txt").write_text(START_HERE, encoding="utf-8")

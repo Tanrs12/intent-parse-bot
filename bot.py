@@ -26,6 +26,7 @@ GUILD = discord.Object(id=LEAGUE_GUILD_ID)
 _SYNC_SESSIONS: dict[str, dict] = {}
 _SYNC_KEY = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
 _SYNC_TTL = 30.0
+_SYNC_PARTICIPANT_TTL = 6.0
 
 
 def _sync_key(request: web.Request) -> str:
@@ -35,8 +36,71 @@ def _sync_key(request: web.Request) -> str:
     return key
 
 
+def _session_row(key: str) -> dict:
+    return _SYNC_SESSIONS.setdefault(key, {
+        "payload": None,
+        "updated": 0.0,
+        "publisher_id": None,
+        "preference": None,
+        "preference_version": 0,
+        "participants": {},
+    })
+
+
+def _active_participants(row: dict, now: float | None = None) -> dict[str, dict]:
+    now = time.time() if now is None else now
+    participants = row.setdefault("participants", {})
+    stale = [cid for cid, item in participants.items()
+             if now - float((item or {}).get("updated") or 0) > _SYNC_PARTICIPANT_TTL]
+    for cid in stale:
+        participants.pop(cid, None)
+    return participants
+
+
+def _elect_leader(row: dict, now: float | None = None) -> dict | None:
+    participants = _active_participants(row, now)
+    candidates = [item for item in participants.values() if item.get("in_champ_select")]
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: (
+        int(item.get("priority") if item.get("priority") is not None else 9999),
+        int(item.get("player_id") or 999999999999999999),
+        str(item.get("client_id") or ""),
+    ))
+    return candidates[0]
+
+
 async def _relay_health(_request: web.Request) -> web.Response:
     return web.json_response({"ok": True, "service": "intent-draft-sync"})
+
+
+async def _relay_heartbeat(request: web.Request) -> web.Response:
+    key = _sync_key(request)
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        raise web.HTTPBadRequest(text="expected object")
+    client_id = str(payload.get("client_id") or "").strip()
+    if len(client_id) < 8 or len(client_id) > 160:
+        raise web.HTTPBadRequest(text="invalid client id")
+    row = _session_row(key)
+    participants = _active_participants(row)
+    participants[client_id] = {
+        "client_id": client_id,
+        "player_id": int(payload.get("player_id") or 0),
+        "player_name": str(payload.get("player_name") or "Unknown")[:80],
+        "priority": int(payload.get("priority") if payload.get("priority") is not None else 9999),
+        "in_champ_select": bool(payload.get("in_champ_select")),
+        "updated": time.time(),
+    }
+    leader = _elect_leader(row)
+    return web.json_response({
+        "ok": True,
+        "leader_id": (leader or {}).get("client_id"),
+        "leader_name": (leader or {}).get("player_name"),
+        "participant_count": len(_active_participants(row)),
+        "preference": row.get("preference"),
+        "preference_version": int(row.get("preference_version") or 0),
+    })
 
 
 async def _relay_put(request: web.Request) -> web.Response:
@@ -44,39 +108,41 @@ async def _relay_put(request: web.Request) -> web.Response:
     payload = await request.json()
     if not isinstance(payload, dict):
         raise web.HTTPBadRequest(text="expected object")
-    current = _SYNC_SESSIONS.get(key, {})
-    row = {
-        "payload": payload,
-        "updated": time.time(),
-        "preference": current.get("preference"),
-        "preference_version": int(current.get("preference_version") or 0),
-    }
-    _SYNC_SESSIONS[key] = row
-    return web.json_response({"ok": True, "preference": row["preference"],
-                              "preference_version": row["preference_version"]})
+    row = _session_row(key)
+    leader = _elect_leader(row)
+    publisher_id = str(request.headers.get("X-Intent-Client") or "").strip() or None
+    if leader is not None and publisher_id and publisher_id != leader.get("client_id"):
+        raise web.HTTPConflict(text="another Flexers client is the elected draft host")
+    row["payload"] = payload
+    row["updated"] = time.time()
+    row["publisher_id"] = publisher_id
+    return web.json_response({"ok": True, "preference": row.get("preference"),
+                              "preference_version": int(row.get("preference_version") or 0)})
 
 
 async def _relay_get(request: web.Request) -> web.Response:
     key = _sync_key(request)
     row = _SYNC_SESSIONS.get(key)
-    if not row or time.time() - float(row.get("updated") or 0) > _SYNC_TTL:
+    if not row or not row.get("payload") or time.time() - float(row.get("updated") or 0) > _SYNC_TTL:
         raise web.HTTPServiceUnavailable(text="draft session is offline or stale")
     return web.json_response(row["payload"], headers={"Cache-Control": "no-store"})
 
 
 async def _relay_preference(request: web.Request) -> web.Response:
     key = _sync_key(request)
-    row = _SYNC_SESSIONS.setdefault(key, {"payload": None, "updated": 0.0, "preference": None, "preference_version": 0})
+    row = _session_row(key)
     payload = await request.json()
     signature = str(payload.get("signature") or "").strip() or None
     row["preference"] = signature
     row["preference_version"] = int(row.get("preference_version") or 0) + 1
-    return web.json_response({"ok": True, "signature": signature, "preference_version": row["preference_version"]})
+    return web.json_response({"ok": True, "signature": signature,
+                              "preference_version": row["preference_version"]})
 
 
 async def start_draft_sync_relay() -> web.AppRunner:
     app = web.Application(client_max_size=2 * 1024 * 1024)
     app.router.add_get("/health", _relay_health)
+    app.router.add_post("/draft-sync/{key}/heartbeat", _relay_heartbeat)
     app.router.add_put("/draft-sync/{key}", _relay_put)
     app.router.add_get("/draft-sync/{key}", _relay_get)
     app.router.add_post("/draft-sync/{key}/preference", _relay_preference)

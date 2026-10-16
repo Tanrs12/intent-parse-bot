@@ -23,6 +23,7 @@ The loadfiles/ folder is watched: drop a JSON or CSV loadfile in and it is impor
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -54,7 +55,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--reset-roster", action="store_true", help="ignore the persisted roster and rebuild from config")
     parser.add_argument("--sync", metavar="URL", help="pull the roster from the coach machine, e.g. http://192.168.1.20:8765")
     parser.add_argument("--sync-interval", type=float, default=60.0, help="seconds between roster syncs")
-    parser.add_argument("--cloud-sync-mode", choices=["host", "follow"], help="internet sync: host publishes the authoritative draft, follow consumes it")
+    parser.add_argument("--cloud-sync-mode", choices=["host", "follow", "auto"], help="internet sync: host/follow are manual fallbacks; auto elects a Flexers captain")
+    parser.add_argument("--no-auto-sync", action="store_true", help="disable packaged Flexers automatic internet sync")
     parser.add_argument("--cloud-sync-url", default=os.environ.get("INTENT_SYNC_RELAY", ""), help="public draft relay base URL")
     parser.add_argument("--cloud-sync-key", default=os.environ.get("INTENT_SYNC_KEY", ""), help="shared 16+ character draft session key")
     parser.add_argument("--window", action="store_true", help="open the always-on-top overlay window as well")
@@ -74,6 +76,20 @@ def main(argv: list[str] | None = None) -> None:
     frozen = getattr(sys, "frozen", False)
     if frozen:
         os.environ.setdefault("INTENT_LIVE", "1")
+    # Shared Flexers builds carry a private team room. Normal live launches join it automatically;
+    # explicit host/follow flags still override this for debugging and LAN/manual fallback work.
+    if frozen and not args.no_auto_sync and not args.cloud_sync_mode and not args.sync and not args.simulate and not args.no_lcu:
+        try:
+            team_sync = json.loads((ROOT / "team-sync.json").read_text(encoding="utf-8"))
+            relay = str(team_sync.get("relay") or "").rstrip("/")
+            room_key = str(team_sync.get("room_key") or "").strip()
+            if relay and len(room_key) >= 16:
+                args.cloud_sync_mode = "auto"
+                args.cloud_sync_url = relay
+                args.cloud_sync_key = room_key
+                print(f"Flexers sync {team_sync.get('room_label') or ''}: automatic captain election enabled.")
+        except Exception:
+            pass
     if frozen and not any((args.window, args.window_only, args.hud, args.hud_only, args.simulate, args.no_lcu)):
         # Double-clicked exe: behave like the live-client launcher.
         args.window, args.hud = True, True
@@ -220,6 +236,8 @@ def _start_bridge(port: int = 8766, upstream: str | None = None, *, cloud_url: s
                 threading.Thread(target=bridge.background_refresh, args=(httpd,), daemon=True).start()
             if cloud_mode == "host":
                 threading.Thread(target=bridge.cloud_publish_loop, daemon=True, name="intent-cloud-publisher").start()
+            elif cloud_mode == "auto":
+                threading.Thread(target=bridge.cloud_auto_loop, daemon=True, name="intent-cloud-auto").start()
             suffix = f" (synced from {upstream})" if upstream else (f" (internet {cloud_mode})" if cloud_mode else "")
             print(f"INTent live bridge: http://127.0.0.1:{port}/api/guidance{suffix}")
             httpd.serve_forever()
