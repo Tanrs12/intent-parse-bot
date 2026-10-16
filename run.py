@@ -118,13 +118,14 @@ def main(argv: list[str] | None = None) -> None:
     server = uvicorn.Server(uvicorn.Config(app, host=args.host, port=args.port, log_level=args.log_level, access_log=False, log_config=None))
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
+    hud_url = "http://127.0.0.1:8767" if intent_live else f"http://{args.host}:{args.port}"
     try:
         if args.hud and args.window:
             # Panel on the main thread (WebView2 needs it), HUD on its own tkinter thread.
-            threading.Thread(target=hud.run, args=(f"http://{args.host}:{args.port}",), daemon=True).start()
+            threading.Thread(target=hud.run, args=(hud_url,), daemon=True).start()
             window.run(f"http://{args.host}:{args.port}")
         elif args.hud:
-            hud.run(f"http://{args.host}:{args.port}")
+            hud.run(hud_url)
         else:
             window.run(f"http://{args.host}:{args.port}")
     finally:

@@ -381,15 +381,14 @@ class CompOverlay:
             pick_nums = self._pick_numbers(comp)
             cell_w = max(px(48), (w - px(10)) // 5)
             icons_y = y0 + px(23)
-            labels_y = icons_y + px(49)
+            # Every 1/2/3-option role uses the same portrait size and vertical centreline.
+            # Only the number of centred portraits changes, so mixed option counts stay visually calm.
+            option_icon_size = min(px(30), max(px(22), (cell_w - px(8)) // 3))
+            option_gap = px(2)
+            labels_y = icons_y + option_icon_size + px(5)
             player_y = labels_y + px(12)
-            locked = set((g.get("our_locked") or {}).values())
             bans, enemy_taken, ours_taken = self._effective_marks()
             uncontrolled = set(comp.get("uncontrolled_roles") or [])
-            next_role = next((
-                row.get("role") for row in (comp.get("pick_order") or [])
-                if row.get("champion") not in locked and row.get("role") not in uncontrolled
-            ), None)
 
             for ri, role in enumerate(ROLES):
                 cx = px(5) + ri * cell_w + cell_w // 2
@@ -405,18 +404,9 @@ class CompOverlay:
                         ids = [champion_ids.get(role)] + [None] * max(0, len(options) - 1)
 
                 n = max(1, len(options))
-                if n == 1:
-                    icon_size = min(px(48), cell_w - px(6))
-                    step = icon_size
-                elif n == 2:
-                    # Keep both alternatives distinct rather than stacking them.
-                    icon_size = min(px(34), max(px(28), (cell_w - px(4)) // 2))
-                    step = icon_size + px(2)
-                else:
-                    # Three choices are three separate portraits with a small gap between them.
-                    icon_size = min(px(27), max(px(22), (cell_w - px(8)) // 3))
-                    step = icon_size + px(2)
-                total_w = icon_size * n + px(2) * (n - 1) if n > 1 else icon_size
+                icon_size = option_icon_size
+                step = icon_size + option_gap
+                total_w = icon_size * n + option_gap * (n - 1) if n > 1 else icon_size
                 start_x = cx - total_w // 2
 
                 for oi, champ in enumerate(options):
@@ -428,8 +418,6 @@ class CompOverlay:
                         outline = "#ee7d87"
                     elif option_mark == "LOCKED":
                         outline = "#c8aa6e"
-                    elif role == next_role and oi == 0 and not dead:
-                        outline = "#0ac8b9"
 
                     c.create_rectangle(ix - 1, icons_y - 1, ix + icon_size + 1, icons_y + icon_size + 1, fill="#101820", outline=outline, width=1)
                     img = self._icon(cid, icon_size)
