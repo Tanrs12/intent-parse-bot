@@ -144,14 +144,15 @@ def decide(snapshot: dict) -> tuple[dict | None, dict | None]:
     decision = None
     preview = g.get("visual_test_pick") if visual_test else None
     if preview and ours_locked < 5:
-        # Non-clickable custom/bot visual preview: show this machine's role from the #1 INTent comp,
-        # independent of whose turn it is. Real Flex never sets visual_test_pick.
+        preview_actionable = bool(local and local.get("can_act"))
+        # Custom/bot visual preview still follows the #1 INTent comp's next team pick. When this
+        # League client is actually on the clock, render Rat's original actionable Hover/Lock row.
         decision = {
-            "key": f"test-local:{preview.get('role')}:{preview.get('champion')}",
-            "turn": "team", "kind": "pick",
+            "key": f"test-team:{preview.get('role')}:{preview.get('champion')}:{preview_actionable}",
+            "turn": "local" if preview_actionable else "team", "kind": "pick",
             "title": str(preview.get("champion") or "No recommendation yet"),
-            "reason": "Visual test preview",
-            "meta": "TEAM PICK · " + role(preview.get("role")),
+            "reason": "Next planned team pick",
+            "meta": "TEAM PICK ? " + role(preview.get("role")),
             "champion": preview.get("champion"),
             "champion_id": preview.get("champion_id"),
             "warning": False,
@@ -544,7 +545,7 @@ class NativeHud:
             family="Consolas", size=-px(7), weight="normal"
         )
         self.fonts["button"].configure(
-            family="Segoe UI", size=-px(9), weight="bold"
+            family="Segoe UI", size=-px(11), weight="bold"
         )
 
         def fit(value: str, font: tkfont.Font, width: int) -> str:
@@ -676,9 +677,10 @@ class NativeHud:
                 reason_y = y1 - px(16)
                 reason_width = full_width
             else:
-                # Keep the TEAM PICK / TEAM BAN meta header on its own clear line.
-                # The champion portrait/title row starts lower so it never collides with the header.
-                portrait_x, portrait_y = full_x, y0 + px(23)
+                # Keep the TEAM PICK / TEAM BAN meta header clear. Actionable cards also need
+                # room for Rat's original Hover / Lock-in button row at the bottom.
+                content_y = 20 if can_act else 23
+                portrait_x, portrait_y = full_x, y0 + px(content_y)
                 portrait_side = px(32)
 
                 c.create_rectangle(
@@ -707,10 +709,10 @@ class NativeHud:
 
                 reason_x = x0 + px(48)
                 reason_width = x1 - px(8) - reason_x
-                reason_y = y0 + px(43)
+                reason_y = y0 + px(38 if can_act else 43)
 
                 line(
-                    reason_x, y0 + px(22), decision["title"],
+                    reason_x, y0 + px(19 if can_act else 22), decision["title"],
                     self.fonts["title"], t["ink"], reason_width,
                 )
 
