@@ -492,3 +492,18 @@ def test_custom_test_strips_bot_locks_even_when_placeholder_has_known_user_id():
     cleaned = bridge._state_for_test(state)
     assert cleaned["our_team"][0]["hover"] == "Camille"
     assert all(row.get("locked") is None and row.get("hover") is None for row in cleaned["our_team"][1:])
+
+
+def test_custom_test_ignores_identity_like_fields_on_nonlocal_bot_seats():
+    five = [{"user_id": i} for i in range(1, 6)]
+    state = {
+        "local_cell_id": 0,
+        "our_team": [
+            {"cell_id": 0, "user_id": 1, "role": "Top", "is_local": True, "puuid": "real-local", "riot_id": "Local#EUW", "hover": "Camille", "locked": None},
+            {"cell_id": 1, "user_id": 2, "role": "Support", "puuid": "bot-like-puuid", "riot_id": "BotSeat#BOT", "hover": "Morgana", "locked": "Morgana"},
+        ],
+    }
+    cleaned = bridge._state_for_test(state)
+    assert cleaned["our_team"][0]["hover"] == "Camille"
+    assert cleaned["our_team"][1]["hover"] is None and cleaned["our_team"][1]["locked"] is None
+    assert bridge._role_players_for_state(state, five, testing=True) == {"Top": 1}

@@ -440,9 +440,11 @@ def _role_players_for_state(state: dict, five: list[dict], *, testing: bool) -> 
         if uid not in five_ids:
             continue
         if testing:
+            # Custom/Practice visual testing is intentionally single-captain. Riot may attach
+            # puuid/identity-like data to bot/custom seats, so only this machine's local seat is
+            # authoritative. Real Flex (testing=False) still hard-pins every genuine live player.
             is_local = bool(row.get("is_local")) or (local_cell is not None and row.get("cell_id") == local_cell)
-            live_identity = bool(row.get("puuid") or row.get("riot_id"))
-            if not (is_local or live_identity):
+            if not is_local:
                 continue
         result[row["role"]] = uid
     return result
@@ -469,12 +471,9 @@ def _state_for_test(state: dict) -> dict:
     for original in state.get("our_team", []) or []:
         row = dict(original)
         is_local = bool(row.get("is_local")) or (local_cell is not None and row.get("cell_id") == local_cell)
-        # Custom / versus-AI fills empty seats from our saved roster so the UI can exercise a
-        # five-player draft. Those synthetic seats can carry real Discord user_ids, but they do
-        # not have a live Riot identity. Do not mistake them for humans or preserve bot locks.
-        live_identity = bool(row.get("puuid") or row.get("riot_id"))
-        known_human = is_local or live_identity
-        if not known_human:
+        # In solo custom/practice testing, every non-local ally seat is scaffolding. Riot can
+        # populate puuid/identity-like fields for bots, so identity fields are not proof of a human.
+        if not is_local:
             row["locked"] = None
             row["hover"] = None
         team.append(row)
