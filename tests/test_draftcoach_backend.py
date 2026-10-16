@@ -87,6 +87,9 @@ def test_live_sessions_outside_ranked_flex_stand_by(roster):
     hub3 = Hub(roster)                                        # custom games are coached by default
     _ingest(hub3, sess, {"id": 0, "name": "Custom", "type": "CUSTOM"})
     assert hub3.state is not None and hub3.state.source == "lcu"
+    hub3_practice = Hub(roster)                               # Riot practice tool may use a non-zero queue id/type
+    _ingest(hub3_practice, sess, {"id": 3140, "name": "Multiplayer Practice Tool Custom", "type": "PRACTICETOOL"})
+    assert hub3_practice.state is not None and hub3_practice.state.source == "lcu"
     hub3b = Hub(roster)
     _ingest(hub3b, sess, {"id": 420, "name": "Ranked Solo/Duo", "type": "RANKED_SOLO_5x5"})
     assert hub3b.state is None and "Standing by" in hub3b.status.get("detail", "")

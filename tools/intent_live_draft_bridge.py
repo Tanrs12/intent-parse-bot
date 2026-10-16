@@ -33,11 +33,22 @@ ARAM_QUEUE_IDS = {450, 2400}
 
 
 def _load_champion_ids() -> dict[str, int]:
-    try:
-        raw = json.loads((REPO / "draftcoach" / "champion_ids.json").read_text(encoding="utf-8-sig"))
-        return {str(name).casefold(): int(cid) for cid, name in (raw.get("champions") or {}).items()}
-    except Exception:
-        return {}
+    # Source checkout: REPO/draftcoach. Packaged onedir build: champion_ids.json lives under
+    # sys._MEIPASS/draftcoach while this bridge is imported from _MEIPASS/engine/tools.
+    candidates = [
+        REPO / "draftcoach" / "champion_ids.json",
+        Path(getattr(sys, "_MEIPASS", REPO)) / "draftcoach" / "champion_ids.json",
+        REPO.parent / "draftcoach" / "champion_ids.json",
+    ]
+    for path in candidates:
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8-sig"))
+            mapping = {str(name).casefold(): int(cid) for cid, name in (raw.get("champions") or {}).items()}
+            if mapping:
+                return mapping
+        except Exception:
+            continue
+    return {}
 
 
 CHAMPION_IDS = _load_champion_ids()
@@ -275,6 +286,16 @@ _PUG_FALLBACK = {
     "Support": ["Nautilus", "Braum", "Karma"],
 }
 _PUG_POOL_CACHE: dict[str, list[str]] = {}
+
+_TEST_VISUAL_OPTIONS = {
+    "Top": ["Camille", "Gnar", "Ornn"],
+    "Jungle": ["Wukong", "Vi", "Sejuani"],
+    "Mid": ["Orianna", "Ahri", "Ryze"],
+    "ADC": ["Ezreal", "Kai'Sa", "Jhin"],
+    "Support": ["Nautilus", "Karma", "Braum"],
+}
+_TEST_VISUAL_BANS = ["Rumble", "Skarner", "Aurora", "Ashe", "Neeko"]
+
 
 
 def _pug_role_pool(role: str, limit: int = 3) -> list[str]:
@@ -611,6 +632,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         if len(picks) >= 6:
             break
 
+    visual_test = "test_overrides" in state
     bans = []
     if recs:
         for item in (recs[0].get("counter_bans") or [])[:5]:
@@ -620,14 +642,22 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
                 champ = item.get("champion") or item.get("name")
                 if champ:
                     bans.append({"champion": champ, "champion_id": _champion_id(champ), "score": float(item.get("score", 1.0) or 1.0), "reasons": item.get("reasons") or [item.get("reason") or "protects the planned Intent draft"], "tags": list(item.get("tags") or ["intent"])})
+    if visual_test:
+        seen_bans = {str(row.get("champion") or "").casefold() for row in bans}
+        for champ in _TEST_VISUAL_BANS:
+            if champ.casefold() not in seen_bans:
+                bans.append({"champion": champ, "champion_id": _champion_id(champ), "score": 1.0,
+                             "reasons": ["visual test preview"], "tags": ["test-preview"]})
+                seen_bans.add(champ.casefold())
+            if len(bans) >= 5:
+                break
+        bans = bans[:5]
 
     live_by_role = {
         row["role"]: (row.get("locked") or row.get("hover"))
         for row in state.get("our_team", [])
         if row.get("role") in ROLES and (row.get("locked") or row.get("hover"))
     }
-    visual_test = "test_overrides" in state
-
     def role_options_for(rec: dict, role: str) -> list[str]:
         options = [champion for champion in dict.fromkeys([
             (rec.get("champions") or {}).get(role),
@@ -637,14 +667,37 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         # returned one alternative. Fill from that assigned player's actual saved role pool; this is
         # presentation-only and does not change scoring or live recommendations.
         if visual_test and len(options) < 3:
+            # Prefer that assigned player's real pool, then deterministic demo champions so every
+            # custom/practice test always exercises the full three-portrait layout.
             player = (rec.get("players") or {}).get(role) or {}
-            pool = ((player.get("champions") or {}).get(role) or [])
+            pool = list(((player.get("champions") or {}).get(role) or [])) + list(_TEST_VISUAL_OPTIONS.get(role, []))
             for champion in pool:
                 if champion and champion not in options:
                     options.append(champion)
                 if len(options) >= 3:
                     break
         return options[:3]
+
+    def counter_bans_for(rec: dict) -> list[dict]:
+        rows = []
+        for item in (rec.get("counter_bans") or [])[:5]:
+            champ = item if isinstance(item, str) else (item.get("champion") or item.get("name"))
+            if not champ:
+                continue
+            rows.append({
+                "champion": champ,
+                "champion_id": _champion_id(champ),
+                "score": 1.0 if isinstance(item, str) else float(item.get("score", 1.0) or 1.0),
+            })
+        if visual_test:
+            seen = {str(row["champion"]).casefold() for row in rows}
+            for champ in _TEST_VISUAL_BANS:
+                if champ.casefold() not in seen:
+                    rows.append({"champion": champ, "champion_id": _champion_id(champ), "score": 1.0})
+                    seen.add(champ.casefold())
+                if len(rows) >= 5:
+                    break
+        return rows[:5]
 
     comps = []
     for rec in recs[:6]:
@@ -688,16 +741,27 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
             "pick_order": list(rec.get("pick_order") or []),
             # Counter bans are calculated against this exact composition/pick order by the same
             # shared backend. The overlay shows only our side's five bans, never both teams' plans.
-            "counter_bans": [
-                {
-                    "champion": (item if isinstance(item, str) else (item.get("champion") or item.get("name"))),
-                    "champion_id": _champion_id(item if isinstance(item, str) else (item.get("champion") or item.get("name"))),
-                    "score": 1.0 if isinstance(item, str) else float(item.get("score", 1.0) or 1.0),
-                }
-                for item in (rec.get("counter_bans") or [])[:5]
-                if (item if isinstance(item, str) else (item.get("champion") or item.get("name")))
-            ],
+            "counter_bans": counter_bans_for(rec),
         })
+    if visual_test and not picks and comps:
+        local_cell = state.get("local_cell_id")
+        sample_role = next((
+            row.get("role") for row in state.get("our_team", [])
+            if row.get("role") in ROLES and (row.get("is_local") or (local_cell is not None and row.get("cell_id") == local_cell))
+        ), None) or "Jungle"
+        sample_options = (comps[0].get("role_options") or {}).get(sample_role) or _TEST_VISUAL_OPTIONS.get(sample_role) or []
+        if sample_options:
+            champ = sample_options[0]
+            picks.append({
+                "role": sample_role, "champion": champ, "champion_id": _champion_id(champ),
+                "score": comps[0].get("score", 0.0), "rank": comps[0].get("live_score", 0.0),
+                "comp_score": comps[0].get("score", 0.0), "familiarity": "comfort", "risk_known": True,
+                "flex_roles": [], "lane": [], "lane_adjustment": 0.0, "counter_risk": 0.0,
+                "counter_risk_by": [], "blind_safe": True, "priority": 1, "source": "test-preview",
+                "player": (comps[0].get("players") or {}).get(sample_role, sample_role), "player_id": 0,
+                "team_plan": comps[0].get("team_plan"), "why": ["visual test preview"],
+            })
+
     active = state.get("active") or {}
     roles_now = [row["role"] for row in state.get("our_team", []) if row.get("role") in ROLES and not row.get("locked")]
     enemy_locked = {row["role"]: row["locked"] for row in state.get("enemy_team", []) if row.get("role") in ROLES and row.get("locked")}
@@ -713,6 +777,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         "our_bans": list(state.get("our_bans") or []),
         "enemy_bans": list(state.get("enemy_bans") or []),
         "test_overrides": dict(state.get("test_overrides") or {}),
+        "visual_test": visual_test,
         "swaps": [],
         "picks": picks,
         "bans": bans,

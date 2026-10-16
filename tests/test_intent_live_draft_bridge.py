@@ -343,3 +343,36 @@ def test_guidance_never_tells_uncontrolled_pug_what_to_pick(monkeypatch):
     assert comp["uncontrolled_roles"] == ["Support"]
     assert comp["live_uncontrolled_champions"] == {"Support": "Braum"}
     assert comp["players"]["Support"] == "RandomSup#EUW"
+
+
+def test_custom_visual_mode_fills_portraits_bans_and_pick(monkeypatch):
+    monkeypatch.setattr(bridge, "_live_lane_adjustment", lambda rec, state: (0.0, []))
+    rec = {
+        "score": 90.0,
+        "champions": {"Top": "Camille", "Jungle": "Wukong", "Mid": "Orianna", "ADC": "Ezreal", "Support": "Nautilus"},
+        "role_alternatives": {},
+        "players": {role: {"display_name": role, "role_priority": {role: 1}, "user_id": i + 1, "champions": {role: []}}
+                    for i, role in enumerate(bridge.ROLES)},
+        "pick_order": [],
+        "counter_bans": [],
+    }
+    state = {
+        "local_cell_id": 1,
+        "our_team": [
+            {"cell_id": i, "role": role, "locked": None, "hover": None, "is_local": role == "Jungle"}
+            for i, role in enumerate(bridge.ROLES)
+        ],
+        "enemy_team": [],
+        "active": {"kind": "pick", "ours": True},
+        "test_overrides": {"bans": [], "enemy": {}, "ours": {}},
+    }
+    guidance = bridge._guidance_from_result({"side": "blue", "recommendations": [rec]}, state)
+    comp = guidance["comps"][0]
+    assert guidance["visual_test"] is True
+    assert len(comp["role_options"]["Top"]) == 3
+    assert all(comp["role_option_ids"]["Top"])
+    assert len(comp["counter_bans"]) == 5
+    assert all(row["champion_id"] for row in comp["counter_bans"])
+    assert len(guidance["bans"]) == 5
+    assert guidance["picks"][0]["role"] == "Jungle"
+    assert guidance["picks"][0]["champion_id"]

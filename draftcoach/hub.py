@@ -139,7 +139,8 @@ class Hub:
                                  source: str = "lcu") -> None:
         allowed = self.allowed_queues() if source == "lcu" else None
         self.status["queue"] = queue
-        is_custom = queue is not None and (int(queue.get("id", -1)) == 0 or "CUSTOM" in str(queue.get("type") or "").upper())
+        qtext = " ".join(str((queue or {}).get(k) or "") for k in ("name", "shortName", "description", "type", "category")).casefold()
+        is_custom = queue is not None and (int(queue.get("id", -1)) == 0 or "custom" in qtext or "practice tool" in qtext)
         category = str((queue or {}).get("category") or "").casefold()
         qtype = str((queue or {}).get("type") or "").casefold()
         is_bot = category == "versusai" or "bot" in qtype or int((queue or {}).get("id", -1)) in {830, 840, 850}
@@ -151,7 +152,7 @@ class Hub:
             self.last_session = None
             self.status["lcu_in_champ_select"] = False
             self._last_input = None
-            await self.clear(detail=f"Standing by: {name} is not Ranked Flex, custom, or versus-AI. Start with --any-queue to coach it.", source=source)
+            await self.clear(detail=f"Standing by: {name} is not Ranked Flex, Custom/Practice Tool, or versus-AI.", source=source)
             return
         self.last_session = session
         if not session:
