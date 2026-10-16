@@ -1257,6 +1257,10 @@ class Handler(BaseHTTPRequestHandler):
                     data = dict(build_response())
                     data["sync"] = _auto_sync_meta("auto-host")
                     self._reply(data)
+                elif not _auto_identity().get("in_champ_select"):
+                    data = dict(build_response())
+                    data["sync"] = _auto_sync_meta("auto-idle")
+                    self._reply(data)
                 else:
                     try:
                         data = _cloud_get()
