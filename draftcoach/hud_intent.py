@@ -417,19 +417,16 @@ class NativeHud:
                 self.rect = rect
                 x, y, w, h = rect
                 size_changed = old[2:] != (w, h)
+                # Move the Tk top-level itself. SetWindowPos on Tk's wrapper/ancestor can be a
+                # no-op on some Windows/Tk builds, which leaves TEAM PICK at League's old position.
+                self.root.geometry(f"{w}x{h}+{x}+{y}")
                 if size_changed:
-                    # Tk needs a geometry update when the client itself changes size.
-                    self.root.geometry(f"{w}x{h}+{x}+{y}")
                     self.decision_key = None
-                else:
-                    # During a drag only move the native HWND; rebuilding Tk geometry 30x/sec is
-                    # what made the League client feel sticky.
-                    self.u.SetWindowPos(self.hwnd, -1, x, y, 0, 0, 0x0001 | 0x0010 | 0x0040)
             if not self.shown:
+                x, y, w, h = rect
+                self.root.geometry(f"{w}x{h}+{x}+{y}")
                 self.root.deiconify()
                 self.shown = True
-                x, y, w, h = rect
-                self.u.SetWindowPos(self.hwnd, -1, x, y, w, h, 0x0010 | 0x0040)
                 size_changed = True
 
             feedback_text = self.feedback[0] if feedback_live and self.feedback else None

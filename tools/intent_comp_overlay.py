@@ -510,14 +510,15 @@ class CompOverlay:
             if rect != self.rect:
                 old_size = self.rect[2:]
                 self.rect = rect
-                # Native SetWindowPos is substantially smoother than rebuilding Tk geometry while
-                # dragging the League client. It moves/resizes without activating this overlay.
-                self.u.SetWindowPos(self.hwnd, -1, panel_x, cy, panel_w, ch, 0x0010 | 0x0040)
+                # Tk owns the actual top-level wrapper HWND. Moving via root.geometry is reliable
+                # across Tk/Windows builds; SetWindowPos on the cached ancestor could silently
+                # target the wrong wrapper and leave the strip stuck at its startup (0,0).
+                self.root.geometry(f"{panel_w}x{ch}+{panel_x}+{cy}")
                 if old_size != (panel_w, ch):
                     self._dirty = True
             if str(self.root.state()) == "withdrawn":
+                self.root.geometry(f"{panel_w}x{ch}+{panel_x}+{cy}")
                 self.root.deiconify()
-                self.u.SetWindowPos(self.hwnd, -1, panel_x, cy, panel_w, ch, 0x0010 | 0x0040)
                 self._dirty = True
             if self.icon_mailbox:
                 self._dirty = True
