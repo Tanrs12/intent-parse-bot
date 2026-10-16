@@ -28,10 +28,14 @@ SPLIT_CHAMPS = {
 }
 
 # Temporary bridge from Demacia Cup 26.18 evidence to the Worlds 26.20 patch.
-# These are deliberately small priors, not fake win rates: live 26.20 pro games
-# automatically take over once the recent-pro feed reaches patch .20.
+# These are deliberately small priors, not fake win rates. Once real Worlds games
+# arrive, the bridge fades over a meaningful sample instead of disappearing after
+# a single game.
+WORLDS_PATCH_BRIDGE_FADE_GAMES = 20
 WORLDS_PATCH_ROLE_ADJUSTMENTS = {
-    ("Top", "K'Sante"): -0.020,
+    # K'Sante remained near-perma contested in the opening Worlds series, so the
+    # balance-change penalty is deliberately softer than the first bridge version.
+    ("Top", "K'Sante"): -0.010,
     ("Top", "Ambessa"): -0.018,
     ("ADC", "Ashe"): -0.018,
     ("Jungle", "Vi"): -0.018,
@@ -621,15 +625,39 @@ def _recent_pro_patch_minor() -> int | None:
         return None
 
 
-def _worlds_patch_bridge_active() -> bool:
+def _worlds_patch_bridge_factor() -> float:
+    """How much pre-Worlds patch priors should still matter (1.0 -> 0.0).
+
+    The first one or two Worlds games are far too small a sample to erase known
+    patch-direction information. Fade the bridge across 20 completed current-patch
+    Worlds games, then let live tournament evidence stand on its own.
+    """
+    recent = load_recent_pro()
     minor = _recent_pro_patch_minor()
-    return minor is None or minor < 20
+    if minor is None or minor < 20:
+        return 1.0
+    worlds_games = 0
+    for game in recent.get("games", []):
+        tournament = str(game.get("tournament", "")).casefold()
+        patch = str(game.get("patch", "")).strip()
+        try:
+            game_minor = int(patch.rsplit(".", 1)[-1])
+        except (TypeError, ValueError):
+            continue
+        if "world" in tournament and game_minor >= 20:
+            worlds_games += 1
+    return max(0.0, 1.0 - worlds_games / float(WORLDS_PATCH_BRIDGE_FADE_GAMES))
+
+
+def _worlds_patch_bridge_active() -> bool:
+    return _worlds_patch_bridge_factor() > 0.0
 
 
 def _apply_worlds_patch_role_adjustment(role: str, champion: str, value: float) -> float:
-    if not _worlds_patch_bridge_active():
+    factor = _worlds_patch_bridge_factor()
+    if factor <= 0.0:
         return value
-    delta = WORLDS_PATCH_ROLE_ADJUSTMENTS.get((role, champion), 0.0)
+    delta = WORLDS_PATCH_ROLE_ADJUSTMENTS.get((role, champion), 0.0) * factor
     return max(0.35, min(0.65, value + delta))
 
 
@@ -914,6 +942,16 @@ def _team_plan_completion(champions: dict[str, str], meta: dict) -> dict:
             score += 1.0; reasons.append("multiple reliable engage angles")
         elif engage == 0:
             score -= 1.4; missing.append("engage")
+        # Opening Worlds 26.20 validated Kai'Sa as the follow-up carry in layered
+        # engage shells. Reward the structure, not the one-game result itself.
+        if adc == "Kai'Sa":
+            layered_access = engage + dive
+            if layered_access >= 2:
+                score += 0.50
+                if not (top in SPLIT_CHAMPS and bool(_tags(top, meta) & DIVE_TAGS)):
+                    reasons.append("layered engage gives Kai'Sa reliable backline access")
+            elif layered_access >= 1:
+                score += 0.25
         if mobility >= 1.8:
             score += 0.7
         if tanky >= 1:
@@ -950,8 +988,9 @@ def _team_plan_completion(champions: dict[str, str], meta: dict) -> dict:
     # Patch 26.19 lowered top-role Teleport cooldowns specifically to support
     # side-lane strategies. Give those structures a modest bridge bump until
     # actual Worlds 26.20 games are present in the live feed.
-    if _worlds_patch_bridge_active() and top in SPLIT_CHAMPS:
-        score += 0.25
+    bridge_factor = _worlds_patch_bridge_factor()
+    if bridge_factor > 0.0 and top in SPLIT_CHAMPS:
+        score += 0.25 * bridge_factor
         reasons.append("Worlds patch gives side-lane/Teleport plans more room")
 
     top_structure = _ranged_top_structure_fit(champions, meta)

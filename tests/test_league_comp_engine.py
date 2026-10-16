@@ -788,3 +788,43 @@ def test_strongest_flex_adc_pays_shared_lane_snowball_opportunity_cost(monkeypat
     assert flex_fit["agency_allocation_adjustment"] <= p1_fit["agency_allocation_adjustment"] - 2.0
     assert any("solo-lane snowball agency" in note for note in flex_fit["notes"])
     assert not any("solo-lane snowball agency" in note for note in p1_fit["notes"])
+
+
+def test_worlds_patch_bridge_fades_instead_of_switching_off_after_one_game():
+    original = engine.load_recent_pro
+    try:
+        engine.load_recent_pro = lambda: {
+            "latest_patch": "16.20",
+            "games": [
+                {"tournament": "Worlds", "patch": "16.20"}
+                for _ in range(5)
+            ],
+        }
+        assert engine._worlds_patch_bridge_active()
+        assert abs(engine._worlds_patch_bridge_factor() - 0.75) < 1e-9
+
+        engine.load_recent_pro = lambda: {
+            "latest_patch": "16.20",
+            "games": [
+                {"tournament": "Worlds", "patch": "16.20"}
+                for _ in range(engine.WORLDS_PATCH_BRIDGE_FADE_GAMES)
+            ],
+        }
+        assert engine._worlds_patch_bridge_factor() == 0.0
+        assert not engine._worlds_patch_bridge_active()
+    finally:
+        engine.load_recent_pro = original
+
+
+def test_kaisa_engage_shell_gets_layered_access_credit():
+    meta = load_meta()
+    comp = {
+        "Top": "Ornn",
+        "Jungle": "Jarvan IV",
+        "Mid": "Ahri",
+        "ADC": "Kai'Sa",
+        "Support": "Rell",
+    }
+    result = _team_plan_completion(comp, meta)
+    assert result["plan"] == "dive / all-in"
+    assert any("Kai'Sa" in reason for reason in result["reasons"])
