@@ -78,3 +78,23 @@ def test_pick_groups_model_simultaneous_blue_and_red_pairs():
     assert [_pick_group_meta("red", i)["pick_group_label"] for i in range(1, 6)] == [
         "R1/R2", "R1/R2", "R3/R4", "R3/R4", "R5"
     ]
+
+
+def test_hover_outside_pool_is_temporary_constraint_and_lock_wins():
+    assignment = {
+        "Top": _player(1, "Top", "Top", "Camille"),
+        "Jungle": _player(2, "Jungle", "Jungle", "Zac"),
+        "Mid": _player(3, "Mid", "Mid", "Orianna"),
+        "ADC": _player(4, "ADC", "ADC", "Caitlyn"),
+        "Support": _player(5, "Support", "Support", "Nautilus"),
+    }
+    hovered = _constrain_assignments([assignment], hovered_champions={"Mid": "Sylas"})
+    assert hovered[0]["Mid"]["champions"]["Mid"] == ["Sylas"]
+    assert hovered[0]["Mid"]["_forced_live_hover"] is True
+    locked = _constrain_assignments(
+        [assignment],
+        locked_champions={"Mid": "Orianna"},
+        hovered_champions={"Mid": "Sylas"},
+    )
+    assert locked[0]["Mid"]["champions"]["Mid"] == ["Orianna"]
+    assert locked[0]["Mid"]["_forced_live_hover"] is False

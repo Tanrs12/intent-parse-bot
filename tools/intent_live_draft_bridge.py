@@ -428,6 +428,14 @@ def _locked_by_role(state: dict) -> dict[str, str]:
     return {row["role"]: row["locked"] for row in state.get("our_team", []) if row.get("role") in ROLES and row.get("locked")}
 
 
+def _hovered_by_role(state: dict) -> dict[str, str]:
+    """Current ally pick intent. A lock always wins and ban-phase selections are ignored."""
+    active = state.get("active") or {}
+    if active.get("kind") == "ban":
+        return {}
+    return {row["role"]: row["hover"] for row in state.get("our_team", []) if row.get("role") in ROLES and row.get("hover") and not row.get("locked")}
+
+
 def _state_for_test(state: dict) -> dict:
     """Ignore auto-selected ally bots while preserving the local/known humans.
 
@@ -753,6 +761,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
             # shared backend. The overlay shows only our side's five bans, never both teams' plans.
             "counter_bans": counter_bans_for(rec),
         })
+    hover_now = dict(result.get("hovered_champions") or _hovered_by_role(state))
     current_pick_group = None
     if comps:
         locked_now = {
@@ -776,7 +785,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
                     "role": role,
                     "champion": champion,
                     "champion_id": _champion_id(champion),
-                    "status": "locked" if role in locked_now else "remaining",
+                    "status": "locked" if role in locked_now else ("hovered" if role in hover_now else "remaining"),
                 })
             current_pick_group = {
                 "group": group_id,
@@ -843,6 +852,8 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         "picking_now": bool(active.get("kind") == "pick" and active.get("ours")),
         "draft_complete": len(locked_roles) == 5,
         "our_locked": _locked_by_role(state),
+        "our_hovers": hover_now,
+        "our_hover_ids": {role: _champion_id(champion) for role, champion in hover_now.items()},
         "enemy_locked": enemy_locked,
         "our_bans": list(state.get("our_bans") or []),
         "enemy_bans": list(state.get("enemy_bans") or []),
@@ -913,6 +924,7 @@ def build_response():
     effective_state = _apply_test_overrides(_state_for_test(state)) if testing else state
     locked = _locked_by_role(effective_state)
     unavailable = _unavailable(effective_state)
+    hovered = _hovered_by_role(effective_state)
     five_ids = {int(row["user_id"]) for row in five if row.get("user_id")}
     role_players = {
         row["role"]: int(row["user_id"])
@@ -925,6 +937,7 @@ def build_response():
         "our_bans": effective_state.get("our_bans") or [],
         "enemy_bans": effective_state.get("enemy_bans") or [],
         "locked": locked,
+        "hovered": hovered,
         "role_players": role_players,
         "enemy_locked": [row.get("locked") for row in effective_state.get("enemy_team", []) if row.get("locked")],
         "enemy_hovers": [(row.get("role"), row.get("hover")) for row in effective_state.get("enemy_team", []) if row.get("hover")],
@@ -943,6 +956,7 @@ def build_response():
             five,
             unavailable=unavailable,
             locked_champions=locked,
+            hovered_champions=hovered,
             role_players=role_players,
             side=state.get("side") or "blue",
             limit=6,

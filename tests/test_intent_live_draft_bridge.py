@@ -409,3 +409,49 @@ def test_current_pick_group_keeps_blue_pair_interchangeable(monkeypatch):
     assert group["label"] == "B2/B3"
     assert group["interchangeable"] is True
     assert {m["role"]: m["status"] for m in group["members"]} == {"Jungle": "remaining", "Support": "locked"}
+
+
+def test_ally_hover_is_soft_intent_and_pick_group_marks_it(monkeypatch):
+    monkeypatch.setattr(bridge, "_live_lane_adjustment", lambda rec, state: (0.0, []))
+    champions = {"Top": "Ornn", "Jungle": "Vi", "Mid": "Sylas", "ADC": "Ezreal", "Support": "Nami"}
+    players = {role: {"display_name": role, "role_priority": {role: 1}, "user_id": i + 1} for i, role in enumerate(bridge.ROLES)}
+    result = {"side": "blue", "hovered_champions": {"Mid": "Sylas"}, "recommendations": [{
+        "score": 90.0,
+        "champions": champions,
+        "players": players,
+        "pick_order": [
+            {"slot": 1, "role": "Jungle", "champion": "Vi"},
+            {"slot": 2, "role": "Mid", "champion": "Sylas"},
+            {"slot": 3, "role": "Support", "champion": "Nami"},
+            {"slot": 4, "role": "ADC", "champion": "Ezreal"},
+            {"slot": 5, "role": "Top", "champion": "Ornn"},
+        ],
+        "counter_bans": [],
+    }]}
+    state = {
+        "our_team": [
+            {"role": "Top", "locked": None, "hover": None},
+            {"role": "Jungle", "locked": "Vi", "hover": None},
+            {"role": "Mid", "locked": None, "hover": "Sylas"},
+            {"role": "ADC", "locked": None, "hover": None},
+            {"role": "Support", "locked": None, "hover": None},
+        ],
+        "enemy_team": [],
+        "active": {"kind": "pick", "ours": True},
+    }
+    guidance = bridge._guidance_from_result(result, state)
+    assert guidance["our_hovers"] == {"Mid": "Sylas"}
+    assert guidance["current_pick_group"]["label"] == "B2/B3"
+    statuses = {m["role"]: m["status"] for m in guidance["current_pick_group"]["members"]}
+    assert statuses["Mid"] == "hovered"
+    assert statuses["Support"] == "remaining"
+
+
+def test_hover_collection_ignores_locks_and_ban_phase():
+    state = {"active": {"kind": "pick"}, "our_team": [
+        {"role": "Mid", "hover": "Sylas", "locked": None},
+        {"role": "Top", "hover": "Gwen", "locked": "Ornn"},
+    ]}
+    assert bridge._hovered_by_role(state) == {"Mid": "Sylas"}
+    state["active"] = {"kind": "ban"}
+    assert bridge._hovered_by_role(state) == {}

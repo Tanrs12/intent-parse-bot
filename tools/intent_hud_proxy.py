@@ -45,12 +45,24 @@ def merged_state() -> dict:
     can_act = bool(local.get("can_act"))
     suggestion = None
 
+    local_role = local.get("picking_role") or local.get("role")
+    local_hover = local.get("hover")
+    confirmed_hovers = guidance.get("our_hovers") or {}
+
     if ours and active.get("kind") == "ban" and guidance.get("bans"):
         b = guidance["bans"][0]
         suggestion = {
             "kind": "ban", "champion": b.get("champion"), "champion_id": b.get("champion_id"),
             "role": None, "reason": (b.get("reasons") or ["protects the planned INTent draft"])[0],
         }
+    elif (ours and active.get("kind") == "pick" and local_role and local_hover and confirmed_hovers.get(local_role) == local_hover):
+        suggestion = {
+            "kind": "pick", "champion": local_hover,
+            "champion_id": (guidance.get("our_hover_ids") or {}).get(local_role),
+            "role": local_role, "reason": "All six plans re-ranked around your hover",
+            "source": "human-hover",
+        }
+        local["picking_role"] = local_role
     elif ours and active.get("kind") == "pick" and guidance.get("picks"):
         p = guidance["picks"][0]
         suggestion = {

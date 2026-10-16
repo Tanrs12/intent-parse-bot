@@ -563,7 +563,11 @@
       phase.append(D.el("p", "fd-note", "No open team pick phase."));
     }
     const actualLocks = (state.our_team || []).filter((r) => r.locked).map((r) => (D.ROLE_SHORT[r.role] || r.role) + " " + r.locked);
-    locks.textContent = actualLocks.length ? "Locked facts: " + actualLocks.join(" · ") : "No ally picks locked yet.";
+    const liveHovers = Object.entries((g && g.our_hovers) || {}).map(([role, champion]) => (D.ROLE_SHORT[role] || role) + " " + champion);
+    const facts = [];
+    if (actualLocks.length) facts.push("Locked facts: " + actualLocks.join(" · "));
+    if (liveHovers.length) facts.push("Human hover: " + liveHovers.join(" · ") + " (previewing around this)");
+    locks.textContent = facts.length ? facts.join("  |  ") : "No ally picks locked or hovered yet.";
 
     box.replaceChildren();
     const nextRanks = new Map();

@@ -142,8 +142,32 @@ def decide(snapshot: dict) -> tuple[dict | None, dict | None]:
     if change and change.get("effect") and ours_locked < 5 and time.time() - float(change.get("at", 0)) < 12:
         notice = {"event": change["event"].split("; ")[-1], "effect": change["effect"], "at": float(change["at"])}
     decision = None
+    local_role = (local or {}).get("picking_role") or (local or {}).get("role")
+    local_hover = (local or {}).get("hover")
+    confirmed_hover = (g.get("our_hovers") or {}).get(local_role) if local_role else None
+    human_hover = None
+    if local_hover and confirmed_hover == local_hover:
+        human_hover = {
+            "role": local_role,
+            "champion": local_hover,
+            "champion_id": (g.get("our_hover_ids") or {}).get(local_role),
+        }
+    elif me and me.get("source") == "human-hover":
+        human_hover = me
     preview = g.get("visual_test_pick") if visual_test else None
-    if preview and ours_locked < 5:
+    if human_hover and ours_locked < 5:
+        hover_actionable = bool(ours and local and local.get("can_act"))
+        decision = {
+            "key": f"human-hover:{human_hover.get('role')}:{human_hover.get('champion')}:{hover_actionable}",
+            "turn": "local" if hover_actionable else "", "kind": "pick",
+            "title": str(human_hover.get("champion") or "Hovered champion"),
+            "reason": "All six plans re-ranked around your hover",
+            "meta": "YOUR HOVER · " + role(human_hover.get("role")),
+            "champion": human_hover.get("champion"),
+            "champion_id": human_hover.get("champion_id"),
+            "hover_override": True, "warning": False,
+        }
+    elif preview and ours_locked < 5:
         preview_actionable = bool(local and local.get("can_act"))
         # Custom/bot visual preview still follows the #1 INTent comp's next team pick. When this
         # League client is actually on the clock, render Rat's original actionable Hover/Lock row.

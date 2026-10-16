@@ -23,15 +23,19 @@ def _constrain_assignments(
     assignments: list[dict[str, dict]],
     *,
     locked_champions: Mapping[str, str] | None = None,
+    hovered_champions: Mapping[str, str] | None = None,
     role_players: Mapping[str, int] | None = None,
 ) -> list[dict[str, dict]]:
     """Apply live-draft locks without changing the core /league game scorer.
 
     ``locked_champions`` maps role -> champion already locked by our team.
+    ``hovered_champions`` maps role -> current ally hover. Hovers are temporary
+    constraints: they disappear as soon as League reports a different/no hover.
     ``role_players`` optionally maps role -> Discord user id when the live client
     already knows which player is occupying that role.
     """
     locked_champions = dict(locked_champions or {})
+    hovered_champions = dict(hovered_champions or {})
     role_players = {role: int(uid) for role, uid in (role_players or {}).items()}
     constrained: list[dict[str, dict]] = []
 
@@ -45,16 +49,18 @@ def _constrain_assignments(
                 valid = False
                 break
 
-            champion = locked_champions.get(role)
+            locked = locked_champions.get(role)
+            hovered = None if locked else hovered_champions.get(role)
+            champion = locked or hovered
             if champion:
-                # Live locks are facts, even when a teammate ignores their submitted pool or
-                # the planned comp.  Force the locked champion into this role and let the scorer
-                # rebuild the other four slots around it instead of invalidating the draft.
+                # Live locks are facts. Ally hovers are temporary human intent. Both outrank
+                # the generated recommendation and may be outside the submitted champion pool.
                 selected = list(player.get("champions", {}).get(role, []))
                 pools = dict(player.get("champions", {}))
                 pools[role] = [champion]
                 player["champions"] = pools
-                player["_forced_live_lock"] = champion not in selected
+                player["_forced_live_lock"] = bool(locked and champion not in selected)
+                player["_forced_live_hover"] = bool(hovered)
                 player["_forced_live_champion"] = champion
             row[role] = player
 
@@ -92,6 +98,7 @@ def recommend_live_drafts(
     *,
     unavailable: Iterable[str] | None = None,
     locked_champions: Mapping[str, str] | None = None,
+    hovered_champions: Mapping[str, str] | None = None,
     role_players: Mapping[str, int] | None = None,
     side: str = "blue",
     limit: int = 6,
@@ -113,8 +120,11 @@ def recommend_live_drafts(
         raise ValueError("side must be 'blue' or 'red'")
 
     locked_champions = dict(locked_champions or {})
+    hovered_champions = dict(hovered_champions or {})
     unavailable_set = {str(champion) for champion in (unavailable or set())}
-    # Our own locked champions must remain available to the constrained scorer.
+    # A stale/illegal hover must never override a real ban or lock. Our own hard locks remain
+    # available to the constrained scorer because they are already part of our team.
+    hovered_champions = {role: champion for role, champion in hovered_champions.items() if champion and champion not in unavailable_set}
     unavailable_for_search = unavailable_set - set(locked_champions.values())
 
     filtered = _filter_unavailable(signups, unavailable_for_search)
@@ -122,6 +132,7 @@ def recommend_live_drafts(
     assignments = _constrain_assignments(
         assignments,
         locked_champions=locked_champions,
+        hovered_champions=hovered_champions,
         role_players=role_players,
     )
     if not assignments:
@@ -166,4 +177,5 @@ def recommend_live_drafts(
         "recommendations": recommendations,
         "missing": missing,
         "side": side_key,
+        "hovered_champions": hovered_champions,
     }

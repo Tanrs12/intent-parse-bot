@@ -142,7 +142,7 @@ class CompOverlay:
         self.client = 0
         return None
 
-    def _effective_marks(self) -> tuple[set[str], set[str], set[str]]:
+    def _effective_marks(self) -> tuple[set[str], set[str], set[str], set[str]]:
         g = self.bridge.get("guidance") or {}
         state = self.snapshot.get("state") or {}
         bans = set(g.get("our_bans") or state.get("our_bans") or []) | set(g.get("enemy_bans") or state.get("enemy_bans") or [])
@@ -150,10 +150,11 @@ class CompOverlay:
         if not enemy:
             enemy = {row.get("locked") for row in (state.get("enemy_team") or []) if row.get("locked")}
         ours = set((g.get("our_locked") or {}).values())
-        return bans, enemy, ours
+        hovers = set((g.get("our_hovers") or {}).values())
+        return bans, enemy, ours, hovers
 
     def _status(self, comp: dict) -> tuple[bool, dict[str, str]]:
-        bans, enemy, ours = self._effective_marks()
+        bans, enemy, ours, hovers = self._effective_marks()
         marks: dict[str, str] = {}
         dead = False
         champions = comp.get("champions") or {}
@@ -176,6 +177,8 @@ class CompOverlay:
                 marks[role] = "ENEMY"
             elif any(champ in ours for champ in options):
                 marks[role] = "LOCKED"
+            elif primary in hovers:
+                marks[role] = "HOVER"
         return dead, marks
 
     def _poll(self) -> None:
@@ -256,6 +259,7 @@ class CompOverlay:
                 "our_bans": guidance.get("our_bans") or state.get("our_bans") or [],
                 "enemy_bans": guidance.get("enemy_bans") or state.get("enemy_bans") or [],
                 "our_locked": guidance.get("our_locked") or {},
+                "our_hovers": guidance.get("our_hovers") or {},
                 "enemy_locked": guidance.get("enemy_locked") or {},
                 "test": guidance.get("test_overrides") or {},
             }, sort_keys=True, default=str)
@@ -387,7 +391,7 @@ class CompOverlay:
             option_gap = px(2)
             labels_y = icons_y + option_icon_size + px(5)
             player_y = labels_y + px(15)
-            bans, enemy_taken, ours_taken = self._effective_marks()
+            bans, enemy_taken, ours_taken, our_hovers = self._effective_marks()
             uncontrolled = set(comp.get("uncontrolled_roles") or [])
 
             for ri, role in enumerate(ROLES):
@@ -412,12 +416,14 @@ class CompOverlay:
                 for oi, champ in enumerate(options):
                     cid = ids[oi] if oi < len(ids) else None
                     ix = start_x + oi * step
-                    option_mark = "BAN" if champ in bans else ("ENEMY" if champ in enemy_taken else ("LOCKED" if champ in ours_taken else None))
+                    option_mark = "BAN" if champ in bans else ("ENEMY" if champ in enemy_taken else ("LOCKED" if champ in ours_taken else ("HOVER" if champ in our_hovers else None)))
                     outline = border
                     if option_mark in ("BAN", "ENEMY"):
                         outline = "#ee7d87"
                     elif option_mark == "LOCKED":
                         outline = "#c8aa6e"
+                    elif option_mark == "HOVER":
+                        outline = "#0ac8b9"
 
                     c.create_rectangle(ix - 1, icons_y - 1, ix + icon_size + 1, icons_y + icon_size + 1, fill="#101820", outline=outline, width=1)
                     img = self._icon(cid, icon_size)
@@ -430,8 +436,12 @@ class CompOverlay:
                     if option_mark in ("BAN", "ENEMY"):
                         c.create_line(ix, icons_y, ix + icon_size, icons_y + icon_size, fill="#ee7d87", width=px(2))
                         c.create_line(ix + icon_size, icons_y, ix, icons_y + icon_size, fill="#ee7d87", width=px(2))
+                    elif option_mark == "HOVER":
+                        badge = max(px(9), icon_size // 3)
+                        c.create_rectangle(ix, icons_y, ix + badge, icons_y + badge, fill="#0ac8b9", outline="")
+                        c.create_text(ix + badge // 2, icons_y + badge // 2, text="H", anchor="center", font=self.font_tiny, fill="#04100f")
 
-                role_colour = "#ee7d87" if marks.get(role) == "OUT" else ("#c8aa6e" if marks.get(role) == "LOCKED" else ink)
+                role_colour = "#ee7d87" if marks.get(role) == "OUT" else ("#c8aa6e" if marks.get(role) == "LOCKED" else ("#0ac8b9" if marks.get(role) == "HOVER" else ink))
                 role_label = ROLE_SHORT[role] + (f" ({pick_nums[role]})" if role not in uncontrolled and pick_nums.get(role) else "")
                 c.create_text(cx, labels_y, text=role_label, anchor="n", font=self.font_role, fill=role_colour)
                 player = str(players.get(role) or role)
