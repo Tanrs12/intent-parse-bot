@@ -98,7 +98,10 @@ class CompOverlay:
         self.icon_pending: set[int] = set()
 
         threading.Thread(target=self._poll, daemon=True).start()
-        self.root.after(100, self._attach)
+        # Attach the native HWND before the first geometry tick. Previously both callbacks fired
+        # at 100 ms, so _tick could cache the desired rect while hwnd was still 0. The later
+        # attach then had nothing to move, leaving the panel at its 150px startup position (0,0).
+        self.root.after(25, self._attach)
         self.root.after(100, self._tick)
 
     def _attach(self) -> None:
@@ -106,16 +109,38 @@ class CompOverlay:
         self.hwnd = self.u.GetAncestor(self.hwnd, 2) or self.hwnd
         style = self.u.GetWindowLongW(self.hwnd, GWL_EXSTYLE)
         self.u.SetWindowLongW(self.hwnd, GWL_EXSTYLE, style | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TRANSPARENT)
+        # Force one real move/resize now that hwnd exists; do not trust geometry cached before attach.
+        self.rect = (0, 0, 0, 0)
+        self._dirty = True
 
     def _client_rect(self):
-        if not self.client or not self.u.IsWindow(self.client):
-            self.client = self.u.FindWindowW(CLIENT_CLASS, None)
-        if not self.client:
-            return None
-        r = wintypes.RECT()
-        if not self.u.GetWindowRect(self.client, ctypes.byref(r)):
-            return None
-        return (r.left, r.top, r.right - r.left, r.bottom - r.top)
+        # Riot can leave more than one RCLIENT top-level window around. Select the largest visible
+        # non-minimised one instead of whichever FindWindow happens to return first.
+        candidates: list[tuple[int, int, int, int, int, int]] = []
+        callback_type = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+
+        @callback_type
+        def enum_window(hwnd, _lparam):
+            if not self.u.IsWindowVisible(hwnd) or self.u.IsIconic(hwnd):
+                return True
+            cls = ctypes.create_unicode_buffer(128)
+            self.u.GetClassNameW(hwnd, cls, len(cls))
+            if cls.value != CLIENT_CLASS:
+                return True
+            r = wintypes.RECT()
+            if self.u.GetWindowRect(hwnd, ctypes.byref(r)):
+                width, height = r.right - r.left, r.bottom - r.top
+                if width >= 500 and height >= 400:
+                    candidates.append((width * height, int(hwnd), r.left, r.top, width, height))
+            return True
+
+        self.u.EnumWindows(enum_window, 0)
+        if candidates:
+            _, hwnd, left, top, width, height = max(candidates)
+            self.client = hwnd
+            return (left, top, width, height)
+        self.client = 0
+        return None
 
     def _effective_marks(self) -> tuple[set[str], set[str], set[str]]:
         g = self.bridge.get("guidance") or {}
@@ -464,6 +489,9 @@ class CompOverlay:
                 c.create_text(w - px(7), y1 - px(8), text="TEST", anchor="se", font=self.font_tiny, fill="#c8aa6e")
 
     def _tick(self) -> None:
+        if not self.hwnd or not self.u.IsWindow(self.hwnd):
+            self.root.after(33, self._tick)
+            return
         client_rect = self._client_rect()
         # Stay attached to League while the user types/browses on another monitor. Visibility is
         # controlled by actual champ-select state, not foreground focus.
@@ -472,9 +500,11 @@ class CompOverlay:
             cx, cy, cw, ch = client_rect
             virtual_left = self.u.GetSystemMetrics(SM_XVIRTUALSCREEN)
             available = max(0, cx - virtual_left - 4)
-            panel_w = min(350, available)
-            if panel_w < 105:
-                panel_w = min(150, max(90, cx - virtual_left))
+            # Five role columns need real horizontal room. On Cian's layout there is ample space
+            # beside League, so use a 420px card strip rather than collapsing to the 150px fallback.
+            panel_w = min(420, available)
+            if panel_w < 300:
+                panel_w = min(300, max(220, cx - virtual_left))
             panel_x = max(virtual_left, cx - panel_w - 4)
             rect = (panel_x, cy, panel_w, ch)
             if rect != self.rect:
