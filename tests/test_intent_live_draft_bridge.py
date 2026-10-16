@@ -376,3 +376,36 @@ def test_custom_visual_mode_fills_portraits_bans_and_pick(monkeypatch):
     assert len(guidance["bans"]) == 5
     assert guidance["picks"][0]["role"] == "Jungle"
     assert guidance["picks"][0]["champion_id"]
+
+
+def test_current_pick_group_keeps_blue_pair_interchangeable(monkeypatch):
+    monkeypatch.setattr(bridge, "_live_lane_adjustment", lambda rec, state: (0.0, []))
+    champions = {"Top": "Camille", "Jungle": "Vi", "Mid": "Orianna", "ADC": "KogMaw", "Support": "Nami"}
+    players = {role: {"display_name": role, "role_priority": {role: 1}, "user_id": i + 1} for i, role in enumerate(bridge.ROLES)}
+    rec = {
+        "score": 90.0, "champions": champions, "players": players,
+        "pick_order": [
+            {"slot": 1, "role": "Top", "champion": "Camille"},
+            {"slot": 2, "role": "Jungle", "champion": "Vi"},
+            {"slot": 3, "role": "Support", "champion": "Nami"},
+            {"slot": 4, "role": "ADC", "champion": "KogMaw"},
+            {"slot": 5, "role": "Mid", "champion": "Orianna"},
+        ],
+        "counter_bans": [],
+    }
+    state = {
+        "side": "blue",
+        "our_team": [
+            {"role": "Top", "locked": "Camille"},
+            {"role": "Jungle", "locked": None},
+            {"role": "Mid", "locked": None},
+            {"role": "ADC", "locked": None},
+            {"role": "Support", "locked": "Nami"},
+        ],
+        "enemy_team": [], "active": {"kind": "pick", "ours": True},
+    }
+    guidance = bridge._guidance_from_result({"side": "blue", "recommendations": [rec]}, state)
+    group = guidance["current_pick_group"]
+    assert group["label"] == "B2/B3"
+    assert group["interchangeable"] is True
+    assert {m["role"]: m["status"] for m in group["members"]} == {"Jungle": "remaining", "Support": "locked"}

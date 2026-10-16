@@ -47,19 +47,44 @@ def _constrain_assignments(
 
             champion = locked_champions.get(role)
             if champion:
+                # Live locks are facts, even when a teammate ignores their submitted pool or
+                # the planned comp.  Force the locked champion into this role and let the scorer
+                # rebuild the other four slots around it instead of invalidating the draft.
                 selected = list(player.get("champions", {}).get(role, []))
-                if champion not in selected:
-                    valid = False
-                    break
                 pools = dict(player.get("champions", {}))
                 pools[role] = [champion]
                 player["champions"] = pools
+                player["_forced_live_lock"] = champion not in selected
+                player["_forced_live_champion"] = champion
             row[role] = player
 
         if valid:
             constrained.append(row)
 
     return constrained
+
+
+def _pick_group_meta(side: str, position: int) -> dict:
+    """Return the strategic draft phase for our Nth planned pick.
+
+    Pick order inside simultaneous pairs is intentionally interchangeable: blue B2/B3 and
+    B4/B5, red R1/R2 and R3/R4.  The linear position is still retained for display/ties.
+    """
+    side_key = str(side or "blue").casefold()
+    if side_key == "red":
+        groups = [
+            (1, "R1/R2", [1, 2]), (1, "R1/R2", [1, 2]),
+            (2, "R3/R4", [3, 4]), (2, "R3/R4", [3, 4]),
+            (3, "R5", [5]),
+        ]
+    else:
+        groups = [
+            (1, "B1", [1]),
+            (2, "B2/B3", [2, 3]), (2, "B2/B3", [2, 3]),
+            (3, "B4/B5", [4, 5]), (3, "B4/B5", [4, 5]),
+        ]
+    group, label, slots = groups[max(0, min(4, int(position) - 1))]
+    return {"pick_group": group, "pick_group_label": label, "pick_group_slots": slots}
 
 
 def recommend_live_drafts(
@@ -126,7 +151,12 @@ def recommend_live_drafts(
             meta=meta,
         )
         row["pick_order"] = [
-            {"slot": index + 1, "role": role, "champion": champion}
+            {
+                "slot": index + 1,
+                "role": role,
+                "champion": champion,
+                **_pick_group_meta(side_key, index + 1),
+            }
             for index, (role, champion) in enumerate(order)
         ]
         row["counter_bans"] = bans

@@ -1,4 +1,4 @@
-from league_draft_backend import _constrain_assignments, recommend_live_drafts
+from league_draft_backend import _constrain_assignments, _pick_group_meta, recommend_live_drafts
 
 
 def _player(uid, name, role, champion, priority=1):
@@ -53,3 +53,28 @@ def test_live_constraints_pin_player_and_locked_champion():
     assert len(constrained) == 1
     assert constrained[0]["Top"]["champions"]["Top"] == ["Camille"]
     assert _constrain_assignments([assignment], role_players={"Top": 999}) == []
+
+
+def test_live_constraint_accepts_off_pool_lock_as_hard_fact():
+    assignment = {
+        "Top": _player(1, "Top", "Top", "Camille"),
+        "Jungle": _player(2, "Jungle", "Jungle", "Zac"),
+        "Mid": _player(3, "Mid", "Mid", "Yasuo"),
+        "ADC": _player(4, "ADC", "ADC", "Caitlyn"),
+        "Support": _player(5, "Support", "Support", "Zyra"),
+    }
+    constrained = _constrain_assignments(
+        [assignment], locked_champions={"ADC": "KogMaw"}, role_players={"ADC": 4}
+    )
+    assert len(constrained) == 1
+    assert constrained[0]["ADC"]["champions"]["ADC"] == ["KogMaw"]
+    assert constrained[0]["ADC"]["_forced_live_lock"] is True
+
+
+def test_pick_groups_model_simultaneous_blue_and_red_pairs():
+    assert [_pick_group_meta("blue", i)["pick_group_label"] for i in range(1, 6)] == [
+        "B1", "B2/B3", "B2/B3", "B4/B5", "B4/B5"
+    ]
+    assert [_pick_group_meta("red", i)["pick_group_label"] for i in range(1, 6)] == [
+        "R1/R2", "R1/R2", "R3/R4", "R3/R4", "R5"
+    ]

@@ -21,7 +21,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 import league_comp_engine
-from league_draft_backend import recommend_live_drafts
+from league_draft_backend import _pick_group_meta, recommend_live_drafts
 from league_pro_data import refresh_recent_pro_data
 
 ROLES = ["Top", "Jungle", "Mid", "ADC", "Support"]
@@ -701,7 +701,16 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         return rows[:5]
 
     comps = []
+    side_key = str(result.get("side") or state.get("side") or "blue").casefold()
     for rec in recs[:6]:
+        annotated_order = []
+        for index, original_row in enumerate(rec.get("pick_order") or []):
+            row = dict(original_row)
+            meta = _pick_group_meta(side_key, index + 1)
+            row.setdefault("slot", index + 1)
+            for key, value in meta.items():
+                row.setdefault(key, value)
+            annotated_order.append(row)
         comps.append({
             "score": float(rec.get("score", rec.get("composition_score", 0.0)) or 0.0),
             "live_score": round(float(rec.get("live_rank_score", rec.get("score", 0.0)) or 0.0), 2),
@@ -739,11 +748,44 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
                 if (rec.get("players", {}).get(role) or {}).get("_uncontrolled") and live_by_role.get(role)
             },
             "team_plan": rec.get("team_plan"),
-            "pick_order": list(rec.get("pick_order") or []),
+            "pick_order": annotated_order,
             # Counter bans are calculated against this exact composition/pick order by the same
             # shared backend. The overlay shows only our side's five bans, never both teams' plans.
             "counter_bans": counter_bans_for(rec),
         })
+    current_pick_group = None
+    if comps:
+        locked_now = {
+            row.get("role") for row in state.get("our_team", [])
+            if row.get("role") in ROLES and row.get("locked")
+        }
+        order = comps[0].get("pick_order") or []
+        remaining = [row for row in order if row.get("role") not in locked_now]
+        if remaining:
+            first = remaining[0]
+            group_id = first.get("pick_group")
+            group_rows = [row for row in order if row.get("pick_group") == group_id]
+            members = []
+            for row in group_rows:
+                role = row.get("role")
+                champion = row.get("champion")
+                if role not in ROLES or not champion:
+                    continue
+                members.append({
+                    "slot": row.get("slot"),
+                    "role": role,
+                    "champion": champion,
+                    "champion_id": _champion_id(champion),
+                    "status": "locked" if role in locked_now else "remaining",
+                })
+            current_pick_group = {
+                "group": group_id,
+                "label": first.get("pick_group_label") or str(first.get("slot") or ""),
+                "slots": list(first.get("pick_group_slots") or [first.get("slot")]),
+                "interchangeable": len(first.get("pick_group_slots") or []) > 1,
+                "members": members,
+            }
+
     if visual_test and not picks and comps:
         local_cell = state.get("local_cell_id")
         sample_role = next((
@@ -795,7 +837,8 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
     return {
         "headline": ("Ban now: " + bans[0]["champion"]) if active.get("kind") == "ban" and active.get("ours") and bans else (("Pick " + picks[0]["champion"]) if picks else "Intent draft ready"),
         "phase_kind": active.get("kind") or "idle",
-        "side": str(result.get("side") or state.get("side") or "blue").casefold(),
+        "side": side_key,
+        "current_pick_group": current_pick_group,
         "roles_now": roles_now,
         "picking_now": bool(active.get("kind") == "pick" and active.get("ours")),
         "draft_complete": len(locked_roles) == 5,
@@ -870,12 +913,19 @@ def build_response():
     effective_state = _apply_test_overrides(_state_for_test(state)) if testing else state
     locked = _locked_by_role(effective_state)
     unavailable = _unavailable(effective_state)
+    five_ids = {int(row["user_id"]) for row in five if row.get("user_id")}
+    role_players = {
+        row["role"]: int(row["user_id"])
+        for row in effective_state.get("our_team", [])
+        if row.get("role") in ROLES and row.get("user_id") and int(row["user_id"]) in five_ids
+    }
     cache_key = json.dumps({
         "side": state.get("side") or "blue",
         "active": state.get("active") or {},
         "our_bans": effective_state.get("our_bans") or [],
         "enemy_bans": effective_state.get("enemy_bans") or [],
         "locked": locked,
+        "role_players": role_players,
         "enemy_locked": [row.get("locked") for row in effective_state.get("enemy_team", []) if row.get("locked")],
         "enemy_hovers": [(row.get("role"), row.get("hover")) for row in effective_state.get("enemy_team", []) if row.get("hover")],
         "our_hovers": [(row.get("role"), row.get("hover"), row.get("user_id")) for row in effective_state.get("our_team", []) if row.get("hover")],
@@ -893,6 +943,7 @@ def build_response():
             five,
             unavailable=unavailable,
             locked_champions=locked,
+            role_players=role_players,
             side=state.get("side") or "blue",
             limit=6,
             rotation_token=None,

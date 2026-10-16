@@ -103,6 +103,13 @@
           <span class="mm-meta" id="action-note"></span>
         </div>
 
+        <section id="captain-section" hidden>
+          <header class="coach-section-head"><h3>Draft captain</h3><span class="mm-meta" id="captain-side"></span></header>
+          <div class="captain-phase" id="captain-phase"></div>
+          <p class="plan-note" id="captain-locks"></p>
+          <div class="captain-comps" id="captain-comps"></div>
+        </section>
+
         <section id="order-section" hidden>
           <header class="coach-section-head"><h3>Pick order</h3><span class="mm-meta" id="order-sub"></span></header>
           <div class="plan-steps" id="order"></div>
@@ -532,6 +539,64 @@
       box.append(row);
     }
   }
+  let captainRanks = new Map();
+  function renderCaptain(g, state) {
+    const section = $("captain-section"), phase = $("captain-phase"), box = $("captain-comps"), locks = $("captain-locks");
+    const comps = (g && g.comps) || [];
+    if (!state || !comps.length) { section.hidden = true; captainRanks = new Map(); return; }
+    section.hidden = false;
+    $("captain-side").textContent = String((g.side || state.side || "")).toUpperCase() + " SIDE";
+    phase.replaceChildren();
+    const group = g.current_pick_group;
+    if (group) {
+      const head = D.el("div", "captain-phase-head");
+      head.append(D.el("b", "", "Current phase · " + group.label), D.el("span", "mm-meta", group.interchangeable ? "either order is fine" : "single pick"));
+      phase.append(head);
+      const members = D.el("div", "plan-steps");
+      for (const m of group.members || []) {
+        const chip = D.el("span", "chip" + (m.status === "locked" ? " on" : " next"));
+        chip.append(D.portrait(m.champion, "tiny", m.champion_id), D.el("b", "", m.champion), D.el("small", "", (D.ROLE_SHORT[m.role] || m.role) + " · " + m.status));
+        members.append(chip);
+      }
+      phase.append(members);
+    } else {
+      phase.append(D.el("p", "fd-note", "No open team pick phase."));
+    }
+    const actualLocks = (state.our_team || []).filter((r) => r.locked).map((r) => (D.ROLE_SHORT[r.role] || r.role) + " " + r.locked);
+    locks.textContent = actualLocks.length ? "Locked facts: " + actualLocks.join(" · ") : "No ally picks locked yet.";
+
+    box.replaceChildren();
+    const nextRanks = new Map();
+    comps.slice(0, 6).forEach((comp, index) => {
+      const signature = D.ROLES.map((role) => (comp.champions || {})[role] || "?").join("|");
+      nextRanks.set(signature, index + 1);
+      const previous = captainRanks.get(signature);
+      const movement = previous ? previous - (index + 1) : 0;
+      const row = D.el("div", "captain-comp" + (index === 0 ? " lead" : ""));
+      const head = D.el("div", "captain-comp-head");
+      const movementText = previous == null ? (captainRanks.size ? "NEW" : "") : movement > 0 ? "↑" + movement : movement < 0 ? "↓" + Math.abs(movement) : "";
+      head.append(D.el("b", "", "#" + (index + 1) + (index === 0 ? " BEST" : "")), D.el("span", "captain-move " + (movement > 0 ? "up" : movement < 0 ? "down" : ""), movementText), D.el("span", "captain-score", Number(comp.live_score ?? comp.score ?? 0).toFixed(1)));
+      row.append(head);
+      const steps = D.el("div", "captain-role-row");
+      for (const role of D.ROLES) {
+        const champion = (comp.champions || {})[role];
+        if (!champion) continue;
+        const chip = D.el("span", "chip");
+        chip.append(D.portrait(champion, "tiny", (comp.champion_ids || {})[role]), D.el("b", "", champion), D.el("small", "", D.ROLE_SHORT[role] || role));
+        steps.append(chip);
+      }
+      row.append(steps);
+      const notes = [];
+      if (comp.team_plan) notes.push(comp.team_plan);
+      const adjust = Number(comp.lane_adjustment || 0);
+      if (Math.abs(adjust) >= .05) notes.push((adjust > 0 ? "+" : "") + adjust.toFixed(1) + " live matchup");
+      const edge = (comp.lane_edges || [])[0];
+      if (edge && edge.enemy) notes.push((D.ROLE_SHORT[edge.role] || edge.role) + " into " + edge.enemy);
+      if (notes.length) row.append(D.el("div", "plan-note", notes.join(" · ")));
+      box.append(row);
+    });
+    captainRanks = nextRanks;
+  }
   function banRows(bans, limit, onClick) { return bans.slice(0, limit).map((b, i) => cardRow({ champion: b.champion, champion_id: b.champion_id, why: D.shortBanReason(b), score: b.score.toFixed(1), sub: "estimate", action: "Ban", tags: (b.tags || []).map((t) => ({ text: t, cls: t === "hover" ? "warn" : "blue" })) }, onClick, i === 0)); }
   function fill(box, rows, empty) { box.replaceChildren(); if (!rows.length) { box.append(D.el("p", "fd-note", empty)); return; } for (const r of rows) box.append(r); }
   function chips(box, rows, labelFn, emptyText) { box.replaceChildren(); if (!rows || !rows.length) { box.append(D.el("p", "fd-note", emptyText)); return; } for (const r of rows) { const c = D.el("span", "chip"); c.append(D.portrait(r.champion, "small", r.champion_id), D.el("b", "", r.champion)); const l = labelFn(r); if (l) c.append(D.el("small", "", l)); box.append(c); } }
@@ -659,6 +724,7 @@
 
     const canPick = ourPick && !locked && draft.current && draft.current.kind === "pick", canBan = ourBan && !locked && draft.current && draft.current.kind === "ban";
     const showBan = !!ourBan;
+    renderCaptain(g, state);
     renderPickOrder(g);
     renderPlans(g, state);
     $("pick-section").hidden = showBan || !state || oursLocked === 5; $("ban-section").hidden = !showBan;
