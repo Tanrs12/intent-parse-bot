@@ -626,6 +626,26 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         for row in state.get("our_team", [])
         if row.get("role") in ROLES and (row.get("locked") or row.get("hover"))
     }
+    visual_test = "test_overrides" in state
+
+    def role_options_for(rec: dict, role: str) -> list[str]:
+        options = [champion for champion in dict.fromkeys([
+            (rec.get("champions") or {}).get(role),
+            *((rec.get("role_alternatives") or {}).get(role) or [])[:2],
+        ]) if champion]
+        # Custom/bot test mode should exercise the real 3-choice layout even when the scorer only
+        # returned one alternative. Fill from that assigned player's actual saved role pool; this is
+        # presentation-only and does not change scoring or live recommendations.
+        if visual_test and len(options) < 3:
+            player = (rec.get("players") or {}).get(role) or {}
+            pool = ((player.get("champions") or {}).get(role) or [])
+            for champion in pool:
+                if champion and champion not in options:
+                    options.append(champion)
+                if len(options) >= 3:
+                    break
+        return options[:3]
+
     comps = []
     for rec in recs[:6]:
         comps.append({
@@ -635,18 +655,9 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
             "lane_edges": list(rec.get("live_lane_edges") or []),
             "champions": rec.get("champions") or {},
             "champion_ids": {role: _champion_id((rec.get("champions") or {}).get(role)) for role in ROLES},
-            "role_options": {
-                role: [champion for champion in dict.fromkeys([
-                    (rec.get("champions") or {}).get(role),
-                    *((rec.get("role_alternatives") or {}).get(role) or [])[:2],
-                ]) if champion]
-                for role in ROLES
-            },
+            "role_options": {role: role_options_for(rec, role) for role in ROLES},
             "role_option_ids": {
-                role: [_champion_id(champion) for champion in [champion for champion in dict.fromkeys([
-                    (rec.get("champions") or {}).get(role),
-                    *((rec.get("role_alternatives") or {}).get(role) or [])[:2],
-                ]) if champion]]
+                role: [_champion_id(champion) for champion in role_options_for(rec, role)]
                 for role in ROLES
             },
             "players": {role: (rec.get("players", {}).get(role) or {}).get("display_name", role) for role in ROLES},

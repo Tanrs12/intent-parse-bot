@@ -450,9 +450,17 @@ class CompOverlay:
                 # can never cover it.
                 if role not in uncontrolled and pick_nums.get(role):
                     cell_left = px(5) + ri * cell_w
-                    badge_r = px(10)
-                    bx = cell_left + cell_w - px(10)
-                    by = icons_y + px(8)
+                    # With three fanned portraits, float the order badge above the third option so
+                    # the right-most champion remains readable. One/two-option cells keep the neat
+                    # top-right badge inside the portrait row.
+                    if n >= 3:
+                        badge_r = px(9)
+                        bx = min(cell_left + cell_w - px(8), start_x + total_w - px(1))
+                        by = icons_y - px(4)
+                    else:
+                        badge_r = px(10)
+                        bx = cell_left + cell_w - px(10)
+                        by = icons_y + px(8)
                     c.create_oval(
                         bx - badge_r, by - badge_r, bx + badge_r, by + badge_r,
                         fill="#14212b", outline=accent, width=max(1, px(2)),
@@ -470,8 +478,9 @@ class CompOverlay:
             # scan during draft than a tiny comma-separated text row.
             ban_rows = [row for row in list(comp.get("counter_bans") or [])[:5] if row.get("champion")]
             if ban_rows:
-                ban_size = px(19)
-                ban_gap = px(3)
+                # Ban portraits need to be identifiable at a glance, not tiny status chips.
+                ban_size = px(25)
+                ban_gap = px(4)
                 label_x = px(7)
                 ban_y = y1 - ban_size - px(4)
                 c.create_text(label_x, ban_y + ban_size // 2, text="BANS", anchor="w", font=self.font_tiny,

@@ -597,7 +597,15 @@ class NativeHud:
             button.place_forget()
 
         if decision:
-            bounds = rectangle(DECISION_BOX)
+            # Rat's full card is useful when there is an actual champion/action. When there is no
+            # recommendation, don't render an empty portrait and a giant blank panel: collapse to a
+            # small status chip in the same corner.
+            compact_empty = bool(
+                not decision.get("champion")
+                and not (decision.get("reason") or "").strip()
+                and str(decision.get("title") or "").startswith("No ")
+            )
+            bounds = rectangle((0.842, 0.804, 0.978, 0.866) if compact_empty else DECISION_BOX)
             x0, y0, x1, y1 = bounds
             surface(bounds)
 
@@ -628,7 +636,16 @@ class NativeHud:
                 self.fonts["meta"], accent, full_width,
             )
 
-            if swap:
+            if compact_empty:
+                # No portrait/reason row. Two restrained lines are enough for an empty state.
+                reason_x = full_x
+                reason_width = full_width
+                reason_y = y0 + px(31)
+                line(
+                    full_x, y0 + px(17), decision["title"],
+                    self.fonts["title"], t["ink"], full_width,
+                )
+            elif swap:
                 # Separate give/receive lines preserve the complete exchange.
                 title_lines = str(decision["title"]).replace(
                     " → receive ", "\nReceive "
@@ -688,18 +705,19 @@ class NativeHud:
                 else t["secondary"]
             )
 
-            if can_act or swap:
-                line(
-                    reason_x, reason_y, reason,
-                    self.fonts["reason"], reason_colour, reason_width,
-                )
-            else:
-                c.create_text(
-                    reason_x, reason_y,
-                    text=wrap(reason, self.fonts["reason"], reason_width, 2),
-                    font=self.fonts["reason"], fill=reason_colour,
-                    anchor="nw",
-                )
+            if reason and not compact_empty:
+                if can_act or swap:
+                    line(
+                        reason_x, reason_y, reason,
+                        self.fonts["reason"], reason_colour, reason_width,
+                    )
+                else:
+                    c.create_text(
+                        reason_x, reason_y,
+                        text=wrap(reason, self.fonts["reason"], reason_width, 2),
+                        font=self.fonts["reason"], fill=reason_colour,
+                        anchor="nw",
+                    )
 
             if can_act:
                 left = x0 + px(48)

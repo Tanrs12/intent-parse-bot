@@ -173,6 +173,7 @@ def main() -> int:
     source = DIST / "source"
     if source.exists():
         shutil.rmtree(source)
+    source.mkdir(parents=True, exist_ok=True)
     skip_dirs = {".git", ".github", "dist", "build", "var", "__pycache__", ".pytest_cache", ".venv", "handoff"}
     for item in sorted(ROOT.iterdir()):
         if item.name in skip_dirs or item.name.startswith("."):
