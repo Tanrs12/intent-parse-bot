@@ -295,6 +295,7 @@ _TEST_VISUAL_OPTIONS = {
     "Support": ["Nautilus", "Karma", "Braum"],
 }
 _TEST_VISUAL_BANS = ["Rumble", "Skarner", "Aurora", "Ashe", "Neeko"]
+_TEST_VISUAL_COUNTS = {"Top": 3, "Jungle": 1, "Mid": 2, "ADC": 3, "Support": 1}
 
 
 
@@ -663,19 +664,19 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
             (rec.get("champions") or {}).get(role),
             *((rec.get("role_alternatives") or {}).get(role) or [])[:2],
         ]) if champion]
-        # Custom/bot test mode should exercise the real 3-choice layout even when the scorer only
-        # returned one alternative. Fill from that assigned player's actual saved role pool; this is
-        # presentation-only and does not change scoring or live recommendations.
-        if visual_test and len(options) < 3:
-            # Prefer that assigned player's real pool, then deterministic demo champions so every
-            # custom/practice test always exercises the full three-portrait layout.
-            player = (rec.get("players") or {}).get(role) or {}
-            pool = list(((player.get("champions") or {}).get(role) or [])) + list(_TEST_VISUAL_OPTIONS.get(role, []))
-            for champion in pool:
-                if champion and champion not in options:
-                    options.append(champion)
-                if len(options) >= 3:
-                    break
+        if visual_test:
+            # Mixed custom/practice preview deliberately exercises all three layouts at once:
+            # Top/ADC = 3 choices, Mid = 2, Jungle/Support = 1. Presentation only.
+            wanted = int(_TEST_VISUAL_COUNTS.get(role, 3))
+            if len(options) < wanted:
+                player = (rec.get("players") or {}).get(role) or {}
+                pool = list(((player.get("champions") or {}).get(role) or [])) + list(_TEST_VISUAL_OPTIONS.get(role, []))
+                for champion in pool:
+                    if champion and champion not in options:
+                        options.append(champion)
+                    if len(options) >= wanted:
+                        break
+            return options[:wanted]
         return options[:3]
 
     def counter_bans_for(rec: dict) -> list[dict]:
@@ -765,6 +766,30 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
     active = state.get("active") or {}
     roles_now = [row["role"] for row in state.get("our_team", []) if row.get("role") in ROLES and not row.get("locked")]
     enemy_locked = {row["role"]: row["locked"] for row in state.get("enemy_team", []) if row.get("role") in ROLES and row.get("locked")}
+
+    # Visual-test HUD preview is intentionally separate from the real team pick-order list.
+    # It answers: "what does the #1 current comp want THIS machine's role to play?"
+    # That lets a solo custom/bot test show TOP Camille even if ADC is the next planned reveal.
+    visual_test_pick = None
+    if visual_test and comps:
+        local_cell = state.get("local_cell_id")
+        local_row = next((
+            row for row in state.get("our_team", [])
+            if row.get("role") in ROLES and (
+                row.get("is_local") or (local_cell is not None and row.get("cell_id") == local_cell)
+            )
+        ), None)
+        local_role = (local_row or {}).get("role")
+        if local_role in ROLES:
+            champ = (comps[0].get("champions") or {}).get(local_role)
+            if champ:
+                visual_test_pick = {
+                    "role": local_role,
+                    "champion": champ,
+                    "champion_id": _champion_id(champ),
+                    "source": "test-local-preview",
+                }
+
     return {
         "headline": ("Ban now: " + bans[0]["champion"]) if active.get("kind") == "ban" and active.get("ours") and bans else (("Pick " + picks[0]["champion"]) if picks else "Intent draft ready"),
         "phase_kind": active.get("kind") or "idle",
@@ -778,7 +803,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         "enemy_bans": list(state.get("enemy_bans") or []),
         "test_overrides": dict(state.get("test_overrides") or {}),
         "visual_test": visual_test,
-        "visual_test": visual_test,
+        "visual_test_pick": visual_test_pick,
         "swaps": [],
         "picks": picks,
         "bans": bans,

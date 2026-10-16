@@ -142,7 +142,21 @@ def decide(snapshot: dict) -> tuple[dict | None, dict | None]:
     if change and change.get("effect") and ours_locked < 5 and time.time() - float(change.get("at", 0)) < 12:
         notice = {"event": change["event"].split("; ")[-1], "effect": change["effect"], "at": float(change["at"])}
     decision = None
-    if local and local.get("incoming_swap") and local["incoming_swap"].get("can_accept"):
+    preview = g.get("visual_test_pick") if visual_test else None
+    if preview and ours_locked < 5:
+        # Non-clickable custom/bot visual preview: show this machine's role from the #1 INTent comp,
+        # independent of whose turn it is. Real Flex never sets visual_test_pick.
+        decision = {
+            "key": f"test-local:{preview.get('role')}:{preview.get('champion')}",
+            "turn": "team", "kind": "pick",
+            "title": str(preview.get("champion") or "No recommendation yet"),
+            "reason": "Visual test preview",
+            "meta": "TEAM PICK · " + role(preview.get("role")),
+            "champion": preview.get("champion"),
+            "champion_id": preview.get("champion_id"),
+            "warning": False,
+        }
+    elif local and local.get("incoming_swap") and local["incoming_swap"].get("can_accept"):
         sw = local["incoming_swap"]
         decision = {"key": f"inswap:{sw['trade_id']}", "turn": "local", "kind": "swap",
                     "title": f"Give {local.get('locked') or 'your champion'} → receive {sw.get('champion') or 'theirs'}",
