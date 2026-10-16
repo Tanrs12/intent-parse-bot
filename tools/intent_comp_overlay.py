@@ -445,12 +445,19 @@ class CompOverlay:
                         c.create_line(ix, icons_y, ix + icon_size, icons_y + icon_size, fill="#ee7d87", width=px(2))
                         c.create_line(ix + icon_size, icons_y, ix, icons_y + icon_size, fill="#ee7d87", width=px(2))
 
-                    # Pick order belongs to the role, so keep one badge on the primary option.
-                    if oi == 0 and role not in uncontrolled and pick_nums.get(role):
-                        badge_r = px(12)
-                        bx, by = ix + icon_size - px(3), icons_y + px(3)
-                        c.create_oval(bx - badge_r, by - badge_r, bx + badge_r, by + badge_r, fill="#14212b", outline=accent, width=max(1, px(2)))
-                        c.create_text(bx, by, text=str(pick_nums[role]), font=self.font_order, fill=accent)
+                # Pick order is role-level information, not champion-option information. Draw the
+                # badge after every portrait at a fixed cell corner so overlapping 2/3-option stacks
+                # can never cover it.
+                if role not in uncontrolled and pick_nums.get(role):
+                    cell_left = px(5) + ri * cell_w
+                    badge_r = px(10)
+                    bx = cell_left + cell_w - px(10)
+                    by = icons_y + px(8)
+                    c.create_oval(
+                        bx - badge_r, by - badge_r, bx + badge_r, by + badge_r,
+                        fill="#14212b", outline=accent, width=max(1, px(2)),
+                    )
+                    c.create_text(bx, by, text=str(pick_nums[role]), font=self.font_order, fill=accent)
 
                 role_colour = "#ee7d87" if marks.get(role) == "OUT" else ("#c8aa6e" if marks.get(role) == "LOCKED" else ink)
                 c.create_text(cx, labels_y, text=ROLE_SHORT[role], anchor="n", font=self.font_role, fill=role_colour)

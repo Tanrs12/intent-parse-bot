@@ -162,7 +162,7 @@ def decide(snapshot: dict) -> tuple[dict | None, dict | None]:
                         "meta": "YOUR BAN" if me else "TEAM BAN", "champion": b["champion"] if me else None, "champion_id": b.get("champion_id")}
         else:
             decision = {"key": "ban:none", "turn": "local" if me else "team", "kind": "ban", "title": "No ban stands out",
-                        "reason": "Review scouting in Coach", "meta": "YOUR BAN" if me else "TEAM BAN", "champion": None}
+                        "reason": "", "meta": "YOUR BAN" if me else "TEAM BAN", "champion": None}
     elif ours:
         top = next((p for p in picks if me and p["champion"] == me["champion"]), None) or (picks[0] if picks else None)
         if top:
@@ -172,8 +172,8 @@ def decide(snapshot: dict) -> tuple[dict | None, dict | None]:
                         + (f" · {top['plan']['name'].upper()} {top['plan']['progress']}/5" if top.get("plan") else ""),
                         "champion": top["champion"] if me else None, "champion_id": top.get("champion_id"), "warning": top.get("counter_risk", 0) >= 0.5}
         else:
-            decision = {"key": "pick:none", "turn": "local" if me else "team", "kind": "pick", "title": "No recommendation",
-                        "reason": "Check pools in Coach", "meta": "YOUR PICK" if me else "TEAM PICK", "champion": None}
+            decision = {"key": "pick:none", "turn": "local" if me else "team", "kind": "pick", "title": "No recommendation yet",
+                        "reason": "", "meta": "YOUR PICK" if me else "TEAM PICK", "champion": None}
     else:
         plan = next((p for p in picks if my_role and p["role"] == my_role), None) or (picks[0] if picks else None)
         if plan:
@@ -516,17 +516,20 @@ class NativeHud:
         raised = t.get("raised", t["surface"])
         team_colour = t.get("team", t["action"])
 
+        # Keep Rat's compact HUD proportions. The INTent data can be wordier than Rat's original
+        # advisor output, so smaller type preserves the clean in-client feel instead of looking like
+        # a floating settings panel.
         self.fonts["title"].configure(
-            family="Segoe UI", size=-px(16), weight="bold"
+            family="Segoe UI", size=-px(13), weight="bold"
         )
         self.fonts["reason"].configure(
-            family="Segoe UI", size=-px(11), weight="normal"
+            family="Segoe UI", size=-px(9), weight="normal"
         )
         self.fonts["meta"].configure(
-            family="Consolas", size=-px(9), weight="normal"
+            family="Consolas", size=-px(7), weight="normal"
         )
         self.fonts["button"].configure(
-            family="Segoe UI", size=-px(11), weight="bold"
+            family="Segoe UI", size=-px(9), weight="bold"
         )
 
         def fit(value: str, font: tkfont.Font, width: int) -> str:
