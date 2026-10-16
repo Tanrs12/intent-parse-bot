@@ -507,3 +507,54 @@ def test_custom_test_ignores_identity_like_fields_on_nonlocal_bot_seats():
     assert cleaned["our_team"][0]["hover"] == "Camille"
     assert cleaned["our_team"][1]["hover"] is None and cleaned["our_team"][1]["locked"] is None
     assert bridge._role_players_for_state(state, five, testing=True) == {"Top": 1}
+
+
+def test_soft_preference_promotes_only_when_close(monkeypatch):
+    monkeypatch.setattr(bridge, "_live_lane_adjustment", lambda rec, state: (0.0, []))
+    players = {role: {"display_name": role, "user_id": i + 1, "role_priority": {role: 1}}
+               for i, role in enumerate(bridge.ROLES)}
+    def make(mid, score):
+        champs = {"Top": "Ornn", "Jungle": "Vi", "Mid": mid, "ADC": "Jinx", "Support": "Lulu"}
+        return {"score": score, "rank_score": score, "composition_score": score, "champions": champs,
+                "players": players, "pick_order": [{"role": r, "champion": champs[r]} for r in bridge.ROLES],
+                "counter_bans": [], "team_plan": "front-to-back"}
+    best = make("Orianna", 95.0)
+    preferred = make("Sylas", 94.0)
+    sig = bridge._comp_signature(preferred["champions"])
+    state = {"side": "blue", "our_team": [], "enemy_team": [], "active": {"kind": "pick", "ours": True}}
+    try:
+        bridge._set_preference(sig)
+        guidance = bridge._guidance_from_result({"side": "blue", "recommendations": [best, preferred]}, state)
+        assert guidance["comps"][0]["champions"]["Mid"] == "Sylas"
+        assert guidance["preference"]["promoted"] is True
+        preferred["score"] = preferred["rank_score"] = preferred["composition_score"] = 90.0
+        guidance = bridge._guidance_from_result({"side": "blue", "recommendations": [best, preferred]}, state)
+        assert guidance["comps"][0]["champions"]["Mid"] == "Orianna"
+        assert guidance["preference"]["active"] is True
+        assert guidance["preference"]["promoted"] is False
+    finally:
+        bridge._set_preference(None)
+
+
+def test_upstream_guidance_marks_follower_mode(monkeypatch):
+    old = bridge._upstream_base
+    try:
+        bridge.configure_upstream("http://coach:8765/")
+        monkeypatch.setattr(bridge, "_json_get", lambda url, timeout=0: {"active": True, "guidance": {"comps": [1]}})
+        data = bridge._upstream_get()
+        assert data["active"] is True
+        assert data["sync"] == {"mode": "follower", "source": "http://coach:8765"}
+    finally:
+        bridge.configure_upstream(old)
+
+
+def test_cloud_follower_marks_authoritative_sync(monkeypatch):
+    old = (bridge._cloud_base, bridge._cloud_key, bridge._cloud_mode)
+    try:
+        bridge.configure_cloud("https://relay.example", "abcdefghijklmnop1234", "follow")
+        monkeypatch.setattr(bridge, "_json_get", lambda url, timeout=0: {"active": True, "guidance": {"comps": [1]}})
+        data = bridge._cloud_get()
+        assert data["active"] is True
+        assert data["sync"] == {"mode": "cloud-follower", "source": "https://relay.example"}
+    finally:
+        bridge.configure_cloud(*old)

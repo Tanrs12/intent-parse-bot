@@ -135,6 +135,16 @@ button.card:hover:not(:disabled) .champ { color: var(--mm-blue); }
 .captain-role-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
 .captain-role-row .chip { border: 1px solid var(--mm-line); border-radius: 99px; padding: 2px 7px 2px 2px; font-size: 10.5px; }
 .captain-role-row .portrait { width: 20px; height: 20px; }
+.captain-comp.preferred { box-shadow: inset 3px 0 0 var(--mm-blue); padding-left: 8px; }
+.captain-prefer { margin-left: auto; border: 1px solid var(--mm-line); border-radius: 3px; background: transparent; color: var(--mm-secondary); font: 700 9px var(--mm-mono); padding: 3px 7px; cursor: pointer; text-transform: uppercase; letter-spacing: .04em; }
+.captain-prefer:hover, .captain-prefer.on { border-color: var(--mm-blue); color: var(--mm-blue); background: var(--mm-pale); }
+.captain-score { margin-left: 2px; }
+.captain-preference-note { margin: 8px 0 0; padding: 7px 9px; border-left: 2px solid var(--mm-line); color: var(--mm-secondary); font-size: 10.5px; }
+.captain-preference-note.on { border-left-color: var(--mm-blue); color: var(--mm-ink); }
+.captain-preference-note.warn { border-left-color: var(--mm-warn); }
+.captain-detail { margin-top: 6px; color: var(--mm-secondary); font-size: 10.5px; }
+.captain-detail summary { cursor: pointer; color: var(--mm-blue); font: 700 9.5px var(--mm-mono); text-transform: uppercase; letter-spacing: .04em; }
+.captain-detail-line { margin-top: 4px; line-height: 1.35; }
 
 /* drawer */
 .coach-drawer { position: fixed; inset: 0 0 0 auto; width: min(720px, 100vw); max-width: 100vw; height: 100vh; height: 100dvh; max-height: 100%; margin: 0; padding: 28px; overflow-y: auto; border: 0; border-left: 1px solid var(--mm-line); background: var(--mm-surface); color: var(--mm-ink); }

@@ -242,6 +242,34 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
     async def get_state() -> Response:
         return Response(hub.snapshot_json(), media_type="application/json")
 
+    @app.get("/api/intent-guidance")
+    async def get_intent_guidance() -> JSONResponse:
+        """LAN-safe relay for the coach PC's authoritative INTent result."""
+        import urllib.request
+        def fetch() -> dict:
+            with urllib.request.urlopen("http://127.0.0.1:8766/api/guidance", timeout=8) as response:
+                return json.loads(response.read())
+        try:
+            return JSONResponse(await asyncio.to_thread(fetch))
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(503, f"INTent bridge unavailable: {exc}")
+
+    @app.post("/api/intent-preference")
+    async def set_intent_preference(request: Request) -> JSONResponse:
+        """Relay captain soft-preference changes to this coach PC's INTent bridge."""
+        import urllib.request
+        payload = await _json(request)
+        def send() -> dict:
+            data = json.dumps({"signature": payload.get("signature")}).encode("utf-8")
+            req = urllib.request.Request("http://127.0.0.1:8766/api/preference", data=data,
+                                         headers={"Content-Type": "application/json"}, method="POST")
+            with urllib.request.urlopen(req, timeout=8) as response:
+                return json.loads(response.read())
+        try:
+            return JSONResponse(await asyncio.to_thread(send))
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(503, f"INTent preference unavailable: {exc}")
+
     # ---- draft inputs --------------------------------------------------------------
     async def _json(request: Request) -> dict:
         try:

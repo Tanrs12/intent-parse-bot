@@ -107,6 +107,7 @@
           <header class="coach-section-head"><h3>Draft captain</h3><span class="mm-meta" id="captain-side"></span></header>
           <div class="captain-phase" id="captain-phase"></div>
           <p class="plan-note" id="captain-locks"></p>
+          <p class="captain-preference-note" id="captain-preference"></p>
           <div class="captain-comps" id="captain-comps"></div>
         </section>
 
@@ -540,12 +541,25 @@
     }
   }
   let captainRanks = new Map();
+  async function setCaptainPreference(signature) {
+    try {
+      const r = await fetch("http://127.0.0.1:8766/api/preference", {
+        method: "POST", cache: "no-store", headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ signature: signature || null })
+      });
+      if (!r.ok) throw new Error("preference " + r.status);
+      if (typeof refreshIntentBridge === "function") await refreshIntentBridge();
+    } catch (e) { toast("Could not change draft preference: " + e.message, true); }
+  }
+
   function renderCaptain(g, state) {
     const section = $("captain-section"), phase = $("captain-phase"), box = $("captain-comps"), locks = $("captain-locks");
     const comps = (g && g.comps) || [];
     if (!state || !comps.length) { section.hidden = true; captainRanks = new Map(); return; }
     section.hidden = false;
-    $("captain-side").textContent = String((g.side || state.side || "")).toUpperCase() + " SIDE";
+    const syncMode = (typeof intentBridge !== "undefined" && intentBridge.sync && intentBridge.sync.mode) || "local";
+    const syncLabel = syncMode === "cloud-host" ? "HOST" : (syncMode === "follower" || syncMode === "cloud-follower") ? "SYNCED" : "LOCAL";
+    $("captain-side").textContent = String((g.side || state.side || "")).toUpperCase() + " SIDE · " + syncLabel;
     phase.replaceChildren();
     const group = g.current_pick_group;
     if (group) {
@@ -569,6 +583,22 @@
     if (liveHovers.length) facts.push("Human hover: " + liveHovers.join(" · ") + " (previewing around this)");
     locks.textContent = facts.length ? facts.join("  |  ") : "No ally picks locked or hovered yet.";
 
+    const pref = (g && g.preference) || {};
+    const prefNote = $("captain-preference");
+    if (!pref.signature) {
+      prefNote.textContent = "No preferred plan · INTent follows the highest live score.";
+      prefNote.className = "captain-preference-note";
+    } else if (!pref.active) {
+      prefNote.textContent = "Preferred plan is no longer available in the current top six · INTent is drafting normally.";
+      prefNote.className = "captain-preference-note warn";
+    } else if (pref.promoted) {
+      prefNote.textContent = "Preferred plan promoted · within " + Number(pref.gap || 0).toFixed(1) + " pts of the best live draft.";
+      prefNote.className = "captain-preference-note on";
+    } else {
+      prefNote.textContent = "Preferred plan is " + Number(pref.gap || 0).toFixed(1) + " pts behind · INTent keeps the stronger draft #1 (limit " + Number(pref.max_gap || 0).toFixed(1) + ").";
+      prefNote.className = "captain-preference-note warn";
+    }
+
     box.replaceChildren();
     const nextRanks = new Map();
     comps.slice(0, 6).forEach((comp, index) => {
@@ -576,10 +606,15 @@
       nextRanks.set(signature, index + 1);
       const previous = captainRanks.get(signature);
       const movement = previous ? previous - (index + 1) : 0;
-      const row = D.el("div", "captain-comp" + (index === 0 ? " lead" : ""));
+      const isPreferred = !!comp.preferred || (pref.signature && signature === pref.signature);
+      const row = D.el("div", "captain-comp" + (index === 0 ? " lead" : "") + (isPreferred ? " preferred" : ""));
       const head = D.el("div", "captain-comp-head");
       const movementText = previous == null ? (captainRanks.size ? "NEW" : "") : movement > 0 ? "↑" + movement : movement < 0 ? "↓" + Math.abs(movement) : "";
-      head.append(D.el("b", "", "#" + (index + 1) + (index === 0 ? " BEST" : "")), D.el("span", "captain-move " + (movement > 0 ? "up" : movement < 0 ? "down" : ""), movementText), D.el("span", "captain-score", Number(comp.live_score ?? comp.score ?? 0).toFixed(1)));
+      head.append(D.el("b", "", "#" + (index + 1) + (index === 0 ? " BEST" : "")), D.el("span", "captain-move " + (movement > 0 ? "up" : movement < 0 ? "down" : ""), movementText));
+      const prefer = D.el("button", "captain-prefer" + (isPreferred ? " on" : ""), isPreferred ? "Preferred" : "Prefer");
+      prefer.type = "button"; prefer.title = "Soft preference: INTent only follows this plan while it remains close to the best score.";
+      prefer.onclick = () => setCaptainPreference(isPreferred ? null : signature);
+      head.append(prefer, D.el("span", "captain-score", Number(comp.live_score ?? comp.score ?? 0).toFixed(1)));
       row.append(head);
       const steps = D.el("div", "captain-role-row");
       for (const role of D.ROLES) {
@@ -597,6 +632,23 @@
       const edge = (comp.lane_edges || [])[0];
       if (edge && edge.enemy) notes.push((D.ROLE_SHORT[edge.role] || edge.role) + " into " + edge.enemy);
       if (notes.length) row.append(D.el("div", "plan-note", notes.join(" · ")));
+
+      const detailsBits = [];
+      const strengths = (comp.strengths || []).slice(0, 3);
+      const gaps = (comp.gaps || []).slice(0, 2);
+      if (strengths.length) detailsBits.push("Strengths: " + strengths.join(", "));
+      if (gaps.length) detailsBits.push("Watch: " + gaps.join(", "));
+      if (comp.bot_lane_grade) detailsBits.push("Bot lane: " + comp.bot_lane_grade + ((comp.bot_lane_reasons || []).length ? " — " + comp.bot_lane_reasons.slice(0, 2).join(", ") : ""));
+      const carry = comp.carry_plan || {};
+      if (carry.role && carry.champion) detailsBits.push("Primary carry: " + (carry.display_name || carry.role) + " · " + carry.champion);
+      if ((comp.team_plan_reasons || []).length) detailsBits.push("Plan fit: " + comp.team_plan_reasons.slice(0, 3).join(", "));
+      if ((comp.player_fit_notes || []).length) detailsBits.push("Player fit: " + comp.player_fit_notes.slice(0, 2).join(", "));
+      if (detailsBits.length) {
+        const detail = D.el("details", "captain-detail");
+        detail.append(D.el("summary", "", "Why this plan"));
+        for (const bit of detailsBits) detail.append(D.el("div", "captain-detail-line", bit));
+        row.append(detail);
+      }
       box.append(row);
     });
     captainRanks = nextRanks;

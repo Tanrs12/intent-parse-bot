@@ -54,6 +54,9 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--reset-roster", action="store_true", help="ignore the persisted roster and rebuild from config")
     parser.add_argument("--sync", metavar="URL", help="pull the roster from the coach machine, e.g. http://192.168.1.20:8765")
     parser.add_argument("--sync-interval", type=float, default=60.0, help="seconds between roster syncs")
+    parser.add_argument("--cloud-sync-mode", choices=["host", "follow"], help="internet sync: host publishes the authoritative draft, follow consumes it")
+    parser.add_argument("--cloud-sync-url", default=os.environ.get("INTENT_SYNC_RELAY", ""), help="public draft relay base URL")
+    parser.add_argument("--cloud-sync-key", default=os.environ.get("INTENT_SYNC_KEY", ""), help="shared 16+ character draft session key")
     parser.add_argument("--window", action="store_true", help="open the always-on-top overlay window as well")
     parser.add_argument("--window-only", action="store_true", help="only open the overlay window (server already running)")
     parser.add_argument("--hud", action="store_true", help="draw the in-client HUD over the League client (Windows)")
@@ -97,7 +100,7 @@ def main(argv: list[str] | None = None) -> None:
     bridge_enabled = bool(args.bridge or (args.bridge is None and frozen))
     intent_live = os.environ.get("INTENT_LIVE") == "1"
     if bridge_enabled:
-        _start_bridge()          # INTent bridge on 8766, in every mode of the packaged build
+        _start_bridge(upstream=args.sync, cloud_url=args.cloud_sync_url, cloud_key=args.cloud_sync_key, cloud_mode=args.cloud_sync_mode)
     if args.hud and intent_live:
         _start_hud_proxy()       # Rat-style native HUD reads the same INTent guidance via 8767
     if args.comp_overlay or (args.comp_overlay is None and frozen and args.hud):
@@ -185,7 +188,7 @@ def _start_comp_overlay() -> None:
     threading.Thread(target=run_overlay, daemon=True, name="intent-comp-overlay").start()
 
 
-def _start_bridge(port: int = 8766) -> None:
+def _start_bridge(port: int = 8766, upstream: str | None = None, *, cloud_url: str | None = None, cloud_key: str | None = None, cloud_mode: str | None = None) -> None:
     """Tanoras's live bridge (tools/intent_live_draft_bridge.py) inside this process: it reads our
     /api/state, calls the shared backend and serves http://127.0.0.1:8766/api/guidance, which the
     packaged coach page and HUD read for their visible picks and bans."""
@@ -205,12 +208,20 @@ def _start_bridge(port: int = 8766) -> None:
 
     def serve() -> None:
         try:
-            bridge._load_cached_signups()
+            bridge.configure_upstream(upstream)
+            bridge.configure_cloud(cloud_url, cloud_key, cloud_mode)
+            follower = bool(upstream or cloud_mode == "follow")
+            if not follower:
+                bridge._load_cached_signups()
             from http.server import ThreadingHTTPServer
 
             httpd = ThreadingHTTPServer(("127.0.0.1", port), bridge.Handler)
-            threading.Thread(target=bridge.background_refresh, args=(httpd,), daemon=True).start()
-            print(f"INTent live bridge: http://127.0.0.1:{port}/api/guidance")
+            if not follower:
+                threading.Thread(target=bridge.background_refresh, args=(httpd,), daemon=True).start()
+            if cloud_mode == "host":
+                threading.Thread(target=bridge.cloud_publish_loop, daemon=True, name="intent-cloud-publisher").start()
+            suffix = f" (synced from {upstream})" if upstream else (f" (internet {cloud_mode})" if cloud_mode else "")
+            print(f"INTent live bridge: http://127.0.0.1:{port}/api/guidance{suffix}")
             httpd.serve_forever()
         except Exception as exc:  # noqa: BLE001
             logging.getLogger("draftcoach").warning("INTent bridge stopped: %s", exc)

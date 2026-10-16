@@ -45,17 +45,43 @@ echo Coaching every champion select (normals too). Default launchers: Ranked Fle
 FlexersDraftCoach.exe --load "loadfileslexers-team.json" --window --hud --any-queue
 pause
 ''',
+    "Coach PC (internet sync).bat": r'''@echo off
+cd /d "%~dp0"
+if not exist "var" mkdir "var"
+set SYNCKEY=
+if exist "var\internet-sync-key.txt" set /p SYNCKEY=<"var\internet-sync-key.txt"
+if "%SYNCKEY%"=="" for /f %%i in ('powershell -NoProfile -Command "[guid]::NewGuid().ToString('N')"') do set SYNCKEY=%%i
+>"var\internet-sync-key.txt" echo %SYNCKEY%
+echo.
+echo INTERNET DRAFT SYNC HOST
+echo Share this private session code with the other Flexers:
+echo.
+echo     %SYNCKEY%
+echo.
+echo The other players should open "Player (internet sync).bat" and paste it.
+echo.
+FlexersDraftCoach.exe --load "loadfiles\flexers-team.json" --window --hud --cloud-sync-mode host --cloud-sync-url https://draft--intent-parse-bot--cdzz6bjv54yz.code.run --cloud-sync-key %SYNCKEY%
+pause
+''',
+    "Player (internet sync).bat": r'''@echo off
+cd /d "%~dp0"
+set /p SYNCKEY=Paste the coach's private draft sync code: 
+if "%SYNCKEY%"=="" exit /b 1
+echo Following the coach's authoritative INTent draft while using your own League client...
+FlexersDraftCoach.exe --load "loadfiles\flexers-team.json" --window --hud --cloud-sync-mode follow --cloud-sync-url https://draft--intent-parse-bot--cdzz6bjv54yz.code.run --cloud-sync-key %SYNCKEY%
+pause
+''',
     "Player (sync from coach PC).bat": r'''@echo off
 cd /d "%~dp0"
 set /p COACH=Coach PC address (for example 192.168.1.20:8765):
 if "%COACH%"=="" set COACH=127.0.0.1:8765
-echo Using your own League client, roster synced from http://%COACH%
+echo Using your own League client, with roster AND authoritative live draft synced from http://%COACH%
 FlexersDraftCoach.exe --window --hud --sync http://%COACH%
 pause
 ''',
     "Coach PC (share roster on the LAN).bat": r'''@echo off
 cd /d "%~dp0"
-echo Coach mode: other players point "Player (sync from coach PC).bat" at this machine's IP.
+echo Coach mode: this PC is the authoritative INTent draft brain; players point the sync launcher at this machine's IP.
 FlexersDraftCoach.exe --host 0.0.0.0 --load "loadfiles\flexers-team.json" --window --hud
 pause
 ''',
@@ -73,9 +99,12 @@ Double-click one of these:
                                          coach page at http://127.0.0.1:8765/
   Draft Coach (practice, no client).bat  Replays a scripted draft so you can see how it works.
   Draft Coach (any queue).bat            Also coaches normals / solo queue (default: Ranked Flex + customs).
-  Player (sync from coach PC).bat        Five machines: each player runs this, types the coach's
-                                         IP, and gets the shared roster with their own client.
-  Coach PC (share roster on the LAN).bat The coach runs this one so the players can sync.
+  Coach PC (internet sync).bat           Recommended for the draft captain. Creates a private session code
+                                         and publishes one authoritative INTent draft through the League Bot relay.
+  Player (internet sync).bat             Recommended for teammates in other homes. Paste the coach's private
+                                         session code; your Hover/Lock buttons still act only on your League client.
+  Player (sync from coach PC).bat        LAN-only alternative: type the coach PC's local IP.
+  Coach PC (share roster on the LAN).bat LAN-only host for the above.
 
 If Windows marked the zip as "downloaded from the internet", the app removes that mark from its own
 files on first start (what Explorer's Unblock button does). If a start still fails on a .NET error, right-click

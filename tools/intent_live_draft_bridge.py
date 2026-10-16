@@ -58,6 +58,104 @@ def _champion_id(name: str | None) -> int | None:
     return CHAMPION_IDS.get(str(name or "").casefold())
 
 
+def configure_upstream(base: str | None) -> None:
+    """Follower mode: serve the coach PC's authoritative guidance on local :8766."""
+    global _upstream_base
+    _upstream_base = str(base or "").rstrip("/") or None
+
+
+def configure_cloud(base: str | None, key: str | None, mode: str | None) -> None:
+    global _cloud_base, _cloud_key, _cloud_mode
+    _cloud_base = str(base or "").rstrip("/") or None
+    _cloud_key = str(key or "").strip() or None
+    _cloud_mode = str(mode or "").strip().casefold() or None
+    if _cloud_mode not in (None, "host", "follow"):
+        raise ValueError("cloud sync mode must be host or follow")
+    if _cloud_mode and (not _cloud_base or not _cloud_key or len(_cloud_key) < 16):
+        raise ValueError("cloud sync needs a relay URL and a 16+ character session key")
+
+
+def _cloud_url(suffix: str = "") -> str:
+    if not (_cloud_base and _cloud_key):
+        raise RuntimeError("cloud sync is not configured")
+    return f"{_cloud_base}/draft-sync/{_cloud_key}{suffix}"
+
+
+def _cloud_get() -> dict:
+    data = _json_get(_cloud_url(), timeout=6.0)
+    if isinstance(data, dict):
+        data = dict(data)
+        data["sync"] = {"mode": "cloud-follower", "source": _cloud_base}
+    return data
+
+
+def _cloud_preference(signature: str | None) -> dict:
+    payload = json.dumps({"signature": signature}).encode("utf-8")
+    req = urllib.request.Request(_cloud_url("/preference"), data=payload,
+                                 headers={"Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=6.0) as response:
+        return json.loads(response.read())
+
+
+def cloud_publish_loop() -> None:
+    global _cloud_pref_version
+    while _cloud_mode == "host":
+        try:
+            payload = build_response()
+            payload = dict(payload)
+            payload["sync"] = {"mode": "cloud-host", "source": _cloud_base}
+            req = urllib.request.Request(_cloud_url(), data=json.dumps(payload).encode("utf-8"),
+                                         headers={"Content-Type": "application/json"}, method="PUT")
+            with urllib.request.urlopen(req, timeout=6.0) as response:
+                control = json.loads(response.read())
+            version = int(control.get("preference_version") or 0)
+            if version > _cloud_pref_version:
+                _cloud_pref_version = version
+                _set_preference(control.get("preference"))
+        except Exception:
+            pass
+        time.sleep(0.8)
+
+
+def _comp_signature(champions: dict | None) -> str:
+    champions = champions or {}
+    return "|".join(str(champions.get(role) or "?") for role in ROLES)
+
+
+def _get_preference() -> str | None:
+    with _preference_lock:
+        return _preferred_signature
+
+
+def _set_preference(signature: str | None) -> str | None:
+    global _preferred_signature, _response_cache_key
+    clean = str(signature or "").strip() or None
+    with _preference_lock:
+        _preferred_signature = clean
+    _response_cache_key = None
+    return clean
+
+
+def _upstream_get() -> dict:
+    if not _upstream_base:
+        raise RuntimeError("not in follower mode")
+    data = _json_get(_upstream_base + "/api/intent-guidance", timeout=6.0)
+    if isinstance(data, dict):
+        data = dict(data)
+        data["sync"] = {"mode": "follower", "source": _upstream_base}
+    return data
+
+
+def _upstream_preference(signature: str | None) -> dict:
+    if not _upstream_base:
+        raise RuntimeError("not in follower mode")
+    payload = json.dumps({"signature": signature}).encode("utf-8")
+    req = urllib.request.Request(_upstream_base + "/api/intent-preference", data=payload,
+                                 headers={"Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=6.0) as response:
+        return json.loads(response.read())
+
+
 _test_lock = threading.Lock()
 _test_overrides = {"bans": [], "enemy": {}, "ours": {}}
 
@@ -79,6 +177,14 @@ _last_pro_refresh = time.time() if RUNTIME_PRO_PATH.exists() else 0.0
 SIGNUP_REFRESH_SECONDS = 10 * 60
 PRO_REFRESH_SECONDS = 6 * 60 * 60
 _compute_lock = threading.Lock()
+_upstream_base: str | None = None
+_cloud_base: str | None = None
+_cloud_key: str | None = None
+_cloud_mode: str | None = None
+_cloud_pref_version = 0
+_preference_lock = threading.Lock()
+_preferred_signature: str | None = None
+PREFERENCE_MAX_GAP = 2.5
 _response_cache_key = None
 _response_cache_value = None
 _response_cache_at = 0.0
@@ -611,6 +717,24 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         recs.append(rec)
     recs.sort(key=lambda rec: float(rec.get("live_rank_score", 0.0)), reverse=True)
 
+    # A captain may softly prefer one complete plan.  It only becomes #1 while it remains close
+    # to the objectively best live score; once the gap grows, the engine wins automatically.
+    preferred = _get_preference()
+    preference_info = {"signature": preferred, "active": False, "promoted": False,
+                       "gap": None, "max_gap": PREFERENCE_MAX_GAP}
+    if preferred and recs:
+        pref_index = next((i for i, rec in enumerate(recs) if _comp_signature(rec.get("champions")) == preferred), None)
+        if pref_index is not None:
+            preference_info["active"] = True
+            best_score = float(recs[0].get("live_rank_score", 0.0) or 0.0)
+            pref_score = float(recs[pref_index].get("live_rank_score", 0.0) or 0.0)
+            gap = max(0.0, best_score - pref_score)
+            preference_info["gap"] = round(gap, 2)
+            recs[pref_index]["_preferred"] = True
+            if pref_index and gap <= PREFERENCE_MAX_GAP:
+                recs.insert(0, recs.pop(pref_index))
+                preference_info["promoted"] = True
+
     locked_roles = {row["role"] for row in state.get("our_team", []) if row.get("locked") and row.get("role") in ROLES}
     picks = []
     seen = set()
@@ -777,6 +901,16 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
                 if (rec.get("players", {}).get(role) or {}).get("_uncontrolled") and live_by_role.get(role)
             },
             "team_plan": rec.get("team_plan"),
+            "team_plan_grade": rec.get("team_plan_grade"),
+            "team_plan_reasons": list(rec.get("team_plan_reasons") or []),
+            "strengths": list(rec.get("strengths") or []),
+            "gaps": list(rec.get("gaps") or []),
+            "bot_lane_grade": rec.get("bot_lane_grade"),
+            "bot_lane_reasons": list(rec.get("bot_lane_reasons") or []),
+            "carry_plan": dict(rec.get("carry_plan") or {}),
+            "player_fit_notes": list(rec.get("player_fit_notes") or []),
+            "signature": _comp_signature(rec.get("champions")),
+            "preferred": bool(rec.get("_preferred")),
             "pick_order": annotated_order,
             # Counter bans are calculated against this exact composition/pick order by the same
             # shared backend. The overlay shows only our side's five bans, never both teams' plans.
@@ -881,6 +1015,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         "test_overrides": dict(state.get("test_overrides") or {}),
         "visual_test": visual_test,
         "visual_test_pick": visual_test_pick,
+        "preference": preference_info,
         "swaps": [],
         "picks": picks,
         "bans": bans,
@@ -962,6 +1097,7 @@ def build_response():
         "pug_pools": [
             (int(row["user_id"]), row.get("champions") or {}) for row in five if row.get("_uncontrolled")
         ],
+        "preferred_signature": _get_preference(),
     }, sort_keys=True)
     global _response_cache_key, _response_cache_value, _response_cache_at
     with _compute_lock:
@@ -1000,7 +1136,26 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?", 1)[0]
         if path == "/api/guidance":
-            self._reply(build_response())
+            if _cloud_mode == "follow":
+                try:
+                    self._reply(_cloud_get())
+                except Exception as exc:
+                    self._reply({"active": False, "disabled": False, "reason": f"Internet draft sync unavailable: {exc}",
+                                 "sync": {"mode": "cloud-follower", "source": _cloud_base}}, 503)
+            elif _upstream_base:
+                try:
+                    self._reply(_upstream_get())
+                except Exception as exc:
+                    self._reply({"active": False, "disabled": False, "reason": f"Coach sync unavailable: {exc}",
+                                 "sync": {"mode": "follower", "source": _upstream_base}}, 503)
+            else:
+                data = build_response()
+                if _cloud_mode == "host":
+                    data = dict(data); data["sync"] = {"mode": "cloud-host", "source": _cloud_base}
+                self._reply(data)
+            return
+        if path == "/api/preference":
+            self._reply({"signature": _get_preference(), "max_gap": PREFERENCE_MAX_GAP})
             return
         if path == "/api/test":
             with _test_lock:
@@ -1010,9 +1165,7 @@ class Handler(BaseHTTPRequestHandler):
         self._reply({"error": "not found"}, 404)
 
     def do_POST(self):
-        if self.path.split("?", 1)[0] != "/api/test":
-            self._reply({"error": "not found"}, 404)
-            return
+        path = self.path.split("?", 1)[0]
         try:
             length = int(self.headers.get("Content-Length") or 0)
             payload = json.loads(self.rfile.read(length) or b"{}")
@@ -1020,6 +1173,22 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("expected object")
         except Exception as exc:
             self._reply({"error": str(exc)}, 400)
+            return
+        if path == "/api/preference":
+            signature = payload.get("signature")
+            try:
+                if _cloud_mode == "follow":
+                    self._reply(_cloud_preference(signature))
+                elif _upstream_base:
+                    self._reply(_upstream_preference(signature))
+                else:
+                    current = _set_preference(signature)
+                    self._reply({"ok": True, "signature": current, "max_gap": PREFERENCE_MAX_GAP})
+            except Exception as exc:
+                self._reply({"error": str(exc)}, 503)
+            return
+        if path != "/api/test":
+            self._reply({"error": "not found"}, 404)
             return
         global _response_cache_key
         current = _set_test_overrides(payload)

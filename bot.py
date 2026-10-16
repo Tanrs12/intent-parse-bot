@@ -3,6 +3,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
+import time
+
+from aiohttp import web
 
 import discord
 from discord.ext import commands
@@ -14,19 +18,88 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 log = logging.getLogger("intent-league-bot")
 
 TOKEN = os.getenv("DISCORD_TOKEN", "").strip()
-if not TOKEN:
+if __name__ == "__main__" and not TOKEN:
     raise RuntimeError("DISCORD_TOKEN is missing")
 
 GUILD = discord.Object(id=LEAGUE_GUILD_ID)
+
+_SYNC_SESSIONS: dict[str, dict] = {}
+_SYNC_KEY = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
+_SYNC_TTL = 30.0
+
+
+def _sync_key(request: web.Request) -> str:
+    key = request.match_info.get("key", "")
+    if not _SYNC_KEY.fullmatch(key):
+        raise web.HTTPBadRequest(text="invalid sync key")
+    return key
+
+
+async def _relay_health(_request: web.Request) -> web.Response:
+    return web.json_response({"ok": True, "service": "intent-draft-sync"})
+
+
+async def _relay_put(request: web.Request) -> web.Response:
+    key = _sync_key(request)
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        raise web.HTTPBadRequest(text="expected object")
+    current = _SYNC_SESSIONS.get(key, {})
+    row = {
+        "payload": payload,
+        "updated": time.time(),
+        "preference": current.get("preference"),
+        "preference_version": int(current.get("preference_version") or 0),
+    }
+    _SYNC_SESSIONS[key] = row
+    return web.json_response({"ok": True, "preference": row["preference"],
+                              "preference_version": row["preference_version"]})
+
+
+async def _relay_get(request: web.Request) -> web.Response:
+    key = _sync_key(request)
+    row = _SYNC_SESSIONS.get(key)
+    if not row or time.time() - float(row.get("updated") or 0) > _SYNC_TTL:
+        raise web.HTTPServiceUnavailable(text="draft session is offline or stale")
+    return web.json_response(row["payload"], headers={"Cache-Control": "no-store"})
+
+
+async def _relay_preference(request: web.Request) -> web.Response:
+    key = _sync_key(request)
+    row = _SYNC_SESSIONS.setdefault(key, {"payload": None, "updated": 0.0, "preference": None, "preference_version": 0})
+    payload = await request.json()
+    signature = str(payload.get("signature") or "").strip() or None
+    row["preference"] = signature
+    row["preference_version"] = int(row.get("preference_version") or 0) + 1
+    return web.json_response({"ok": True, "signature": signature, "preference_version": row["preference_version"]})
+
+
+async def start_draft_sync_relay() -> web.AppRunner:
+    app = web.Application(client_max_size=2 * 1024 * 1024)
+    app.router.add_get("/health", _relay_health)
+    app.router.add_put("/draft-sync/{key}", _relay_put)
+    app.router.add_get("/draft-sync/{key}", _relay_get)
+    app.router.add_post("/draft-sync/{key}/preference", _relay_preference)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.getenv("PORT", "8080"))
+    await web.TCPSite(runner, "0.0.0.0", port).start()
+    log.info("Draft sync relay listening on :%s", port)
+    return runner
 
 
 class LeagueBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=discord.Intents.default())
         self._identity_checked = False
+        self._sync_relay_runner = None
 
     async def setup_hook(self):
         await database.init_db()
+        try:
+            self._sync_relay_runner = await start_draft_sync_relay()
+        except Exception:
+            log.exception("Could not start draft sync relay")
         await self.load_extension("cogs.league_flex")
         try:
             synced = await self.tree.sync(guild=GUILD)
@@ -130,9 +203,13 @@ class LeagueBot(commands.Bot):
             await self._sync_if_present()
 
     async def close(self):
+        if self._sync_relay_runner is not None:
+            await self._sync_relay_runner.cleanup()
         await database.close_pool()
         await super().close()
 
 
 bot = LeagueBot()
-bot.run(TOKEN)
+
+if __name__ == "__main__":
+    bot.run(TOKEN)
