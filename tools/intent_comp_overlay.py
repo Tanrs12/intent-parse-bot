@@ -409,16 +409,14 @@ class CompOverlay:
                     icon_size = min(px(48), cell_w - px(6))
                     step = icon_size
                 elif n == 2:
-                    # Two alternatives remain proper portraits; a little overlap buys width without
-                    # making either option unreadable.
-                    icon_size = min(px(38), max(px(32), cell_w - px(16)))
-                    step = max(px(24), icon_size - px(10))
+                    # Keep both alternatives distinct rather than stacking them.
+                    icon_size = min(px(34), max(px(28), (cell_w - px(4)) // 2))
+                    step = icon_size + px(2)
                 else:
-                    # Three choices need to fit one role column. Keep the portraits ~30-32px and
-                    # fan them tightly rather than shrinking them into the old ~18px thumbnails.
-                    icon_size = min(px(32), max(px(30), cell_w - px(22)))
-                    step = max(px(11), (cell_w - icon_size) // 2)
-                total_w = icon_size + (n - 1) * step
+                    # Three choices are three separate portraits with a small gap between them.
+                    icon_size = min(px(27), max(px(22), (cell_w - px(8)) // 3))
+                    step = icon_size + px(2)
+                total_w = icon_size * n + px(2) * (n - 1) if n > 1 else icon_size
                 start_x = cx - total_w // 2
 
                 for oi, champ in enumerate(options):
@@ -445,30 +443,9 @@ class CompOverlay:
                         c.create_line(ix, icons_y, ix + icon_size, icons_y + icon_size, fill="#ee7d87", width=px(2))
                         c.create_line(ix + icon_size, icons_y, ix, icons_y + icon_size, fill="#ee7d87", width=px(2))
 
-                # Pick order is role-level information, not champion-option information. Draw the
-                # badge after every portrait at a fixed cell corner so overlapping 2/3-option stacks
-                # can never cover it.
-                if role not in uncontrolled and pick_nums.get(role):
-                    cell_left = px(5) + ri * cell_w
-                    # With three fanned portraits, float the order badge above the third option so
-                    # the right-most champion remains readable. One/two-option cells keep the neat
-                    # top-right badge inside the portrait row.
-                    if n >= 3:
-                        badge_r = px(9)
-                        bx = min(cell_left + cell_w - px(8), start_x + total_w - px(1))
-                        by = icons_y - px(4)
-                    else:
-                        badge_r = px(10)
-                        bx = cell_left + cell_w - px(10)
-                        by = icons_y + px(8)
-                    c.create_oval(
-                        bx - badge_r, by - badge_r, bx + badge_r, by + badge_r,
-                        fill="#14212b", outline=accent, width=max(1, px(2)),
-                    )
-                    c.create_text(bx, by, text=str(pick_nums[role]), font=self.font_order, fill=accent)
-
                 role_colour = "#ee7d87" if marks.get(role) == "OUT" else ("#c8aa6e" if marks.get(role) == "LOCKED" else ink)
-                c.create_text(cx, labels_y, text=ROLE_SHORT[role], anchor="n", font=self.font_role, fill=role_colour)
+                role_label = ROLE_SHORT[role] + (f" ({pick_nums[role]})" if role not in uncontrolled and pick_nums.get(role) else "")
+                c.create_text(cx, labels_y, text=role_label, anchor="n", font=self.font_role, fill=role_colour)
                 player = str(players.get(role) or role)
                 if role in uncontrolled:
                     player = "PUG · " + player

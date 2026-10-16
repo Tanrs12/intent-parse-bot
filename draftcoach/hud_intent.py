@@ -126,6 +126,7 @@ def decide(snapshot: dict) -> tuple[dict | None, dict | None]:
     if not live or not g or st.get("stale"):
         return None, None
     picks, bans = g.get("picks") or [], g.get("bans") or []
+    visual_test = bool(g.get("visual_test"))
     ours_locked = sum(1 for p in s["our_team"] if p.get("locked"))
     theirs_locked = sum(1 for p in s["enemy_team"] if p.get("locked"))
     active = s.get("active") or {}
@@ -159,7 +160,7 @@ def decide(snapshot: dict) -> tuple[dict | None, dict | None]:
         if b:
             decision = {"key": f"ban:{b['champion']}:{bool(me)}", "turn": "local" if me else "team", "kind": "ban",
                         "title": ("Ban " if me else "Suggest banning ") + b["champion"], "reason": short_ban_reason(b),
-                        "meta": "YOUR BAN" if me else "TEAM BAN", "champion": b["champion"] if me else None, "champion_id": b.get("champion_id")}
+                        "meta": "YOUR BAN" if me else "TEAM BAN", "champion": b["champion"] if (me or visual_test) else None, "champion_id": b.get("champion_id")}
         else:
             decision = {"key": "ban:none", "turn": "local" if me else "team", "kind": "ban", "title": "No ban stands out",
                         "reason": "", "meta": "YOUR BAN" if me else "TEAM BAN", "champion": None}
@@ -170,7 +171,7 @@ def decide(snapshot: dict) -> tuple[dict | None, dict | None]:
                         "title": ("Pick " if me else "Suggest ") + top["champion"], "reason": short_pick_reason(top),
                         "meta": ("YOUR PICK · " if me else "TEAM PICK · ") + role(top["role"])
                         + (f" · {top['plan']['name'].upper()} {top['plan']['progress']}/5" if top.get("plan") else ""),
-                        "champion": top["champion"] if me else None, "champion_id": top.get("champion_id"), "warning": top.get("counter_risk", 0) >= 0.5}
+                        "champion": top["champion"] if (me or visual_test) else None, "champion_id": top.get("champion_id"), "warning": top.get("counter_risk", 0) >= 0.5}
         else:
             decision = {"key": "pick:none", "turn": "local" if me else "team", "kind": "pick", "title": "No recommendation yet",
                         "reason": "", "meta": "YOUR PICK" if me else "TEAM PICK", "champion": None}
@@ -181,7 +182,7 @@ def decide(snapshot: dict) -> tuple[dict | None, dict | None]:
             meta = head + (f" · YOUR {role(my_role)} PLAN" if my_role else f" · {role(plan['role'])}")
             decision = {"key": f"prep:{plan['champion']}", "turn": "", "kind": "pick",
                         "title": ("Consider " if active.get("kind") == "none" else "Prepare ") + plan["champion"],
-                        "reason": short_pick_reason(plan), "meta": meta, "champion": None, "champion_id": plan.get("champion_id")}
+                        "reason": short_pick_reason(plan), "meta": meta, "champion": plan["champion"] if visual_test else None, "champion_id": plan.get("champion_id")}
     return decision, notice
 
 

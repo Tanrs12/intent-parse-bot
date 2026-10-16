@@ -778,6 +778,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         "enemy_bans": list(state.get("enemy_bans") or []),
         "test_overrides": dict(state.get("test_overrides") or {}),
         "visual_test": visual_test,
+        "visual_test": visual_test,
         "swaps": [],
         "picks": picks,
         "bans": bans,
