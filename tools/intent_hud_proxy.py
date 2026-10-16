@@ -7,6 +7,7 @@ Hover / Lock-in card cannot disagree with the six composition cards.
 from __future__ import annotations
 
 import json
+import socket
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -131,6 +132,12 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
+    instance_lock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        instance_lock.bind(("127.0.0.1", 18768))
+    except OSError:
+        instance_lock.close()
+        return
     ThreadingHTTPServer(("127.0.0.1", 8767), Handler).serve_forever()
 
 

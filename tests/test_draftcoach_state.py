@@ -205,3 +205,16 @@ def test_client_champion_summary_duplicates_keep_the_real_id():
         assert champions.id_for("Elise") == 60
     finally:
         champions.refresh_from_client([{"id": i, "name": n} for n, i in snapshot.items()])
+
+
+def test_side_falls_back_to_first_pick_when_team_numbers_missing(roster):
+    s = session({}, {}, [], [], [])
+    for member in s["myTeam"] + s["theirTeam"]:
+        member.pop("team", None)
+    # The helper's first future pick belongs to our cell 0, therefore we are blue.
+    assert ds.state_from_lcu_session(s, roster).side == "blue"
+    # Move the first pick action to enemy cell 5: first-pick side is now theirs, so we are red.
+    first_pick = next(action for group in s["actions"] for action in group if action.get("type") == "pick")
+    first_pick["actorCellId"] = 5
+    first_pick["isAllyAction"] = False
+    assert ds.state_from_lcu_session(s, roster).side == "red"

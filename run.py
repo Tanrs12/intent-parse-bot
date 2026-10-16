@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 import threading
 from pathlib import Path
@@ -67,7 +68,10 @@ def main(argv: list[str] | None = None) -> None:
                         help="coach every champ select (customs, normals); default: Ranked Flex only (settings.queues)")
     parser.add_argument("--log-level", default="info")
     args = parser.parse_args(argv)
-    if getattr(sys, "frozen", False) and not any((args.window, args.window_only, args.hud, args.hud_only, args.simulate, args.no_lcu)):
+    frozen = getattr(sys, "frozen", False)
+    if frozen:
+        os.environ.setdefault("INTENT_LIVE", "1")
+    if frozen and not any((args.window, args.window_only, args.hud, args.hud_only, args.simulate, args.no_lcu)):
         # Double-clicked exe: behave like the live-client launcher.
         args.window, args.hud = True, True
         print("Opening the floating panel and the in-client HUD (run with --help for other modes).")
@@ -90,21 +94,28 @@ def main(argv: list[str] | None = None) -> None:
                      roster_path=Path(args.roster) if args.roster else None, watch_dir=Path(args.watch) if args.watch else None,
                      load_files=[Path(p) for p in args.load], reset_roster=args.reset_roster,
                      sync_url=args.sync, sync_interval=args.sync_interval, any_queue=args.any_queue)
-    bridge_enabled = bool(args.bridge or (args.bridge is None and getattr(sys, "frozen", False)))
+    bridge_enabled = bool(args.bridge or (args.bridge is None and frozen))
+    intent_live = os.environ.get("INTENT_LIVE") == "1"
     if bridge_enabled:
         _start_bridge()          # INTent bridge on 8766, in every mode of the packaged build
-    if args.comp_overlay or (args.comp_overlay is None and getattr(sys, "frozen", False) and args.hud):
+    if args.hud and intent_live:
+        _start_hud_proxy()       # Rat-style native HUD reads the same INTent guidance via 8767
+    if args.comp_overlay or (args.comp_overlay is None and frozen and args.hud):
         _start_comp_overlay()
     print(f"Coach panel: http://{args.host}:{args.port}/    Overlay: http://{args.host}:{args.port}/overlay    HUD demo: /demo")
     if not args.window and not args.hud:
-        uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level, access_log=False)
+        uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level, access_log=False, log_config=None)
         return
 
     import threading
 
-    from draftcoach import hud, window
+    if intent_live:
+        from draftcoach import hud_intent as hud
+    else:
+        from draftcoach import hud
+    from draftcoach import window
 
-    server = uvicorn.Server(uvicorn.Config(app, host=args.host, port=args.port, log_level=args.log_level, access_log=False))
+    server = uvicorn.Server(uvicorn.Config(app, host=args.host, port=args.port, log_level=args.log_level, access_log=False, log_config=None))
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
     try:
@@ -119,6 +130,31 @@ def main(argv: list[str] | None = None) -> None:
     finally:
         server.should_exit = True
         thread.join(timeout=5)
+
+
+def _start_hud_proxy() -> None:
+    """Serve the INTent/LCU merged state used by the preserved native HUD copy."""
+    import importlib
+    import logging
+
+    from draftcoach import ENGINE_DIR
+
+    tools_dir = ENGINE_DIR / "tools"
+    if str(tools_dir) not in sys.path:
+        sys.path.insert(0, str(tools_dir))
+    try:
+        proxy = importlib.import_module("intent_hud_proxy")
+    except Exception as exc:  # noqa: BLE001
+        logging.getLogger("draftcoach").warning("INTent HUD proxy not started: %s", exc)
+        return
+
+    def serve() -> None:
+        try:
+            proxy.main()
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger("draftcoach").warning("INTent HUD proxy stopped: %s", exc)
+
+    threading.Thread(target=serve, daemon=True, name="intent-hud-proxy").start()
 
 
 def _start_comp_overlay() -> None:

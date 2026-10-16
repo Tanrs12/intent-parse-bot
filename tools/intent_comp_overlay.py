@@ -82,10 +82,12 @@ class CompOverlay:
         self.dead_archive: dict[tuple, dict] = {}
         self.in_draft = False
         self._last_live_at = 0.0
-        self._last_focus_at = 0.0
+        self._dirty = True
+        self._render_key = ""
         self._stop = False
 
         self.font_title = tkfont.Font(family="Segoe UI", size=8, weight="bold")
+        self.font_order = tkfont.Font(family="Segoe UI", size=10, weight="bold")
         self.font_role = tkfont.Font(family="Consolas", size=7, weight="bold")
         self.font_player = tkfont.Font(family="Segoe UI", size=7)
         self.font_tiny = tkfont.Font(family="Segoe UI", size=6)
@@ -131,7 +133,10 @@ class CompOverlay:
         dead = False
         champions = comp.get("champions") or {}
         role_options = comp.get("role_options") or {}
+        uncontrolled = set(comp.get("uncontrolled_roles") or [])
         for role in ROLES:
+            if role in uncontrolled:
+                continue
             primary = champions.get(role)
             options = [champ for champ in (role_options.get(role) or [primary]) if champ]
             if not options:
@@ -170,15 +175,21 @@ class CompOverlay:
             state = snap.get("state") or {}
             status = snap.get("status") or {}
             now = time.time()
+            # The panel is a champ-select accessory only. A stale/manual board must never keep it
+            # pinned over the normal League client after we dodge, leave draft, or enter game.
+            in_champ_select = bool(status.get("lcu_in_champ_select")) or state.get("source") == "simulation"
             live_now = bool(
-                bridge.get("active")
-                and state.get("source") in ("lcu", "simulation", "manual")
+                in_champ_select
+                and bridge.get("active")
+                and state.get("source") in ("lcu", "simulation")
                 and state.get("phase") not in (None, "IDLE", "GAME_STARTING")
                 and not status.get("stale")
             )
             if live_now:
                 self._last_live_at = now
-            live = live_now or (self.in_draft and now - self._last_live_at <= LIVE_GRACE_SECONDS)
+            # Grace is only for a backend recompute while LCU still says ChampSelect. The instant
+            # League leaves ChampSelect we hide, even if the last six cards are still cached.
+            live = live_now or (in_champ_select and self.in_draft and now - self._last_live_at <= LIVE_GRACE_SECONDS)
             fresh = [dict(c) for c in ((bridge.get("guidance") or {}).get("comps") or [])[:6]]
 
             if live:
@@ -210,7 +221,23 @@ class CompOverlay:
                 self.cards = []
                 self.dead_archive.clear()
                 self.in_draft = False
-            time.sleep(0.25)
+
+            # Rendering the six cards is much more expensive than moving the transparent window.
+            # Only redraw when draft data actually changed; window movement is handled separately.
+            guidance = bridge.get("guidance") or {}
+            render_key = json.dumps({
+                "live": self.in_draft,
+                "cards": self.cards,
+                "our_bans": guidance.get("our_bans") or state.get("our_bans") or [],
+                "enemy_bans": guidance.get("enemy_bans") or state.get("enemy_bans") or [],
+                "our_locked": guidance.get("our_locked") or {},
+                "enemy_locked": guidance.get("enemy_locked") or {},
+                "test": guidance.get("test_overrides") or {},
+            }, sort_keys=True, default=str)
+            if render_key != self._render_key:
+                self._render_key = render_key
+                self._dirty = True
+            time.sleep(0.45)
 
     def _icon(self, champion_id: int | None, size: int) -> tk.PhotoImage | None:
         if not champion_id:
@@ -273,6 +300,7 @@ class CompOverlay:
         u = max(0.85, min(1.3, h / 900.0))
         px = lambda n: max(1, round(n * u))
         self.font_title.configure(size=-px(13))
+        self.font_order.configure(size=-px(17))
         self.font_role.configure(size=-px(10))
         self.font_player.configure(size=-px(9))
         self.font_tiny.configure(size=-px(8))
@@ -308,12 +336,16 @@ class CompOverlay:
             c.create_rectangle(0, y0, w - px(4), y1, fill=surface, outline=border, width=1)
             c.create_rectangle(0, y0, px(2), y1, fill=accent, outline="")
 
+            side = str(g.get("side") or "blue").upper()
+            pug_count = len(comp.get("uncontrolled_roles") or [])
             if dead:
-                head = f"OUT · WAS #{int(comp.get('_was_rank', i + 1))} · {score:.1f}"
+                head = f"OUT · WAS #{int(comp.get('_was_rank', i + 1))} · {score:.1f} · {side}"
             else:
-                head = f"#{live_rank or i + 1} {'BEST' if is_best else 'LIVE'} · {score:.1f}"
+                head = f"#{live_rank or i + 1} {'BEST' if is_best else 'LIVE'} · {score:.1f} · {side}"
                 if lane:
                     head += f" · {lane:+.1f}"
+            if pug_count:
+                head += f" · {pug_count} PUG" + ("S" if pug_count != 1 else "")
             c.create_text(px(7), y0 + px(4), text=self._fit(head, self.font_title, w - px(14)), anchor="nw", font=self.font_title, fill=accent)
 
             champions = comp.get("champions") or {}
@@ -323,35 +355,50 @@ class CompOverlay:
             players = comp.get("players") or {}
             pick_nums = self._pick_numbers(comp)
             cell_w = max(px(48), (w - px(10)) // 5)
-            icons_y = y0 + px(25)
-            labels_y = icons_y + px(45)
-            player_y = labels_y + px(13)
+            icons_y = y0 + px(23)
+            labels_y = icons_y + px(49)
+            player_y = labels_y + px(12)
             locked = set((g.get("our_locked") or {}).values())
             bans, enemy_taken, ours_taken = self._effective_marks()
-            next_role = next((row.get("role") for row in (comp.get("pick_order") or []) if row.get("champion") not in locked), None)
+            uncontrolled = set(comp.get("uncontrolled_roles") or [])
+            next_role = next((
+                row.get("role") for row in (comp.get("pick_order") or [])
+                if row.get("champion") not in locked and row.get("role") not in uncontrolled
+            ), None)
 
             for ri, role in enumerate(ROLES):
                 cx = px(5) + ri * cell_w + cell_w // 2
                 primary = champions.get(role) or "—"
-                options = [champ for champ in (role_options.get(role) or [primary]) if champ][:3]
-                ids = list(role_option_ids.get(role) or [])[:len(options)]
-                if not ids:
-                    ids = [champion_ids.get(role)] + [None] * max(0, len(options) - 1)
+                if role in uncontrolled:
+                    actual = (comp.get("live_uncontrolled_champions") or {}).get(role)
+                    options = [actual] if actual else ["?"]
+                    ids = [(comp.get("live_uncontrolled_champion_ids") or {}).get(role)]
+                else:
+                    options = [champ for champ in (role_options.get(role) or [primary]) if champ][:3]
+                    ids = list(role_option_ids.get(role) or [])[:len(options)]
+                    if not ids:
+                        ids = [champion_ids.get(role)] + [None] * max(0, len(options) - 1)
 
                 n = max(1, len(options))
                 if n == 1:
-                    icon_size = min(px(42), cell_w - px(10))
+                    icon_size = min(px(48), cell_w - px(6))
+                    step = icon_size
                 elif n == 2:
-                    icon_size = min(px(30), max(px(24), (cell_w - px(8)) // 2))
+                    # Two alternatives remain proper portraits; a little overlap buys width without
+                    # making either option unreadable.
+                    icon_size = min(px(38), max(px(32), cell_w - px(16)))
+                    step = max(px(24), icon_size - px(10))
                 else:
-                    icon_size = min(px(22), max(px(18), (cell_w - px(10)) // 3))
-                opt_gap = px(2)
-                total_w = n * icon_size + (n - 1) * opt_gap
+                    # Three choices need to fit one role column. Keep the portraits ~30-32px and
+                    # fan them tightly rather than shrinking them into the old ~18px thumbnails.
+                    icon_size = min(px(32), max(px(30), cell_w - px(22)))
+                    step = max(px(11), (cell_w - icon_size) // 2)
+                total_w = icon_size + (n - 1) * step
                 start_x = cx - total_w // 2
 
                 for oi, champ in enumerate(options):
                     cid = ids[oi] if oi < len(ids) else None
-                    ix = start_x + oi * (icon_size + opt_gap)
+                    ix = start_x + oi * step
                     option_mark = "BAN" if champ in bans else ("ENEMY" if champ in enemy_taken else ("LOCKED" if champ in ours_taken else None))
                     outline = border
                     if option_mark in ("BAN", "ENEMY"):
@@ -374,62 +421,84 @@ class CompOverlay:
                         c.create_line(ix + icon_size, icons_y, ix, icons_y + icon_size, fill="#ee7d87", width=px(2))
 
                     # Pick order belongs to the role, so keep one badge on the primary option.
-                    if oi == 0 and pick_nums.get(role):
-                        badge_r = px(7)
-                        bx, by = ix + icon_size - px(1), icons_y + px(1)
-                        c.create_oval(bx - badge_r, by - badge_r, bx + badge_r, by + badge_r, fill="#14212b", outline=accent)
-                        c.create_text(bx, by, text=str(pick_nums[role]), font=self.font_tiny, fill=accent)
+                    if oi == 0 and role not in uncontrolled and pick_nums.get(role):
+                        badge_r = px(12)
+                        bx, by = ix + icon_size - px(3), icons_y + px(3)
+                        c.create_oval(bx - badge_r, by - badge_r, bx + badge_r, by + badge_r, fill="#14212b", outline=accent, width=max(1, px(2)))
+                        c.create_text(bx, by, text=str(pick_nums[role]), font=self.font_order, fill=accent)
 
                 role_colour = "#ee7d87" if marks.get(role) == "OUT" else ("#c8aa6e" if marks.get(role) == "LOCKED" else ink)
                 c.create_text(cx, labels_y, text=ROLE_SHORT[role], anchor="n", font=self.font_role, fill=role_colour)
                 player = str(players.get(role) or role)
+                if role in uncontrolled:
+                    player = "PUG · " + player
                 c.create_text(cx, player_y, text=self._fit(player, self.font_player, cell_w - px(4)), anchor="n", font=self.font_player, fill=secondary)
 
-            # Tiny footer makes test events and counter-driven movement obvious without calling the score a win %.
-            footer = "DRAFT SCORE"
+            # Show only OUR side's ban plan for this exact composition. Portraits are much easier to
+            # scan during draft than a tiny comma-separated text row.
+            ban_rows = [row for row in list(comp.get("counter_bans") or [])[:5] if row.get("champion")]
+            if ban_rows:
+                ban_size = px(19)
+                ban_gap = px(3)
+                label_x = px(7)
+                ban_y = y1 - ban_size - px(4)
+                c.create_text(label_x, ban_y + ban_size // 2, text="BANS", anchor="w", font=self.font_tiny,
+                              fill="#ee7d87" if not dead else secondary)
+                x = label_x + px(34)
+                for ban_index, row in enumerate(ban_rows, start=1):
+                    cid = row.get("champion_id")
+                    c.create_rectangle(x - 1, ban_y - 1, x + ban_size + 1, ban_y + ban_size + 1,
+                                       fill="#101820", outline="#ee7d87" if not dead else border, width=1)
+                    img = self._icon(cid, ban_size)
+                    if img is not None:
+                        c.create_image(x + ban_size // 2, ban_y + ban_size // 2, image=img, anchor="center")
+                    else:
+                        initials = "".join(part[0] for part in str(row.get("champion")).replace("'", " ").split()[:2]).upper()[:2]
+                        c.create_text(x + ban_size // 2, ban_y + ban_size // 2, text=initials, font=self.font_tiny, fill=secondary)
+                    c.create_text(x + px(2), ban_y + px(1), text=str(ban_index), anchor="nw", font=self.font_tiny,
+                                  fill="#ffffff" if not dead else secondary)
+                    x += ban_size + ban_gap
+
             test = g.get("test_overrides") or {}
             if test.get("bans") or test.get("enemy") or test.get("ours"):
-                footer += " · TEST EVENT"
-            c.create_text(px(7), y1 - px(12), text=footer, anchor="nw", font=self.font_tiny, fill=secondary)
+                c.create_text(w - px(7), y1 - px(8), text="TEST", anchor="se", font=self.font_tiny, fill="#c8aa6e")
 
     def _tick(self) -> None:
         client_rect = self._client_rect()
-        # League swaps focus between several child/host HWNDs during champ select. Compare the
-        # foreground *process* rather than one exact HWND: stable in-client, but still hides on alt-tab.
-        foreground = self.u.GetForegroundWindow()
-        focus_ok = foreground == self.hwnd
-        if client_rect and foreground and not focus_ok:
-            client_pid = wintypes.DWORD()
-            foreground_pid = wintypes.DWORD()
-            self.u.GetWindowThreadProcessId(self.client, ctypes.byref(client_pid))
-            self.u.GetWindowThreadProcessId(foreground, ctypes.byref(foreground_pid))
-            focus_ok = bool(client_pid.value and client_pid.value == foreground_pid.value)
-        now = time.time()
-        if focus_ok:
-            self._last_focus_at = now
-        # Rat's native HUD briefly takes foreground while its Hover/Lock buttons are clicked.
-        # A short grace period prevents the left panel blinking during that interaction.
-        focus_ok = focus_ok or (self.in_draft and now - self._last_focus_at <= 1.5)
-        show = bool(client_rect and self.in_draft and self.cards and not self.u.IsIconic(self.client) and focus_ok)
+        # Stay attached to League while the user types/browses on another monitor. Visibility is
+        # controlled by actual champ-select state, not foreground focus.
+        show = bool(client_rect and self.in_draft and self.cards and not self.u.IsIconic(self.client))
         if show:
             cx, cy, cw, ch = client_rect
             virtual_left = self.u.GetSystemMetrics(SM_XVIRTUALSCREEN)
             available = max(0, cx - virtual_left - 4)
-            panel_w = min(330, available)
+            panel_w = min(350, available)
             if panel_w < 105:
                 panel_w = min(150, max(90, cx - virtual_left))
             panel_x = max(virtual_left, cx - panel_w - 4)
             rect = (panel_x, cy, panel_w, ch)
             if rect != self.rect:
+                old_size = self.rect[2:]
                 self.rect = rect
-                self.root.geometry(f"{panel_w}x{ch}+{panel_x}+{cy}")
+                # Native SetWindowPos is substantially smoother than rebuilding Tk geometry while
+                # dragging the League client. It moves/resizes without activating this overlay.
+                self.u.SetWindowPos(self.hwnd, -1, panel_x, cy, panel_w, ch, 0x0010 | 0x0040)
+                if old_size != (panel_w, ch):
+                    self._dirty = True
             if str(self.root.state()) == "withdrawn":
                 self.root.deiconify()
-                self.u.SetWindowPos(self.hwnd, -1, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010)
-            self._draw()
+                self.u.SetWindowPos(self.hwnd, -1, panel_x, cy, panel_w, ch, 0x0010 | 0x0040)
+                self._dirty = True
+            if self.icon_mailbox:
+                self._dirty = True
+            if self._dirty:
+                self._draw()
+                self._dirty = False
         elif str(self.root.state()) != "withdrawn":
             self.root.withdraw()
-        self.root.after(80, self._tick)
+        # 30 Hz position following feels smooth while dragging, but redraws happen only on data/icon
+        # changes, so idle champ select costs very little CPU.
+        self.root.after(33, self._tick)
 
     def run(self) -> None:
         try:

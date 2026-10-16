@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import time
 from collections import deque
 from pathlib import Path
@@ -241,7 +242,25 @@ class Hub:
                 self._pending = None
                 started = time.perf_counter()
                 try:
-                    guidance = await asyncio.to_thread(advisor.advise, state, self.roster, meta=self.meta, matchups=self.matchups)
+                    if os.environ.get("INTENT_LIVE") == "1":
+                        # In INTent live mode this server is the lightweight LCU/state/action layer.
+                        # The shared backend on :8766 owns composition scoring, matchup reactions,
+                        # bans and pick order, so running Rat's full advisor here would duplicate the
+                        # expensive search on every hover/pick/ban for no visible benefit.
+                        active_cells = set(state.active.cell_ids)
+                        guidance = {
+                            "headline": "INTent live backend",
+                            "phase_kind": state.active.kind,
+                            "picks": [], "bans": [], "counters": [], "comps": [], "notes": [], "alerts": [],
+                            "likely_enemy": [], "flex": [], "swaps": [],
+                            "roles_now": [p.role for p in state.our_team if p.cell_id in active_cells and p.role],
+                            "picking_now": bool(state.active.kind == "pick" and state.active.ours),
+                            "draft_complete": len(state.our_locked()) == 5,
+                            "our_locked": state.our_locked(),
+                            "enemy_locked": state.enemy_locked(),
+                        }
+                    else:
+                        guidance = await asyncio.to_thread(advisor.advise, state, self.roster, meta=self.meta, matchups=self.matchups)
                 except Exception as exc:  # noqa: BLE001
                     log.exception("advice failed")
                     guidance = {"error": str(exc), "headline": "Scoring failed", "phase_kind": "error", "picks": [], "bans": [],

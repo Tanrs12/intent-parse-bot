@@ -367,6 +367,23 @@ def state_from_lcu_session(session: dict, roster: Roster | None = None, gameflow
         if member.get("team") in (1, 2):
             team_number = int(member["team"])
             break
+    if team_number is None:
+        # Blue side owns the first pick. Some custom/bot sessions omit ``team`` but still expose
+        # the complete action order, so use the first pick actor before falling back to cell ids.
+        our_cells = {int(member.get("cellId", -999)) for member in my_team}
+        first_pick_cell = None
+        for group in session.get("actions") or []:
+            for action in group or []:
+                if str(action.get("type") or "").casefold() == "pick":
+                    try:
+                        first_pick_cell = int(action.get("actorCellId"))
+                    except (TypeError, ValueError):
+                        first_pick_cell = None
+                    break
+            if first_pick_cell is not None:
+                break
+        if first_pick_cell is not None:
+            team_number = 1 if first_pick_cell in our_cells else 2
     if team_number is None and my_team:
         team_number = 1 if int(my_team[0].get("cellId", 0)) < 5 else 2
     state.side = "red" if team_number == 2 else "blue"

@@ -5,6 +5,7 @@ import asyncio
 import base64
 import json
 import os
+import socket
 import ssl
 import subprocess
 import sys
@@ -60,8 +61,12 @@ league_comp_engine._RECENT_PRO_CACHE = (None, {})
 
 _cache_lock = threading.Lock()
 _signups: list[dict] = []
-_last_signup_refresh = 0.0
-_last_pro_refresh = 0.0
+# Cached data is good enough to start champ select instantly; slow network refreshes happen later
+# in the background instead of competing with League / the overlay during launch.
+_last_signup_refresh = time.time() if SIGNUP_CACHE.exists() else 0.0
+_last_pro_refresh = time.time() if RUNTIME_PRO_PATH.exists() else 0.0
+SIGNUP_REFRESH_SECONDS = 10 * 60
+PRO_REFRESH_SECONDS = 6 * 60 * 60
 _compute_lock = threading.Lock()
 _response_cache_key = None
 _response_cache_value = None
@@ -114,7 +119,7 @@ def _gameflow():
 
 
 def _party_gate():
-    """Require a confirmed five-player premade before enabling Flex guidance.
+    """Allow a 3-5 player premade in normal Flex while keeping one/two-player normal PvP gated off.
 
     League's lobby endpoint disappears once champion select begins, so remember the
     most recent lobby size briefly and carry that confirmation into champion select.
@@ -134,7 +139,7 @@ def _party_gate():
     fresh_cached = _party_size_cache is not None and now - _party_size_at <= PARTY_CACHE_SECONDS
     size = live_size if live_size is not None else (_party_size_cache if fresh_cached else None)
     return {
-        "party_confirmed": size == 5,
+        "party_confirmed": size in (3, 4, 5),
         "party_size": size,
         "party_cached": live_size is None and fresh_cached,
     }
@@ -192,9 +197,9 @@ def _signup_export_script() -> str:
 
 
 def refresh_signups(force: bool = False):
-    global _signups, _last_signup_refresh
+    global _signups, _last_signup_refresh, _response_cache_key
     now = time.time()
-    if not force and now - _last_signup_refresh < 600:
+    if not force and now - _last_signup_refresh < SIGNUP_REFRESH_SECONDS:
         return
     _last_signup_refresh = now
     if not NORTHFLANK.exists():
@@ -213,20 +218,24 @@ def refresh_signups(force: bool = False):
         parsed = json.loads(line[len(marker):])
         if isinstance(parsed, list) and parsed:
             with _cache_lock:
+                changed = parsed != _signups
                 _signups = parsed
+            if changed:
+                _response_cache_key = None
             SIGNUP_CACHE.write_text(json.dumps(parsed, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception:
         return
 
 
 def refresh_pro_snapshot(force: bool = False):
-    global _last_pro_refresh
+    global _last_pro_refresh, _response_cache_key
     now = time.time()
-    if not force and now - _last_pro_refresh < 600:
+    if not force and now - _last_pro_refresh < PRO_REFRESH_SECONDS:
         return
     _last_pro_refresh = now
     try:
         asyncio.run(refresh_recent_pro_data(path=RUNTIME_PRO_PATH))
+        _response_cache_key = None
     except Exception:
         pass
 
@@ -258,33 +267,140 @@ def _test_lineup_ids() -> list[int]:
 
 TEST_LINEUP_IDS = _test_lineup_ids()
 
+_PUG_FALLBACK = {
+    "Top": ["Ornn", "Gnar", "K'Sante"],
+    "Jungle": ["Sejuani", "Wukong", "Vi"],
+    "Mid": ["Orianna", "Ahri", "Ryze"],
+    "ADC": ["Ezreal", "Jhin", "Kai'Sa"],
+    "Support": ["Nautilus", "Braum", "Karma"],
+}
+_PUG_POOL_CACHE: dict[str, list[str]] = {}
+
+
+def _pug_role_pool(role: str, limit: int = 3) -> list[str]:
+    """Small neutral meta pool for an uncontrolled teammate before they hover.
+
+    We never present these as instructions to the PUG; they only let the scorer estimate the
+    unknown slot until Riot reveals the teammate's real hover/lock.  A deliberately tiny pool
+    keeps 3/4-man recomputes cheap and avoids pretending we know the random player's mastery.
+    """
+    if role in _PUG_POOL_CACHE:
+        return list(_PUG_POOL_CACHE[role][:limit])
+    pool: list[str] = []
+    try:
+        index = league_comp_engine.load_solo_queue_winrates().get(role, {})
+        blocked = set(getattr(league_comp_engine, "BLOCKED_ROLE_PICKS", set()) or set())
+        excluded = set(getattr(league_comp_engine, "DISPLAY_EXCLUDED_CHAMPIONS", set()) or set())
+        rows = []
+        for champion, data in index.items():
+            champion = str(champion)
+            if (role, champion) in blocked or champion in excluded:
+                continue
+            weight = float((data or {}).get("weight", 0) or 0)
+            win_rate = float((data or {}).get("win_rate", 50.0) or 50.0)
+            rows.append((weight, -abs(win_rate - 50.0), champion))
+        rows.sort(reverse=True)
+        pool = [row[2] for row in rows[:limit]]
+    except Exception:
+        pool = []
+    if not pool:
+        pool = list(_PUG_FALLBACK.get(role, []))[:limit]
+    _PUG_POOL_CACHE[role] = list(pool)
+    return list(pool)
+
+
+def _known_live_profile_count(state: dict) -> int:
+    with _cache_lock:
+        known = {int(row["user_id"]) for row in _signups if row.get("user_id")}
+    return len({int(row["user_id"]) for row in (state.get("our_team") or []) if row.get("user_id") and int(row["user_id"]) in known})
+
+
+def _live_pug_signup(row: dict, index: int) -> dict | None:
+    role = row.get("role")
+    if role not in ROLES:
+        return None
+    live_champion = row.get("locked") or row.get("hover")
+    pool = [live_champion] if live_champion else _pug_role_pool(role)
+    if not pool:
+        return None
+    try:
+        cell_id = int(row.get("cell_id"))
+    except (TypeError, ValueError):
+        cell_id = index
+    account = str(row.get("riot_id") or row.get("display_name") or f"PUG {index + 1}")
+    return {
+        "user_id": -100000 - abs(cell_id) - index * 100,
+        "display_name": account,
+        "roles": [role],
+        "role_priority": {role: 1},
+        "champions": {role: list(pool)},
+        "_uncontrolled": True,
+        "_live_account": account,
+        "_profile_display_name": None,
+        "_live_champion_confirmed": bool(live_champion),
+    }
+
 
 def _current_five(state: dict, *, fill_for_test: bool = False) -> list[dict]:
-    ids = []
-    for row in state.get("our_team", []) or []:
-        if row.get("user_id"):
-            uid = int(row["user_id"])
-            if uid not in ids:
-                ids.append(uid)
-    with _cache_lock:
-        by_id = {int(row["user_id"]): row for row in _signups}
-    matched = [uid for uid in ids if uid in by_id]
-    if fill_for_test and len(matched) < 5:
-        for uid in TEST_LINEUP_IDS:
-            if uid in by_id and uid not in matched:
-                matched.append(uid)
-            if len(matched) >= 5:
-                break
-        if len(matched) < 5:
-            for uid in by_id:
-                if uid not in matched:
-                    matched.append(uid)
-                if len(matched) >= 5:
-                    break
-    if len(matched) != 5:
-        return []
-    return [by_id[uid] for uid in matched]
+    """Resolve the five live seats to known profiles plus honest PUG placeholders.
 
+    Known people are matched by the roster's Riot-account mapping and keep their saved pools, but
+    their *display label* is the actual account currently in champ select.  In 3/4-man normal Flex,
+    unmatched real seats become neutral, role-fixed PUG profiles.  Custom/bot testing keeps using
+    the explicit five-person test lineup rather than treating Riot bots as people.
+    """
+    team = list(state.get("our_team") or [])
+    with _cache_lock:
+        by_id = {int(row["user_id"]): row for row in _signups if row.get("user_id")}
+
+    resolved: list[dict] = []
+    used_ids: set[int] = set()
+    for row in team:
+        if not row.get("user_id"):
+            continue
+        uid = int(row["user_id"])
+        if uid in used_ids or uid not in by_id:
+            continue
+        profile = dict(by_id[uid])
+        account = str(row.get("riot_id") or row.get("display_name") or profile.get("display_name") or uid)
+        profile["_profile_display_name"] = profile.get("display_name")
+        profile["_live_account"] = account
+        profile["_uncontrolled"] = False
+        profile["display_name"] = account
+        resolved.append(profile)
+        used_ids.add(uid)
+
+    if fill_for_test:
+        for uid in TEST_LINEUP_IDS:
+            if uid in by_id and uid not in used_ids:
+                resolved.append(dict(by_id[uid]))
+                used_ids.add(uid)
+            if len(resolved) >= 5:
+                break
+        if len(resolved) < 5:
+            for uid, profile in by_id.items():
+                if uid not in used_ids:
+                    resolved.append(dict(profile))
+                    used_ids.add(uid)
+                if len(resolved) >= 5:
+                    break
+        return resolved[:5] if len(resolved) >= 5 else []
+
+    for index, row in enumerate(team):
+        uid = int(row["user_id"]) if row.get("user_id") else None
+        if uid is not None and uid in used_ids:
+            continue
+        # Ignore synthetic padded seats; normal PvP champ select supplies five real LCU rows.
+        try:
+            if int(row.get("cell_id")) < 0 and not row.get("riot_id"):
+                continue
+        except (TypeError, ValueError):
+            pass
+        pug = _live_pug_signup(row, index)
+        if pug is not None:
+            resolved.append(pug)
+
+    return resolved[:5] if len(resolved) == 5 else []
 
 def _locked_by_role(state: dict) -> dict[str, str]:
     return {row["role"]: row["locked"] for row in state.get("our_team", []) if row.get("role") in ROLES and row.get("locked")}
@@ -409,6 +525,9 @@ def _live_lane_adjustment(rec: dict, state: dict) -> tuple[float, list[dict]]:
         role = enemy.get("role")
         enemy_champion = enemy.get("locked") or enemy.get("hover")
         our_champion = champions.get(role) if role in ROLES else None
+        player = (rec.get("players", {}).get(role) or {}) if role in ROLES else {}
+        if player.get("_uncontrolled") and not player.get("_live_champion_confirmed"):
+            continue
         if not role or not enemy_champion or not our_champion:
             continue
         advantage, games = league_comp_engine.matchup_response(role, enemy_champion, our_champion, matchups)
@@ -445,7 +564,11 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
     picks = []
     seen = set()
     for rec in recs:
-        next_row = next((row for row in rec.get("pick_order", []) if row.get("role") not in locked_roles), None)
+        next_row = next((
+            row for row in rec.get("pick_order", [])
+            if row.get("role") not in locked_roles
+            and not (rec.get("players", {}).get(row.get("role")) or {}).get("_uncontrolled")
+        ), None)
         if not next_row:
             continue
         champ = next_row["champion"]
@@ -453,7 +576,8 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         if (champ, role) in seen:
             continue
         seen.add((champ, role))
-        player = (rec.get("players", {}).get(role) or {}).get("display_name", role)
+        player_data = rec.get("players", {}).get(role) or {}
+        player = player_data.get("display_name", role)
         lane = [edge for edge in rec.get("live_lane_edges", []) if edge.get("role") == role]
         why = ["same comp/player ranking brain as /league game"]
         if lane:
@@ -480,6 +604,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
             "priority": int(((rec.get("players", {}).get(role) or {}).get("role_priority") or {}).get(role, 2)),
             "source": "intent",
             "player": player,
+            "player_id": int(player_data.get("user_id") or 0),
             "team_plan": rec.get("team_plan"),
             "why": why,
         })
@@ -496,6 +621,11 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
                 if champ:
                     bans.append({"champion": champ, "champion_id": _champion_id(champ), "score": float(item.get("score", 1.0) or 1.0), "reasons": item.get("reasons") or [item.get("reason") or "protects the planned Intent draft"], "tags": list(item.get("tags") or ["intent"])})
 
+    live_by_role = {
+        row["role"]: (row.get("locked") or row.get("hover"))
+        for row in state.get("our_team", [])
+        if row.get("role") in ROLES and (row.get("locked") or row.get("hover"))
+    }
     comps = []
     for rec in recs[:6]:
         comps.append({
@@ -521,8 +651,41 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
             },
             "players": {role: (rec.get("players", {}).get(role) or {}).get("display_name", role) for role in ROLES},
             "player_ids": {role: int((rec.get("players", {}).get(role) or {}).get("user_id") or 0) for role in ROLES},
+            "player_meta": {
+                role: {
+                    "uncontrolled": bool((rec.get("players", {}).get(role) or {}).get("_uncontrolled")),
+                    "profile_name": (rec.get("players", {}).get(role) or {}).get("_profile_display_name"),
+                    "live_account": (rec.get("players", {}).get(role) or {}).get("_live_account")
+                                    or (rec.get("players", {}).get(role) or {}).get("display_name"),
+                }
+                for role in ROLES
+            },
+            "uncontrolled_roles": [
+                role for role in ROLES if (rec.get("players", {}).get(role) or {}).get("_uncontrolled")
+            ],
+            "live_uncontrolled_champions": {
+                role: live_by_role.get(role)
+                for role in ROLES
+                if (rec.get("players", {}).get(role) or {}).get("_uncontrolled") and live_by_role.get(role)
+            },
+            "live_uncontrolled_champion_ids": {
+                role: _champion_id(live_by_role.get(role))
+                for role in ROLES
+                if (rec.get("players", {}).get(role) or {}).get("_uncontrolled") and live_by_role.get(role)
+            },
             "team_plan": rec.get("team_plan"),
             "pick_order": list(rec.get("pick_order") or []),
+            # Counter bans are calculated against this exact composition/pick order by the same
+            # shared backend. The overlay shows only our side's five bans, never both teams' plans.
+            "counter_bans": [
+                {
+                    "champion": (item if isinstance(item, str) else (item.get("champion") or item.get("name"))),
+                    "champion_id": _champion_id(item if isinstance(item, str) else (item.get("champion") or item.get("name"))),
+                    "score": 1.0 if isinstance(item, str) else float(item.get("score", 1.0) or 1.0),
+                }
+                for item in (rec.get("counter_bans") or [])[:5]
+                if (item if isinstance(item, str) else (item.get("champion") or item.get("name")))
+            ],
         })
     active = state.get("active") or {}
     roles_now = [row["role"] for row in state.get("our_team", []) if row.get("role") in ROLES and not row.get("locked")]
@@ -530,6 +693,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
     return {
         "headline": ("Ban now: " + bans[0]["champion"]) if active.get("kind") == "ban" and active.get("ours") and bans else (("Pick " + picks[0]["champion"]) if picks else "Intent draft ready"),
         "phase_kind": active.get("kind") or "idle",
+        "side": str(result.get("side") or state.get("side") or "blue").casefold(),
         "roles_now": roles_now,
         "picking_now": bool(active.get("kind") == "pick" and active.get("ours")),
         "draft_complete": len(locked_roles) == 5,
@@ -579,18 +743,26 @@ def build_response():
 
     party = _party_gate()
     testing = bool(merged_gate.get("is_custom") or merged_gate.get("is_bot"))
-    # Custom and versus-AI lobbies are allowed for solo bot testing. Real PvP matchmaking still
-    # requires a confirmed five-player premade.
-    if not testing and not party["party_confirmed"]:
+    known_profiles = _known_live_profile_count(state)
+    party_inferred = party.get("party_size") is None and known_profiles >= 3
+    # Custom and versus-AI lobbies are allowed for solo visual testing. Normal PvP supports
+    # 3/4/5-player premades; one/two-player queues remain off. If the lobby endpoint vanished
+    # before this helper started, three matched live profiles are sufficient evidence to continue.
+    if not testing and not (party["party_confirmed"] or party_inferred):
         size = party.get("party_size")
-        reason = "Draft Coach only runs in a 5-man party" if size is None else f"Draft Coach only runs in a 5-man party ({size}/5 currently)"
-        return {"active": False, "disabled": True, "reason": reason, **merged_gate, **party}
-    if not status.get("lcu_in_champ_select") and state.get("source") != "manual":
+        reason = "Draft Coach normal PvP needs a 3-5 player premade" if size is None else f"Draft Coach normal PvP needs a 3-5 player premade ({size}/5 currently)"
+        return {"active": False, "disabled": True, "reason": reason, "known_profiles": known_profiles,
+                "party_inferred": party_inferred, **merged_gate, **party}
+    # Live helpers are champion-select-only. The server keeps a manual board state while idle;
+    # never score that in the background or let it keep the overlays alive over the normal client.
+    in_champ_select = bool(status.get("lcu_in_champ_select")) or state.get("source") == "simulation"
+    if not in_champ_select:
         return {"active": False, "disabled": False, "reason": "Waiting for champion select", **merged_gate, **party}
     five = _current_five(state, fill_for_test=testing)
     if len(five) != 5:
-        label = "test lineup" if testing else "Discord signup profiles"
-        return {"active": False, "disabled": False, "reason": f"Waiting for all five {label}", "matched": len(five), **merged_gate, **party}
+        label = "test lineup" if testing else "live seats/roles"
+        return {"active": False, "disabled": False, "reason": f"Waiting for all five {label}", "matched": len(five),
+                "known_profiles": known_profiles, "party_inferred": party_inferred, **merged_gate, **party}
     effective_state = _apply_test_overrides(_state_for_test(state)) if testing else state
     locked = _locked_by_role(effective_state)
     unavailable = _unavailable(effective_state)
@@ -601,12 +773,17 @@ def build_response():
         "enemy_bans": effective_state.get("enemy_bans") or [],
         "locked": locked,
         "enemy_locked": [row.get("locked") for row in effective_state.get("enemy_team", []) if row.get("locked")],
+        "enemy_hovers": [(row.get("role"), row.get("hover")) for row in effective_state.get("enemy_team", []) if row.get("hover")],
+        "our_hovers": [(row.get("role"), row.get("hover"), row.get("user_id")) for row in effective_state.get("our_team", []) if row.get("hover")],
         "players": [int(row["user_id"]) for row in five],
+        "pug_pools": [
+            (int(row["user_id"]), row.get("champions") or {}) for row in five if row.get("_uncontrolled")
+        ],
     }, sort_keys=True)
     global _response_cache_key, _response_cache_value, _response_cache_at
     with _compute_lock:
         now = time.time()
-        if cache_key == _response_cache_key and _response_cache_value is not None and now - _response_cache_at < 5:
+        if cache_key == _response_cache_key and _response_cache_value is not None:
             return _response_cache_value
         result = recommend_live_drafts(
             five,
@@ -616,7 +793,9 @@ def build_response():
             limit=6,
             rotation_token=None,
         )
-        response = {"active": True, "disabled": False, "reason": "Intent backend active", "testing": testing, "guidance": _guidance_from_result(result, effective_state), **merged_gate, **party}
+        response = {"active": True, "disabled": False, "reason": "Intent backend active", "testing": testing,
+                    "known_profiles": known_profiles, "party_inferred": party_inferred,
+                    "guidance": _guidance_from_result(result, effective_state), **merged_gate, **party}
         _response_cache_key = cache_key
         _response_cache_value = response
         _response_cache_at = now
@@ -689,6 +868,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8766)
     args = parser.parse_args()
+    # Separate singleton lock: protects against double-clicks / stale launcher races even on
+    # Windows builds where the HTTP listener can briefly be reused.
+    instance_lock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        instance_lock.bind(("127.0.0.1", 18766))
+    except OSError:
+        instance_lock.close()
+        return
     _load_cached_signups()
     # Serve the cached signup data immediately. Northflank refresh happens in the background;
     # champ-select overlays should not wait up to 25 seconds just to bind this local port.

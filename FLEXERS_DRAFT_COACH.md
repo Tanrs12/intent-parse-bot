@@ -19,7 +19,7 @@ draft knows and the bot cannot: calibrated matchups against enemy locks, how ans
 pick still is, scouting-based bans, the team's chosen playbook plan, and the client actions.
 `settings.ranking = "engine"` switches back to the raw composition search for comparison.
 
-The live coach is intended for **5-man Ranked Flex**. Custom games and versus-AI queues are also allowed as solo test modes, while ARAM / ARAM: Mayhem stay disabled. The in-client left overlay freezes the six opening `/league game` plans, shows the player/role assignment from each plan (not Riot's seat labels), and marks plans when a champion is banned or taken by the enemy. Revealed enemy lane picks add the Draft Coach calibrated matchup layer on top of the shared composition/player score; the adjustment is deliberately bounded so a nominal counter cannot rescue a much worse five-man composition.
+The live coach supports **3-, 4- and 5-player Ranked Flex premades**. In 3/4-man queues, known teammates keep their saved account/profile data while unmatched teammates are marked as PUGs, fixed to the role Riot assigns them, and treated neutrally until their real hover/lock is visible. One/two-player normal PvP stays disabled. Custom games and versus-AI queues are also allowed as solo test modes, while ARAM / ARAM: Mayhem stay disabled. The in-client left overlay freezes the six opening `/league game` plans, shows the player/role assignment from each plan, and marks plans when a champion is banned or taken by the enemy. Revealed enemy lane picks add the Draft Coach calibrated matchup layer on top of the shared composition/player score; the adjustment is deliberately bounded so a nominal counter cannot rescue a much worse five-man composition.
 
 Download: https://github.com/Tanrs12/intent-parse-bot/releases/latest/download/FlexersDraftCoach.zip
 
@@ -63,7 +63,7 @@ The engine consumes these files from `data/`:
 - `league_recent_pro.json`
 - `league_role_champions.json`
 
-`league_pro_data.py` refreshes recent pro games. The Discord bot currently refreshes that snapshot every six hours; Cian's local Draft Coach helper refreshes it more frequently while the coach is running.
+`league_pro_data.py` refreshes recent pro games. The Discord bot and lightweight live Draft Coach both use a six-hour pro-data cadence; player/signup data refreshes every ten minutes. Cached snapshots are used immediately at launch so network refreshes never block champion select.
 
 A reusable sync helper is included at `tools/sync_flexers_draft_coach.py`. Example:
 
@@ -102,6 +102,21 @@ On Cian's machine the known-good test interpreter is:
 
 When changing the drafting brain, update the shared backend here first. Draft Coach should consume the updated backend rather than forking the scoring logic again.
 
+### Source live launcher (Windows)
+
+For the lightweight source build, create a dedicated environment once:
+
+```powershell
+py -3.14 -m venv .draftcoach-venv
+.\.draftcoach-venv\Scripts\python.exe -m pip install -r requirements-draftcoach.txt
+```
+
+Then run `tools/start_intent_draftcoach.ps1`; `tools/stop_intent_draftcoach.ps1` shuts down only this repository's Draft Coach processes. The launcher starts one lightweight LCU/state server plus the shared bridge, the six-comp outside-left overlay, and the next-action HUD. Each helper also has a singleton guard so a double launch cannot leave duplicate workers behind.
+
+Rat's original `draftcoach/hud.py` remains untouched. `draftcoach/hud_intent.py` is a preserved copy used by the INTent launcher, with Rat's presentation/buttons but INTent backend data. In `INTENT_LIVE` mode the source server skips Rat's second full advisor search and only supplies LCU state/client actions; the shared backend on port 8766 is the one scoring drafts. This avoids doing the same expensive composition search twice.
+
+The overlays are champion-select-only. They stay attached to the League window if focus moves to another monitor, hide immediately when champion select ends / game starts, and do not activate in ARAM or ARAM: Mayhem. Normal PvP accepts confirmed 3-5 player premades; one/two-player queues remain off. Custom and versus-AI drafts are test exceptions.
+
 ## Local live bridge
 
 The packaged build from `main` **is** this flow: `build_exe.py` applies `tools/patch_flexers_intent_ui.py`
@@ -120,13 +135,15 @@ anyone without Northflank access.
 
 `tools/patch_flexers_intent_ui.py <FlexersDraftCoach folder>` patches the packaged Coach/HUD HTML so its visible pick and ban recommendations come from that bridge instead of the packaged advisor. The original HTML files are preserved as `.intent.bak` files.
 
-The bridge deliberately disables Flex recommendations in standard ARAM and ARAM: Mayhem. It detects both the known queue IDs (450 and 2400) and the League Client gameflow mode/name (`ARAM`, `Mayhem`, `KIWI`, or Howling Abyss) so the HUD does not appear in those lobbies. It also requires a confirmed five-player premade: the League lobby must contain exactly five party members before guidance is enabled, and that confirmation is cached briefly so it survives the transition from lobby into champion select.
+The bridge deliberately disables Flex recommendations in standard ARAM and ARAM: Mayhem. It detects both the known queue IDs (450 and 2400) and the League Client gameflow mode/name (`ARAM`, `Mayhem`, `KIWI`, or Howling Abyss) so the HUD does not appear in those lobbies. Normal PvP requires a confirmed 3-5 player premade; that party-size confirmation is cached briefly so it survives the transition from lobby into champion select. If the helper starts after the lobby endpoint has disappeared, three matched live profiles can carry the same confirmation forward.
 
 ## Live UI split
 
 During champion select the six composition cards are docked **outside the left edge** of the League client. Each card shows the five champion portraits, the player/role assignment, and a 1-5 badge for that composition's planned reveal order. The cards are ordered by the same shared backend score; Rat's bounded live matchup adjustment can move close plans up/down when an enemy role is revealed. The number shown is a **draft score, not a literal calibrated win percentage**.
 
 The familiar bottom-right HUD has a different job: it shows only the **next action now** (pick or ban) and keeps the Hover / Lock-in buttons. In packaged builds it is fed through `tools/intent_hud_proxy.py`, so it uses the same INTent recommendation as the left-side cards instead of a second advisor result.
+
+Live labels use the Riot account actually present in champion select. The canonical player profile still supplies that person's roles/pools in the background. If somebody uses a Riot account that is not mapped yet, the app does **not** guess their identity: it displays that account as an unmapped PUG until the new Riot ID is added to that person's `riot_ids` in `loadfiles/flexers-team.json`. In a 3/4-man queue, genuine random teammates are handled the same way; the overlay shows `PUG` and `?` until their real hover/lock is known rather than pretending the neutral placeholder is a recommendation for them.
 
 If a displayed plan becomes impossible because one of its champions is banned or taken by the enemy, the left card is kept temporarily as a red/grey `OUT` card with an X on the affected portrait while the surviving/new plans move ahead of it.
 

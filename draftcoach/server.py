@@ -43,6 +43,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -171,7 +172,10 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
         for ws in dead:
             clients.discard(ws)
 
-    hub = Hub(roster, draft, broadcast, debounce_ms=int(config.get("debounce_ms", 30)), roster_path=roster_path)
+    # INTent live mode gets its ranked recommendations from the shared bridge, so Rat's speculative
+    # prewarm passes only duplicate work. Keep Rat's original default everywhere else.
+    prewarm = 0 if os.environ.get("INTENT_LIVE") == "1" else int(config.get("prewarm", 3))
+    hub = Hub(roster, draft, broadcast, debounce_ms=int(config.get("debounce_ms", 30)), prewarm=prewarm, roster_path=roster_path)
     art_dir = find_art_dir(config.get("art_dir"))
     app.state.art_dir = art_dir
     art_cache: dict[str, bytes] = {}
