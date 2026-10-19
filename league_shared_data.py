@@ -15,6 +15,7 @@ DATA_BASE_URL = "https://raw.githubusercontent.com/Tanrs12/intent-parse-bot/main
 SNAPSHOT_SCHEMAS = {
     "league_player_profiles.json": "players",
     "league_lane_matchups.json": "matchups",
+    "league_open_pro_pairs.json": "pairs",
 }
 MAX_BYTES = 20_000_000
 
@@ -45,7 +46,14 @@ def sync_shared_league_data(
             if len(raw) > MAX_BYTES:
                 raise ValueError("snapshot exceeds 20MB")
             data = json.loads(raw)
-            if not isinstance(data, dict) or not isinstance(data.get(required), dict) or not data[required]:
+            if not isinstance(data, dict):
+                raise ValueError(f"invalid {filename} schema")
+            if filename == "league_open_pro_pairs.json":
+                if (not isinstance(data.get("pairs"), list)
+                    or data.get("source", {}).get("name") != "ChainCC"
+                    or data.get("source", {}).get("license") != "CC BY 4.0"):
+                    raise ValueError(f"invalid licensed pro schema: {filename}")
+            elif not isinstance(data.get(required), dict) or not data[required]:
                 raise ValueError(f"invalid {filename} schema")
 
             target = root / filename

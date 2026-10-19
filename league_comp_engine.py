@@ -7,6 +7,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Iterable
 
+from league_multi_source import open_pro_pair_signal
+
 ROLES = ("Top", "Jungle", "Mid", "ADC", "Support")
 DATA_PATH = Path(__file__).with_name("data") / "league_comp_meta.json"
 MATCHUP_PATH = Path(__file__).with_name("data") / "league_lane_matchups.json"
@@ -719,6 +721,13 @@ def _bot_lane_duo_score(adc: str, support: str, meta: dict) -> dict:
         score -= 0.45
         reasons.append("little organised-play evidence")
 
+    # Independent licensed pro dataset; never presented as SoloQ evidence.
+    # Bounded to < 0.8/10 so practiced duo comfort + botlane gameplan dominate.
+    open_pair = open_pro_pair_signal("ADC", adc, "Support", support)
+    score += open_pair["adjustment"]
+    if open_pair["games"] >= 8 and open_pair["adjustment"] > 0.12:
+        reasons.append(f"{open_pair['games']} ChainCC pro duo games (CC BY 4.0)")
+
     score = max(0.0, min(10.0, score))
     grade = "excellent" if score >= 8.2 else "strong" if score >= 7.0 else "playable" if score >= 5.5 else "weak" if score >= 4.0 else "avoid"
     return {"score": round(score, 1), "grade": grade, "reasons": reasons[:3], "pro_games": games}
@@ -751,6 +760,10 @@ def _coordinated_duo_score(role_a: str, champ_a: str, role_b: str, champ_b: str,
     if control >= 0.67 and damage >= 0.60:
         score += 0.65
         reasons.append("setup + follow-up fit")
+    open_pair = open_pro_pair_signal(role_a, champ_a, role_b, champ_b)
+    score += open_pair["adjustment"]
+    if open_pair["games"] >= 8 and open_pair["adjustment"] > 0.12:
+        reasons.append(f"{open_pair['games']} ChainCC pro pair games (CC BY 4.0)")
     score = max(0.0, min(10.0, score))
     grade = "excellent" if score >= 8.2 else "strong" if score >= 7.0 else "playable" if score >= 5.5 else "weak" if score >= 4.0 else "avoid"
     return {"score": round(score, 1), "grade": grade, "reasons": reasons[:3], "pro_games": games}

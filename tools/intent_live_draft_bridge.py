@@ -23,6 +23,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 import league_comp_engine
+import league_multi_source
 from league_draft_backend import _pick_group_meta, recommend_live_drafts
 from league_pro_data import refresh_recent_pro_data
 
@@ -357,6 +358,7 @@ SHARED_CACHE_DIR = Path(
 SHARED_ENGINE_FILES = {
     "league_player_profiles.json": ("players",),
     "league_lane_matchups.json": ("matchups",),
+    "league_open_pro_pairs.json": ("pairs",),
 }
 _last_shared_refresh = 0.0
 _shared_source_status: dict[str, dict] = {}
@@ -373,6 +375,9 @@ def _activate_engine_snapshot(name: str, destination: Path) -> None:
             league_comp_engine.MATCHUP_PATH = destination
             league_comp_engine.load_lane_matchups.cache_clear()
             league_comp_engine.load_solo_queue_winrates.cache_clear()
+        elif name == "league_open_pro_pairs.json":
+            league_multi_source.OPEN_PRO_PATH = destination
+            league_multi_source._read_pairs.cache_clear()
         _response_cache_key = None
 
 
@@ -383,8 +388,15 @@ def _valid_shared_snapshot(name: str, raw: bytes) -> dict | None:
         data = json.loads(raw)
     except (ValueError, UnicodeDecodeError):
         return None
-    if not isinstance(data, dict) or not all(isinstance(data.get(k), dict) and data[k]
-                                            for k in SHARED_ENGINE_FILES[name]):
+    if not isinstance(data, dict):
+        return None
+    if name == "league_open_pro_pairs.json":
+        if (not isinstance(data.get("pairs"), list)
+            or data.get("source", {}).get("name") != "ChainCC"
+            or data.get("source", {}).get("license") != "CC BY 4.0"):
+            return None
+    elif not all(isinstance(data.get(k), dict) and data[k]
+                 for k in SHARED_ENGINE_FILES[name]):
         return None
     return data
 
@@ -1439,6 +1451,12 @@ class Handler(BaseHTTPRequestHandler):
                 "shared": dict(_shared_source_status),
                 "player_source": "shared-cache" if league_comp_engine.PLAYER_PROFILE_PATH.parent == SHARED_CACHE_DIR else "bundled",
                 "matchup_source": "shared-cache" if league_comp_engine.MATCHUP_PATH.parent == SHARED_CACHE_DIR else "bundled",
+                "providers": league_multi_source.STAT_SOURCES,
+                "licensed_pro": {
+                    "latest_patch": league_multi_source.load_open_pairs().get("latest_patch"),
+                    "covered_pairs": len(league_multi_source.load_open_pairs().get("pairs") or []),
+                    "dataset": "ChainCC CC BY 4.0",
+                },
             })
             return
         if path == "/api/guidance":

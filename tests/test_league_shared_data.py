@@ -24,6 +24,12 @@ def test_one_canonical_snapshot_source_updates_both_fields(monkeypatch, tmp_path
     payloads = {
         "league_player_profiles.json": json.dumps(profile).encode(),
         "league_lane_matchups.json": json.dumps(matchup).encode(),
+        "league_open_pro_pairs.json": json.dumps({
+            "pairs": [{"role_a": "ADC", "champion_a": "Jinx",
+                       "role_b": "Support", "champion_b": "Lulu",
+                       "games": 15, "shrunken_lift": 0.02}],
+            "source": {"name": "ChainCC", "license": "CC BY 4.0"},
+        }).encode(),
     }
     def fake_download(request, timeout):
         return FakeReply(payloads[request.full_url.rsplit("/", 1)[-1]])

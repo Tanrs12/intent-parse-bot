@@ -1,0 +1,39 @@
+name: Licensed professional draft statistics
+
+on:
+  schedule:
+    - cron: '43 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: flexers-open-pro-data
+  cancel-in-progress: false
+
+jobs:
+  refresh-open-pro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Import ChainCC 2026 CC BY 4.0 published dataset
+        id: refresh
+        run: python tools/refresh_open_pro_pairs.py
+      - name: Publish changed evidence
+        if: steps.refresh.outputs.updated == 'true'
+        shell: bash
+        run: |
+          git config user.name 'Flexers Data Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add data/league_open_pro_pairs.json
+          git commit -m 'data: refresh licensed ChainCC pro pair evidence [skip ci]'
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main

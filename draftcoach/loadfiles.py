@@ -72,6 +72,7 @@ ROSTER_FORMAT = "flexers-roster"
 ENGINE_DATA_SIGNATURES = {
     # file name: keys that identify it
     "league_lane_matchups.json": ("matchups",),
+    "league_open_pro_pairs.json": ("pairs",),
     "league_comp_meta.json": ("champion_traits", "role_stats"),
     "league_player_profiles.json": ("players", "source"),
     "league_recent_pro.json": ("games", "latest_patch"),

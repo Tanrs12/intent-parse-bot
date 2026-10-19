@@ -622,20 +622,26 @@ def test_shared_data_refresh_polls_all_engine_snapshots(monkeypatch, tmp_path):
             "matchups": {"Top": {"Rumble": {"responses": {}}}},
             "generated_at": "2026-10-19T12:00:00Z",
         }).encode(),
+        "league_open_pro_pairs.json": json.dumps({
+            "pairs": [{"role_a": "ADC", "champion_a": "Jinx",
+                       "role_b": "Support", "champion_b": "Lulu",
+                       "games": 10, "shrunken_lift": 0.01}],
+            "source": {"name": "ChainCC", "license": "CC BY 4.0"},
+        }).encode(),
     }
     def fake_urlopen(request, timeout):
         key = request.full_url.rsplit("/", 1)[-1]
         return Reply(responses[key])
     monkeypatch.setattr(bridge.urllib.request, "urlopen", fake_urlopen)
     status = bridge.refresh_shared_engine_data(force=True)
-    assert len(activated) == 2
+    assert len(activated) == 3
     assert all(entry["ok"] and entry["updated"] for entry in status.values())
     assert (tmp_path / "league_player_profiles.json").is_file()
     assert status["league_player_profiles.json"]["snapshot_at"] == "2026-10-19T13:00:00Z"
 
     # Unchanged remote content is not needlessly reloaded.
     status = bridge.refresh_shared_engine_data(force=True)
-    assert len(activated) == 2
+    assert len(activated) == 3
     assert all(entry["ok"] and not entry["updated"] for entry in status.values())
 
 
