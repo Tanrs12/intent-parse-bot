@@ -26,6 +26,7 @@ from league_comp_engine import (
     load_solo_queue_winrates,
     role_experience_score,
     _bot_lane_duo_score,
+    EXPLICIT_BOT_PAIR_COVERAGE,
     load_meta,
     score_comp,
 )
@@ -545,15 +546,9 @@ def _linked_bot_lane_packages(rec: dict, limit: int = 3) -> list[dict]:
     submitted = rec.get("submitted_pools") or {}
     adcs = list(dict.fromkeys(submitted.get("ADC") or []))
     supports = list(dict.fromkeys(submitted.get("Support") or []))
-    # A prepared card's Support alternatives define its *own* lane strategy.
-    # Do not replace Renata/Thresh/Lulu with a random Rell or Seraphine just
-    # because that produces a slightly higher isolated composition score.
-    shown_supports = list(dict.fromkeys([
-        (rec.get("champions") or {}).get("Support"),
-        *((rec.get("role_alternatives") or {}).get("Support") or []),
-    ]))
-    if len(shown_supports) >= 2:
-        supports = [champion for champion in shown_supports if champion in supports]
+    # Full bot-lane substitutions must check the WHOLE submitted support
+    # pool. Renata may be a poor one-role swap with Aphelios but the right
+    # partner for Kalista, so filtering to current one-role alternates is wrong.
     if not adcs or not supports or not rec.get("champions"):
         return []
     current = rec["champions"]
@@ -584,6 +579,14 @@ def _linked_bot_lane_packages(rec: dict, limit: int = 3) -> list[dict]:
         if (not any(row[2] == support for row in shortlist)
             or not any(row[1] == adc for row in shortlist)):
             shortlist.append((_score, adc, support))
+    # Preserve expressly requested duo candidates even if more popular pro
+    # pairs occupied the first 40 heuristic slots. These still must pass all
+    # complete-team quality checks below.
+    shortlisted_pairs = {(adc, support) for _score, adc, support in shortlist}
+    for duo_score, adc, support in candidates:
+        if (adc, support) in EXPLICIT_BOT_PAIR_COVERAGE and (adc, support) not in shortlisted_pairs:
+            shortlist.append((duo_score, adc, support))
+            shortlisted_pairs.add((adc, support))
     viable = []
     for duo_score, adc, support in shortlist:
         swapped = dict(current, ADC=adc, Support=support)
@@ -605,6 +608,19 @@ def _linked_bot_lane_packages(rec: dict, limit: int = 3) -> list[dict]:
         })
     viable.sort(key=lambda row: (row["composition_score"], row["duo_score"]), reverse=True)
     chosen, seen_supports, seen_adcs = [], set(), set()
+    # First retain meaningful explicitly discussed package variants if their
+    # FULL team score is respectable; never award an invisible scoring bonus.
+    # Then fill gaps with whichever other submitted pairs are actually best.
+    requested = [row for row in viable
+                 if (row["adc"], row["support"]) in EXPLICIT_BOT_PAIR_COVERAGE]
+    for row in requested:
+        if row["support"] in seen_supports or row["adc"] in seen_adcs:
+            continue
+        chosen.append(row)
+        seen_supports.add(row["support"])
+        seen_adcs.add(row["adc"])
+        if len(chosen) >= limit:
+            return chosen
     for row in viable:
         if row["support"] in seen_supports or row["adc"] in seen_adcs:
             continue

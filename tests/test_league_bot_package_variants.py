@@ -123,3 +123,32 @@ def test_diversity_selection_prefers_new_real_bot_package_over_single_adc_repeat
     pairs={(r["champions"]["ADC"],r["champions"]["Support"]) for r in selected}
     assert ("Yunara","Lulu") in pairs
     assert len(pairs)>=2
+
+
+def test_linked_support_pair_need_not_be_valid_one_role_swap():
+    # Renata alongside Aphelios is not a good direct Support substitute, but
+    # Kalista+Renata can be a valid complete package from the *submitted* pool.
+    from league_flex_core import _linked_bot_lane_packages
+    from pathlib import Path
+    import json
+    import league_comp_engine as engine
+    rows=json.loads((Path(__file__).resolve().parents[1]/
+                      "data/live_flex_signups.json").read_text())
+    adc=next(x for x in rows if "Chud" in x["display_name"])
+    sup=next(x for x in rows if "The Rock" in x["display_name"])
+    champs={"Top":"Urgot","Jungle":"Amumu","Mid":"Yasuo",
+            "ADC":"Aphelios","Support":"Thresh"}
+    scored=engine.score_comp(champs)
+    rec={
+        "champions":champs,
+        "submitted_pools":{"ADC":adc["champions"]["ADC"],
+                           "Support":sup["champions"]["Support"]},
+        "role_alternatives":{"Support":["Lulu"]},
+        "team_plan":scored["team_plan"],
+        "composition_score":scored["score"],
+        "credible_mixed_damage":scored["credible_mixed_damage"],
+    }
+    assert "Renata Glasc" not in rec["role_alternatives"]["Support"]
+    pairs=_linked_bot_lane_packages(rec)
+    assert ("Kalista","Renata Glasc") in {(p["adc"],p["support"]) for p in pairs}
+    assert ("Yunara","Lulu") in {(p["adc"],p["support"]) for p in pairs}
