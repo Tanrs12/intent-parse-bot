@@ -30,6 +30,25 @@ SPLIT_CHAMPS = {
     "Riven", "Trundle", "Tryndamere", "Yorick", "Yone",
 }
 
+# Explicit confirmations supplement (but do not replace) Discord submitted
+# selections. A confirmed champion is PLAYABLE; it isn't automatically meta,
+# a good synergy pick, or a priority pick on the current patch.
+EXPLICIT_CHAMPION_CONFIRMATIONS = Path(__file__).resolve().parent / "data" / "league_player_confirmations.json"
+
+
+@lru_cache(maxsize=1)
+def _read_explicit_champion_confirmations() -> dict:
+    try:
+        data = json.loads(EXPLICIT_CHAMPION_CONFIRMATIONS.read_text(encoding="utf-8"))
+        return data.get("players", {}) if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _explicitly_confirmed_player_pick(uid: int, role: str, champion: str) -> bool:
+    per_role = _read_explicit_champion_confirmations().get(str(uid), {})
+    return champion in (per_role.get(role) or [])
+
 # Temporary bridge from Demacia Cup 26.18 evidence to the Worlds 26.20 patch.
 # These are deliberately small priors, not fake win rates. Once real Worlds games
 # arrive, the bridge fades over a meaningful sample instead of disappearing after
@@ -1876,11 +1895,36 @@ def score_comp(champions: dict[str, str], meta: dict | None = None) -> dict:
         + (float(mid_support["score"]) - 5.0) * 0.45
     )
 
+    # Ranged top follow-through is not interchangeable with a dive champion.
+    # A TF-style map/utility top can complement a poke or split-map plan, but
+    # does not create another reliable backline dive angle just because Zac +
+    # Leona supply engage. In a fixed Kai'Sa/Leona all-in shell that distinction
+    # matters more than generic ranged-top structure bonuses.
+    top = champions["Top"]
+    top_tags = _tags(top, meta)
+    top_dive_mismatch = 0.0
+    if (team_plan["plan"] == "dive / all-in"
+        and str(_traits(top, meta).get("attack_type", "")).upper() == "RANGED"
+        and top not in SPLIT_CHAMPS
+        and not (top_tags & (DIVE_TAGS | ENGAGE_TAGS | TANK_TAGS))
+        and _rating(top, "control", meta) < 3):
+        top_dive_mismatch = -3.5
+
+    # Sparse/old pro-game appearances cannot establish that a niche Top is
+    # current-patch SoloQ meta. Do not discard it: a favourable revealed enemy
+    # matchup can still rescue the pick in the live drafting layer.
+    top_solo_wr, top_solo_games = _solo_queue_value("Top", top)
+    _, top_pro_games = _meta_value("Top", top, meta)
+    top_sparse_evidence = -1.5 if (top_solo_wr is None
+                                    and top_solo_games == 0
+                                    and top_pro_games < 25) else 0.0
+
     total = (
         frontline_score + control_score + engage_score + utility_score
         + damage_score + mobility_score + range_score + mix_score
         + solo_queue_score + meta_score + synergy_score + bot_lane_adjustment + package_adjustment
         + team_plan_adjustment + top_structure_adjustment
+        + top_dive_mismatch + top_sparse_evidence
         + (0.0 if credible_mixed_damage else -16.0)
     )
     raw_total = total
@@ -1935,6 +1979,8 @@ def score_comp(champions: dict[str, str], meta: dict | None = None) -> dict:
         "team_plan_reasons": team_plan["reasons"],
         "team_plan_missing": team_plan["missing"],
         "top_structure_adjustment": round(top_structure_adjustment, 1),
+        "top_dive_mismatch": round(top_dive_mismatch, 1),
+        "top_sparse_evidence": round(top_sparse_evidence, 1),
         "top_structure_reason": top_structure.get("reason") or top_structure.get("missing") or "",
         "mid_jungle_score": mid_jungle["score"],
         "mid_jungle_grade": mid_jungle["grade"],
@@ -2094,9 +2140,11 @@ def _credible_broad_pool_pick(player: dict, role: str, champion: str, meta: dict
     """
     if player.get("_forced_live_champion") == champion:
         return True
+    uid = int(player["user_id"])
+    if _explicitly_confirmed_player_pick(uid, role, champion):
+        return True
     if _champion_carry_demand(role, champion, meta) < 0.40:
         return True
-    uid = int(player["user_id"])
     recent = (load_recent_match_index().get(uid, {})
               .get("by_role_champion", {}).get(role, {}).get(champion) or {})
     if int(recent.get("raw_games", 0) or 0) >= 3 or float(recent.get("effective_games", 0) or 0) >= 1.5:

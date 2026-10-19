@@ -264,3 +264,51 @@ def test_player_role_comfort_overrides_historical_pro_shortlist(monkeypatch):
     result = engine._prune_pool("Top", eligible, meta, 8, user_id=uid)
     assert "Camille" in result
     assert "Twisted Fate" not in result
+
+
+def test_player_explicitly_confirms_situational_top_picks(monkeypatch, tmp_path):
+    import json
+    import league_comp_engine as engine
+    confirmed = tmp_path / "league_player_confirmations.json"
+    confirmed.write_text(json.dumps({
+        "players": {"777": {"Top": ["Twisted Fate", "Gwen"]}},
+    }), encoding="utf-8")
+    monkeypatch.setattr(engine, "EXPLICIT_CHAMPION_CONFIRMATIONS", confirmed)
+    engine._read_explicit_champion_confirmations.cache_clear()
+    monkeypatch.setattr(engine, "_champion_carry_demand", lambda role, champion, meta: 0.8)
+    monkeypatch.setattr(engine, "_mastery_points_for", lambda *args: 0)
+    monkeypatch.setattr(engine, "_champion_history_for", lambda *args: {})
+    monkeypatch.setattr(engine, "load_recent_match_index",
+                        lambda: {777: {"by_role_champion": {"Top": {}}}})
+    player = {"user_id": 777, "role_priority": {"Top": 1}}
+    try:
+        assert engine._credible_broad_pool_pick(player, "Top", "Twisted Fate", {}) is True
+        assert engine._credible_broad_pool_pick(player, "Top", "Gwen", {}) is True
+        assert engine._credible_broad_pool_pick(player, "Top", "Vayne", {}) is False
+    finally:
+        engine._read_explicit_champion_confirmations.cache_clear()
+
+
+def test_twisted_fate_top_does_not_become_default_for_kaisa_leona_dive():
+    import league_comp_engine as engine
+    meta = engine.load_meta()
+    shell = {"Jungle": "Zac", "Mid": "Yasuo", "ADC": "Kai'Sa", "Support": "Leona"}
+    camille = engine.score_comp({**shell, "Top": "Camille"}, meta)
+    twisted_fate = engine.score_comp({**shell, "Top": "Twisted Fate"}, meta)
+    gwen = engine.score_comp({**shell, "Top": "Gwen"}, meta)
+    assert camille["team_plan"] == twisted_fate["team_plan"] == "dive / all-in"
+    assert twisted_fate["top_dive_mismatch"] < 0
+    assert twisted_fate["top_sparse_evidence"] < 0
+    assert camille["top_dive_mismatch"] == 0
+    assert gwen["top_dive_mismatch"] == 0
+    assert camille["rank_score"] > twisted_fate["rank_score"]
+    # TF can still be evaluated when a concrete enemy counter is revealed.
+    assert isinstance(twisted_fate["rank_score"], float)
+
+
+def test_engage_ranged_top_not_mistaken_for_passive_backline_top():
+    import league_comp_engine as engine
+    meta = engine.load_meta()
+    shell = {"Jungle": "Zac", "Mid": "Yasuo", "ADC": "Kai'Sa", "Support": "Leona"}
+    assert engine.score_comp({**shell, "Top": "Gnar"}, meta)["top_dive_mismatch"] == 0
+    assert engine.score_comp({**shell, "Top": "Kennen"}, meta)["top_dive_mismatch"] == 0

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "note": "Explicitly stated playable champions; not meta or default draft priorities. Only applies to a role where the player has selected the champion in their signup.",
+  "players": {
+    "139837324438536193": {
+      "Top": [
+        "Twisted Fate",
+        "Gwen"
+      ]
+    }
+  }
+}
