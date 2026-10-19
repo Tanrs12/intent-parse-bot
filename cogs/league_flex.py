@@ -26,6 +26,7 @@ from league_comp_engine import (
     ENGAGE_SUPPORTS,
     POKE_SUPPORTS,
     attach_learn_suggestions,
+    DATA_PATH as LEAGUE_META_PATH,
     build_draft_book,
     clear_player_profile_caches,
     counter_ban_recommendations,
@@ -56,7 +57,7 @@ from league_flex_core import (  # noqa: F401  shared drafting brain
     _select_diverse_recommendations,
     generate_team_options,
 )
-from league_player_data import refresh_recent_player_data
+from league_shared_data import sync_shared_league_data
 from league_pro_data import refresh_recent_pro_data
 
 log = logging.getLogger(__name__)
@@ -835,28 +836,34 @@ class LeagueFlexCog(commands.Cog):
             await asyncio.sleep(6 * 60 * 60)
 
     async def refresh_player_data_forever(self):
-        # Stagger this behind the pro refresh so deploy/startup never runs both
-        # network collectors at once.  The actual scraper is blocking stdlib I/O,
-        # so keep it off Discord's event loop.
+        # Discord and the desktop app consume exactly the SAME two versioned
+        # snapshots on the GitHub main branch. Only the scheduled GitHub job
+        # collects linked-account matches; this process downloads validated data
+        # without racing the app or maintaining another scraper's private state.
+        # A stale/failed source never wipes the last known working snapshot.
         await self.bot.wait_until_ready()
-        await asyncio.sleep(5 * 60)
+        await asyncio.sleep(30)
         while True:
             try:
-                data = await asyncio.to_thread(refresh_recent_player_data)
-                if data.get("players", 0):
+                data = await asyncio.to_thread(
+                    sync_shared_league_data,
+                    LEAGUE_META_PATH.parent,
+                )
+                changed = set(data["changed"])
+                if "league_player_profiles.json" in changed:
                     clear_player_profile_caches()
+                if "league_lane_matchups.json" in changed:
+                    load_lane_matchups.cache_clear()
+                    load_solo_queue_winrates.cache_clear()
                 log.info(
-                    "League player data refreshed: %s players, %s accounts, %s new games, %s errors",
-                    data.get("players", 0),
-                    data.get("accounts", 0),
-                    data.get("new_games", 0),
-                    len(data.get("errors", [])),
+                    "League shared data checked: %s, updated %s, errors %s",
+                    data.get("checked"), data.get("changed"), data.get("errors"),
                 )
             except asyncio.CancelledError:
                 raise
             except Exception:
-                log.exception("League player data refresh failed; retaining last good snapshot")
-            await asyncio.sleep(12 * 60 * 60)
+                log.exception("League shared data refresh failed; retaining last good snapshot")
+            await asyncio.sleep(60 * 60)
 
     async def get_draft_state(self, guild_id: int):
         db = await database.connect()
