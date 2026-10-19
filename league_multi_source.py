@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 from functools import lru_cache
 from pathlib import Path
+from league_source_stats import source_mtime_ns
 
 OPEN_PRO_PATH = Path(__file__).with_name("data") / "league_open_pro_pairs.json"
 
@@ -47,7 +48,7 @@ def _read_pairs(path: str, mtime_ns: int) -> dict:
 
 def load_open_pairs() -> dict:
     try:
-        stamp = OPEN_PRO_PATH.stat().st_mtime_ns
+        stamp = source_mtime_ns(OPEN_PRO_PATH)
     except OSError:
         return {}
     return _read_pairs(str(OPEN_PRO_PATH), stamp)
@@ -69,7 +70,7 @@ def open_pro_pair_signal(role_a: str, champ_a: str, role_b: str, champ_b: str) -
     strongly correlated with team quality and drafting context.
     """
     try:
-        stamp = OPEN_PRO_PATH.stat().st_mtime_ns
+        stamp = source_mtime_ns(OPEN_PRO_PATH)
     except OSError:
         return {"adjustment": 0.0, "games": 0}
     lookup = frozenset(((role_a, champ_a), (role_b, champ_b)))

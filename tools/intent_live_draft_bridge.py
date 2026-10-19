@@ -1193,6 +1193,11 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
                  "support_id": _champion_id(pair["support"])}
                 for pair in (rec.get("bot_lane_packages") or [])[:3]
             ],
+            "mid_jungle_packages": [
+                {**pair, "jungle_id": _champion_id(pair["jungle"]),
+                 "mid_id": _champion_id(pair["mid"])}
+                for pair in (rec.get("mid_jungle_packages") or [])[:2]
+            ],
             "role_options": {role: role_options_for(rec, role) for role in ROLES},
             "role_option_ids": {
                 role: [_champion_id(champion) for champion in role_options_for(rec, role)]

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from league_source_stats import source_mtime_ns, source_stat_scope
+
 import itertools
 import json
 import math
@@ -704,7 +706,7 @@ def load_recent_pro(path: str | None = None) -> dict:
     global _RECENT_PRO_CACHE
     target = Path(path) if path else RECENT_PRO_PATH
     try:
-        mtime = target.stat().st_mtime_ns
+        mtime = source_mtime_ns(target)
     except OSError:
         return {}
     if path is None and _RECENT_PRO_CACHE[0] == mtime:
@@ -1151,7 +1153,7 @@ def _pair_value(role_a: str, champ_a: str, role_b: str, champ_b: str, meta: dict
     return blended, historical_games + int(round(current_weight))
 
 
-def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8, *, enemy_roles: dict[str, str] | None = None, user_id: int | None = None, linked_bot_pool: Iterable[str] | None = None) -> list[str]:
+def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8, *, enemy_roles: dict[str, str] | None = None, user_id: int | None = None, linked_bot_pool: Iterable[str] | None = None, linked_role_pool: Iterable[str] | None = None) -> list[str]:
     """Keep the search small without turning it into a pure pro-meta shortlist."""
     unique = list(dict.fromkeys(champions))
     if len(unique) <= limit:
@@ -1171,7 +1173,9 @@ def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8,
             effective = float(load_recent_match_index().get(user_id, {})
                               .get("by_role_champion", {}).get(role, {})
                               .get(champion, {}).get("effective_games", 0) or 0)
-            comfort = (own - 5.0) * 0.8 + min(3.0, effective) * 0.65
+            # Form helps order eligible picks, but must not monopolise the
+            # short list after two recent high-scoring games.
+            comfort = (own - 5.0) * 0.35 + min(3.0, effective) * 0.20
         meta_support = confidence * (bayes - 0.5) * 4.5 + min(1.0, games / 30.0)
         return (known, round(comfort + meta_support, 3), comfort, math.log1p(games), champion.lower())
 
@@ -1217,6 +1221,33 @@ def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8,
             if len(selected) >= min(4, limit):
                 break
             add(champion)
+
+    # Mid/Jungle is a unit just like ADC/Support. Its pro/meta synergies
+    # deserve candidate coverage even if the assigned player has recently
+    # carried on a different champion. Do not assume either player can pilot
+    # an unsubmitted champion.
+    if role in {"Jungle", "Mid"} and linked_role_pool:
+        for candidate in sorted(
+            unique,
+            key=lambda champ: (
+                max((
+                    _coordinated_duo_score(
+                        "Jungle", champ if role == "Jungle" else partner,
+                        "Mid", partner if role == "Jungle" else champ, meta
+                    )["score"] for partner in linked_role_pool
+                ), default=0.0),
+                meta_rank(champ),
+            ), reverse=True,
+        ):
+            best = max((
+                _coordinated_duo_score(
+                    "Jungle", candidate if role == "Jungle" else partner,
+                    "Mid", partner if role == "Jungle" else candidate, meta
+                )["score"] for partner in linked_role_pool
+            ), default=0.0)
+            if best < 7.35 or len(selected) >= min(4, limit):
+                break
+            add(candidate)
 
     # Preserve several currently supported/meta choices.
     for champion in sorted(unique, key=meta_rank, reverse=True)[:3]:
@@ -1607,7 +1638,9 @@ def _player_fit_adjustment(
         ownership = _champion_ownership(uid, champion, role)
         # Comfort captures results/form; ownership captures long-term champion identity.
         # Keep them separate so a short hot sample does not erase a genuine signature pick.
-        adjustment = (comfort - 5.0) * 0.40 + (ownership - 5.0) * 0.34
+        # Comfort is necessary for playability but two recent great games
+        # shouldn't eclipse better synergy or overall composition completion.
+        adjustment = (comfort - 5.0) * 0.25 + (ownership - 5.0) * 0.18
         if not _profile_for(uid):
             # FLEXERS: no profile means no evidence, not a penalty.
             adjustment = 0.0
@@ -2109,7 +2142,9 @@ def _bounded_package_products(
         ownership = _champion_ownership(uid, champion, role)
         solo_wr, solo_weight = _solo_queue_value(role, champion)
         bayes, pro_games = _meta_value(role, champion, meta)
-        value = comfort * 0.42 + ownership * 0.26
+        # The pair/game plan must outrank a short individual hot streak.
+        # Personal champion experience remains a modest tiebreaker.
+        value = comfort * 0.22 + ownership * 0.15
         # Apply matchup evidence during package pruning, not only after the
         # best 300 shells have been retained. Otherwise a real counter vanishes.
         value += lane_scores.get((role, champion), 0.0) * 1.35
@@ -2137,7 +2172,7 @@ def _bounded_package_products(
             bot_rows.append({
                 "adc": adc,
                 "support": support,
-                "heuristic": float(duo["score"]) * 1.6 + individual("ADC", adc) + individual("Support", support),
+                "heuristic": float(duo["score"]) * 1.95 + individual("ADC", adc) + individual("Support", support),
             })
     bot_rows = _ranked_with_coverage(bot_rows, 28, ("adc", "support"))
 
@@ -2150,7 +2185,7 @@ def _bounded_package_products(
             mj_rows.append({
                 "jungle": jungle,
                 "mid": mid,
-                "heuristic": float(duo["score"]) * 1.45 + individual("Jungle", jungle) + individual("Mid", mid),
+                "heuristic": float(duo["score"]) * 1.95 + individual("Jungle", jungle) + individual("Mid", mid),
             })
     mj_rows = _ranked_with_coverage(mj_rows, 28, ("jungle", "mid"))
 
@@ -2194,31 +2229,70 @@ def _bounded_package_products(
         300,
         ("top", "jungle", "mid", "adc", "support"),
     )
-    # Protect a candidate for each deliberately registered high-synergy ADC+
-    # Support *unit*. Coverage by individual champion is insufficient: all
-    # Yunara candidates might otherwise pair with an unsuitable Support, while
-    # 300 Aphelios variants consume the search budget. These are additional
-    # candidates ONLY, not a guaranteed winning five-man.
-    present = {(row["top"], row["jungle"], row["mid"], row["adc"], row["support"])
-               for row in product_rows}
-    for adc, support in EXPLICIT_BOT_PAIR_COVERAGE:
-        if adc not in pools["ADC"] or support not in pools["Support"]:
+    # Individual champion coverage is not enough. Guarantee an evaluation
+    # route for multiple credible complete duo packages in BOTH bot lane and
+    # mid+jungle. This is bounded candidate coverage, NOT a rank bonus.
+    present = {(r["top"], r["jungle"], r["mid"], r["adc"], r["support"])
+               for r in product_rows}
+
+    def add_product(top: str, jungle: str, mid: str,
+                    adc: str, support: str) -> None:
+        key = (top, jungle, mid, adc, support)
+        if len(set(key)) < 5 or key in present:
+            return
+        product_rows.append({"top": top, "jungle": jungle, "mid": mid,
+                             "adc": adc, "support": support, "heuristic": 0.0})
+        present.add(key)
+
+    # Return strong pairs across a variety of champions; do not overweight
+    # any one player based on a tiny sample of recent high-scoring games.
+    bot_coverage = [(a, s) for a, s in EXPLICIT_BOT_PAIR_COVERAGE
+                    if a in pools["ADC"] and s in pools["Support"]]
+    for row in sorted(bot_rows, key=lambda r: (
+        _bot_lane_duo_score(r["adc"], r["support"], meta)["score"],
+        float(r["heuristic"])), reverse=True):
+        pair = (row["adc"], row["support"])
+        if pair in bot_coverage:
             continue
-        for shell in shell_rows:
-            if adc in (shell["top"], shell["jungle"], shell["mid"]):
-                continue
-            if support in (shell["top"], shell["jungle"], shell["mid"]):
-                continue
-            pick = (shell["top"], shell["jungle"], shell["mid"], adc, support)
-            if pick not in present:
-                product_rows.append({
-                    "top": pick[0], "jungle": pick[1], "mid": pick[2],
-                    "adc": adc, "support": support,
-                    "heuristic": float(shell["heuristic"])
-                                 + float(_bot_lane_duo_score(adc, support, meta)["score"]) * 1.6,
-                })
-                present.add(pick)
+        if _bot_lane_duo_score(*pair, meta)["score"] < 7.5:
             break
+        if len(bot_coverage) >= 14:
+            break
+        bot_coverage.append(pair)
+    for adc, support in bot_coverage:
+        added = 0
+        for shell in shell_rows:
+            if len({shell["top"], shell["jungle"], shell["mid"], adc, support}) < 5:
+                continue
+            add_product(shell["top"], shell["jungle"], shell["mid"], adc, support)
+            added += 1
+            if added >= 2:
+                break
+
+    mj_coverage = []
+    for row in sorted(mj_rows, key=lambda r: (
+        _coordinated_duo_score(
+            "Jungle", r["jungle"], "Mid", r["mid"], meta
+        )["score"], float(r["heuristic"])), reverse=True):
+        pair = (row["jungle"], row["mid"])
+        if pair in mj_coverage:
+            continue
+        if _coordinated_duo_score("Jungle", pair[0], "Mid", pair[1], meta)["score"] < 7.4:
+            break
+        if len(mj_coverage) >= 12:
+            break
+        mj_coverage.append(pair)
+    for jungle, mid in mj_coverage:
+        candidate_tops = sorted(
+            (top for top in pools["Top"] if top not in (jungle, mid)),
+            key=lambda top: (
+                _coordinated_duo_score("Top", top, "Jungle", jungle, meta)["score"]
+                + individual("Top", top) * 0.35
+            ), reverse=True)
+        for top in candidate_tops[:2]:
+            for bot in bot_rows[:3]:
+                add_product(top, jungle, mid, bot["adc"], bot["support"])
+
     return [
         (row["top"], row["jungle"], row["mid"], row["adc"], row["support"])
         for row in product_rows
@@ -2286,6 +2360,7 @@ def _verified_secondary_role_pick(player: dict, role: str, champion: str, meta: 
     return raw >= 3 or effective >= 1.5
 
 
+@source_stat_scope
 def recommend_comps(
     assignments: list[dict[str, dict]],
     *,
@@ -2325,44 +2400,24 @@ def recommend_comps(
                 and _verified_secondary_role_pick(player, role, champ, meta)
             ]
             inferred = [champ for champ in inferred if champ not in DISPLAY_EXCLUDED_CHAMPIONS]
-            if len(selected) > pool_limit:
-                partners_for_role = (
-                    assignment["Support"].get("champions", {}).get("Support", [])
-                    if role == "ADC" else
-                    assignment["ADC"].get("champions", {}).get("ADC", [])
-                    if role == "Support" else []
-                )
-                # A marked high-synergy ADC/Support pair can be worth evaluating
-                # even when this player hasn't played that champion recently.
-                # Submitted pools are the eligibility boundary, not OP.GG recency.
-                if role in {"ADC", "Support"}:
-                    selected = [
-                        champ for champ in selected
-                        if _credible_broad_pool_pick(player, role, champ, meta)
-                        or any(
-                            _bot_lane_duo_score(
-                                champ if role == "ADC" else partner,
-                                partner if role == "ADC" else champ, meta
-                            )["score"] >= 8.0
-                            for partner in partners_for_role
-                        )
-                    ]
-                else:
-                    selected = [
-                        champ for champ in selected
-                        if _credible_broad_pool_pick(player, role, champ, meta)
-                    ]
+            # Once a player has declared a role and champion selection,
+            # recent wins/losses must NEVER hard-delete those selections.
+            # Off-role safety is checked above. Candidate compression below
+            # balances pro synergy, composition roles, counters and confidence.
             if selected:
-                linked_pool = (
-                    assignment["Support"].get("champions", {}).get("Support", [])
-                    if role == "ADC" else
-                    assignment["ADC"].get("champions", {}).get("ADC", [])
-                    if role == "Support" else None
+                partner_role = {
+                    "ADC": "Support", "Support": "ADC",
+                    "Jungle": "Mid", "Mid": "Jungle",
+                }.get(role)
+                partner_pool = (
+                    assignment[partner_role].get("champions", {}).get(partner_role, [])
+                    if partner_role else None
                 )
                 chosen = _prune_pool(
                     role, selected, meta, pool_limit,
                     enemy_roles=enemy_roles, user_id=int(player["user_id"]),
-                    linked_bot_pool=linked_pool,
+                    linked_bot_pool=partner_pool if role in {"ADC", "Support"} else None,
+                    linked_role_pool=partner_pool if role in {"Jungle", "Mid"} else None,
                 ) if len(selected) > pool_limit else list(selected)
                 # Preserve the known cross-role counter in an explicit player pool
                 # even if a large generic pool was reduced to the top ten.
@@ -2508,10 +2563,14 @@ def recommend_comps(
             }
             best_for_assignment.append(item)
 
-        best_for_assignment.sort(key=lambda item: item["score"], reverse=True)
+        best_for_assignment.sort(
+            key=lambda item: (item["score"], item["rank_score"]), reverse=True
+        )
         recommendations.extend(best_for_assignment[: max(limit * 2, 8)])
 
-    recommendations.sort(key=lambda item: item["score"], reverse=True)
+    recommendations.sort(
+        key=lambda item: (item["score"], item["rank_score"]), reverse=True
+    )
     unique: list[dict] = []
     seen = set()
     for item in recommendations:

@@ -694,3 +694,28 @@ def test_live_guidance_exposes_linked_adc_support_packages(monkeypatch):
     assert row["bot_lane_packages"][0]["adc_id"] == bridge._champion_id("Yunara")
     assert row["bot_lane_packages"][0]["support_id"] == bridge._champion_id("Lulu")
     assert row["bot_lane_packages"][1]["plan_change"] is True
+
+
+def test_live_guidance_includes_mid_jungle_linked_packages(monkeypatch):
+    monkeypatch.setattr(bridge, "_live_lane_adjustment", lambda rec, state: (0.0, []))
+    champs={"Top":"Urgot","Jungle":"Amumu","Mid":"Yasuo",
+            "ADC":"Aphelios","Support":"Thresh"}
+    rec={
+        "score":89,
+        "champions":champs,
+        "mid_jungle_packages":[{
+            "jungle":"Vi","mid":"Ahri","team_plan":"pick / control",
+            "plan_change":True,"duo_score":9.3,
+        }],
+        "players":{role:{"user_id":i+1,"display_name":role,"role_priority":{role:1}}
+                   for i,role in enumerate(bridge.ROLES)},
+        "pick_order":[{"role":"ADC","champion":"Aphelios"}],
+    }
+    state={"our_team":[{"role":role,"locked":None} for role in bridge.ROLES],
+           "enemy_team":[],"active":{}}
+    comp=bridge._guidance_from_result({"recommendations":[rec]},state)["comps"][0]
+    pair=comp["mid_jungle_packages"][0]
+    assert pair["jungle"]=="Vi" and pair["mid"]=="Ahri"
+    assert pair["jungle_id"]==bridge._champion_id("Vi")
+    assert pair["mid_id"]==bridge._champion_id("Ahri")
+    assert pair["plan_change"] is True

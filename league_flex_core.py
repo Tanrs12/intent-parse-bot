@@ -26,6 +26,7 @@ from league_comp_engine import (
     load_solo_queue_winrates,
     role_experience_score,
     _bot_lane_duo_score,
+    _coordinated_duo_score,
     EXPLICIT_BOT_PAIR_COVERAGE,
     load_meta,
     score_comp,
@@ -531,6 +532,7 @@ def _attach_role_alternatives(selected: list[dict], candidates: list[dict], max_
                     alternatives[role] = ordered
         rec["role_alternatives"] = alternatives
         rec["bot_lane_packages"] = _linked_bot_lane_packages(rec)
+        rec["mid_jungle_packages"] = _linked_mid_jungle_packages(rec)
     return selected
 
 
@@ -635,6 +637,64 @@ def _linked_bot_lane_packages(rec: dict, limit: int = 3) -> list[dict]:
         if len(chosen) >= limit:
             break
     return chosen
+
+
+def _linked_mid_jungle_packages(rec: dict, limit: int = 2) -> list[dict]:
+    """Rebuild the whole five around a linked Jungle+Mid switch.
+
+    One-role alternatives can misrepresent a pair whose value comes from
+    knock-up follow-through, setup or dive timing. Keep role submissions and
+    full five-man team-plan constraints intact.
+    """
+    submitted = rec.get("submitted_pools") or {}
+    jungles = list(dict.fromkeys(submitted.get("Jungle") or []))
+    mids = list(dict.fromkeys(submitted.get("Mid") or []))
+    current = rec.get("champions") or {}
+    if not jungles or not mids or not current:
+        return []
+    meta = load_meta()
+    base_raw = float(rec.get("composition_score", rec.get("score", 0)) or 0)
+    base_plan = str(rec.get("team_plan") or "")
+    rows = []
+    for jungle in jungles:
+        for mid in mids:
+            if jungle == mid or (jungle, mid) == (current.get("Jungle"), current.get("Mid")):
+                continue
+            if jungle in (current.get("Top"), current.get("ADC"), current.get("Support")):
+                continue
+            if mid in (current.get("Top"), current.get("ADC"), current.get("Support")):
+                continue
+            duo = float(_coordinated_duo_score("Jungle", jungle, "Mid", mid, meta)["score"])
+            if duo < 7.25:
+                continue
+            rows.append((duo, jungle, mid))
+    rows.sort(reverse=True)
+    viable = []
+    for duo_score, jungle, mid in rows[:32]:
+        scored = score_comp(dict(current, Jungle=jungle, Mid=mid), meta)
+        if float(scored["rank_score"]) < base_raw - 8.5:
+            continue
+        if float(scored.get("team_plan_score", 0)) < 5.4:
+            continue
+        if rec.get("credible_mixed_damage") and not scored.get("credible_mixed_damage"):
+            continue
+        viable.append({
+            "jungle": jungle, "mid": mid, "duo_score": round(duo_score, 1),
+            "composition_score": round(float(scored["rank_score"]), 1),
+            "team_plan": scored.get("team_plan"),
+            "plan_change": scored.get("team_plan") != base_plan,
+        })
+    viable.sort(key=lambda row: (row["composition_score"], row["duo_score"]), reverse=True)
+    selected, used_jg, used_mid = [], set(), set()
+    for row in viable:
+        if row["jungle"] in used_jg or row["mid"] in used_mid:
+            continue
+        selected.append(row)
+        used_jg.add(row["jungle"])
+        used_mid.add(row["mid"])
+        if len(selected) >= limit:
+            break
+    return selected
 
 
 def _recommendation_respects_selected_roles(rec: dict) -> bool:
@@ -801,13 +861,13 @@ def _select_diverse_recommendations(
             role_band = 2 if min_player_diff >= 2 else 1 if min_player_diff >= 1 else 0
             new_champion_count = sum(champ not in used_champions for champ in champ_sig)
             return (
-                # Within the quality floor, a new complete bot-lane package
-                # matters more than rotating two unrelated solo-lane champions
-                # while endlessly retaining the same recently successful ADC.
+                # Entire bot and mid+jungle units are worth more than repeatedly
+                # rotating one recently successful champion into every shell.
+                package_novelty,
                 int(bot_package(rec) not in used_bot),
+                int(mid_jungle_package(rec) not in used_mj),
                 bot_style_novelty,
                 champ_band,
-                package_novelty,
                 int(plan not in used_plans),
                 role_band,
                 new_champion_count,

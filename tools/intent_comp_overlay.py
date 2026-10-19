@@ -480,10 +480,17 @@ class CompOverlay:
             # Linked ADC/Support changes must be read as ONE package. Showing
             # only role alternatives would imply Yunara and Renata are freely
             # interchangeable with Aphelios/Thresh/Lulu, which they are not.
-            linked = list(comp.get("bot_lane_packages") or [])
-            if linked and not dead:
-                pair = linked[0]
-                message = f"BOT PAIR: {pair.get('adc', '?')} + {pair.get('support', '?')}"
+            bot_alts = list(comp.get("bot_lane_packages") or [])
+            mj_alts = list(comp.get("mid_jungle_packages") or [])
+            if (bot_alts or mj_alts) and not dead:
+                summaries = []
+                if bot_alts:
+                    pair = bot_alts[0]
+                    summaries.append(f"BOT {pair.get('adc','?')}+{pair.get('support','?')}")
+                if mj_alts:
+                    pair = mj_alts[0]
+                    summaries.append(f"MJ {pair.get('jungle','?')}+{pair.get('mid','?')}")
+                message = "  |  ".join(summaries)
                 c.create_text(px(222), y1 - px(8),
                               text=self._fit(message, self.font_tiny, max(px(60), w - px(320))),
                               anchor="sw", font=self.font_tiny, fill="#c8aa6e")

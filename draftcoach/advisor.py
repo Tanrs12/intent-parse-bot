@@ -18,6 +18,8 @@ Nothing in ``engine/`` is modified.
 
 from __future__ import annotations
 
+from league_source_stats import source_stat_scope
+
 import math
 import time
 from typing import Any
@@ -400,6 +402,7 @@ def plan_pick_order(champions: dict[str, str], side: str, meta: dict, matchups: 
     return ordered
 
 
+@source_stat_scope
 def advise(state: DraftState, roster: Roster | None = None, *, meta: dict | None = None,
            matchups: dict | None = None) -> dict:
     """Rank the legal immediate choices for the current draft state."""

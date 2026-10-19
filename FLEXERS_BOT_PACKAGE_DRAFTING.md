@@ -25,3 +25,14 @@ The limited role/meta snapshot on patch 16.20 and historical professional pairin
 - Aphelios + Thresh, EUNE Emerald+ Ranked: 1,452 appearances; 51.93% combined win rate (https://op.gg/nl/lol/champions/aphelios/synergies/adc?patch=16.20&region=eune&tier=emerald_plus&type=ranked).
 
 **Do not compare these raw win rates as causal duo synergy or across different rank/region pools.** League stats can reflect player selection effects, support popularity, matchup exposure, and patch differences. The site checks motivated preserving viable combinations; the internal heuristics remain provisional until authorised aggregate SoloQ data exists. A champion-specific enemy response can completely reverse the preferred ADC+Support pair.
+
+
+## 2026-10-19 extension: all players and all lanes
+
+- The same submitted-pool eligibility rule applies to every player and role, not only Cian's ADC choices. Recent champion wins or OP.GG recency cannot hard-remove declared primary-role picks. This is NOT a claim that every unverified 40-champion list is equally well practised: credible secondary-role screening remains in place, and user confirmations are the authoritative way to lift it.
+- Dynamic selection now protects established **Mid+Jungle** packages, just as it protects **ADC+Support** pairs. Both are assessed against the *entire five-player composition*. Registered pairs only guarantee evaluation, not selection.
+- Individual comfort and recent results carry lower weights during package shortlisting and in final player-fit scoring. A short hot streak should not outweigh viable lane synergy, counterpicking, or the team game plan.
+- Distinct complete bot and mid+jungle packages receive portfolio coverage; one high-scoring ADC or jungler must not dominate all six prepared drafts by accident.
+- Mid+jungle linked alternatives are shown together and labelled when changing both champions changes the team strategy. They are included in the desktop app payload as paired objects with champion IDs. Neither half should be mistaken for an independent substitution.
+- Live champion locks, bans, selected roles, actual submitted champion pools, verified weak off-role proficiency, enemy counters, full team plan and damage profile remain higher-authority constraints than pro popularity.
+- Real-time licensed SoloQ aggregate data is still provider-dependent. Existing pro and bounded baseline evidence are not proof that a specific combination wins on the present patch.

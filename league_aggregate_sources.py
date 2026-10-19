@@ -10,6 +10,7 @@ import json
 import math
 from functools import lru_cache
 from pathlib import Path
+from league_source_stats import source_mtime_ns
 
 SOLOQ_PATH = Path(__file__).with_name("data") / "league_licensed_soloq.json"
 ROLES = ("Top", "Jungle", "Mid", "ADC", "Support")
@@ -40,7 +41,7 @@ def validate_snapshot(data: object) -> bool:
 
 def load_licensed_soloq() -> dict:
     try:
-        stamp = SOLOQ_PATH.stat().st_mtime_ns
+        stamp = source_mtime_ns(SOLOQ_PATH)
     except OSError:
         return {}
     return _read(str(SOLOQ_PATH), stamp)
@@ -105,7 +106,7 @@ def _active(patch: str | None) -> dict:
     if not _current_patch(data, patch):
         return {}
     try:
-        stamp = SOLOQ_PATH.stat().st_mtime_ns
+        stamp = source_mtime_ns(SOLOQ_PATH)
     except OSError:
         return {}
     return _indices(str(SOLOQ_PATH), stamp)
