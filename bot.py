@@ -27,6 +27,9 @@ _SYNC_SESSIONS: dict[str, dict] = {}
 _SYNC_KEY = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
 _SYNC_TTL = 30.0
 _SYNC_PARTICIPANT_TTL = 6.0
+_MAX_SYNC_SESSIONS = 128
+_MAX_SYNC_PARTICIPANTS = 16
+_SYNC_ROOM_IDLE_TTL = 10 * 60
 
 
 def _sync_key(request: web.Request) -> str:
@@ -37,14 +40,29 @@ def _sync_key(request: web.Request) -> str:
 
 
 def _session_row(key: str) -> dict:
-    return _SYNC_SESSIONS.setdefault(key, {
+    now = time.time()
+    row = _SYNC_SESSIONS.get(key)
+    if row is not None:
+        row["last_seen"] = now
+        return row
+    # The relay is Internet-facing. Do not let arbitrary room keys keep
+    # permanently accumulating session objects in server memory.
+    for candidate, current in list(_SYNC_SESSIONS.items()):
+        if now - float(current.get("last_seen") or 0) > _SYNC_ROOM_IDLE_TTL:
+            _SYNC_SESSIONS.pop(candidate, None)
+    if len(_SYNC_SESSIONS) >= _MAX_SYNC_SESSIONS:
+        raise web.HTTPTooManyRequests(text="draft room capacity reached")
+    row = {
         "payload": None,
         "updated": 0.0,
         "publisher_id": None,
         "preference": None,
         "preference_version": 0,
         "participants": {},
-    })
+        "last_seen": now,
+    }
+    _SYNC_SESSIONS[key] = row
+    return row
 
 
 def _active_participants(row: dict, now: float | None = None) -> dict[str, dict]:
@@ -84,6 +102,8 @@ async def _relay_heartbeat(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(text="invalid client id")
     row = _session_row(key)
     participants = _active_participants(row)
+    if client_id not in participants and len(participants) >= _MAX_SYNC_PARTICIPANTS:
+        raise web.HTTPTooManyRequests(text="draft room participant limit reached")
     participants[client_id] = {
         "client_id": client_id,
         "player_id": int(payload.get("player_id") or 0),
@@ -111,7 +131,9 @@ async def _relay_put(request: web.Request) -> web.Response:
     row = _session_row(key)
     leader = _elect_leader(row)
     publisher_id = str(request.headers.get("X-Intent-Client") or "").strip() or None
-    if leader is not None and publisher_id and publisher_id != leader.get("client_id"):
+    if leader is not None and publisher_id != leader.get("client_id"):
+        # A missing header is not a bypass: only the elected participant may
+        # publish when automatic Flex leader election is active.
         raise web.HTTPConflict(text="another Flexers client is the elected draft host")
     row["payload"] = payload
     row["updated"] = time.time()
