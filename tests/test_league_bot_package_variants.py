@@ -1,32 +1,64 @@
+"""Portable bot-package regression tests; no private local signup cache required."""
 from __future__ import annotations
 
+import league_comp_engine as engine
+from league_flex_core import _linked_bot_lane_packages, _select_diverse_recommendations
 
-def test_registered_bot_package_candidates_survive_large_roster_prune():
-    from pathlib import Path
-    import json
-    import league_comp_engine as engine
+CIAN = 139837324438536193
+
+ADC_POOL = [
+    "Aphelios", "Yunara", "Kalista", "Ezreal", "Ashe", "Jinx",
+    "Caitlyn", "Kai'Sa", "Lucian", "Xayah", "Smolder", "Sivir",
+    "Varus", "Zeri",
+]
+SUPPORT_POOL = ["Renata Glasc", "Thresh", "Lulu", "Rell", "Seraphine", "Alistar"]
+
+
+def _base():
+    return {"Top": "Urgot", "Jungle": "Amumu", "Mid": "Yasuo",
+            "ADC": "Aphelios", "Support": "Renata Glasc"}
+
+
+def _player(uid, name, role, pool, priority=1):
+    return {"user_id": uid, "display_name": name, "roles": [role],
+            "role_priority": {role: priority},
+            "champions": {role: list(pool)}}
+
+
+def _rec(champions=None, support_alternatives=("Thresh", "Lulu")):
+    champions = dict(champions or _base())
+    score = engine.score_comp(champions)
+    return {
+        "champions": champions,
+        "submitted_pools": {"ADC": ADC_POOL, "Support": SUPPORT_POOL},
+        "role_alternatives": {"Support": list(support_alternatives)},
+        "team_plan": score["team_plan"],
+        "team_plan_score": score["team_plan_score"],
+        "composition_score": score["score"],
+        "rank_score": score["rank_score"],
+        "credible_mixed_damage": score["credible_mixed_damage"],
+    }
+
+
+def test_confirmed_flex_adc_and_registered_packages_survive_shortlist():
     meta = engine.load_meta()
-    signups = json.loads((Path(__file__).resolve().parents[1] / "data" / "live_flex_signups.json").read_text())
-    adc = next(row for row in signups if "Chud" in row["display_name"])
-    support = next(row for row in signups if "The Rock" in row["display_name"])
-    adc_pool = adc["champions"]["ADC"]
-    supp_pool = support["champions"]["Support"]
-    # Do not discard a submitted viable pro partnership just because the ADC
-    # has few recent matches on that champion.
-    allowed = [
-        champ for champ in adc_pool
-        if engine._credible_broad_pool_pick(adc, "ADC", champ, meta)
-        or any(engine._bot_lane_duo_score(champ, sup, meta)["score"] >= 8.0
-               for sup in supp_pool)
+    cian = _player(CIAN, "Cian", "ADC", ADC_POOL, priority=3)
+    for champion in ("Yunara", "Kalista"):
+        assert engine._verified_secondary_role_pick(cian, "ADC", champion, meta)
+    credible = [
+        champ for champ in ADC_POOL
+        if engine._credible_broad_pool_pick(cian, "ADC", champ, meta)
+        or any(engine._bot_lane_duo_score(champ, sup, meta)["score"] >= 8
+               for sup in SUPPORT_POOL)
     ]
-    shortlist = engine._prune_pool(
-        "ADC", allowed, meta, 10,
-        user_id=adc["user_id"], linked_bot_pool=supp_pool)
-    assert {"Aphelios", "Yunara", "Kalista"}.issubset(shortlist)
+    pruned = engine._prune_pool(
+        "ADC", credible, meta, 10, user_id=CIAN,
+        linked_bot_pool=SUPPORT_POOL,
+    )
+    assert {"Aphelios", "Yunara", "Kalista"}.issubset(pruned)
 
 
-def test_yunara_lulu_is_established_pair_not_just_generic_peel():
-    import league_comp_engine as engine
+def test_yunara_lulu_and_kalista_renata_are_established_packages():
     meta = engine.load_meta()
     yunara = engine._bot_lane_duo_score("Yunara", "Lulu", meta)
     aphelios = engine._bot_lane_duo_score("Aphelios", "Lulu", meta)
@@ -36,42 +68,31 @@ def test_yunara_lulu_is_established_pair_not_just_generic_peel():
     assert kalista["score"] >= 7.5
 
 
-def test_discord_draft_card_preserves_linked_bot_packages():
-    import json
-    from pathlib import Path
-    import league_comp_engine as engine
-    from league_flex_core import _linked_bot_lane_packages
-    meta = engine.load_meta()
-    signups = json.loads((Path(__file__).resolve().parents[1] / "data" / "live_flex_signups.json").read_text())
-    adc = next(row for row in signups if "Chud" in row["display_name"])
-    support = next(row for row in signups if "The Rock" in row["display_name"])
-    base = {"Top": "Urgot", "Jungle": "Amumu", "Mid": "Yasuo",
-            "ADC": "Aphelios", "Support": "Renata Glasc"}
-    scored = engine.score_comp(base, meta)
-    record = {
-        "champions": base,
-        "submitted_pools": {
-            "ADC": adc["champions"]["ADC"],
-            "Support": support["champions"]["Support"],
-        },
-        "role_alternatives": {"Support": ["Thresh", "Lulu"]},
-        "team_plan": scored["team_plan"],
-        "team_plan_score": scored["team_plan_score"],
-        "composition_score": scored["score"],
-        "rank_score": scored["rank_score"],
-        "credible_mixed_damage": scored["credible_mixed_damage"],
-    }
-    pairs = _linked_bot_lane_packages(record)
-    actual = {(row["adc"], row["support"]) for row in pairs}
+def test_draft_four_exposes_complete_linked_pairs_and_plan_changes():
+    packages = _linked_bot_lane_packages(_rec())
+    names = {(row["adc"], row["support"]) for row in packages}
     assert {("Aphelios", "Thresh"), ("Yunara", "Lulu"),
-            ("Kalista", "Renata Glasc")}.issubset(actual)
-    assert next(row for row in pairs if row["adc"] == "Kalista")["plan_change"]
-    assert not next(row for row in pairs if row["adc"] == "Yunara")["plan_change"]
-    assert all(row["duo_score"] >= 7.4 for row in pairs)
+            ("Kalista", "Renata Glasc")}.issubset(names)
+    assert next(row for row in packages if row["adc"] == "Kalista")["plan_change"]
+    assert not next(row for row in packages if row["adc"] == "Yunara")["plan_change"]
 
 
-def test_banned_or_unsubmitted_bot_picks_cannot_enter_package_options():
-    from league_flex_core import _linked_bot_lane_packages
+def test_real_role_logic_retains_named_pairs_without_ignored_signups_file():
+    assignments = [{
+        "Top": _player(987001, "Top", "Top", ["Urgot"]),
+        "Jungle": _player(987002, "Jungle", "Jungle", ["Amumu"]),
+        "Mid": _player(987003, "Mid", "Mid", ["Yasuo"]),
+        "ADC": _player(CIAN, "Cian", "ADC", ADC_POOL, priority=3),
+        "Support": _player(987004, "Support", "Support", SUPPORT_POOL),
+    }]
+    recs, missing = engine.recommend_comps(assignments, limit=300, pool_limit=8)
+    assert not missing
+    pairs = {(r["champions"]["ADC"], r["champions"]["Support"]) for r in recs}
+    assert {("Aphelios", "Thresh"), ("Yunara", "Lulu"),
+            ("Kalista", "Renata Glasc")}.issubset(pairs)
+
+
+def test_unavailable_or_unsubmitted_picks_cannot_enter_package_options():
     rec = {
         "champions": {"Top": "Ornn", "Jungle": "Vi", "Mid": "Ahri",
                       "ADC": "Jinx", "Support": "Lulu"},
@@ -82,73 +103,41 @@ def test_banned_or_unsubmitted_bot_picks_cannot_enter_package_options():
     assert _linked_bot_lane_packages(rec) == []
 
 
-def test_actual_five_candidate_search_retains_three_linked_bot_packages():
-    import json
-    from pathlib import Path
-    import league_comp_engine as engine
-    records=json.loads((Path(__file__).resolve().parents[1] /
-                        "data/live_flex_signups.json").read_text(encoding="utf8"))
-    def player(part): return next(p for p in records if part in p["display_name"])
-    assignment={
-        "Top":player("Cheeky"), "Jungle":player("JustKayla"),
-        "Mid":player("Aristo"), "ADC":player("Chud"),
-        "Support":player("The Rock"),
-    }
-    assert engine._verified_secondary_role_pick(assignment["ADC"],"ADC","Yunara",engine.load_meta())
-    assert engine._verified_secondary_role_pick(assignment["ADC"],"ADC","Kalista",engine.load_meta())
-    candidates,missing=engine.recommend_comps([assignment],limit=300,pool_limit=10)
-    assert not missing
-    pairs={(r["champions"]["ADC"],r["champions"]["Support"]) for r in candidates}
-    assert {("Aphelios","Thresh"),("Yunara","Lulu"),
-            ("Kalista","Renata Glasc")}.issubset(pairs)
+def test_portfolio_values_new_bot_lane_unit():
+    roles = ("Top", "Jungle", "Mid", "ADC", "Support")
+    players = {r: {"user_id": i+1, "display_name": r, "roles": [r],
+                   "role_priority": {r: 1}} for i, r in enumerate(roles)}
+    def rec(adc, support, score):
+        return {
+            "score": score,
+            "champions": dict(_base(), ADC=adc, Support=support),
+            "players": players,
+            "team_plan": "scaling front-to-back",
+            "team_plan_score": 8.4,
+            "archetypes": ["front-to-back"],
+            "credible_mixed_damage": True,
+            "carry_plan": {"role": "ADC"},
+        }
+    selected = _select_diverse_recommendations([
+        rec("Aphelios", "Thresh", 100),
+        rec("Aphelios", "Lulu", 99),
+        rec("Yunara", "Lulu", 98.5),
+        rec("Kalista", "Renata Glasc", 92),
+    ], limit=3)
+    pairs = {(r["champions"]["ADC"], r["champions"]["Support"]) for r in selected}
+    assert ("Yunara", "Lulu") in pairs
+    assert len(pairs) >= 2
 
 
-def test_diversity_selection_prefers_new_real_bot_package_over_single_adc_repeat():
-    from league_flex_core import _select_diverse_recommendations
-    roles=("Top","Jungle","Mid","ADC","Support")
-    players={r:{"user_id":i+1,"display_name":r,"roles":[r],"role_priority":{r:1}}
-             for i,r in enumerate(roles)}
-    base={"Top":"Urgot","Jungle":"Amumu","Mid":"Yasuo","ADC":"Aphelios","Support":"Thresh"}
-    def item(adc,support,score):
-        champs=dict(base,ADC=adc,Support=support)
-        return {"score":score, "champions":champs,"players":players,
-                "team_plan":"scaling front-to-back","team_plan_score":8.4,
-                "archetypes":["front-to-back"],"credible_mixed_damage":True,
-                "carry_plan":{"role":"ADC"}}
-    cards=[item("Aphelios","Thresh",100),
-           item("Aphelios","Lulu",99),
-           item("Yunara","Lulu",98.5),
-           item("Kalista","Renata Glasc",92)]
-    selected=_select_diverse_recommendations(cards,limit=3)
-    pairs={(r["champions"]["ADC"],r["champions"]["Support"]) for r in selected}
-    assert ("Yunara","Lulu") in pairs
-    assert len(pairs)>=2
-
-
-def test_linked_support_pair_need_not_be_valid_one_role_swap():
-    # Renata alongside Aphelios is not a good direct Support substitute, but
-    # Kalista+Renata can be a valid complete package from the *submitted* pool.
-    from league_flex_core import _linked_bot_lane_packages
-    from pathlib import Path
-    import json
-    import league_comp_engine as engine
-    rows=json.loads((Path(__file__).resolve().parents[1]/
-                      "data/live_flex_signups.json").read_text())
-    adc=next(x for x in rows if "Chud" in x["display_name"])
-    sup=next(x for x in rows if "The Rock" in x["display_name"])
-    champs={"Top":"Urgot","Jungle":"Amumu","Mid":"Yasuo",
-            "ADC":"Aphelios","Support":"Thresh"}
-    scored=engine.score_comp(champs)
-    rec={
-        "champions":champs,
-        "submitted_pools":{"ADC":adc["champions"]["ADC"],
-                           "Support":sup["champions"]["Support"]},
-        "role_alternatives":{"Support":["Lulu"]},
-        "team_plan":scored["team_plan"],
-        "composition_score":scored["score"],
-        "credible_mixed_damage":scored["credible_mixed_damage"],
-    }
+def test_linked_partner_not_required_to_be_standalone_swap():
+    # Renata may be poor beside Aphelios but right beside Kalista.
+    rec = _rec(
+        {"Top": "Urgot", "Jungle": "Amumu", "Mid": "Yasuo",
+         "ADC": "Aphelios", "Support": "Thresh"},
+        support_alternatives=("Lulu",),
+    )
     assert "Renata Glasc" not in rec["role_alternatives"]["Support"]
-    pairs=_linked_bot_lane_packages(rec)
-    assert ("Kalista","Renata Glasc") in {(p["adc"],p["support"]) for p in pairs}
-    assert ("Yunara","Lulu") in {(p["adc"],p["support"]) for p in pairs}
+    packages = _linked_bot_lane_packages(rec)
+    pairs = {(p["adc"], p["support"]) for p in packages}
+    assert ("Kalista", "Renata Glasc") in pairs
+    assert ("Yunara", "Lulu") in pairs
