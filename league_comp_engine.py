@@ -1090,7 +1090,7 @@ def _pair_value(role_a: str, champ_a: str, role_b: str, champ_b: str, meta: dict
     return blended, historical_games + int(round(current_weight))
 
 
-def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8, *, enemy_roles: dict[str, str] | None = None) -> list[str]:
+def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8, *, enemy_roles: dict[str, str] | None = None, user_id: int | None = None) -> list[str]:
     """Keep the search small without turning it into a pure pro-meta shortlist."""
     unique = list(dict.fromkeys(champions))
     if len(unique) <= limit:
@@ -1100,7 +1100,19 @@ def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8,
         bayes, games = _meta_value(role, champion, meta)
         confidence = min(1.0, games / 12.0)
         known = 1 if _traits(champion, meta) else 0
-        return (known, confidence * (bayes - 0.5), math.log1p(games), champion.lower())
+        # Never choose the ten available champions *solely* by historical pro
+        # win rate. The actual person's comfort/role experience is fundamental.
+        # An unusually broad saved pool does not mean the player has practised
+        # 40 top champions to the same standard.
+        comfort = 0.0
+        if user_id is not None and user_id > 0:
+            own = _champion_comfort(user_id, champion, role)
+            effective = float(load_recent_match_index().get(user_id, {})
+                              .get("by_role_champion", {}).get(role, {})
+                              .get(champion, {}).get("effective_games", 0) or 0)
+            comfort = (own - 5.0) * 0.8 + min(3.0, effective) * 0.65
+        meta_support = confidence * (bayes - 0.5) * 4.5 + min(1.0, games / 30.0)
+        return (known, round(comfort + meta_support, 3), comfort, math.log1p(games), champion.lower())
 
     selected: list[str] = []
 
@@ -2073,6 +2085,60 @@ def _bounded_package_products(
     ]
 
 
+def _credible_broad_pool_pick(player: dict, role: str, champion: str, meta: dict) -> bool:
+    """A player selecting 30-50 champions is not declaring them all comfort picks.
+
+    Preserve straightforward low-economy picks; more demanding picks need
+    same-role practice, meaningful mastery, or recorded champion experience.
+    A real live LOCK bypasses this just like any other draft hard constraint.
+    """
+    if player.get("_forced_live_champion") == champion:
+        return True
+    if _champion_carry_demand(role, champion, meta) < 0.40:
+        return True
+    uid = int(player["user_id"])
+    recent = (load_recent_match_index().get(uid, {})
+              .get("by_role_champion", {}).get(role, {}).get(champion) or {})
+    if int(recent.get("raw_games", 0) or 0) >= 3 or float(recent.get("effective_games", 0) or 0) >= 1.5:
+        return True
+    history = _champion_history_for(uid, champion) or {}
+    mastery = _mastery_points_for(uid, champion)
+    return mastery >= 80_000 or int(history.get("games", 0) or 0) >= 5
+
+
+def _verified_secondary_role_pick(player: dict, role: str, champion: str, meta: dict) -> bool:
+    """Avoid recommending highly demanding picks to an unpractised role flex.
+
+    This is NOT a ban on playing the champion: explicit live LOCKS are accepted
+    by the draft bridge. It only affects speculative prepared-draft choices.
+    The person's deliberate first-priority role keeps its complete pool.
+    """
+    priorities = player.get("role_priority") or {}
+    try:
+        priority = int(priorities.get(role, 1))
+    except (ValueError, TypeError):
+        priority = 1
+    if priority <= 1 or player.get("_forced_live_champion") == champion:
+        return True
+    # An unknown new teammate isn't automatically unskilled. The gate needs
+    # real account history before rejecting that person's own selections.
+    user_id = int(player["user_id"])
+    recent_index = load_recent_match_index().get(user_id)
+    if not recent_index:
+        return True
+    # A simple weak-side champion can be a reasonable secondary-role fallback.
+    # Demanding/technical picks must have actual evidence IN THIS ROLE; generic
+    # mastery on other lanes doesn't establish Vayne/Irelia Top proficiency.
+    if (_champion_carry_demand(role, champion, meta) < 0.40
+        and _rating(champion, "difficulty", meta) <= 1):
+        return True
+    role_record = (recent_index
+                   .get("by_role_champion", {}).get(role, {}).get(champion) or {})
+    raw = int(role_record.get("raw_games", 0) or 0)
+    effective = float(role_record.get("effective_games", 0) or 0)
+    return raw >= 3 or effective >= 1.5
+
+
 def recommend_comps(
     assignments: list[dict[str, dict]],
     *,
@@ -2106,10 +2172,22 @@ def recommend_comps(
             # Explicit champion choices are the hard primary-pick boundary. Account
             # history/mastery can rank those choices and can be retained as optional
             # suggestion data, but it must not silently become a primary recommendation.
-            selected = [champ for champ in selected if champ not in DISPLAY_EXCLUDED_CHAMPIONS]
+            selected = [
+                champ for champ in selected
+                if champ not in DISPLAY_EXCLUDED_CHAMPIONS
+                and _verified_secondary_role_pick(player, role, champ, meta)
+            ]
             inferred = [champ for champ in inferred if champ not in DISPLAY_EXCLUDED_CHAMPIONS]
+            if len(selected) > pool_limit:
+                selected = [
+                    champ for champ in selected
+                    if _credible_broad_pool_pick(player, role, champ, meta)
+                ]
             if selected:
-                chosen = _prune_pool(role, selected, meta, pool_limit, enemy_roles=enemy_roles) if len(selected) > pool_limit else list(selected)
+                chosen = _prune_pool(
+                    role, selected, meta, pool_limit,
+                    enemy_roles=enemy_roles, user_id=int(player["user_id"]),
+                ) if len(selected) > pool_limit else list(selected)
                 # Preserve the known cross-role counter in an explicit player pool
                 # even if a large generic pool was reduced to the top ten.
                 if "Malphite" in revealed_enemies and role in {"Top", "Jungle", "Mid"}:

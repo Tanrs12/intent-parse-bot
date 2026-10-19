@@ -209,3 +209,58 @@ def test_unverified_hover_does_not_displace_practiced_champions():
     }
     result = _constrain_assignments([selection], hovered_champions={"Mid": "Zed"})
     assert result[0]["Mid"]["champions"]["Mid"] == ["Orianna"]
+
+
+def test_secondary_role_avoids_carry_without_same_role_practice(monkeypatch):
+    import league_comp_engine as engine
+    uid = 990001
+    monkeypatch.setattr(engine, "_champion_carry_demand", lambda role, champ, meta: {
+        "Vayne": 1.0, "Irelia": 0.47, "Urgot": 0.05,
+    }.get(champ, 0.05))
+    monkeypatch.setattr(engine, "load_recent_match_index", lambda: {
+        uid: {"by_role_champion": {"Top": {
+            "Irelia": {"raw_games": 2, "effective_games": 0.9},
+            "Urgot": {"raw_games": 15, "effective_games": 9.15},
+        }}}
+    })
+    player = {"user_id": uid, "roles": ["Support", "Top"],
+              "role_priority": {"Support": 1, "Top": 2}}
+    meta = {}
+    assert not engine._verified_secondary_role_pick(player, "Top", "Vayne", meta)
+    assert not engine._verified_secondary_role_pick(player, "Top", "Irelia", meta)
+    monkeypatch.setattr(engine, "_rating", lambda champ, key, m: 2 if champ == "Aatrox" else 0)
+    assert not engine._verified_secondary_role_pick(player, "Top", "Aatrox", meta)
+    assert engine._verified_secondary_role_pick(player, "Top", "Urgot", meta)
+    assert engine._verified_secondary_role_pick(player, "Support", "Vayne", meta)
+    # Real locks take priority: we must support the game the player is actually playing.
+    player["_forced_live_champion"] = "Vayne"
+    assert engine._verified_secondary_role_pick(player, "Top", "Vayne", meta)
+
+
+def test_player_role_comfort_overrides_historical_pro_shortlist(monkeypatch):
+    import league_comp_engine as engine
+    uid = 990002
+    samples = [f"Unpractised{i}" for i in range(12)]
+    samples[3] = "Camille"
+    samples[4] = "Twisted Fate"
+    meta = {"champion_traits": {name: {"ratings": {}} for name in samples},
+            "role_stats": {"Top": {
+                name: {"bayes_win_rate": 0.52 + (0.01 if name == "Twisted Fate" else 0),
+                       "games": 30} for name in samples
+            }}}
+    monkeypatch.setattr(engine, "_champion_comfort",
+                        lambda user_id, champion, role: 9.0 if champion == "Camille" else 4.7)
+    monkeypatch.setattr(engine, "load_recent_match_index", lambda: {
+        uid: {"by_role_champion": {"Top": {"Camille": {
+            "effective_games": 6, "raw_games": 6,
+        }}}}
+    })
+    monkeypatch.setattr(engine, "_champion_carry_demand", lambda *args: 0.7)
+    monkeypatch.setattr(engine, "_mastery_points_for", lambda *args: 0)
+    monkeypatch.setattr(engine, "_champion_history_for", lambda *args: {})
+    player = {"user_id": uid, "role_priority": {"Top": 1}}
+    eligible = [name for name in samples if engine._credible_broad_pool_pick(player, "Top", name, meta)]
+    assert "Camille" in eligible and "Twisted Fate" not in eligible
+    result = engine._prune_pool("Top", eligible, meta, 8, user_id=uid)
+    assert "Camille" in result
+    assert "Twisted Fate" not in result
