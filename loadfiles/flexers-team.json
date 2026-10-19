@@ -1,7 +1,7 @@
 {
   "format": "flexers-loadfile",
   "version": 1,
-  "note": "Flexers squad roster from the Codex team review (10 October 2026): 23 confirmed accounts across seven people, pools with familiarity tiers (1 = comfort, 2 = refresh, 3 = developing), and the six target compositions as a playbook.",
+  "note": "Flexers squad roster: 28 linked accounts across eight people; player-submitted champion pools, familiarity tiers (comfort, refresh, developing), and six target composition playbooks. Tom is tracked but has no assigned roles/champions until his own signup.",
   "mode": "merge",
   "settings": {
     "queues": [
@@ -341,6 +341,20 @@
         ]
       },
       "notes": "Build active support pressure, engage/peel judgment and independent decisions. Top assignment poorly matched."
+    },
+    {
+      "user_id": 1051188024668602440,
+      "rename": "Tom",
+      "riot_ids": [
+        "Conor McGregor#HERO",
+        "Mid Iane banter#EUW",
+        "ndnuh#EUW",
+        "TSM TheOddOne#God",
+        "yNrZora#EUW"
+      ],
+      "roles": [],
+      "pools": {},
+      "notes": "Returning experienced friend; five EUW accounts registered for performance tracking. Historical skill is unverified. Wait for Tom's role priorities and confirmed comfort picks in Discord; do not automatically infer playability from a broad inferred pool."
     }
   ],
   "lineup": [

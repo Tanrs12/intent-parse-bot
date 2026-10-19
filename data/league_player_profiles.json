@@ -59539,7 +59539,68 @@
         "fresh_rows_seen": 10,
         "errors": []
       }
+    },
+    "1051188024668602440": {
+      "discord_user_id": 1051188024668602440,
+      "discord_name": "Tom",
+      "opgg_urls": [
+        "https://op.gg/lol/summoners/euw/Conor%20McGregor-HERO",
+        "https://op.gg/lol/summoners/euw/Mid%20Iane%20banter-EUW",
+        "https://op.gg/lol/summoners/euw/ndnuh-EUW",
+        "https://op.gg/lol/summoners/euw/TSM%20TheOddOne-God",
+        "https://op.gg/lol/summoners/euw/yNrZora-EUW"
+      ],
+      "account_failures": [],
+      "duplicate_aliases": [],
+      "position_hints": [],
+      "rank_history": {},
+      "mastery_summary": {
+        "combined_mastery_points": 0,
+        "champions": 0
+      },
+      "masteries": [],
+      "seasons": [],
+      "summary": {},
+      "champion_history": [],
+      "recent_matches": [],
+      "recent_match_summary": {
+        "queues": {},
+        "champions": {},
+        "positions": {}
+      },
+      "accounts": [
+        {
+          "slug": "Conor McGregor-HERO",
+          "opgg_url": "https://op.gg/lol/summoners/euw/Conor%20McGregor-HERO"
+        },
+        {
+          "slug": "Mid Iane banter-EUW",
+          "opgg_url": "https://op.gg/lol/summoners/euw/Mid%20Iane%20banter-EUW"
+        },
+        {
+          "slug": "ndnuh-EUW",
+          "opgg_url": "https://op.gg/lol/summoners/euw/ndnuh-EUW"
+        },
+        {
+          "slug": "TSM TheOddOne-God",
+          "opgg_url": "https://op.gg/lol/summoners/euw/TSM%20TheOddOne-God"
+        },
+        {
+          "slug": "yNrZora-EUW",
+          "opgg_url": "https://op.gg/lol/summoners/euw/yNrZora-EUW"
+        }
+      ],
+      "notes": "Returning formerly strong player per teammate report. Historical ability not yet objectively evaluated; recent form unknown. No roles/champion selections assumed.",
+      "recent_refresh": {
+        "refreshed_at": "2026-10-19T16:51:39.560976+00:00",
+        "accounts_ok": 5,
+        "accounts_total": 5,
+        "fresh_rows_seen": 0,
+        "errors": []
+      },
+      "collection_note": "All five linked accounts were reachable, but automated match-history import returned no rows. Historical rank/champion data may exist on public OP.GG pages; current form and historical peak are not yet established by this snapshot."
     }
   },
-  "recent_matches_refreshed_at": "2026-10-19T12:05:57.026548+00:00"
+  "recent_matches_refreshed_at": "2026-10-19T12:05:57.026548+00:00",
+  "roster_updated_at": "2026-10-19"
 }

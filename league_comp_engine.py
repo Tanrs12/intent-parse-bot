@@ -414,18 +414,30 @@ def load_player_score_index() -> dict[int, dict]:
         blended["_recent_effective_games"] = recent_eff
         summaries[uid] = blended
 
+    # Newly linked or returning players can have no rank/performance evidence
+    # while OP.GG is being refreshed. Treat that as UNKNOWN, not as zero skill;
+    # otherwise they become the artificial minimum in every team percentile.
+    evidence_uids = {
+        uid for uid, summary in summaries.items()
+        if float(summary.get('ranked_games_observed', 0) or 0) > 0
+        or float(summary.get('_recent_effective_games', 0) or 0) >= 1.0
+        or any(float(summary.get(k, 0) or 0) > 0 for k in
+               ('damage_dealt_per_min', 'gold_per_min', 'op_score'))
+    }
+    evidence = [summaries[uid] for uid in evidence_uids]
+
     metrics = {
-        "damage_dealt_per_min": [float(s.get("damage_dealt_per_min", 0) or 0) for s in summaries.values()],
-        "damage_dealt_share": [float(s.get("damage_dealt_share", 0) or 0) for s in summaries.values()],
-        "cs_per_min": [float(s.get("cs_per_min", 0) or 0) for s in summaries.values()],
-        "gold_per_min": [float(s.get("gold_per_min", 0) or 0) for s in summaries.values()],
-        "kda": [float(s.get("kda", 0) or 0) for s in summaries.values()],
-        "op_score": [float(s.get("op_score", 0) or 0) for s in summaries.values()],
-        "lane_lead": [float(s.get("lane_lead", 0) or 0) for s in summaries.values()],
-        "kill_participation": [float(s.get("kill_participation", 0) or 0) for s in summaries.values()],
-        "win_rate": [float(s.get("win_rate", 0) or 0) for s in summaries.values()],
-        "rank": [_rank_value(players[str(uid)]) for uid in summaries],
-        "experience": [math.log1p(float(s.get("ranked_games_observed", 0) or 0)) for s in summaries.values()],
+        "damage_dealt_per_min": [float(s.get("damage_dealt_per_min", 0) or 0) for s in evidence],
+        "damage_dealt_share": [float(s.get("damage_dealt_share", 0) or 0) for s in evidence],
+        "cs_per_min": [float(s.get("cs_per_min", 0) or 0) for s in evidence],
+        "gold_per_min": [float(s.get("gold_per_min", 0) or 0) for s in evidence],
+        "kda": [float(s.get("kda", 0) or 0) for s in evidence],
+        "op_score": [float(s.get("op_score", 0) or 0) for s in evidence],
+        "lane_lead": [float(s.get("lane_lead", 0) or 0) for s in evidence],
+        "kill_participation": [float(s.get("kill_participation", 0) or 0) for s in evidence],
+        "win_rate": [float(s.get("win_rate", 0) or 0) for s in evidence],
+        "rank": [_rank_value(players[str(uid)]) for uid in evidence_uids],
+        "experience": [math.log1p(float(s.get("ranked_games_observed", 0) or 0)) for s in evidence],
     }
 
     # Role-aware recent percentiles stop a Support's low CS/DPM from being compared
@@ -455,6 +467,22 @@ def load_player_score_index() -> dict[int, dict]:
 
     output = {}
     for uid, summary in summaries.items():
+        # Missing data is explicitly UNKNOWN, never the weakest team's score.
+        # Avoid contaminating percentile ranges and assigning low carry potential
+        # to a returning player who has not played in the recorded period.
+        if uid not in evidence_uids:
+            output[uid] = {
+                "carry_index": 50.0,
+                "reliability_index": 50.0,
+                "metrics": {key: 50.0 for key in
+                            ("dpm", "damage_share", "cs", "gold", "kda",
+                             "op", "lane", "kp", "wr", "rank", "experience")},
+                "roles": {},
+                "recent_blend": 0.0,
+                "recent_effective_games": 0.0,
+                "data_quality": "insufficient_history",
+            }
+            continue
         profile = players[str(uid)]
         pct = {
             "dpm": _normalise(float(summary.get("damage_dealt_per_min", 0) or 0), metrics["damage_dealt_per_min"]),
