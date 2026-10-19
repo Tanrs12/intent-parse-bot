@@ -25,6 +25,9 @@ from league_comp_engine import (
     load_player_score_index,
     load_solo_queue_winrates,
     role_experience_score,
+    _bot_lane_duo_score,
+    load_meta,
+    score_comp,
 )
 
 log = logging.getLogger(__name__)
@@ -526,7 +529,96 @@ def _attach_role_alternatives(selected: list[dict], candidates: list[dict], max_
                 if ordered:
                     alternatives[role] = ordered
         rec["role_alternatives"] = alternatives
+        rec["bot_lane_packages"] = _linked_bot_lane_packages(rec)
     return selected
+
+
+def _linked_bot_lane_packages(rec: dict, limit: int = 3) -> list[dict]:
+    """Return explicit ADC+Support substitutions; never imply independent swaps.
+
+    Evaluate the entire five-player composition after swapping BOTH bot picks.
+    Recent individual ADC performance is only a tie-breaker elsewhere: it
+    cannot prevent a stronger submitted ADC+Support combination from appearing.
+    Team plans may change; we label that honestly rather than misrepresent a
+    Kalista/Renata all-in as Aphelios front-to-back scaling.
+    """
+    submitted = rec.get("submitted_pools") or {}
+    adcs = list(dict.fromkeys(submitted.get("ADC") or []))
+    supports = list(dict.fromkeys(submitted.get("Support") or []))
+    # A prepared card's Support alternatives define its *own* lane strategy.
+    # Do not replace Renata/Thresh/Lulu with a random Rell or Seraphine just
+    # because that produces a slightly higher isolated composition score.
+    shown_supports = list(dict.fromkeys([
+        (rec.get("champions") or {}).get("Support"),
+        *((rec.get("role_alternatives") or {}).get("Support") or []),
+    ]))
+    if len(shown_supports) >= 2:
+        supports = [champion for champion in shown_supports if champion in supports]
+    if not adcs or not supports or not rec.get("champions"):
+        return []
+    current = rec["champions"]
+    base_plan = str(rec.get("team_plan") or "")
+    base_raw = float(rec.get("composition_score", rec.get("score", 0)) or 0.0)
+    base_rank = float(rec.get("rank_score", base_raw) or base_raw)
+    meta = load_meta()
+    candidates = []
+    for adc in adcs:
+        for support in supports:
+            if adc == support or (adc, support) == (current.get("ADC"), current.get("Support")):
+                continue
+            if adc in (current.get("Top"), current.get("Jungle"), current.get("Mid")):
+                continue
+            if support in (current.get("Top"), current.get("Jungle"), current.get("Mid")):
+                continue
+            duo = _bot_lane_duo_score(adc, support, meta)
+            if float(duo["score"]) < 7.4:
+                continue
+            candidates.append((float(duo["score"]), adc, support))
+    # Bound full five-man rescoring. Preserve one path per distinct Support
+    # and top-pair ADC, rather than all 40 evaluations being enchanter clones.
+    candidates.sort(reverse=True)
+    shortlist = candidates[:24]
+    for _score, adc, support in candidates[24:]:
+        if len(shortlist) >= 40:
+            break
+        if (not any(row[2] == support for row in shortlist)
+            or not any(row[1] == adc for row in shortlist)):
+            shortlist.append((_score, adc, support))
+    viable = []
+    for duo_score, adc, support in shortlist:
+        swapped = dict(current, ADC=adc, Support=support)
+        scored = score_comp(swapped, meta)
+        comp_rank = float(scored.get("rank_score", scored["score"]))
+        if comp_rank < base_raw - 9.0:
+            continue
+        if float(scored.get("team_plan_score", 0)) < 5.4:
+            continue
+        if rec.get("credible_mixed_damage") and not scored.get("credible_mixed_damage"):
+            continue
+        viable.append({
+            "adc": adc, "support": support,
+            "duo_score": float(duo_score),
+            "composition_score": round(comp_rank, 1),
+            "team_plan": scored.get("team_plan"),
+            "team_plan_score": scored.get("team_plan_score"),
+            "plan_change": scored.get("team_plan") != base_plan,
+        })
+    viable.sort(key=lambda row: (row["composition_score"], row["duo_score"]), reverse=True)
+    chosen, seen_supports, seen_adcs = [], set(), set()
+    for row in viable:
+        if row["support"] in seen_supports or row["adc"] in seen_adcs:
+            continue
+        chosen.append(row)
+        seen_supports.add(row["support"])
+        seen_adcs.add(row["adc"])
+        if len(chosen) >= limit:
+            return chosen
+    for row in viable:
+        if row not in chosen:
+            chosen.append(row)
+        if len(chosen) >= limit:
+            break
+    return chosen
 
 
 def _recommendation_respects_selected_roles(rec: dict) -> bool:
@@ -693,8 +785,12 @@ def _select_diverse_recommendations(
             role_band = 2 if min_player_diff >= 2 else 1 if min_player_diff >= 1 else 0
             new_champion_count = sum(champ not in used_champions for champ in champ_sig)
             return (
-                champ_band,
+                # Within the quality floor, a new complete bot-lane package
+                # matters more than rotating two unrelated solo-lane champions
+                # while endlessly retaining the same recently successful ADC.
+                int(bot_package(rec) not in used_bot),
                 bot_style_novelty,
+                champ_band,
                 package_novelty,
                 int(plan not in used_plans),
                 role_band,

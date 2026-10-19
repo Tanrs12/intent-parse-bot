@@ -498,7 +498,7 @@ def _draw_draft_card(
     blue_conditional: list[dict] | None = None,
     red_conditional: list[dict] | None = None,
 ) -> bytes:
-    width, height = 1200, 900
+    width, height = 1200, 965
     image = Image.new("RGBA", (width, height), (15, 18, 24, 255))
     draw = ImageDraw.Draw(image)
     blue = (58, 130, 246, 255)
@@ -595,6 +595,23 @@ def _draw_draft_card(
     draw_side_plan("BLUE", "B", blue, blue_order, blue_bans, blue_conditional, 330)
     draw_side_plan("RED", "R", red, red_order, red_bans, red_conditional, 575)
 
+    # Conditional packages are displayed as a LINKED ADC+Support choice,
+    # never as two independent champions that could be recombined at random.
+    packages = list(rec.get("bot_lane_packages") or [])[:3]
+    if packages:
+        draw.text((30, 812), "LINKED BOT LANE ALTERNATIVES  ·  SWAP BOTH PICKS TOGETHER", font=_draft_font(16, True), fill=neutral)
+        for i, variant in enumerate(packages):
+            x = 30 + i * 380
+            draw.rounded_rectangle((x, 837, x + 370, 917), radius=12, fill=panel)
+            adc, support = variant["adc"], variant["support"]
+            _paste_champion_icon(image, icons, adc, (x + 8, 849), 46)
+            _paste_champion_icon(image, icons, support, (x + 58, 849), 46)
+            label = f"{adc} + {support}"
+            draw.text((x + 112, 847), label[:28], font=_draft_font(16, True), fill=white)
+            plan = str(variant.get("team_plan") or "")
+            suffix = "  [PLAN CHANGE]" if variant.get("plan_change") else ""
+            draw.text((x + 112, 877), (plan + suffix)[:38], font=_draft_font(11), fill=muted)
+
     carry_options = list(rec.get("carry_options") or [])
     if carry_options:
         leverage = " / ".join(
@@ -605,7 +622,7 @@ def _draw_draft_card(
     else:
         carry = rec.get("carry_plan") or {}
         footer = f"Win condition: {carry.get('champion', 'shared')} ({carry.get('role', 'team')})  |  Team-plan fit {rec.get('team_plan_score', 5.0):.1f}/10"
-    draw.text((30, 868), footer[:120], font=_draft_font(16), fill=muted)
+    draw.text((30, 940 if packages else 868), footer[:120], font=_draft_font(16), fill=muted)
 
     out = io.BytesIO()
     image.convert("RGB").save(out, format="PNG", optimize=True)
@@ -630,6 +647,8 @@ async def _build_draft_visuals(recommendations: list[dict], unavailable: set[str
         all_champions.update(rec["champions"].values())
         for options in rec.get("role_alternatives", {}).values():
             all_champions.update(options)
+        for pair in rec.get("bot_lane_packages", []):
+            all_champions.update((pair["adc"], pair["support"]))
         for options in rec.get("learn_suggestions", {}).values():
             all_champions.update(options)
         all_champions.update(ban["champion"] for ban in blue_bans)
@@ -1842,6 +1861,15 @@ class LeagueFlexCog(commands.Cog):
                             f" — {', '.join(rec.get('bot_lane_reasons', [])[:2])}"
                             if rec.get('bot_lane_reasons') else ""
                         )
+                    ),
+                    (
+                        "**Linked bot alternatives:** "
+                        + " • ".join(
+                            f"{v['adc']} + {v['support']}"
+                            + (" (plan change)" if v.get("plan_change") else "")
+                            for v in rec.get("bot_lane_packages", [])[:3]
+                        )
+                        if rec.get("bot_lane_packages") else "**Linked bot alternatives:** none"
                     ),
                     (
                         f"**Mid–Jungle:** {rec['champions']['Mid']} + {rec['champions']['Jungle']} — "

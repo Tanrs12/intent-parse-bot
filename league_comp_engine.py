@@ -129,12 +129,26 @@ BOT_DUO_PRIORS = {
     ("Jinx", "Lulu"): 0.98, ("Jinx", "Milio"): 0.96, ("Jinx", "Thresh"): 0.90, ("Jinx", "Braum"): 0.82,
     ("Kog'Maw", "Lulu"): 1.00, ("Twitch", "Lulu"): 0.96,
     ("Aphelios", "Thresh"): 0.98, ("Aphelios", "Lulu"): 0.88, ("Aphelios", "Braum"): 0.84,
+    # Yunara/Lulu is an established current-patch high-volume/pro pairing,
+    # not just a generic hypercarry+enchanter. OP.GG 16.20 EUW Emerald+
+    # tracked 5,582 ranked appearances together; this is a suitability prior,
+    # not an automatically imported win rate or a claim it always wins.
+    ("Yunara", "Lulu"): 1.00, ("Yunara", "Milio"): 0.88,
     ("Kalista", "Renata Glasc"): 0.96, ("Kalista", "Nautilus"): 0.90, ("Kalista", "Rell"): 0.88,
     ("Zeri", "Lulu"): 0.94, ("Zeri", "Yuumi"): 0.90, ("Zeri", "Milio"): 0.88,
     ("Ashe", "Seraphine"): 0.94,
     ("Jhin", "Nautilus"): 0.88, ("Jhin", "Xerath"): 0.86, ("Jhin", "Bard"): 0.82, ("Jhin", "Leona"): 0.80,
     ("Sivir", "Yuumi"): 0.86,
 }
+# Player-requested duo candidates must survive the *shortlisting* stage if
+# both players submitted them. This is candidate coverage, NOT a score bonus
+# or an unconditional recommendation. Every five-man still gets rescored.
+EXPLICIT_BOT_PAIR_COVERAGE = (
+    ("Yunara", "Lulu"),
+    ("Aphelios", "Thresh"),
+    ("Kalista", "Renata Glasc"),
+)
+
 # High-value organised-play two-man packages outside bot lane. These are priors,
 # then current pair_stats can move them up/down.
 COORDINATED_DUO_PRIORS = {
@@ -1137,7 +1151,7 @@ def _pair_value(role_a: str, champ_a: str, role_b: str, champ_b: str, meta: dict
     return blended, historical_games + int(round(current_weight))
 
 
-def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8, *, enemy_roles: dict[str, str] | None = None, user_id: int | None = None) -> list[str]:
+def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8, *, enemy_roles: dict[str, str] | None = None, user_id: int | None = None, linked_bot_pool: Iterable[str] | None = None) -> list[str]:
     """Keep the search small without turning it into a pure pro-meta shortlist."""
     unique = list(dict.fromkeys(champions))
     if len(unique) <= limit:
@@ -1176,6 +1190,33 @@ def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8,
         for champion in counters[:2]:
             if live_lane_matchup_adjustment({role: champion}, enemy_roles)["adjustment"] > 0.35:
                 add(champion)
+
+    # Preserve strong *complete* ADC+Support options before recent personal
+    # results shrink a broad 30+ champion pool to ten. Otherwise a player who
+    # owns Yunara+Lulu loses that package before the combination is ever scored.
+    # Include diverse duo styles rather than ten nearly identical enchanter pairs.
+    if role in {"ADC", "Support"} and linked_bot_pool:
+        partners = list(dict.fromkeys(linked_bot_pool))
+        # Preserve explicitly discussed multi-champion packages without
+        # declaring that they beat every other available bot pair.
+        for adc, support in EXPLICIT_BOT_PAIR_COVERAGE:
+            champ, partner = (adc, support) if role == "ADC" else (support, adc)
+            if champ in unique and partner in partners:
+                add(champ)
+        pair_rows = []
+        for champion in unique:
+            for partner in partners:
+                adc, support = (champion, partner) if role == "ADC" else (partner, champion)
+                duo_score = float(_bot_lane_duo_score(adc, support, meta)["score"])
+                pair_rows.append((duo_score, meta_rank(champion), champion, partner))
+        # The top role pairings are viable prepared draft packages, not
+        # single-player win-rate recommendations.
+        for duo_score, _rank, champion, partner in sorted(pair_rows, reverse=True):
+            if duo_score < 7.4:
+                break
+            if len(selected) >= min(4, limit):
+                break
+            add(champion)
 
     # Preserve several currently supported/meta choices.
     for champion in sorted(unique, key=meta_rank, reverse=True)[:3]:
@@ -2153,6 +2194,31 @@ def _bounded_package_products(
         300,
         ("top", "jungle", "mid", "adc", "support"),
     )
+    # Protect a candidate for each deliberately registered high-synergy ADC+
+    # Support *unit*. Coverage by individual champion is insufficient: all
+    # Yunara candidates might otherwise pair with an unsuitable Support, while
+    # 300 Aphelios variants consume the search budget. These are additional
+    # candidates ONLY, not a guaranteed winning five-man.
+    present = {(row["top"], row["jungle"], row["mid"], row["adc"], row["support"])
+               for row in product_rows}
+    for adc, support in EXPLICIT_BOT_PAIR_COVERAGE:
+        if adc not in pools["ADC"] or support not in pools["Support"]:
+            continue
+        for shell in shell_rows:
+            if adc in (shell["top"], shell["jungle"], shell["mid"]):
+                continue
+            if support in (shell["top"], shell["jungle"], shell["mid"]):
+                continue
+            pick = (shell["top"], shell["jungle"], shell["mid"], adc, support)
+            if pick not in present:
+                product_rows.append({
+                    "top": pick[0], "jungle": pick[1], "mid": pick[2],
+                    "adc": adc, "support": support,
+                    "heuristic": float(shell["heuristic"])
+                                 + float(_bot_lane_duo_score(adc, support, meta)["score"]) * 1.6,
+                })
+                present.add(pick)
+            break
     return [
         (row["top"], row["jungle"], row["mid"], row["adc"], row["support"])
         for row in product_rows
@@ -2199,6 +2265,11 @@ def _verified_secondary_role_pick(player: dict, role: str, champion: str, meta: 
     # An unknown new teammate isn't automatically unskilled. The gate needs
     # real account history before rejecting that person's own selections.
     user_id = int(player["user_id"])
+    # First-hand confirmation is stronger evidence of playable comfort than
+    # the absence of recent games in a secondary role. This does NOT boost
+    # draft score or imply current patch strength.
+    if _explicitly_confirmed_player_pick(user_id, role, champion):
+        return True
     recent_index = load_recent_match_index().get(user_id)
     if not recent_index:
         return True
@@ -2255,14 +2326,43 @@ def recommend_comps(
             ]
             inferred = [champ for champ in inferred if champ not in DISPLAY_EXCLUDED_CHAMPIONS]
             if len(selected) > pool_limit:
-                selected = [
-                    champ for champ in selected
-                    if _credible_broad_pool_pick(player, role, champ, meta)
-                ]
+                partners_for_role = (
+                    assignment["Support"].get("champions", {}).get("Support", [])
+                    if role == "ADC" else
+                    assignment["ADC"].get("champions", {}).get("ADC", [])
+                    if role == "Support" else []
+                )
+                # A marked high-synergy ADC/Support pair can be worth evaluating
+                # even when this player hasn't played that champion recently.
+                # Submitted pools are the eligibility boundary, not OP.GG recency.
+                if role in {"ADC", "Support"}:
+                    selected = [
+                        champ for champ in selected
+                        if _credible_broad_pool_pick(player, role, champ, meta)
+                        or any(
+                            _bot_lane_duo_score(
+                                champ if role == "ADC" else partner,
+                                partner if role == "ADC" else champ, meta
+                            )["score"] >= 8.0
+                            for partner in partners_for_role
+                        )
+                    ]
+                else:
+                    selected = [
+                        champ for champ in selected
+                        if _credible_broad_pool_pick(player, role, champ, meta)
+                    ]
             if selected:
+                linked_pool = (
+                    assignment["Support"].get("champions", {}).get("Support", [])
+                    if role == "ADC" else
+                    assignment["ADC"].get("champions", {}).get("ADC", [])
+                    if role == "Support" else None
+                )
                 chosen = _prune_pool(
                     role, selected, meta, pool_limit,
                     enemy_roles=enemy_roles, user_id=int(player["user_id"]),
+                    linked_bot_pool=linked_pool,
                 ) if len(selected) > pool_limit else list(selected)
                 # Preserve the known cross-role counter in an explicit player pool
                 # even if a large generic pool was reduced to the top ten.

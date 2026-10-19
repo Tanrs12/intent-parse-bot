@@ -1187,6 +1187,12 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
             "enemy_draft_reasons": list(rec.get("live_enemy_reasons") or []),
             "champions": rec.get("champions") or {},
             "champion_ids": {role: _champion_id((rec.get("champions") or {}).get(role)) for role in ROLES},
+            "bot_lane_packages": [
+                {**pair,
+                 "adc_id": _champion_id(pair["adc"]),
+                 "support_id": _champion_id(pair["support"])}
+                for pair in (rec.get("bot_lane_packages") or [])[:3]
+            ],
             "role_options": {role: role_options_for(rec, role) for role in ROLES},
             "role_option_ids": {
                 role: [_champion_id(champion) for champion in role_options_for(rec, role)]

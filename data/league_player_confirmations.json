@@ -1,11 +1,15 @@
 {
   "schema_version": 1,
-  "note": "Explicitly stated playable champions; not meta or default draft priorities. Only applies to a role where the player has selected the champion in their signup.",
+  "note": "Explicit user-confirmed playable picks; not automatic meta, a guaranteed synergy, or mandatory primary recommendation. Actual duo and complete team fit determine ranking.",
   "players": {
     "139837324438536193": {
       "Top": [
         "Twisted Fate",
         "Gwen"
+      ],
+      "ADC": [
+        "Yunara",
+        "Kalista"
       ]
     }
   }

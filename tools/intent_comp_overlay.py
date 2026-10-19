@@ -477,6 +477,17 @@ class CompOverlay:
                                   fill="#ffffff" if not dead else secondary)
                     x += ban_size + ban_gap
 
+            # Linked ADC/Support changes must be read as ONE package. Showing
+            # only role alternatives would imply Yunara and Renata are freely
+            # interchangeable with Aphelios/Thresh/Lulu, which they are not.
+            linked = list(comp.get("bot_lane_packages") or [])
+            if linked and not dead:
+                pair = linked[0]
+                message = f"BOT PAIR: {pair.get('adc', '?')} + {pair.get('support', '?')}"
+                c.create_text(px(222), y1 - px(8),
+                              text=self._fit(message, self.font_tiny, max(px(60), w - px(320))),
+                              anchor="sw", font=self.font_tiny, fill="#c8aa6e")
+
             # Small but always-visible draft-shape warning. The risk is calculated
             # from locked enemy picks and the FULL five, not a player's hover.
             risks = list(comp.get("enemy_draft_reasons") or [])

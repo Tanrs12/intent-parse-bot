@@ -667,3 +667,30 @@ def test_shared_data_refresh_rejects_invalid_remote_without_erasing_cache(monkey
     assert not status["league_player_profiles.json"]["ok"]
     assert known.is_file()
     assert json.loads(known.read_text())["players"]["1"]["discord_name"] == "A"
+
+
+def test_live_guidance_exposes_linked_adc_support_packages(monkeypatch):
+    from tools import intent_live_draft_bridge as bridge
+    monkeypatch.setattr(bridge, "_live_lane_adjustment", lambda rec, state: (0.0, []))
+    rec = {
+        "score": 89.0,
+        "champions": {"Top": "Urgot", "Jungle": "Amumu", "Mid": "Yasuo",
+                      "ADC": "Aphelios", "Support": "Thresh"},
+        "bot_lane_packages": [
+            {"adc": "Yunara", "support": "Lulu", "duo_score": 10.0,
+             "team_plan": "scaling front-to-back", "plan_change": False},
+            {"adc": "Kalista", "support": "Renata Glasc", "duo_score": 8.0,
+             "team_plan": "balanced", "plan_change": True},
+        ],
+        "players": {role: {"display_name": role, "role_priority": {role: 1},
+                           "user_id": i + 1} for i, role in enumerate(bridge.ROLES)},
+        "pick_order": [{"role": "Top", "champion": "Urgot"}],
+    }
+    state = {"our_team": [{"role": role, "locked": None} for role in bridge.ROLES],
+             "enemy_team": [], "active": {}}
+    row = bridge._guidance_from_result({"recommendations": [rec]}, state)["comps"][0]
+    assert [(x["adc"], x["support"]) for x in row["bot_lane_packages"]] == [
+        ("Yunara", "Lulu"), ("Kalista", "Renata Glasc")]
+    assert row["bot_lane_packages"][0]["adc_id"] == bridge._champion_id("Yunara")
+    assert row["bot_lane_packages"][0]["support_id"] == bridge._champion_id("Lulu")
+    assert row["bot_lane_packages"][1]["plan_change"] is True
