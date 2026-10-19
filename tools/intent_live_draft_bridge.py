@@ -346,6 +346,104 @@ _party_size_cache: int | None = None
 _party_size_at = 0.0
 PARTY_CACHE_SECONDS = 15 * 60
 
+# One shared public snapshot source for Desktop Coach and /league. GitHub Actions
+# refresh the whole multi-account roster. The app fetches JSON in the background,
+# not a Windows binary update after each ranked session.
+SHARED_ENGINE_DATA_URL = "https://raw.githubusercontent.com/Tanrs12/intent-parse-bot/main/data"
+SHARED_REFRESH_SECONDS = 60 * 60
+SHARED_CACHE_DIR = Path(
+    os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or str(Path.home())
+) / "FlexersDraftCoach" / "shared-engine-data"
+SHARED_ENGINE_FILES = {
+    "league_player_profiles.json": ("players",),
+    "league_lane_matchups.json": ("matchups",),
+}
+_last_shared_refresh = 0.0
+_shared_source_status: dict[str, dict] = {}
+
+
+def _activate_engine_snapshot(name: str, destination: Path) -> None:
+    """Switch the live backend to a validated on-disk snapshot and clear memoised indices."""
+    global _response_cache_key
+    with _compute_lock:
+        if name == "league_player_profiles.json":
+            league_comp_engine.PLAYER_PROFILE_PATH = destination
+            league_comp_engine.clear_player_profile_caches()
+        elif name == "league_lane_matchups.json":
+            league_comp_engine.MATCHUP_PATH = destination
+            league_comp_engine.load_lane_matchups.cache_clear()
+            league_comp_engine.load_solo_queue_winrates.cache_clear()
+        _response_cache_key = None
+
+
+def _valid_shared_snapshot(name: str, raw: bytes) -> dict | None:
+    if len(raw) > 20_000_000:
+        return None
+    try:
+        data = json.loads(raw)
+    except (ValueError, UnicodeDecodeError):
+        return None
+    if not isinstance(data, dict) or not all(isinstance(data.get(k), dict) and data[k]
+                                            for k in SHARED_ENGINE_FILES[name]):
+        return None
+    return data
+
+
+def _restore_shared_cache() -> None:
+    """Use previously fetched data while offline, even before first network refresh."""
+    for name in SHARED_ENGINE_FILES:
+        location = SHARED_CACHE_DIR / name
+        try:
+            if location.is_file() and _valid_shared_snapshot(name, location.read_bytes()):
+                _activate_engine_snapshot(name, location)
+        except OSError:
+            continue
+
+
+def refresh_shared_engine_data(force: bool = False) -> dict[str, dict]:
+    """Check latest shared inputs hourly, independent of executable update prompts.
+
+    Bad/incomplete snapshots or offline requests never erase the last good data.
+    Only public repository files are downloaded. No private OP.GG API credentials
+    or personal Riot API tokens are embedded in the packaged application.
+    """
+    global _last_shared_refresh, _shared_source_status
+    now = time.monotonic()
+    if not force and now - _last_shared_refresh < SHARED_REFRESH_SECONDS:
+        return dict(_shared_source_status)
+    _last_shared_refresh = now
+    for name in SHARED_ENGINE_FILES:
+        try:
+            req = urllib.request.Request(
+                f"{SHARED_ENGINE_DATA_URL}/{name}",
+                headers={"User-Agent": "FlexersDraftCoach/1.0"},
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
+                raw = response.read(20_000_001)
+            data = _valid_shared_snapshot(name, raw)
+            if not data:
+                raise ValueError(f"invalid or oversized {name}")
+            destination = SHARED_CACHE_DIR / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if destination.is_file() and destination.read_bytes() == raw:
+                # Startup restores the cached snapshots before this loop. An
+                # unchanged response must not invalidate live draft scoring.
+                updated = False
+            else:
+                temporary = destination.with_name(destination.name + ".download")
+                temporary.write_bytes(raw)
+                temporary.replace(destination)
+                _activate_engine_snapshot(name, destination)
+                updated = True
+            _shared_source_status[name] = {
+                "ok": True,
+                "updated": updated,
+                "snapshot_at": data.get("recent_matches_refreshed_at") or data.get("generated_at"),
+            }
+        except Exception as exc:
+            _shared_source_status[name] = {"ok": False, "error": type(exc).__name__}
+    return dict(_shared_source_status)
+
 
 def _json_get(url: str, *, headers: dict | None = None, context=None, timeout: float = 2.0):
     req = urllib.request.Request(url, headers=headers or {})
@@ -1336,6 +1434,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?", 1)[0]
+        if path == "/api/data-sources":
+            self._reply({
+                "shared": dict(_shared_source_status),
+                "player_source": "shared-cache" if league_comp_engine.PLAYER_PROFILE_PATH.parent == SHARED_CACHE_DIR else "bundled",
+                "matchup_source": "shared-cache" if league_comp_engine.MATCHUP_PATH.parent == SHARED_CACHE_DIR else "bundled",
+            })
+            return
         if path == "/api/guidance":
             if _cloud_mode == "auto":
                 with _auto_lock:
@@ -1425,6 +1530,7 @@ def background_refresh(server):
     down_since = None
     while True:
         refresh_signups()
+        refresh_shared_engine_data()
         refresh_pro_snapshot()
         try:
             _json_get("http://127.0.0.1:8765/api/config", timeout=1.5)
@@ -1451,6 +1557,7 @@ def main():
     except OSError:
         instance_lock.close()
         return
+    _restore_shared_cache()
     _load_cached_signups()
     # Serve the cached signup data immediately. Northflank refresh happens in the background;
     # champ-select overlays should not wait up to 25 seconds just to bind this local port.

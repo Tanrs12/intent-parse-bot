@@ -1,0 +1,45 @@
+name: Flexers team data refresh
+
+# Each refresh covers ALL linked Ranked-account histories. New matches are
+# committed only when the source collector confirms a real new game; that push
+# also triggers the existing Windows-app build, while the running app can
+# download the latest JSON directly without reinstalling.
+on:
+  schedule:
+    - cron: '17 0,12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: flexers-team-data
+  cancel-in-progress: false
+
+jobs:
+  update-team-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch every linked account
+        id: refresh
+        run: python tools/refresh_shared_league_data.py
+      - name: Publish validated new match history
+        if: steps.refresh.outputs.updated == 'true'
+        shell: bash
+        run: |
+          git config user.name 'Flexers Data Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add data/league_player_profiles.json
+          git commit -m "data: refresh all Flex player match histories [skip ci]"
+          # [skip ci] avoids needlessly rebuilding the large Windows executable
+          # for mere data changes; the desktop app fetches JSON on an hourly poll.
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main

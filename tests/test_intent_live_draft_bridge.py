@@ -592,3 +592,63 @@ def test_infer_only_unambiguous_enemy_roles(monkeypatch):
     # Flex champions can be in multiple roles, so cannot be assumed to be mid/support.
     assert "Lux" not in result.values() or result.get("Support") == "Lux"
     assert len(result) <= 2
+
+
+def test_shared_data_refresh_polls_all_engine_snapshots(monkeypatch, tmp_path):
+    import io
+    import json
+    from tools import intent_live_draft_bridge as bridge
+
+    monkeypatch.setattr(bridge, "SHARED_CACHE_DIR", tmp_path)
+    monkeypatch.setattr(bridge, "SHARED_ENGINE_DATA_URL", "https://example.test/data")
+    activated = []
+    monkeypatch.setattr(bridge, "_activate_engine_snapshot",
+                        lambda name, path: activated.append((name, path)))
+    class Reply:
+        def __init__(self, payload):
+            self.payload = payload
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self, max_bytes=None):
+            return self.payload
+    responses = {
+        "league_player_profiles.json": json.dumps({
+            "players": {"1": {"discord_name": "A"}},
+            "recent_matches_refreshed_at": "2026-10-19T13:00:00Z",
+        }).encode(),
+        "league_lane_matchups.json": json.dumps({
+            "matchups": {"Top": {"Rumble": {"responses": {}}}},
+            "generated_at": "2026-10-19T12:00:00Z",
+        }).encode(),
+    }
+    def fake_urlopen(request, timeout):
+        key = request.full_url.rsplit("/", 1)[-1]
+        return Reply(responses[key])
+    monkeypatch.setattr(bridge.urllib.request, "urlopen", fake_urlopen)
+    status = bridge.refresh_shared_engine_data(force=True)
+    assert len(activated) == 2
+    assert all(entry["ok"] and entry["updated"] for entry in status.values())
+    assert (tmp_path / "league_player_profiles.json").is_file()
+    assert status["league_player_profiles.json"]["snapshot_at"] == "2026-10-19T13:00:00Z"
+
+    # Unchanged remote content is not needlessly reloaded.
+    status = bridge.refresh_shared_engine_data(force=True)
+    assert len(activated) == 2
+    assert all(entry["ok"] and not entry["updated"] for entry in status.values())
+
+
+def test_shared_data_refresh_rejects_invalid_remote_without_erasing_cache(monkeypatch, tmp_path):
+    import json
+    from tools import intent_live_draft_bridge as bridge
+    monkeypatch.setattr(bridge, "SHARED_CACHE_DIR", tmp_path)
+    known = tmp_path / "league_player_profiles.json"
+    known.write_text(json.dumps({"players": {"1": {"discord_name": "A"}}}), encoding="utf-8")
+    def offline(*args, **kwargs):
+        raise OSError("disconnected")
+    monkeypatch.setattr(bridge.urllib.request, "urlopen", offline)
+    status = bridge.refresh_shared_engine_data(force=True)
+    assert not status["league_player_profiles.json"]["ok"]
+    assert known.is_file()
+    assert json.loads(known.read_text())["players"]["1"]["discord_name"] == "A"
