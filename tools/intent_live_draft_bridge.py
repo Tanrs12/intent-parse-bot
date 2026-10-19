@@ -24,6 +24,7 @@ if str(REPO) not in sys.path:
 
 import league_comp_engine
 import league_multi_source
+import league_aggregate_sources
 from league_draft_backend import _pick_group_meta, recommend_live_drafts
 from league_pro_data import refresh_recent_pro_data
 
@@ -359,6 +360,7 @@ SHARED_ENGINE_FILES = {
     "league_player_profiles.json": ("players",),
     "league_lane_matchups.json": ("matchups",),
     "league_open_pro_pairs.json": ("pairs",),
+    "league_licensed_soloq.json": ("sources",),
 }
 _last_shared_refresh = 0.0
 _shared_source_status: dict[str, dict] = {}
@@ -378,6 +380,13 @@ def _activate_engine_snapshot(name: str, destination: Path) -> None:
         elif name == "league_open_pro_pairs.json":
             league_multi_source.OPEN_PRO_PATH = destination
             league_multi_source._read_pairs.cache_clear()
+            league_multi_source._pair_index.cache_clear()
+        elif name == "league_licensed_soloq.json":
+            league_aggregate_sources.SOLOQ_PATH = destination
+            league_aggregate_sources._read.cache_clear()
+            league_aggregate_sources._indices.cache_clear()
+            league_comp_engine.load_lane_matchups.cache_clear()
+            league_comp_engine.load_solo_queue_winrates.cache_clear()
         _response_cache_key = None
 
 
@@ -390,7 +399,10 @@ def _valid_shared_snapshot(name: str, raw: bytes) -> dict | None:
         return None
     if not isinstance(data, dict):
         return None
-    if name == "league_open_pro_pairs.json":
+    if name == "league_licensed_soloq.json":
+        if not league_aggregate_sources.validate_snapshot(data):
+            return None
+    elif name == "league_open_pro_pairs.json":
         if (not isinstance(data.get("pairs"), list)
             or data.get("source", {}).get("name") != "ChainCC"
             or data.get("source", {}).get("license") != "CC BY 4.0"):
@@ -1452,6 +1464,12 @@ class Handler(BaseHTTPRequestHandler):
                 "player_source": "shared-cache" if league_comp_engine.PLAYER_PROFILE_PATH.parent == SHARED_CACHE_DIR else "bundled",
                 "matchup_source": "shared-cache" if league_comp_engine.MATCHUP_PATH.parent == SHARED_CACHE_DIR else "bundled",
                 "providers": league_multi_source.STAT_SOURCES,
+                "licensed_soloq": {
+                    "patch": league_aggregate_sources.load_licensed_soloq().get("patch"),
+                    "sources": [row.get("name") for row in league_aggregate_sources.load_licensed_soloq().get("sources", [])],
+                    "matchups": len(league_aggregate_sources.load_licensed_soloq().get("matchups", [])),
+                    "status": "active" if league_aggregate_sources.load_licensed_soloq().get("sources") else "awaiting_provider_permission",
+                },
                 "licensed_pro": {
                     "latest_patch": league_multi_source.load_open_pairs().get("latest_patch"),
                     "covered_pairs": len(league_multi_source.load_open_pairs().get("pairs") or []),

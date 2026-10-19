@@ -628,20 +628,29 @@ def test_shared_data_refresh_polls_all_engine_snapshots(monkeypatch, tmp_path):
                        "games": 10, "shrunken_lift": 0.01}],
             "source": {"name": "ChainCC", "license": "CC BY 4.0"},
         }).encode(),
+        "league_licensed_soloq.json": json.dumps({
+            "schema_version": 1,
+            "queue": "RANKED_SOLO_5x5",
+            "patch": "16.20",
+            "sources": [],
+            "champions": [],
+            "matchups": [],
+            "pairs": [],
+        }).encode(),
     }
     def fake_urlopen(request, timeout):
         key = request.full_url.rsplit("/", 1)[-1]
         return Reply(responses[key])
     monkeypatch.setattr(bridge.urllib.request, "urlopen", fake_urlopen)
     status = bridge.refresh_shared_engine_data(force=True)
-    assert len(activated) == 3
+    assert len(activated) == 4
     assert all(entry["ok"] and entry["updated"] for entry in status.values())
     assert (tmp_path / "league_player_profiles.json").is_file()
     assert status["league_player_profiles.json"]["snapshot_at"] == "2026-10-19T13:00:00Z"
 
     # Unchanged remote content is not needlessly reloaded.
     status = bridge.refresh_shared_engine_data(force=True)
-    assert len(activated) == 3
+    assert len(activated) == 4
     assert all(entry["ok"] and not entry["updated"] for entry in status.values())
 
 

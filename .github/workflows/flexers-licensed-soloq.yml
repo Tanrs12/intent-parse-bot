@@ -1,0 +1,42 @@
+name: Licensed aggregate SoloQ feed
+
+on:
+  schedule:
+    - cron: '37 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: flexers-licensed-soloq
+  cancel-in-progress: false
+
+jobs:
+  import-provider:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Import only an authorised export permitting public redistribution
+        id: update
+        env:
+          SOLOQ_APPROVED_FEED_URL: ${{ secrets.SOLOQ_APPROVED_FEED_URL }}
+          SOLOQ_APPROVED_FEED_TOKEN: ${{ secrets.SOLOQ_APPROVED_FEED_TOKEN }}
+        run: python tools/refresh_approved_provider_feed.py
+      - name: Publish validated changed aggregates
+        if: steps.update.outputs.updated == 'true'
+        shell: bash
+        run: |
+          git config user.name 'Flexers Data Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add data/league_licensed_soloq.json
+          git commit -m 'data: refresh approved SoloQ aggregate evidence [skip ci]'
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main

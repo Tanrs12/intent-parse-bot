@@ -133,12 +133,14 @@ def main() -> int:
         "--add-data", f"{ROOT / 'league_player_data.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_pro_data.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_multi_source.py'}{sep}engine",
+        "--add-data", f"{ROOT / 'league_aggregate_sources.py'}{sep}engine",
         "--add-data", f"{ROOT / 'data'}{sep}engine/data",
         "--add-data", f"{ROOT / 'tools'}{sep}engine/tools",
         # The brain is imported from _internal/engine at runtime, exactly like the source tree.
         "--exclude-module", "league_comp_engine", "--exclude-module", "league_flex_core",
         "--exclude-module", "league_draft_backend", "--exclude-module", "league_player_data",
         "--exclude-module", "league_pro_data", "--exclude-module", "league_multi_source",
+        "--exclude-module", "league_aggregate_sources",
         "--collect-submodules", "aiohttp", "--hidden-import", "aiohttp",   # the bridge's pro-data refresh
         "--exclude-module", "discord", "--exclude-module", "asyncpg", "--exclude-module", "cogs",
         "--collect-submodules", "uvicorn", "--collect-submodules", "websockets",

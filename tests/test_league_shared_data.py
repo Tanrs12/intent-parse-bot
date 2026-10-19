@@ -30,6 +30,15 @@ def test_one_canonical_snapshot_source_updates_both_fields(monkeypatch, tmp_path
                        "games": 15, "shrunken_lift": 0.02}],
             "source": {"name": "ChainCC", "license": "CC BY 4.0"},
         }).encode(),
+        "league_licensed_soloq.json": json.dumps({
+            "schema_version": 1,
+            "queue": "RANKED_SOLO_5x5",
+            "patch": "16.20",
+            "sources": [],
+            "champions": [],
+            "matchups": [],
+            "pairs": [],
+        }).encode(),
     }
     def fake_download(request, timeout):
         return FakeReply(payloads[request.full_url.rsplit("/", 1)[-1]])

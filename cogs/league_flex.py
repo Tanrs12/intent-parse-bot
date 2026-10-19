@@ -858,6 +858,12 @@ class LeagueFlexCog(commands.Cog):
                 if "league_open_pro_pairs.json" in changed:
                     from league_multi_source import _read_pairs
                     _read_pairs.cache_clear()
+                if "league_licensed_soloq.json" in changed:
+                    from league_aggregate_sources import _read, _indices
+                    _read.cache_clear()
+                    _indices.cache_clear()
+                    load_lane_matchups.cache_clear()
+                    load_solo_queue_winrates.cache_clear()
                 log.info(
                     "League shared data checked: %s, updated %s, errors %s",
                     data.get("checked"), data.get("changed"), data.get("errors"),

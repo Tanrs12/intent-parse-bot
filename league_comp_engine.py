@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Iterable
 
 from league_multi_source import open_pro_pair_signal
+from league_aggregate_sources import approved_matchups, approved_champions, approved_pair_signal
 
 ROLES = ("Top", "Jungle", "Mid", "ADC", "Support")
 DATA_PATH = Path(__file__).with_name("data") / "league_comp_meta.json"
@@ -247,7 +248,35 @@ def load_meta(path: str | None = None) -> dict:
 @lru_cache(maxsize=1)
 def load_lane_matchups(path: str | None = None) -> dict:
     target = Path(path) if path else MATCHUP_PATH
-    return json.loads(target.read_text(encoding="utf-8"))
+    data = json.loads(target.read_text(encoding="utf-8"))
+    # Partner exports may only override recorded matchups when the exact patch
+    # matches. Never combine differently ranked/dated samples as independent
+    # games. Each row retains its own approved source attribution.
+    if path is None:
+        patch = next(iter(data.get("source", {}).get("patches_detected", ())), None)
+        imported = approved_matchups(patch)
+        if imported:
+            data = dict(data)
+            matchups = {role: dict(block) for role,block in data.get("matchups", {}).items()}
+            for row in imported:
+                role, enemy, own = row["role"], row["enemy"], row["response"]
+                role_block = matchups.setdefault(role, {})
+                enemy_block = dict(role_block.get(enemy, {"responses": {}}))
+                responses = dict(enemy_block.get("responses", {}))
+                # A new provider's response delta cannot inherit win rates,
+                # baselines, or other fields from an older LoLalytics row.
+                # Mixing these would silently corrupt the aggregate index.
+                response_row = {
+                    "response_advantage": float(row["response_advantage"]),
+                    "games": int(row["games"]),
+                    "source": str(row["source"]),
+                }
+                responses[own] = response_row
+                enemy_block["responses"] = responses
+                role_block[enemy] = enemy_block
+            data["matchups"] = matchups
+            data["licensed_imports"] = len(imported)
+    return data
 
 
 @lru_cache(maxsize=1)
@@ -281,6 +310,15 @@ def load_solo_queue_winrates(path: str | None = None) -> dict[str, dict[str, dic
                 "win_rate": round(weighted_wr, 2),
                 "samples": len(values),
                 "weight": total_weight,
+            }
+    if path is None:
+        patch = next(iter(data.get("source", {}).get("patches_detected", ())), None)
+        for row in approved_champions(patch):
+            index[row["role"]][row["champion"]] = {
+                "win_rate": float(row["win_rate"]),
+                "samples": 1,
+                "weight": min(int(row["games"]), 100_000),
+                "source": row["source"],
             }
     return index
 
@@ -725,6 +763,11 @@ def _bot_lane_duo_score(adc: str, support: str, meta: dict) -> dict:
     # Bounded to < 0.8/10 so practiced duo comfort + botlane gameplan dominate.
     open_pair = open_pro_pair_signal("ADC", adc, "Support", support)
     score += open_pair["adjustment"]
+    current_patch = next(iter(load_lane_matchups().get("source", {}).get("patches_detected", ())), None)
+    solo_pair = approved_pair_signal("ADC", adc, "Support", support, current_patch)
+    score += solo_pair["adjustment"]
+    if solo_pair["games"] >= 500 and solo_pair["adjustment"] > 0.1:
+        reasons.append(f"{solo_pair['games']} approved SoloQ duo observations")
     if open_pair["games"] >= 8 and open_pair["adjustment"] > 0.12:
         reasons.append(f"{open_pair['games']} ChainCC pro duo games (CC BY 4.0)")
 
@@ -762,6 +805,11 @@ def _coordinated_duo_score(role_a: str, champ_a: str, role_b: str, champ_b: str,
         reasons.append("setup + follow-up fit")
     open_pair = open_pro_pair_signal(role_a, champ_a, role_b, champ_b)
     score += open_pair["adjustment"]
+    current_patch = next(iter(load_lane_matchups().get("source", {}).get("patches_detected", ())), None)
+    solo_pair = approved_pair_signal(role_a, champ_a, role_b, champ_b, current_patch)
+    score += solo_pair["adjustment"]
+    if solo_pair["games"] >= 500 and solo_pair["adjustment"] > 0.1:
+        reasons.append(f"{solo_pair['games']} approved SoloQ pair observations")
     if open_pair["games"] >= 8 and open_pair["adjustment"] > 0.12:
         reasons.append(f"{open_pair['games']} ChainCC pro pair games (CC BY 4.0)")
     score = max(0.0, min(10.0, score))

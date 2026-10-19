@@ -16,6 +16,7 @@ SNAPSHOT_SCHEMAS = {
     "league_player_profiles.json": "players",
     "league_lane_matchups.json": "matchups",
     "league_open_pro_pairs.json": "pairs",
+    "league_licensed_soloq.json": "sources",
 }
 MAX_BYTES = 20_000_000
 
@@ -48,7 +49,11 @@ def sync_shared_league_data(
             data = json.loads(raw)
             if not isinstance(data, dict):
                 raise ValueError(f"invalid {filename} schema")
-            if filename == "league_open_pro_pairs.json":
+            if filename == "league_licensed_soloq.json":
+                from league_aggregate_sources import validate_snapshot
+                if not validate_snapshot(data):
+                    raise ValueError("invalid licensed SoloQ schema")
+            elif filename == "league_open_pro_pairs.json":
                 if (not isinstance(data.get("pairs"), list)
                     or data.get("source", {}).get("name") != "ChainCC"
                     or data.get("source", {}).get("license") != "CC BY 4.0"):
