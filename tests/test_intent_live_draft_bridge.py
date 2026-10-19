@@ -567,3 +567,28 @@ def test_explicit_live_confirmed_pick_survives_signup_cache_refresh(monkeypatch)
     assert updated["champions"]["Jungle"] == ["Vi", "Sylas"]
     assert profile["champions"]["Jungle"] == ["Vi"]
     assert bridge._with_confirmed_team_picks(dict(updated))["champions"]["Jungle"] == ["Vi", "Sylas"]
+
+
+def test_precomputed_lane_counter_not_counted_twice():
+    from tools import intent_live_draft_bridge as bridge
+    first = {"rank_score": 75.5, "score": 75.5,
+             "live_lane_adjustment": 1.5, "live_lane_edges": [
+                 {"role":"Mid", "ours":"Veigar", "enemy":"Ahri","points":1.5}
+             ],
+             "champions": {"Mid":"Veigar"}, "players":{"Mid":{"display_name":"Ste", "role_priority":{"Mid":1}}},
+             "pick_order":[{"role":"Mid","champion":"Veigar"}]}
+    guidance = bridge._guidance_from_result({"recommendations":[first]}, {
+        "our_team": [], "enemy_team":[{"role":"Mid","locked":"Ahri"}], "active":{}
+    })
+    assert guidance["comps"][0]["live_score"] == 75.5
+    assert guidance["comps"][0]["lane_adjustment"] == 1.5
+
+
+def test_infer_only_unambiguous_enemy_roles(monkeypatch):
+    import json
+    from tools import intent_live_draft_bridge as bridge
+    state = {"enemy_team":[{"role":None,"locked":"Malphite"},{"role":None,"locked":"Lux"}]}
+    result = bridge._locked_enemy_roles(state)
+    # Flex champions can be in multiple roles, so cannot be assumed to be mid/support.
+    assert "Lux" not in result.values() or result.get("Support") == "Lux"
+    assert len(result) <= 2

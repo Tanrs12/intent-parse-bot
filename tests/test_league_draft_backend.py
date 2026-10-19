@@ -89,7 +89,9 @@ def test_hover_outside_pool_does_not_hide_other_options_and_lock_wins():
         "Support": _player(5, "Support", "Support", "Nautilus"),
     }
     hovered = _constrain_assignments([assignment], hovered_champions={"Mid": "Sylas"})
-    assert hovered[0]["Mid"]["champions"]["Mid"] == ["Sylas", "Orianna"]
+    # An unknown player's unverified hover must not become a primary option.
+    assert hovered[0]["Mid"]["champions"]["Mid"] == ["Orianna"]
+    assert hovered[0]["Mid"]["_unverified_live_hover"] == "Sylas"
     assert hovered[0]["Mid"]["_forced_live_hover"] is True
     locked = _constrain_assignments(
         [assignment],
@@ -167,3 +169,43 @@ def test_sylas_is_first_recommendation_when_malphite_ornn_are_revealed():
     )
     assert result["recommendations"][0]["champions"]["Jungle"] == "Sylas"
     assert result["recommendations"][0]["champions"]["Mid"] == "Tristana"
+
+
+def test_live_matchup_reorders_complete_draft_not_just_overlay(monkeypatch):
+    import league_comp_engine as engine
+    snap = {"matchups": {"Mid": {
+        "Ahri": {"responses": {
+            "Veigar": {"response_advantage": 9.0, "games": 3500},
+            "Orianna": {"response_advantage": -4.0, "games": 3500},
+        }}
+    }}}
+    monkeypatch.setattr(engine, "load_lane_matchups", lambda: snap)
+    fit = engine.live_lane_matchup_adjustment(
+        {"Mid": "Veigar"}, {"Mid": "Ahri"}
+    )
+    bad = engine.live_lane_matchup_adjustment(
+        {"Mid": "Orianna"}, {"Mid": "Ahri"}
+    )
+    assert fit["adjustment"] > bad["adjustment"]
+    assert fit["edges"][0]["enemy"] == "Ahri"
+    assert fit["edges"][0]["ours"] == "Veigar"
+
+
+def test_live_matchup_no_data_does_not_invent_counter(monkeypatch):
+    import league_comp_engine as engine
+    monkeypatch.setattr(engine, "load_lane_matchups", lambda: {"matchups": {}})
+    result = engine.live_lane_matchup_adjustment(
+        {"Mid": "Veigar"}, {"Mid": "Fiddlesticks"}
+    )
+    assert result == {"adjustment": 0.0, "edges": []}
+
+
+def test_unverified_hover_does_not_displace_practiced_champions():
+    selection = {
+        role: _player(i, role, role, name)
+        for i, (role, name) in enumerate(
+            [("Top","Gnar"),("Jungle","Vi"),("Mid","Orianna"),("ADC","Caitlyn"),("Support","Nautilus")], start=1
+        )
+    }
+    result = _constrain_assignments([selection], hovered_champions={"Mid": "Zed"})
+    assert result[0]["Mid"]["champions"]["Mid"] == ["Orianna"]

@@ -1029,7 +1029,7 @@ def _pair_value(role_a: str, champ_a: str, role_b: str, champ_b: str, meta: dict
     return blended, historical_games + int(round(current_weight))
 
 
-def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8) -> list[str]:
+def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8, *, enemy_roles: dict[str, str] | None = None) -> list[str]:
     """Keep the search small without turning it into a pure pro-meta shortlist."""
     unique = list(dict.fromkeys(champions))
     if len(unique) <= limit:
@@ -1046,6 +1046,16 @@ def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8)
     def add(champion: str):
         if champion not in selected and len(selected) < limit:
             selected.append(champion)
+
+    # Preserve known favourable responses from the player's *actual pool* before
+    # pruning it to the ten candidates the live search can afford.
+    if enemy_roles and enemy_roles.get(role):
+        counters = sorted(unique, key=lambda champ: live_lane_matchup_adjustment(
+            {role: champ}, enemy_roles
+        )["adjustment"], reverse=True)
+        for champion in counters[:2]:
+            if live_lane_matchup_adjustment({role: champion}, enemy_roles)["adjustment"] > 0.35:
+                add(champion)
 
     # Preserve several currently supported/meta choices.
     for champion in sorted(unique, key=meta_rank, reverse=True)[:3]:
@@ -1148,6 +1158,41 @@ def _credible_damage_profile(champions: dict[str, str], meta: dict) -> dict:
             and totals["magic"] >= CREDIBLE_DAMAGE_MIN
         ),
     }
+
+
+def live_lane_matchup_adjustment(
+    champions: dict[str, str],
+    enemy_roles: dict[str, str] | None,
+    matchup_data: dict | None = None,
+) -> dict:
+    """Calibrated *same-role* matchup evidence, evaluated while assembling five-man drafts.
+
+    This is a secondary signal, not a command to abandon team composition or player
+    comfort. Unknown matches yield zero rather than an invented counter advantage.
+    The LoLalytics snapshot is limited; never interpret missing data as neutral proof.
+    """
+    if not enemy_roles:
+        return {"adjustment": 0.0, "edges": []}
+    data = matchup_data if matchup_data is not None else load_lane_matchups()
+    edges = []
+    total = 0.0
+    for role, enemy in enemy_roles.items():
+        own = champions.get(role)
+        if role not in ROLES or not enemy or not own:
+            continue
+        advantage, games = matchup_response(role, enemy, own, data)
+        if advantage is None:
+            continue
+        residual, points = calibrated_matchup(role, advantage, games, quality=1.0)
+        edges.append({
+            "role": role, "enemy": enemy, "ours": own,
+            "advantage": round(float(advantage), 2),
+            "adjusted": residual, "points": points, "games": games,
+            "locked": True,
+        })
+        total += points
+    # Prevent patch-specific matchup swings from overwhelming the better team plan.
+    return {"adjustment": round(max(-4.5, min(4.5, total)), 3), "edges": edges}
 
 
 def live_enemy_draft_adjustment(champions: dict[str, str], enemies: Iterable[str], meta: dict) -> dict:
@@ -1850,6 +1895,7 @@ def _bounded_package_products(
     assignment: dict[str, dict],
     meta: dict,
     history_suggestions: dict[str, list[str]],
+    enemy_roles: dict[str, str] | None = None,
 ) -> list[tuple[str, str, str, str, str]]:
     """Package-first search for large 10-champion pools.
 
@@ -1862,6 +1908,12 @@ def _bounded_package_products(
 
     suggestion_sets = {role: set(history_suggestions.get(role, [])) for role in ROLES}
     player_scores = load_player_score_index()
+    lane_scores = {
+        (role, champion): live_lane_matchup_adjustment(
+            {role: champion}, enemy_roles
+        )["adjustment"]
+        for role in ROLES for champion in pools[role]
+    }
 
     def individual(role: str, champion: str) -> float:
         uid = int(assignment[role]["user_id"])
@@ -1870,6 +1922,9 @@ def _bounded_package_products(
         solo_wr, solo_weight = _solo_queue_value(role, champion)
         bayes, pro_games = _meta_value(role, champion, meta)
         value = comfort * 0.42 + ownership * 0.26
+        # Apply matchup evidence during package pruning, not only after the
+        # best 300 shells have been retained. Otherwise a real counter vanishes.
+        value += lane_scores.get((role, champion), 0.0) * 1.35
         player_carry = float(player_scores.get(uid, {}).get("carry_index", 50.0) or 50.0)
         agency_demand = _champion_carry_demand(role, champion, meta)
         # Carry/agency fit belongs in the cheap package heuristic too; otherwise
@@ -1964,9 +2019,11 @@ def recommend_comps(
     pool_limit: int = 10,
     meta: dict | None = None,
     live_enemy_champions: Iterable[str] | None = None,
+    live_enemy_roles: dict[str, str] | None = None,
 ) -> tuple[list[dict], list[str]]:
     meta = meta or load_meta()
     revealed_enemies = set(live_enemy_champions or ())
+    enemy_roles = dict(live_enemy_roles or {})
     recommendations: list[dict] = []
     missing: set[str] = set()
 
@@ -1991,21 +2048,23 @@ def recommend_comps(
             selected = [champ for champ in selected if champ not in DISPLAY_EXCLUDED_CHAMPIONS]
             inferred = [champ for champ in inferred if champ not in DISPLAY_EXCLUDED_CHAMPIONS]
             if selected:
-                chosen = _prune_pool(role, selected, meta, pool_limit) if len(selected) > pool_limit else list(selected)
+                chosen = _prune_pool(role, selected, meta, pool_limit, enemy_roles=enemy_roles) if len(selected) > pool_limit else list(selected)
                 # Preserve the known cross-role counter in an explicit player pool
                 # even if a large generic pool was reduced to the top ten.
                 if "Malphite" in revealed_enemies and role in {"Top", "Jungle", "Mid"}:
                     if "Sylas" in selected and "Sylas" not in chosen:
                         chosen = [*chosen[:max(0, pool_limit - 1)], "Sylas"]
+                # Discord submissions are the primary pool. Inferred mastery must
+                # never silently overwrite a player's explicit champion choices.
                 suggestions = [champ for champ in inferred if champ not in chosen][:pool_limit]
                 pools[role] = chosen[:pool_limit]
                 history_suggestions[role] = suggestions
                 pool_sources[role] = "submitted"
                 continue
 
-            # No explicit champions for this role means no primary draft pick.
-            # History/mastery remains useful for optional coaching, but never silently
-            # declares a champion playable on the player's behalf.
+            # Mastery is evidence, not permission to assign an unsubmitted pick.
+            # When no Discord pool exists, surface alternatives for learning but
+            # do not silently declare an unknown role champion playable.
             history_suggestions[role] = inferred[:pool_limit]
             missing.add(f"{player['display_name']} ({role})")
             valid = False
@@ -2013,7 +2072,7 @@ def recommend_comps(
             continue
 
         best_for_assignment: list[dict] = []
-        candidate_products = _bounded_package_products(pools, assignment, meta, history_suggestions)
+        candidate_products = _bounded_package_products(pools, assignment, meta, history_suggestions, enemy_roles=enemy_roles)
         for picks in candidate_products:
             if len(set(picks)) != len(picks):
                 continue
@@ -2022,7 +2081,8 @@ def recommend_comps(
                 continue
             scored = score_comp(champions, meta)
             enemy_response = live_enemy_draft_adjustment(champions, revealed_enemies, meta)
-            enemy_score = float(enemy_response["adjustment"])
+            lane_response = live_lane_matchup_adjustment(champions, enemy_roles)
+            enemy_score = float(enemy_response["adjustment"]) + float(lane_response["adjustment"])
             player_fit = _player_fit_adjustment(
                 assignment,
                 champions,
@@ -2036,6 +2096,15 @@ def recommend_comps(
                 if pool_sources.get(role) == "history"
             )
             suggestion_penalty = suggested_pick_count * 0.25
+            # Mastery-only options are credible but not equivalent to player-
+            # submitted champion selections. Real locks are never penalised.
+            for role in ROLES:
+                if (champions[role] not in assignment[role].get("champions", {}).get(role, [])
+                    and not assignment[role].get("_forced_live_lock")):
+                    suggestion_penalty += 2.5
+                elif (champions[role] == assignment[role].get("_hover_experience_only")
+                      and not assignment[role].get("_forced_live_lock")):
+                    suggestion_penalty += 2.5
             role_preference_penalty = sum(
                 float(assignment[role].get("_role_preference_penalty", 0.0) or 0.0)
                 for role in ROLES
@@ -2093,8 +2162,9 @@ def recommend_comps(
                 },
                 "pick_sources": {
                     role: (
-                        "history"
-                        if pool_sources.get(role) == "history" or champions[role] in history_suggestions.get(role, [])
+                        "experienced"
+                        if (champions[role] not in assignment[role].get("champions", {}).get(role, [])
+                            or champions[role] == assignment[role].get("_hover_experience_only"))
                         else "submitted"
                     )
                     for role in ROLES
@@ -2103,8 +2173,10 @@ def recommend_comps(
                 "composition_score": round(composition_score, 1),
                 "rank_score": round(float(scored.get("rank_score", composition_score)) + weighted_player_fit - suggestion_penalty
                                     - role_preference_penalty - draft_structure_penalty + enemy_score, 3),
-                "live_enemy_adjustment": enemy_score,
+                "live_enemy_adjustment": float(enemy_response["adjustment"]),
                 "live_enemy_reasons": list(enemy_response["reasons"]),
+                "live_lane_adjustment": float(lane_response["adjustment"]),
+                "live_lane_edges": list(lane_response["edges"]),
                 "player_fit_adjustment": round(weighted_player_fit, 2),
                 "raw_player_fit_adjustment": player_fit["adjustment"],
                 "draft_structure_penalty": round(draft_structure_penalty, 2),

@@ -820,6 +820,37 @@ def _unavailable(state: dict) -> set[str]:
     return names
 
 
+def _locked_enemy_roles(state: dict) -> dict[str, str]:
+    """Map confirmed enemy picks to lanes, inferring only unambiguous roles.
+
+    Champion-select seats do not always reveal assigned positions. We can use
+    the role snapshot when a champion has exactly one supported position, but
+    we must not invent a lane counter for a flex pick.
+    """
+    found = {}
+    unresolved = []
+    for row in state.get("enemy_team") or []:
+        champion = row.get("locked")
+        if not champion:
+            continue
+        role = row.get("role")
+        if role in ROLES and role not in found:
+            found[role] = champion
+        else:
+            unresolved.append(champion)
+    if not unresolved:
+        return found
+    try:
+        positions = json.loads((REPO / "data" / "league_role_champions.json").read_text(encoding="utf-8-sig")).get("roles") or {}
+    except Exception:
+        return found
+    for champion in unresolved:
+        possible = [role for role in ROLES if role not in found and champion in positions.get(role, ())]
+        if len(possible) == 1:
+            found[possible[0]] = champion
+    return found
+
+
 def _live_lane_adjustment(rec: dict, state: dict) -> tuple[float, list[dict]]:
     """Rat's live counter layer on top of the shared comp score.
 
@@ -829,6 +860,10 @@ def _live_lane_adjustment(rec: dict, state: dict) -> tuple[float, list[dict]]:
     otherwise similar draft.  This is deliberately bounded: lane counter data can break a
     close score, not override a much better five-man composition.
     """
+    # New backend already scored lane counters before candidate pruning.
+    # Reapplying the old overlay scorer would double-count those advantages.
+    if "live_lane_edges" in rec:
+        return float(rec.get("live_lane_adjustment", 0.0)), list(rec["live_lane_edges"])
     matchups = league_comp_engine.load_lane_matchups()
     champions = rec.get("champions") or {}
     edges: list[dict] = []
@@ -868,7 +903,9 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         lane_adjustment, lane_edges = _live_lane_adjustment(rec, state)
         rec["live_lane_adjustment"] = lane_adjustment
         rec["live_lane_edges"] = lane_edges
-        rec["live_rank_score"] = float(rec.get("rank_score", rec.get("score", 0.0)) or 0.0) + lane_adjustment
+        rec["live_rank_score"] = float(rec.get("rank_score", rec.get("score", 0.0)) or 0.0) + (
+            0.0 if "live_lane_edges" in original else lane_adjustment
+        )
         recs.append(rec)
     recs.sort(key=lambda rec: float(rec.get("live_rank_score", 0.0)), reverse=True)
 
@@ -1239,6 +1276,7 @@ def build_response():
     unavailable = _unavailable(effective_state)
     hovered = _hovered_by_role(effective_state)
     role_players = _role_players_for_state(effective_state, five, testing=testing)
+    enemy_roles = _locked_enemy_roles(effective_state)
     cache_key = json.dumps({
         "side": state.get("side") or "blue",
         "active": state.get("active") or {},
@@ -1247,6 +1285,7 @@ def build_response():
         "locked": locked,
         "hovered": hovered,
         "role_players": role_players,
+        "enemy_roles": enemy_roles,
         "enemy_locked": [row.get("locked") for row in effective_state.get("enemy_team", []) if row.get("locked")],
         "enemy_hovers": [(row.get("role"), row.get("hover")) for row in effective_state.get("enemy_team", []) if row.get("hover")],
         "our_hovers": [(row.get("role"), row.get("hover"), row.get("user_id")) for row in effective_state.get("our_team", []) if row.get("hover")],
@@ -1271,6 +1310,7 @@ def build_response():
                 row["locked"] for row in effective_state.get("enemy_team", [])
                 if row.get("locked")
             ],
+            enemy_roles=_locked_enemy_roles(effective_state),
             side=state.get("side") or "blue",
             limit=6,
             rotation_token=None,

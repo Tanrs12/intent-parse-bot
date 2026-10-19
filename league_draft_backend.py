@@ -16,7 +16,22 @@ from league_comp_engine import (
     counter_ban_recommendations,
     load_meta,
     recommend_comps,
+    _mastery_points_for,
+    _champion_history_for,
+    load_recent_match_index,
 )
+
+
+def _verified_champion_experience(uid: int, champion: str, role: str) -> bool:
+    """A mere hover is not proof that a player can pilot the champion."""
+    history = _champion_history_for(uid, champion) or {}
+    recent = (load_recent_match_index().get(uid, {})
+              .get("by_role_champion", {}).get(role, {}).get(champion, {}))
+    return (
+        _mastery_points_for(uid, champion) >= 30000
+        or int(history.get("games", 0) or 0) >= 3
+        or float(recent.get("effective_games", 0) or 0) >= 2.0
+    )
 
 
 def _constrain_assignments(
@@ -67,8 +82,12 @@ def _constrain_assignments(
                 pools = dict(player.get("champions", {}))
                 selected = list(pools.get(role, []))
                 if hovered not in selected:
-                    pools[role] = [hovered, *selected]
-                    player["champions"] = pools
+                    if _verified_champion_experience(int(player["user_id"]), hovered, role):
+                        pools[role] = [hovered, *selected]
+                        player["champions"] = pools
+                        player["_hover_experience_only"] = hovered
+                    else:
+                        player["_unverified_live_hover"] = hovered
                 player["_forced_live_lock"] = False
                 player["_forced_live_hover"] = True
                 player["_live_hover"] = hovered
@@ -111,6 +130,7 @@ def recommend_live_drafts(
     hovered_champions: Mapping[str, str] | None = None,
     role_players: Mapping[str, int] | None = None,
     enemy_champions: Iterable[str] | None = None,
+    enemy_roles: Mapping[str, str] | None = None,
     side: str = "blue",
     limit: int = 6,
     rotation_token: str | None = None,
@@ -152,6 +172,7 @@ def recommend_live_drafts(
     candidates, missing = recommend_comps(
         assignments, limit=300, pool_limit=10,
         live_enemy_champions=enemy_champions,
+        live_enemy_roles=dict(enemy_roles or {}),
     )
     selected = _select_diverse_recommendations(
         candidates,
