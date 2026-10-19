@@ -477,9 +477,24 @@ class CompOverlay:
                                   fill="#ffffff" if not dead else secondary)
                     x += ban_size + ban_gap
 
+            # Small but always-visible draft-shape warning. The risk is calculated
+            # from locked enemy picks and the FULL five, not a player's hover.
+            risks = list(comp.get("enemy_draft_reasons") or [])
+            if any("magic-heavy" in reason for reason in risks):
+                risk_text = "AP HEAVY"
+            elif any("physical-heavy" in reason for reason in risks):
+                risk_text = "AD HEAVY"
+            elif any("burst-assassin" in reason for reason in risks):
+                risk_text = "TANK RISK"
+            elif any("sustained physical" in reason for reason in risks):
+                risk_text = "LOW AD DPS"
+            else:
+                risk_text = None
             test = g.get("test_overrides") or {}
             if test.get("bans") or test.get("enemy") or test.get("ours"):
                 c.create_text(w - px(7), y1 - px(8), text="TEST", anchor="se", font=self.font_tiny, fill="#c8aa6e")
+            elif risk_text and not dead:
+                c.create_text(w - px(7), y1 - px(8), text=risk_text, anchor="se", font=self.font_tiny, fill="#ee7d87")
 
     def _tick(self) -> None:
         if not self.hwnd or not self.u.IsWindow(self.hwnd):

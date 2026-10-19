@@ -558,3 +558,12 @@ def test_cloud_follower_marks_authoritative_sync(monkeypatch):
         assert data["sync"] == {"mode": "cloud-follower", "source": "https://relay.example"}
     finally:
         bridge.configure_cloud(*old)
+
+
+def test_explicit_live_confirmed_pick_survives_signup_cache_refresh(monkeypatch):
+    monkeypatch.setattr(bridge, "_CONFIRMED_TEAM_POOLS", {101: {"Jungle": ["Sylas"]}})
+    profile = {"user_id": 101, "roles": ["Jungle"], "champions": {"Jungle": ["Vi"]}}
+    updated = bridge._with_confirmed_team_picks(dict(profile))
+    assert updated["champions"]["Jungle"] == ["Vi", "Sylas"]
+    assert profile["champions"]["Jungle"] == ["Vi"]
+    assert bridge._with_confirmed_team_picks(dict(updated))["champions"]["Jungle"] == ["Vi", "Sylas"]

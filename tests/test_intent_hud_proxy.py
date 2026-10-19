@@ -58,6 +58,7 @@ def test_proxy_prefers_local_human_hover_over_generated_pick(monkeypatch):
 
     monkeypatch.setattr(proxy, "_json", fake)
     merged = proxy.merged_state()
-    assert merged["local"]["suggestion"]["champion"] == "Sylas"
-    assert merged["local"]["suggestion"]["source"] == "human-hover"
+    assert merged["local"]["suggestion"]["champion"] == "Orianna"
+    assert merged["local"]["suggestion"]["source"] == "intent-ranked"
+    assert "Hovering Sylas" in merged["local"]["suggestion"]["reason"]
     assert merged["local"]["picking_role"] == "Mid"

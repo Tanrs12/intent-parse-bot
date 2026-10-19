@@ -80,7 +80,7 @@ def test_pick_groups_model_simultaneous_blue_and_red_pairs():
     ]
 
 
-def test_hover_outside_pool_is_temporary_constraint_and_lock_wins():
+def test_hover_outside_pool_does_not_hide_other_options_and_lock_wins():
     assignment = {
         "Top": _player(1, "Top", "Top", "Camille"),
         "Jungle": _player(2, "Jungle", "Jungle", "Zac"),
@@ -89,7 +89,7 @@ def test_hover_outside_pool_is_temporary_constraint_and_lock_wins():
         "Support": _player(5, "Support", "Support", "Nautilus"),
     }
     hovered = _constrain_assignments([assignment], hovered_champions={"Mid": "Sylas"})
-    assert hovered[0]["Mid"]["champions"]["Mid"] == ["Sylas"]
+    assert hovered[0]["Mid"]["champions"]["Mid"] == ["Sylas", "Orianna"]
     assert hovered[0]["Mid"]["_forced_live_hover"] is True
     locked = _constrain_assignments(
         [assignment],
@@ -98,3 +98,72 @@ def test_hover_outside_pool_is_temporary_constraint_and_lock_wins():
     )
     assert locked[0]["Mid"]["champions"]["Mid"] == ["Orianna"]
     assert locked[0]["Mid"]["_forced_live_hover"] is False
+
+
+def test_enemy_reveals_reward_cross_role_sylas_and_explain_ulti_value():
+    from league_comp_engine import load_meta, live_enemy_draft_adjustment
+    meta = load_meta()
+    champs = {"Top": "Gnar", "Jungle": "Sylas", "Mid": "Yasuo", "ADC": "Jinx", "Support": "Nautilus"}
+    response = live_enemy_draft_adjustment(champs, ["Malphite", "Ornn", "Rell"], meta)
+    assert response["adjustment"] > 0
+    assert any("Sylas" in reason and "ultimates" in reason for reason in response["reasons"])
+
+
+def test_enemy_triple_tank_punishes_magic_stacking_and_zed_mid():
+    from league_comp_engine import load_meta, live_enemy_draft_adjustment
+    meta = load_meta()
+    ap_mid = {"Top": "Gwen", "Jungle": "Sylas", "Mid": "Orianna", "ADC": "Kog'Maw", "Support": "Karma"}
+    physical_mid = dict(ap_mid, Mid="Tristana")
+    zed_mid = dict(ap_mid, Mid="Zed")
+    enemies = ["Malphite", "Ornn", "Rell"]
+    ap = live_enemy_draft_adjustment(ap_mid, enemies, meta)
+    balanced = live_enemy_draft_adjustment(physical_mid, enemies, meta)
+    zed = live_enemy_draft_adjustment(zed_mid, enemies, meta)
+    assert balanced["adjustment"] > ap["adjustment"]
+    assert balanced["adjustment"] > zed["adjustment"]
+    assert any("resistances" in reason for reason in ap["reasons"])
+    assert any("burst-assassin" in reason for reason in zed["reasons"])
+
+
+def test_live_draft_keeps_mid_alternatives_when_hover_is_bad():
+    signups = [
+        {**_player(1, "Top", "Top", "Gnar")},
+        {**_player(2, "Jungle", "Jungle", "Sylas")},
+        {**_player(3, "Mid", "Mid", "Tristana")},
+        {**_player(4, "ADC", "ADC", "Kog'Maw")},
+        {**_player(5, "Support", "Support", "Nautilus")},
+    ]
+    signups[2]["champions"]["Mid"] = ["Tristana", "Orianna", "Zed"]
+    result = recommend_live_drafts(
+        signups,
+        locked_champions={"Jungle": "Sylas"},
+        hovered_champions={"Mid": "Zed"},
+        enemy_champions=["Malphite", "Ornn", "Rell"],
+        limit=6,
+    )
+    mids = {rec["champions"]["Mid"] for rec in result["recommendations"]}
+    assert "Tristana" in mids
+    assert mids != {"Zed"}
+
+
+def test_sylas_is_first_recommendation_when_malphite_ornn_are_revealed():
+    def multi(uid, role, champions):
+        person = _player(uid, role, role, champions[0])
+        person["champions"][role] = champions
+        return person
+
+    signups = [
+        multi(1, "Top", ["Gnar"]),
+        multi(2, "Jungle", ["Vi", "Sylas"]),
+        multi(3, "Mid", ["Tristana", "Orianna", "Zed"]),
+        multi(4, "ADC", ["Kog'Maw"]),
+        multi(5, "Support", ["Nautilus"]),
+    ]
+    result = recommend_live_drafts(
+        signups,
+        hovered_champions={"Mid": "Zed"},
+        enemy_champions=["Malphite", "Ornn"],
+        limit=6,
+    )
+    assert result["recommendations"][0]["champions"]["Jungle"] == "Sylas"
+    assert result["recommendations"][0]["champions"]["Mid"] == "Tristana"

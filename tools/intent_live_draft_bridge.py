@@ -141,6 +141,47 @@ def _team_host_priorities() -> dict[int, int]:
 _HOST_PRIORITIES = _team_host_priorities()
 
 
+def _team_confirmed_pool_additions() -> dict[int, dict[str, list[str]]]:
+    """Honor verified role picks in the team loadfile even before Discord signup sync.
+
+    Unlike raw account history, only entries explicitly marked live_confirmed
+    may augment a saved pool. This lets a new player-confirmed pick survive the
+    periodic live signup cache refresh without assuming all hovers are mastery.
+    """
+    try:
+        path = _team_loadfile()
+        data = json.loads(path.read_text(encoding="utf-8")) if path else {}
+        return {
+            int(player["user_id"]): {
+                role: [str(pick["champion"]) for pick in choices
+                       if isinstance(pick, dict) and pick.get("live_confirmed") and pick.get("champion")]
+                for role, choices in (player.get("pools") or {}).items()
+            }
+            for player in data.get("players") or [] if player.get("user_id")
+        }
+    except (OSError, ValueError, TypeError, KeyError):
+        return {}
+
+
+_CONFIRMED_TEAM_POOLS = _team_confirmed_pool_additions()
+
+
+def _with_confirmed_team_picks(profile: dict) -> dict:
+    additions = _CONFIRMED_TEAM_POOLS.get(int(profile.get("user_id") or 0), {})
+    if not additions:
+        return profile
+    champions = {role: list(picks) for role, picks in (profile.get("champions") or {}).items()}
+    for role, picks in additions.items():
+        if role not in profile.get("roles", []):
+            continue
+        pool = champions.setdefault(role, [])
+        for champion in picks:
+            if champion not in pool:
+                pool.append(champion)
+    profile["champions"] = champions
+    return profile
+
+
 def _auto_identity() -> dict:
     try:
         snap = _json_get(COACH_STATE_URL, timeout=1.5)
@@ -603,7 +644,7 @@ def _current_five(state: dict, *, fill_for_test: bool = False) -> list[dict]:
         uid = int(row["user_id"])
         if uid in used_ids or uid not in by_id:
             continue
-        profile = dict(by_id[uid])
+        profile = _with_confirmed_team_picks(dict(by_id[uid]))
         account = str(row.get("riot_id") or row.get("display_name") or profile.get("display_name") or uid)
         profile["_profile_display_name"] = profile.get("display_name")
         profile["_live_account"] = account
@@ -615,14 +656,14 @@ def _current_five(state: dict, *, fill_for_test: bool = False) -> list[dict]:
     if fill_for_test:
         for uid in TEST_LINEUP_IDS:
             if uid in by_id and uid not in used_ids:
-                resolved.append(dict(by_id[uid]))
+                resolved.append(_with_confirmed_team_picks(dict(by_id[uid])))
                 used_ids.add(uid)
             if len(resolved) >= 5:
                 break
         if len(resolved) < 5:
             for uid, profile in by_id.items():
                 if uid not in used_ids:
-                    resolved.append(dict(profile))
+                    resolved.append(_with_confirmed_team_picks(dict(profile)))
                     used_ids.add(uid)
                 if len(resolved) >= 5:
                     break
@@ -983,6 +1024,8 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
             "live_score": round(float(rec.get("live_rank_score", rec.get("score", 0.0)) or 0.0), 2),
             "lane_adjustment": float(rec.get("live_lane_adjustment", 0.0) or 0.0),
             "lane_edges": list(rec.get("live_lane_edges") or []),
+            "enemy_draft_adjustment": float(rec.get("live_enemy_adjustment", 0.0) or 0.0),
+            "enemy_draft_reasons": list(rec.get("live_enemy_reasons") or []),
             "champions": rec.get("champions") or {},
             "champion_ids": {role: _champion_id((rec.get("champions") or {}).get(role)) for role in ROLES},
             "role_options": {role: role_options_for(rec, role) for role in ROLES},
@@ -1224,6 +1267,10 @@ def build_response():
             locked_champions=locked,
             hovered_champions=hovered,
             role_players=role_players,
+            enemy_champions=[
+                row["locked"] for row in effective_state.get("enemy_team", [])
+                if row.get("locked")
+            ],
             side=state.get("side") or "blue",
             limit=6,
             rotation_token=None,

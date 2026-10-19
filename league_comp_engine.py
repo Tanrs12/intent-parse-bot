@@ -1150,6 +1150,68 @@ def _credible_damage_profile(champions: dict[str, str], meta: dict) -> dict:
     }
 
 
+def live_enemy_draft_adjustment(champions: dict[str, str], enemies: Iterable[str], meta: dict) -> dict:
+    """Small live-draft adjustment for revealed *locked* enemies, not speculative hovers.
+
+    Counter ultimates and damage-type concentration are team-wide draft decisions:
+    they must be scored before the engine discards lower-ranked candidate comps.
+    """
+    opponents = {str(champion) for champion in enemies if champion}
+    if not opponents:
+        return {"adjustment": 0.0, "reasons": []}
+
+    frontline = sum(
+        bool(_tags(champion, meta) & TANK_TAGS) or _rating(champion, "toughness", meta) >= 3
+        for champion in opponents
+    )
+    adjustment = 0.0
+    reasons: list[str] = []
+
+    # Cross-role ultimate-steal value: Malphite/Ornn/Rell are useful Sylas
+    # targets regardless of whether Sylas is assigned jungle, mid or top.
+    if "Sylas" in champions.values():
+        steal = (9.0 if "Malphite" in opponents else 0.0)
+        steal += 3.0 if "Ornn" in opponents else 0.0
+        steal += 1.5 if "Rell" in opponents else 0.0
+        if steal:
+            adjustment += min(13.5, steal)
+            reasons.append("Sylas can steal high-impact enemy engage ultimates")
+
+    if frontline >= 2:
+        profile = _credible_damage_profile(champions, meta)
+        physical = float(profile["physical"])
+        magic = float(profile["magic"])
+        total = physical + magic
+        if total > 0:
+            fraction = max(physical, magic) / total
+            # Both all-AD and all-AP drafts give multiple tanks an easy resist purchase.
+            if fraction >= 0.67:
+                exposure = min(1.0, (fraction - 0.55) / 0.40)
+                penalty = (5.0 + 4.0 * min(1.0, (frontline - 2) / 1.0)) * exposure
+                adjustment -= penalty
+                dominant = "magic" if magic > physical else "physical"
+                reasons.append(f"{dominant}-heavy damage lets {frontline} enemy frontliners stack resistances")
+
+        # A hybrid ADC can supply both damage types, but is not a substitute for
+        # another sustained physical threat when the rest of the five are all AP.
+        sustained_physical = any(
+            role != "Support"
+            and _traits(champion, meta).get("adaptive_type") == "PHYSICAL_DAMAGE"
+            and _rating(champion, "damage", meta) >= 2
+            and "ASSASSIN" not in _tags(champion, meta)
+            for role, champion in champions.items()
+        )
+        if not sustained_physical:
+            adjustment -= 3.0 if frontline == 2 else 5.0
+            reasons.append("no reliable sustained physical damage threat into enemy tanks")
+
+        if champions.get("Mid") in {"Zed", "Qiyana", "Talon", "Naafiri"}:
+            adjustment -= 4.0 if frontline == 2 else 7.0
+            reasons.append("burst-assassin mid is poor at cutting through multiple tanks")
+
+    return {"adjustment": round(adjustment, 3), "reasons": reasons}
+
+
 def _archetypes(champions: dict[str, str], meta: dict) -> list[str]:
     champs = list(champions.values())
     tags = [_tags(champ, meta) for champ in champs]
@@ -1901,8 +1963,10 @@ def recommend_comps(
     limit: int = 5,
     pool_limit: int = 10,
     meta: dict | None = None,
+    live_enemy_champions: Iterable[str] | None = None,
 ) -> tuple[list[dict], list[str]]:
     meta = meta or load_meta()
+    revealed_enemies = set(live_enemy_champions or ())
     recommendations: list[dict] = []
     missing: set[str] = set()
 
@@ -1928,6 +1992,11 @@ def recommend_comps(
             inferred = [champ for champ in inferred if champ not in DISPLAY_EXCLUDED_CHAMPIONS]
             if selected:
                 chosen = _prune_pool(role, selected, meta, pool_limit) if len(selected) > pool_limit else list(selected)
+                # Preserve the known cross-role counter in an explicit player pool
+                # even if a large generic pool was reduced to the top ten.
+                if "Malphite" in revealed_enemies and role in {"Top", "Jungle", "Mid"}:
+                    if "Sylas" in selected and "Sylas" not in chosen:
+                        chosen = [*chosen[:max(0, pool_limit - 1)], "Sylas"]
                 suggestions = [champ for champ in inferred if champ not in chosen][:pool_limit]
                 pools[role] = chosen[:pool_limit]
                 history_suggestions[role] = suggestions
@@ -1952,6 +2021,8 @@ def recommend_comps(
             if any((role, champions[role]) in BLOCKED_ROLE_PICKS for role in ROLES):
                 continue
             scored = score_comp(champions, meta)
+            enemy_response = live_enemy_draft_adjustment(champions, revealed_enemies, meta)
+            enemy_score = float(enemy_response["adjustment"])
             player_fit = _player_fit_adjustment(
                 assignment,
                 champions,
@@ -1998,7 +2069,8 @@ def recommend_comps(
                     + weighted_player_fit
                     - suggestion_penalty
                     - role_preference_penalty
-                    - draft_structure_penalty,
+                    - draft_structure_penalty
+                    + enemy_score,
                 ),
             )
             item = {
@@ -2030,7 +2102,9 @@ def recommend_comps(
                 **scored,
                 "composition_score": round(composition_score, 1),
                 "rank_score": round(float(scored.get("rank_score", composition_score)) + weighted_player_fit - suggestion_penalty
-                                    - role_preference_penalty - draft_structure_penalty, 3),
+                                    - role_preference_penalty - draft_structure_penalty + enemy_score, 3),
+                "live_enemy_adjustment": enemy_score,
+                "live_enemy_reasons": list(enemy_response["reasons"]),
                 "player_fit_adjustment": round(weighted_player_fit, 2),
                 "raw_player_fit_adjustment": player_fit["adjustment"],
                 "draft_structure_penalty": round(draft_structure_penalty, 2),

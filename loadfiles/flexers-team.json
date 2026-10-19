@@ -3,7 +3,16 @@
   "version": 1,
   "note": "Flexers squad roster from the Codex team review (10 October 2026): 23 confirmed accounts across seven people, pools with familiarity tiers (1 = comfort, 2 = refresh, 3 = developing), and the six target compositions as a playbook.",
   "mode": "merge",
-  "settings": {"queues": [440, 0, 830, 840, 850, 870]},
+  "settings": {
+    "queues": [
+      440,
+      0,
+      830,
+      840,
+      850,
+      870
+    ]
+  },
   "players": [
     {
       "user_id": 139837324438536193,
@@ -43,6 +52,12 @@
           {
             "champion": "Vi",
             "familiarity": "refresh"
+          },
+          {
+            "champion": "Sylas",
+            "familiarity": "refresh",
+            "note": "played jungle into Malphite/Ornn; situational ultimate counter",
+            "live_confirmed": true
           }
         ],
         "Top": [

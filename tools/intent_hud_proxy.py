@@ -55,19 +55,27 @@ def merged_state() -> dict:
             "kind": "ban", "champion": b.get("champion"), "champion_id": b.get("champion_id"),
             "role": None, "reason": (b.get("reasons") or ["protects the planned INTent draft"])[0],
         }
-    elif (ours and active.get("kind") == "pick" and local_role and local_hover and confirmed_hovers.get(local_role) == local_hover):
-        suggestion = {
-            "kind": "pick", "champion": local_hover,
-            "champion_id": (guidance.get("our_hover_ids") or {}).get(local_role),
-            "role": local_role, "reason": "All six plans re-ranked around your hover",
-            "source": "human-hover",
-        }
-        local["picking_role"] = local_role
     elif ours and active.get("kind") == "pick" and guidance.get("picks"):
-        p = guidance["picks"][0]
+        # A hover is human intent, not an authoritative recommendation. Show the
+        # highest-ranked available alternative for the local picking role instead.
+        choices = guidance["picks"]
+        p = next((item for item in choices if item.get("role") == local_role), None)
+        if p is None and local_role:
+            top_comp = (guidance.get("comps") or [{}])[0]
+            options = (top_comp.get("role_options") or {}).get(local_role) or []
+            if options:
+                ids = (top_comp.get("role_option_ids") or {}).get(local_role) or []
+                p = {"role": local_role, "champion": options[0],
+                     "champion_id": ids[0] if ids else None,
+                     "why": (top_comp.get("enemy_draft_reasons") or [])[:2]}
+        p = p or choices[0]
+        hovered = confirmed_hovers.get(local_role) == local_hover and local_hover
+        why = "; ".join(p.get("why") or [])
+        if hovered and p.get("champion") != local_hover:
+            why = (f"Hovering {local_hover}; better draft option. " + why).strip()
         suggestion = {
             "kind": "pick", "champion": p.get("champion"), "champion_id": p.get("champion_id"),
-            "role": p.get("role"), "reason": "; ".join(p.get("why") or []),
+            "role": p.get("role"), "reason": why, "source": "intent-ranked",
         }
         local["picking_role"] = p.get("role")
 

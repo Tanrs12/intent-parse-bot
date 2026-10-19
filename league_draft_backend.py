@@ -29,8 +29,9 @@ def _constrain_assignments(
     """Apply live-draft locks without changing the core /league game scorer.
 
     ``locked_champions`` maps role -> champion already locked by our team.
-    ``hovered_champions`` maps role -> current ally hover. Hovers are temporary
-    constraints: they disappear as soon as League reports a different/no hover.
+    ``hovered_champions`` maps role -> current ally hover. Hovers are soft
+    candidate signals, never constraints: League players can change their mind.
+    A hovered champion may be evaluated, but alternatives must remain available.
     ``role_players`` optionally maps role -> Discord user id when the live client
     already knows which player is occupying that role.
     """
@@ -51,17 +52,26 @@ def _constrain_assignments(
 
             locked = locked_champions.get(role)
             hovered = None if locked else hovered_champions.get(role)
-            champion = locked or hovered
-            if champion:
-                # Live locks are facts. Ally hovers are temporary human intent. Both outrank
-                # the generated recommendation and may be outside the submitted champion pool.
+            if locked:
+                # Only an actual lock-in can constrain a role to one champion.
                 selected = list(player.get("champions", {}).get(role, []))
                 pools = dict(player.get("champions", {}))
-                pools[role] = [champion]
+                pools[role] = [locked]
                 player["champions"] = pools
-                player["_forced_live_lock"] = bool(locked and champion not in selected)
-                player["_forced_live_hover"] = bool(hovered)
-                player["_forced_live_champion"] = champion
+                player["_forced_live_lock"] = locked not in selected
+                player["_forced_live_hover"] = False
+                player["_forced_live_champion"] = locked
+            elif hovered:
+                # Keep the full comfort pool. A real hover outside that pool can be
+                # considered, but must compete with alternatives rather than erase them.
+                pools = dict(player.get("champions", {}))
+                selected = list(pools.get(role, []))
+                if hovered not in selected:
+                    pools[role] = [hovered, *selected]
+                    player["champions"] = pools
+                player["_forced_live_lock"] = False
+                player["_forced_live_hover"] = True
+                player["_live_hover"] = hovered
             row[role] = player
 
         if valid:
@@ -100,6 +110,7 @@ def recommend_live_drafts(
     locked_champions: Mapping[str, str] | None = None,
     hovered_champions: Mapping[str, str] | None = None,
     role_players: Mapping[str, int] | None = None,
+    enemy_champions: Iterable[str] | None = None,
     side: str = "blue",
     limit: int = 6,
     rotation_token: str | None = None,
@@ -138,7 +149,10 @@ def recommend_live_drafts(
     if not assignments:
         return {"recommendations": [], "missing": [], "side": side_key}
 
-    candidates, missing = recommend_comps(assignments, limit=300, pool_limit=10)
+    candidates, missing = recommend_comps(
+        assignments, limit=300, pool_limit=10,
+        live_enemy_champions=enemy_champions,
+    )
     selected = _select_diverse_recommendations(
         candidates,
         limit=limit,
