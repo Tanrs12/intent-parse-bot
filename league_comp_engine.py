@@ -104,6 +104,40 @@ POKE_SUPPORTS = {"Karma", "Lux", "Xerath", "Vel'Koz", "Zyra", "Morgana", "Bard",
 ENGAGE_SUPPORTS = {"Nautilus", "Leona", "Rell", "Alistar", "Thresh", "Blitzcrank", "Rakan", "Braum", "Maokai", "Poppy", "Pantheon"}
 PEEL_SUPPORTS = ENCHANTER_SUPPORTS | {"Thresh", "Braum", "Renata Glasc", "Rakan"}
 
+# Qualitative, matchup-dependent EARLY wave-access priors, not fabricated win
+# rates or lane-victory predictions. Neutral defaults preserve unfamiliar picks.
+# Kept deliberately bounded so true champion synergy/counters still outrank them.
+EARLY_TOP_PRIORITY = {
+    "Renekton": .72, "Rumble": .70, "Jayce": .73, "Darius": .69,
+    "Gnar": .66, "Olaf": .67, "Kennen": .62, "Nasus": .22,
+    "Kayle": .26, "Vladimir": .31, "Dr. Mundo": .38,
+}
+EARLY_MID_PRIORITY = {
+    "Orianna": .66, "Syndra": .68, "Taliyah": .66, "Ahri": .59,
+    "Viktor": .62, "Hwei": .65, "Malzahar": .65, "Galio": .55,
+    "Kassadin": .24, "Kayle": .30, "Veigar": .38, "Aurelion Sol": .35,
+}
+EARLY_BOT_ADC_PRIORITY = {
+    "Caitlyn": .78, "Draven": .75, "Varus": .71, "Sivir": .74,
+    "Ashe": .67, "Kalista": .69, "Miss Fortune": .68, "Ziggs": .74,
+    "Xayah": .60, "Yunara": .49, "Aphelios": .37, "Jinx": .43,
+    "Kog'Maw": .29, "Smolder": .28, "Ezreal": .40, "Jhin": .50,
+}
+EARLY_BOT_SUPPORT_PRIORITY = {
+    "Karma": .80, "Zyra": .78, "Lux": .75, "Brand": .73,
+    "Seraphine": .67, "Morgana": .57, "Nami": .55, "Lulu": .50,
+    "Janna": .41, "Milio": .38, "Yuumi": .28, "Braum": .36,
+    "Leona": .45, "Nautilus": .51, "Rell": .43, "Thresh": .52,
+}
+ROAMING_SUPPORT_THREATS = {
+    "Leona", "Nautilus", "Rell", "Pyke", "Bard", "Alistar",
+    "Rakan", "Thresh", "Blitzcrank", "Pantheon",
+}
+JUNGLE_NEEDS_LANE_ACCESS = {
+    "Vi", "Lee Sin", "Nidalee", "Kindred", "Xin Zhao", "Viego",
+    "Elise", "Rek'Sai", "Jarvan IV", "Graves",
+}
+
 # Draft-specific counters that are important across lanes rather than ordinary
 # same-lane matchup data. These are intentionally sparse/high-confidence rules.
 # Example: a planned Malphite materially increases Sylas value regardless of who
@@ -838,6 +872,95 @@ def _bot_lane_duo_score(adc: str, support: str, meta: dict) -> dict:
     grade = "excellent" if score >= 8.2 else "strong" if score >= 7.0 else "playable" if score >= 5.5 else "weak" if score >= 4.0 else "avoid"
     return {"score": round(score, 1), "grade": grade, "reasons": reasons[:3], "pro_games": games}
 
+
+
+def _early_map_resilience(
+    champions: dict[str, str],
+    *,
+    enemy_roles: dict[str, str] | None = None,
+    player_fit: dict | None = None,
+) -> dict:
+    """Bounded draft-stage wave access and enemy-support roam response.
+
+    This is a qualitative *risk screen*, not observed priority or a substitute
+    for matchup/early gold data. Unknown enemy roles stay uncertain; no support
+    is assumed to have roamed unless a caller supplies that actual evidence.
+    """
+    enemy_roles = enemy_roles or {}
+    roles = (player_fit or {}).get("role_details") or {}
+    top = EARLY_TOP_PRIORITY.get(champions["Top"], .51)
+    mid = EARLY_MID_PRIORITY.get(champions["Mid"], .52)
+    adc = EARLY_BOT_ADC_PRIORITY.get(champions["ADC"], .52)
+    support = EARLY_BOT_SUPPORT_PRIORITY.get(champions["Support"], .52)
+    bot = (adc + support) / 2.0
+
+    # Reliable lane partners more consistently convert favourable kit-based
+    # wave access into real pressure. Unknown players are neutral.
+    bot_reliability = min(
+        float(roles.get("ADC", {}).get("reliability_index", 50.0)),
+        float(roles.get("Support", {}).get("reliability_index", 50.0)),
+    )
+    bot -= max(0.0, 46.0 - bot_reliability) / 100.0 * .34
+    bot = max(.15, min(.85, bot))
+
+    pressure = {"Top": round(top, 2), "Mid": round(mid, 2), "Bot": round(bot, 2)}
+    notes = []
+    penalty = 0.0
+    support_reliability = float(
+        roles.get("Support", {}).get("reliability_index", 50.0)
+    )
+    if support_reliability < 35.0 and bot < .60:
+        penalty += min(1.4, .65 + (35.0 - support_reliability) / 35.0 * .90)
+        notes.append("bot lane needs more self-sufficient wave control")
+    low_lanes = sum(value < .43 for value in (top, mid, bot))
+    if low_lanes >= 2:
+        penalty += 1.3 + .55 * (low_lanes - 2)
+        notes.append("multiple lanes may concede early wave access")
+    if champions["Jungle"] in JUNGLE_NEEDS_LANE_ACCESS:
+        if mid < .46 and bot < .50:
+            penalty += 1.7
+            notes.append("jungle skirmishes lack reliable mid/bot first move")
+        elif low_lanes >= 2:
+            penalty += .6
+
+    # Protect a strong solo-lane/jungle win condition from total isolation,
+    # but do not assign a permanent 'carry player' or role.
+    carry_options = (player_fit or {}).get("carry_options") or []
+    if carry_options:
+        main = carry_options[0]
+        main_role = main.get("role")
+        if main_role == "Top" and mid < .46 and bot < .50:
+            penalty += 1.2
+            notes.append("topside win condition may be isolated without cross-map pressure")
+        elif main_role == "Jungle" and mid < .48 and bot < .48:
+            penalty += 1.2
+            notes.append("jungle win condition lacks dependable lane access")
+
+    enemy_support = enemy_roles.get("Support")
+    known_roamer = enemy_support in ROAMING_SUPPORT_THREATS
+    if known_roamer and bot < .58:
+        # Stronger warning only when the enemy support is actually revealed.
+        # A priority advantage is merely the *ability* to punish a roam.
+        penalty += min(2.8, (.58 - bot) * 8.0 + .4)
+        notes.append(f"{enemy_support} can roam while bot may struggle to punish the empty lane")
+    if known_roamer and mid < .45:
+        penalty += .5
+        notes.append("limited mid cover against support rotations")
+
+    # Modest reward for multiple options to answer roams, capped to prevent
+    # automatically sidelining organised-play scaling pairs (e.g. Yunara/Lulu).
+    bonus = .0
+    if bot >= .65 and mid >= .55:
+        bonus = .65
+        notes.append("bot wave access plus mid cover can punish support rotations")
+    adjustment = round(max(-5.8, min(.65, bonus - penalty)), 2)
+    return {
+        "adjustment": adjustment,
+        "bot_priority": round(bot, 2),
+        "lane_priority": pressure,
+        "enemy_roam_threat": enemy_support if known_roamer else None,
+        "reasons": notes[:4],
+    }
 
 
 def _coordinated_duo_score(role_a: str, champ_a: str, role_b: str, champ_b: str, meta: dict) -> dict:
@@ -2172,7 +2295,12 @@ def _bounded_package_products(
             bot_rows.append({
                 "adc": adc,
                 "support": support,
-                "heuristic": float(duo["score"]) * 1.95 + individual("ADC", adc) + individual("Support", support),
+                "heuristic": (
+                    float(duo["score"]) * 1.95 + individual("ADC", adc)
+                    + individual("Support", support)
+                    + ((EARLY_BOT_ADC_PRIORITY.get(adc, .52)
+                        + EARLY_BOT_SUPPORT_PRIORITY.get(support, .52)) / 2.0 - .5) * 1.7
+                ),
             })
     bot_rows = _ranked_with_coverage(bot_rows, 28, ("adc", "support"))
 
@@ -2185,7 +2313,12 @@ def _bounded_package_products(
             mj_rows.append({
                 "jungle": jungle,
                 "mid": mid,
-                "heuristic": float(duo["score"]) * 1.95 + individual("Jungle", jungle) + individual("Mid", mid),
+                "heuristic": (
+                    float(duo["score"]) * 1.95 + individual("Jungle", jungle)
+                    + individual("Mid", mid)
+                    + (EARLY_MID_PRIORITY.get(mid, .52) - .5)
+                    * (1.4 if jungle in JUNGLE_NEEDS_LANE_ACCESS else .6)
+                ),
             })
     mj_rows = _ranked_with_coverage(mj_rows, 28, ("jungle", "mid"))
 
@@ -2460,6 +2593,9 @@ def recommend_comps(
                 meta,
             )
             composition_score = float(scored["score"])
+            early_map = _early_map_resilience(
+                champions, enemy_roles=enemy_roles, player_fit=player_fit,
+            )
             suggested_pick_count = sum(
                 1
                 for role in ROLES
@@ -2509,7 +2645,8 @@ def recommend_comps(
                     - suggestion_penalty
                     - role_preference_penalty
                     - draft_structure_penalty
-                    + enemy_score,
+                    + enemy_score
+                    + float(early_map["adjustment"]),
                 ),
             )
             item = {
@@ -2540,9 +2677,20 @@ def recommend_comps(
                     for role in ROLES
                 },
                 **scored,
+                "gaps": (
+                    (["early map: " + early_map["reasons"][0]] + list(scored["gaps"]))[:4]
+                    if early_map["adjustment"] <= -1.0 and early_map["reasons"]
+                    else list(scored["gaps"])
+                ),
                 "composition_score": round(composition_score, 1),
                 "rank_score": round(float(scored.get("rank_score", composition_score)) + weighted_player_fit - suggestion_penalty
-                                    - role_preference_penalty - draft_structure_penalty + enemy_score, 3),
+                                    - role_preference_penalty - draft_structure_penalty + enemy_score
+                                    + float(early_map["adjustment"]), 3),
+                "early_map_adjustment": early_map["adjustment"],
+                "early_map_bot_priority": early_map["bot_priority"],
+                "early_map_lane_priority": early_map["lane_priority"],
+                "early_map_enemy_roam_threat": early_map["enemy_roam_threat"],
+                "early_map_reasons": early_map["reasons"],
                 "live_enemy_adjustment": float(enemy_response["adjustment"]),
                 "live_enemy_reasons": list(enemy_response["reasons"]),
                 "live_lane_adjustment": float(lane_response["adjustment"]),

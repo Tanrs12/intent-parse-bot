@@ -53,6 +53,26 @@ The wrapper deliberately reuses the same pieces as `/league game`:
 
 This means changes made to the bot's drafting brain can flow into Draft Coach without re-implementing them there.
 
+## Early-map and role reliability risk (20 October 2026)
+
+The shared composition ranker now applies a small, bounded **draft-stage early-map
+risk screen** after champion synergy, the team-plan score, and player fit. It uses
+qualitative champion wave-access priors (not invented matchup win rates), plus
+role-specific reliability *where there is history*. It flags multiple low-priority
+lanes, jungle picks needing nearby lane access, isolated solo-lane/jungle win
+conditions, and whether a **revealed** enemy roaming support can leave bot without
+a meaningful wave/plate response. Unknown support picks do not imply real roams.
+
+For transparency, recommended drafts include `early_map_adjustment`,
+`early_map_lane_priority`, `early_map_bot_priority`,
+`early_map_enemy_roam_threat`, and `early_map_reasons`. Major map warnings also
+appear in `gaps` for existing bot/HUD consumers. The map adjustment is capped
+to -5.8/+0.65 points and the package-search tie-breaker is modest: pro pairing
+synergy, actual counterpicks, submitted comfort pools, and real team composition
+remain dominant. Yunara/Lulu and other scaling duos stay eligible. We are not
+claiming to infer actual warding, roams, lane outcomes or wave states from a static
+draft. Post-match evaluation still requires match events/replays.
+
 ## Data snapshots
 
 The engine consumes these files from `data/`:
