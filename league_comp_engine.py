@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from league_source_stats import source_mtime_ns, source_stat_scope
+from league_patch_live import (
+    LIVE_PATCH, live_patch_active, live_patch_role_adjustment,
+    live_patch_draft_adjustment,
+)
 
 import itertools
 import json
@@ -1300,6 +1304,8 @@ def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8,
             # short list after two recent high-scoring games.
             comfort = (own - 5.0) * 0.35 + min(3.0, effective) * 0.20
         meta_support = confidence * (bayes - 0.5) * 4.5 + min(1.0, games / 30.0)
+        # Patch-day directional evidence can break close ties, not displace comfort.
+        meta_support += live_patch_role_adjustment(role, champion) * 0.30
         return (known, round(comfort + meta_support, 3), comfort, math.log1p(games), champion.lower())
 
     selected: list[str] = []
@@ -1491,6 +1497,9 @@ def live_lane_matchup_adjustment(
     data = matchup_data if matchup_data is not None else load_lane_matchups()
     edges = []
     total = 0.0
+    observed_patches = {str(p).split('.')[-1] for p in data.get('source', {}).get('patches_detected', [])}
+    older_snapshot = live_patch_active() and bool(observed_patches) and '21' not in observed_patches
+    quality = 0.85 if older_snapshot else 1.0
     for role, enemy in enemy_roles.items():
         own = champions.get(role)
         if role not in ROLES or not enemy or not own:
@@ -1498,7 +1507,7 @@ def live_lane_matchup_adjustment(
         advantage, games = matchup_response(role, enemy, own, data)
         if advantage is None:
             continue
-        residual, points = calibrated_matchup(role, advantage, games, quality=1.0)
+        residual, points = calibrated_matchup(role, advantage, games, quality=quality)
         edges.append({
             "role": role, "enemy": enemy, "ours": own,
             "advantage": round(float(advantage), 2),
@@ -2144,11 +2153,14 @@ def score_comp(champions: dict[str, str], meta: dict | None = None) -> dict:
                                     and top_solo_games == 0
                                     and top_pro_games < 25) else 0.0
 
+    # Official 26.21 balance directions are deliberately small, do not use
+    # patch-day WR guesses, and automatically retire for patch 26.22.
+    live_patch_delta = live_patch_draft_adjustment(champions)
     total = (
         frontline_score + control_score + engage_score + utility_score
         + damage_score + mobility_score + range_score + mix_score
         + solo_queue_score + meta_score + synergy_score + bot_lane_adjustment + package_adjustment
-        + team_plan_adjustment + top_structure_adjustment
+        + team_plan_adjustment + top_structure_adjustment + live_patch_delta
         + top_dive_mismatch + top_sparse_evidence
         + (0.0 if credible_mixed_damage else -16.0)
     )
@@ -2182,7 +2194,9 @@ def score_comp(champions: dict[str, str], meta: dict | None = None) -> dict:
     difficulty = sum(_rating(c, "difficulty", meta) for c in champs) / 5.0
     return {
         "score": round(total, 1),
-        "rank_score": round(raw_total, 3),   # FLEXERS: unclamped, for ordering
+        "rank_score": round(raw_total, 3),  # Unclamped score for ordering
+        "live_patch": LIVE_PATCH if live_patch_active() else None,
+        "live_patch_adjustment": round(live_patch_delta, 2),
         "archetypes": _archetypes(champions, meta),
         "strengths": strengths[:4],
         "gaps": gaps[:4],

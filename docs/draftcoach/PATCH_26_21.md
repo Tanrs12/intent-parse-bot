@@ -1,0 +1,9 @@
+# Flexers Ranked Flex patch bridge — 26.21 (21 October 2026)
+
+Patch 26.21 is now live, but patch-day role win-rate and matchup samples are too small for a full re-tier. We keep 26.20 Worlds champion picks, team compositions, and paired-play evidence as **historical composition evidence**, not as 26.21 results. Previous LoLalytics d2+ matchup snapshot is 16.20, so the live counterpick weighting is temporarily reduced by 15%, not reset to zero.
+
+Official [Riot 26.21 notes](https://www.leagueoflegends.com/en-us/news/game-updates/league-of-legends-patch-26-21-notes/) inform a deliberately bounded ±1.6 draft-score-point bridge across all five champions. Individual role deltas are recorded in `league_patch_live.py`. These are not invented changes in win rate. Nothing promotes an unpracticed champion or supersedes verified pairings, comfort, early-map resilience, enemy locks/bans, or team composition.
+
+Key directions: jungle Lee Sin / Nidalee / Rammus / Wukong down and Taliyah / Xin Zhao up; mid Viktor / Qiyana / Yone down and Orianna / Ryze / Azir up; bot Caitlyn / Jinx / Tristana down and Miss Fortune slightly up; Sion and Darius improved for top lane; Zyra and Vel'Koz get small support uplift. Varus is a role/build trade-off, **not** a blanket buff. Ranged Hubris, Gluttonous Greaves and Dawncore were changed, but without item-path evidence no universal ADC or enchanter change is applied. Yunara + Lulu, Aphelios + Thresh, Kalista + Renata and coordinated mid-jungle packages remain eligible and must still win on full five-player draft score.
+
+The patch bridge expires automatically at the scheduled 26.22 launch on 4 November 2026. Recheck with adequate patch-specific games and champion-select matchup data as they become available, particularly high-skill EUW. Do not treat Worlds 26.20 tournament results as 26.21 observations.
