@@ -56,3 +56,9 @@ def test_old_patch_matchups_are_discounted_not_deleted():
         {"Top": "Camille"}, {"Top": "Rumble"}, fixtures)
     assert old["adjustment"] > 0
     assert old["adjustment"] <= engine.calibrated_matchup("Top", 5, 500)[1]
+
+
+def test_windows_build_bundles_patch_module_as_runtime_engine_data():
+    from pathlib import Path
+    build = (Path(__file__).resolve().parents[1] / "build_exe.py").read_text(encoding="utf-8")
+    assert "f\"{ROOT / 'league_patch_live.py'}{sep}engine\"" in build
