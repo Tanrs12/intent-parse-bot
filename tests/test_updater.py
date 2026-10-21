@@ -62,6 +62,7 @@ def test_replacer_script_uses_safe_merge_logging_and_validation(tmp_path):
                                       tmp_path / "new" / "FlexersDraftCoach",
                                       "b" * 40, ["--hud", "--load", r"loadfiles\team.json"])
     assert "robocopy.exe" in script and "/R:6" in script
+    assert "/IS /IT" in script  # copy even when changed contents share the same size/time
     assert "build-info.json" in script and "$Installed.commit -ne $ExpectedCommit" in script
     assert "config.json team-sync.json" in script
     assert "update-failed.json" in script
@@ -135,3 +136,29 @@ def test_windows_replacer_logs_failure_without_deleting_app(tmp_path):
     assert failed["commit"] == commit
     assert "Downloaded package" in failed["message"]
     assert "Update failed" in (target / "var" / "updater.log").read_text()
+
+
+def test_windows_updater_handoff_runs_hidden_powershell(tmp_path):
+    """Regression: DETACHED_PROCESS returned success but never ran -File."""
+    import sys
+    import time
+    import pytest
+    from draftcoach.updater import _quote_ps, _spawn_replacer_script
+
+    if sys.platform != "win32":
+        pytest.skip("Windows process-creation semantics only")
+
+    marker = tmp_path / "update-ran.txt"
+    script = tmp_path / "handoff.ps1"
+    script.write_text(
+        "param([int]$ParentPid = 0)\n"
+        "[System.IO.File]::WriteAllText(" + _quote_ps(str(marker)) + ", 'ok')\n",
+        encoding="utf-8",
+    )
+    log = tmp_path / "var" / "updater-launch.log"
+    _spawn_replacer_script(script, tmp_path, log, parent_pid=0)
+    deadline = time.monotonic() + 8
+    while not marker.exists() and time.monotonic() < deadline:
+        time.sleep(0.1)
+    assert marker.read_text(encoding="utf-8") == "ok"
+    assert log.is_file()

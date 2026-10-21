@@ -148,7 +148,7 @@ try {
     # Robocopy merges new files safely; don't destroy user state or the old
     # executable in advance. 0 through 7 are normal robocopy success codes.
     # It retries briefly if antivirus or indexing has a file open.
-    & robocopy.exe $Source $Target /E /XD var /XF config.json team-sync.json /R:6 /W:2 /NFL /NDL /NP "/LOG+:$Log"
+    & robocopy.exe $Source $Target /E /IS /IT /XD var /XF config.json team-sync.json /R:6 /W:2 /NFL /NDL /NP "/LOG+:$Log"
     $Result = $LASTEXITCODE
     if ($Result -ge 8) { throw "File replacement failed (robocopy code $Result). See updater.log." }
     $Installed = Get-Content -LiteralPath (Join-Path $Target 'build-info.json') -Raw | ConvertFrom-Json
@@ -202,19 +202,39 @@ def _launch_replacer(root: Path, package: Path, temp_root: Path) -> None:
         _render_replacer_script(root, package, commit, launch_args),
         encoding="utf-8",
     )
-    flags = getattr(subprocess, "DETACHED_PROCESS", 0x00000008) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
-    subprocess.Popen(
-        ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
-         str(script), "-ParentPid", str(os.getpid())],
-        cwd=str(temp_root),
-        creationflags=flags,
-        close_fds=True,
-    )
+    _spawn_replacer_script(script, temp_root, root / "var" / "updater-launch.log", parent_pid=os.getpid())
+
+
+def _spawn_replacer_script(script: Path, temp_root: Path, log: Path, *, parent_pid: int) -> None:
+    """Launch independently on Windows without DETACHED_PROCESS.
+
+    DETACHED_PROCESS can make powershell.exe exit 0 *without running -File*.
+    CREATE_NEW_CONSOLE executes the script after the Python parent exits, and
+    STARTF_USESHOWWINDOW hides the brief helper console.
+    """
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    startupinfo.wShowWindow = 0  # SW_HIDE
+    flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0x00000010)
+    log.parent.mkdir(parents=True, exist_ok=True)
+    with log.open("ab") as output:
+        output.write(("Launching updater for parent PID " + str(parent_pid) + os.linesep).encode("utf-8"))
+        output.flush()
+        subprocess.Popen(
+            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+             str(script), "-ParentPid", str(parent_pid)],
+            cwd=str(temp_root),
+            creationflags=flags,
+            startupinfo=startupinfo,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+            close_fds=True,
+        )
 
 
 def _recent_failed_update(root: Path, release: ReleaseInfo,
                           *, now: dt.datetime | None = None) -> bool:
-    """Avoid an endless prompt loop if the detached Windows replacer failed."""
+    """Avoid an endless prompt loop if the Windows replacer failed."""
     if not release.commit:
         return False
     try:
