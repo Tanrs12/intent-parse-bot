@@ -7627,7 +7627,7 @@
         "champions_observed": 77,
         "season_account_samples": 39,
         "accounts_loaded": 8,
-        "individual_ranked_games": 27,
+        "individual_ranked_games": 29,
         "individual_normal_games": 16
       },
       "champion_history": [
@@ -8944,6 +8944,54 @@
       "recent_matches": [
         {
           "account": "FakerChovyHilary-ALLY",
+          "id": "ta1XN8oiMOIgHAYDKtcS6FJ6fIpPWjSzy_j4zdrRLpg=",
+          "created_at": "2026-10-22T04:25:50+09:00",
+          "queue": "FLEXRANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Yunara",
+          "position": "ADC",
+          "game_length_seconds": 1609,
+          "kills": 20,
+          "deaths": 3,
+          "assists": 1,
+          "kda": 7.0,
+          "kp": 53.0,
+          "op_score": 10.0,
+          "lane_score": 61.0,
+          "cs_per_min": 10.1,
+          "gold_per_min": 737.1,
+          "dpm": 1658.3,
+          "damage_share": 46.2,
+          "vision_score": 17.0
+        },
+        {
+          "account": "FakerChovyHilary-ALLY",
+          "id": "ta1XN8oiMOI4EvIJgfqNYQgsqlpm9h8wyr-VasPCPz8=",
+          "created_at": "2026-10-22T03:44:28+09:00",
+          "queue": "FLEXRANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Ambessa",
+          "position": "TOP",
+          "game_length_seconds": 2238,
+          "kills": 6,
+          "deaths": 10,
+          "assists": 12,
+          "kda": 1.8,
+          "kp": 64.0,
+          "op_score": 4.2,
+          "lane_score": 44.0,
+          "cs_per_min": 5.1,
+          "gold_per_min": 374.5,
+          "dpm": 972.9,
+          "damage_share": 24.2,
+          "vision_score": 26.0
+        },
+        {
+          "account": "FakerChovyHilary-ALLY",
           "id": "ta1XN8oiMOJgQInThiNfK5d7OnZrB5O_EsG1hh855ZU=",
           "created_at": "2026-10-20T05:31:04+09:00",
           "queue": "FLEXRANKED",
@@ -9978,18 +10026,18 @@
       "recent_match_summary": {
         "queues": {
           "RANKED": {
-            "games": 27,
-            "wins": 20,
-            "win_rate": 74.1,
-            "kda": 7.36,
-            "kp": 59.96,
-            "op_score": 7.23,
-            "lane_score": 59.41,
-            "cs_per_min": 7.14,
-            "gold_per_min": 544.28,
-            "dpm": 1255.72,
-            "damage_share": 32.54,
-            "vision_score": 30.96
+            "games": 29,
+            "wins": 22,
+            "win_rate": 75.9,
+            "kda": 7.16,
+            "kp": 59.86,
+            "op_score": 7.22,
+            "lane_score": 58.93,
+            "cs_per_min": 7.17,
+            "gold_per_min": 545.08,
+            "dpm": 1259.85,
+            "damage_share": 32.72,
+            "vision_score": 30.31
           },
           "NORMAL": {
             "games": 16,
@@ -10008,18 +10056,32 @@
         },
         "positions": {
           "ADC": {
-            "games": 7,
-            "wins": 3,
-            "win_rate": 42.9,
-            "kda": 3.62,
-            "kp": 60.14,
-            "op_score": 6.13,
-            "lane_score": 58.0,
-            "cs_per_min": 7.67,
-            "gold_per_min": 596.3,
-            "dpm": 1199.19,
-            "damage_share": 36.9,
-            "vision_score": 15.0
+            "games": 8,
+            "wins": 4,
+            "win_rate": 50.0,
+            "kda": 4.04,
+            "kp": 59.25,
+            "op_score": 6.61,
+            "lane_score": 58.38,
+            "cs_per_min": 7.97,
+            "gold_per_min": 613.9,
+            "dpm": 1256.58,
+            "damage_share": 38.06,
+            "vision_score": 15.25
+          },
+          "TOP": {
+            "games": 14,
+            "wins": 12,
+            "win_rate": 85.7,
+            "kda": 6.35,
+            "kp": 53.86,
+            "op_score": 7.0,
+            "lane_score": 59.14,
+            "cs_per_min": 7.22,
+            "gold_per_min": 504.5,
+            "dpm": 1339.26,
+            "damage_share": 33.34,
+            "vision_score": 29.29
           },
           "JUNGLE": {
             "games": 16,
@@ -10034,20 +10096,6 @@
             "dpm": 1088.3,
             "damage_share": 27.61,
             "vision_score": 30.25
-          },
-          "TOP": {
-            "games": 13,
-            "wins": 11,
-            "win_rate": 84.6,
-            "kda": 6.7,
-            "kp": 53.08,
-            "op_score": 7.22,
-            "lane_score": 60.31,
-            "cs_per_min": 7.38,
-            "gold_per_min": 514.5,
-            "dpm": 1367.45,
-            "damage_share": 34.04,
-            "vision_score": 29.54
           },
           "SUPPORT": {
             "games": 6,
@@ -10101,6 +10149,28 @@
             }
           },
           {
+            "games": 4,
+            "wins": 3,
+            "win_rate": 75.0,
+            "kda": 6.14,
+            "kp": 56.5,
+            "op_score": 6.27,
+            "lane_score": 57.25,
+            "cs_per_min": 7.0,
+            "gold_per_min": 491.05,
+            "dpm": 1241.4,
+            "damage_share": 32.28,
+            "vision_score": 26.25,
+            "champion": "Ambessa",
+            "positions": {
+              "TOP": 4
+            },
+            "queues": {
+              "RANKED": 3,
+              "NORMAL": 1
+            }
+          },
+          {
             "games": 3,
             "wins": 2,
             "win_rate": 66.7,
@@ -10119,28 +10189,6 @@
             },
             "queues": {
               "RANKED": 3
-            }
-          },
-          {
-            "games": 3,
-            "wins": 2,
-            "win_rate": 66.7,
-            "kda": 7.58,
-            "kp": 54.0,
-            "op_score": 6.97,
-            "lane_score": 61.67,
-            "cs_per_min": 7.63,
-            "gold_per_min": 529.9,
-            "dpm": 1330.9,
-            "damage_share": 34.97,
-            "vision_score": 26.33,
-            "champion": "Ambessa",
-            "positions": {
-              "TOP": 3
-            },
-            "queues": {
-              "RANKED": 2,
-              "NORMAL": 1
             }
           },
           {
@@ -10227,6 +10275,27 @@
             },
             "queues": {
               "NORMAL": 1,
+              "RANKED": 1
+            }
+          },
+          {
+            "games": 1,
+            "wins": 1,
+            "win_rate": 100.0,
+            "kda": 7.0,
+            "kp": 53.0,
+            "op_score": 10.0,
+            "lane_score": 61.0,
+            "cs_per_min": 10.1,
+            "gold_per_min": 737.1,
+            "dpm": 1658.3,
+            "damage_share": 46.2,
+            "vision_score": 17.0,
+            "champion": "Yunara",
+            "positions": {
+              "ADC": 1
+            },
+            "queues": {
               "RANKED": 1
             }
           },
@@ -10790,10 +10859,10 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-21T17:09:59.728547+00:00",
+        "refreshed_at": "2026-10-22T04:40:56.538129+00:00",
         "accounts_ok": 8,
         "accounts_total": 8,
-        "fresh_rows_seen": 26,
+        "fresh_rows_seen": 28,
         "errors": []
       }
     },
@@ -15849,7 +15918,7 @@
         "champions_observed": 41,
         "season_account_samples": 29,
         "accounts_loaded": 3,
-        "individual_ranked_games": 15,
+        "individual_ranked_games": 17,
         "individual_normal_games": 0
       },
       "champion_history": [
@@ -16554,6 +16623,54 @@
       "recent_matches": [
         {
           "account": "JackJak-EUW",
+          "id": "ta1XN8oiMOIgHAYDKtcS6FJ6fIpPWjSzy_j4zdrRLpg=",
+          "created_at": "2026-10-22T04:25:50+09:00",
+          "queue": "FLEXRANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Lulu",
+          "position": "SUPPORT",
+          "game_length_seconds": 1609,
+          "kills": 2,
+          "deaths": 1,
+          "assists": 22,
+          "kda": 24.0,
+          "kp": 60.0,
+          "op_score": 10.0,
+          "lane_score": 56.0,
+          "cs_per_min": 1.1,
+          "gold_per_min": 372.8,
+          "dpm": 218.6,
+          "damage_share": 6.1,
+          "vision_score": 86.0
+        },
+        {
+          "account": "JackJak-EUW",
+          "id": "ta1XN8oiMOI4EvIJgfqNYQgsqlpm9h8wyr-VasPCPz8=",
+          "created_at": "2026-10-22T03:44:28+09:00",
+          "queue": "FLEXRANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Caitlyn",
+          "position": "ADC",
+          "game_length_seconds": 2238,
+          "kills": 9,
+          "deaths": 9,
+          "assists": 9,
+          "kda": 2.0,
+          "kp": 64.0,
+          "op_score": 4.8,
+          "lane_score": 42.0,
+          "cs_per_min": 7.6,
+          "gold_per_min": 512.8,
+          "dpm": 1062.3,
+          "damage_share": 26.4,
+          "vision_score": 30.0
+        },
+        {
+          "account": "JackJak-EUW",
           "id": "ta1XN8oiMOJgQInThiNfK5d7OnZrB5O_EsG1hh855ZU=",
           "created_at": "2026-10-20T05:31:04+09:00",
           "queue": "FLEXRANKED",
@@ -16916,48 +17033,48 @@
       "recent_match_summary": {
         "queues": {
           "RANKED": {
-            "games": 15,
-            "wins": 10,
-            "win_rate": 66.7,
-            "kda": 3.24,
-            "kp": 43.87,
-            "op_score": 5.41,
-            "lane_score": 46.27,
-            "cs_per_min": 5.12,
-            "gold_per_min": 421.03,
-            "dpm": 668.77,
-            "damage_share": 18.54,
-            "vision_score": 39.8
+            "games": 17,
+            "wins": 12,
+            "win_rate": 70.6,
+            "kda": 4.39,
+            "kp": 46.0,
+            "op_score": 5.65,
+            "lane_score": 46.59,
+            "cs_per_min": 5.03,
+            "gold_per_min": 423.59,
+            "dpm": 665.44,
+            "damage_share": 18.27,
+            "vision_score": 41.94
           }
         },
         "positions": {
           "SUPPORT": {
-            "games": 6,
-            "wins": 4,
-            "win_rate": 66.7,
-            "kda": 4.3,
-            "kp": 48.67,
-            "op_score": 5.8,
-            "lane_score": 46.5,
-            "cs_per_min": 0.98,
-            "gold_per_min": 330.5,
-            "dpm": 322.93,
-            "damage_share": 11.75,
-            "vision_score": 64.33
-          },
-          "ADC": {
             "games": 7,
             "wins": 5,
             "win_rate": 71.4,
-            "kda": 2.59,
-            "kp": 44.71,
-            "op_score": 5.6,
-            "lane_score": 44.14,
-            "cs_per_min": 7.97,
-            "gold_per_min": 510.89,
-            "dpm": 981.94,
-            "damage_share": 25.1,
-            "vision_score": 22.43
+            "kda": 7.11,
+            "kp": 50.29,
+            "op_score": 6.4,
+            "lane_score": 47.86,
+            "cs_per_min": 1.0,
+            "gold_per_min": 336.54,
+            "dpm": 308.03,
+            "damage_share": 10.94,
+            "vision_score": 67.43
+          },
+          "ADC": {
+            "games": 8,
+            "wins": 6,
+            "win_rate": 75.0,
+            "kda": 2.52,
+            "kp": 47.12,
+            "op_score": 5.5,
+            "lane_score": 43.88,
+            "cs_per_min": 7.93,
+            "gold_per_min": 511.12,
+            "dpm": 991.99,
+            "damage_share": 25.26,
+            "vision_score": 23.38
           },
           "TOP": {
             "games": 2,
@@ -17019,6 +17136,27 @@
           },
           {
             "games": 2,
+            "wins": 1,
+            "win_rate": 50.0,
+            "kda": 12.0,
+            "kp": 30.0,
+            "op_score": 5.0,
+            "lane_score": 28.0,
+            "cs_per_min": 0.85,
+            "gold_per_min": 372.1,
+            "dpm": 177.2,
+            "damage_share": 12.25,
+            "vision_score": 43.0,
+            "champion": "Lulu",
+            "positions": {
+              "SUPPORT": 2
+            },
+            "queues": {
+              "RANKED": 2
+            }
+          },
+          {
+            "games": 2,
             "wins": 2,
             "win_rate": 100.0,
             "kda": 2.85,
@@ -17057,6 +17195,27 @@
             },
             "queues": {
               "RANKED": 2
+            }
+          },
+          {
+            "games": 1,
+            "wins": 1,
+            "win_rate": 100.0,
+            "kda": 2.0,
+            "kp": 64.0,
+            "op_score": 4.8,
+            "lane_score": 42.0,
+            "cs_per_min": 7.6,
+            "gold_per_min": 512.8,
+            "dpm": 1062.3,
+            "damage_share": 26.4,
+            "vision_score": 30.0,
+            "champion": "Caitlyn",
+            "positions": {
+              "ADC": 1
+            },
+            "queues": {
+              "RANKED": 1
             }
           },
           {
@@ -17142,27 +17301,6 @@
             "queues": {
               "RANKED": 1
             }
-          },
-          {
-            "games": 1,
-            "wins": 0,
-            "win_rate": 0.0,
-            "kda": 0.0,
-            "kp": 0.0,
-            "op_score": 0.0,
-            "lane_score": 0.0,
-            "cs_per_min": 0.6,
-            "gold_per_min": 371.4,
-            "dpm": 135.8,
-            "damage_share": 18.4,
-            "vision_score": 0.0,
-            "champion": "Lulu",
-            "positions": {
-              "SUPPORT": 1
-            },
-            "queues": {
-              "RANKED": 1
-            }
           }
         ]
       },
@@ -17196,10 +17334,10 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-21T17:09:59.728547+00:00",
+        "refreshed_at": "2026-10-22T04:40:56.538129+00:00",
         "accounts_ok": 3,
         "accounts_total": 3,
-        "fresh_rows_seen": 15,
+        "fresh_rows_seen": 17,
         "errors": []
       }
     },
@@ -23090,7 +23228,7 @@
         "champions_observed": 91,
         "season_account_samples": 5,
         "accounts_loaded": 1,
-        "individual_ranked_games": 81,
+        "individual_ranked_games": 84,
         "individual_normal_games": 6
       },
       "champion_history": [
@@ -24643,6 +24781,78 @@
         }
       ],
       "recent_matches": [
+        {
+          "account": "Adittive-EUW",
+          "id": "ta1XN8oiMOIgHAYDKtcS6FJ6fIpPWjSzy_j4zdrRLpg=",
+          "created_at": "2026-10-22T04:25:50+09:00",
+          "queue": "FLEXRANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Amumu",
+          "position": "JUNGLE",
+          "game_length_seconds": 1609,
+          "kills": 4,
+          "deaths": 3,
+          "assists": 6,
+          "kda": 3.33,
+          "kp": 25.0,
+          "op_score": 6.1,
+          "lane_score": 46.0,
+          "cs_per_min": 7.4,
+          "gold_per_min": 411.6,
+          "dpm": 329.5,
+          "damage_share": 9.2,
+          "vision_score": 19.0
+        },
+        {
+          "account": "Adittive-EUW",
+          "id": "ta1XN8oiMOI4EvIJgfqNYQgsqlpm9h8wyr-VasPCPz8=",
+          "created_at": "2026-10-22T03:44:28+09:00",
+          "queue": "FLEXRANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Zac",
+          "position": "JUNGLE",
+          "game_length_seconds": 2238,
+          "kills": 0,
+          "deaths": 6,
+          "assists": 13,
+          "kda": 2.17,
+          "kp": 46.0,
+          "op_score": 3.2,
+          "lane_score": 37.0,
+          "cs_per_min": 5.1,
+          "gold_per_min": 313.2,
+          "dpm": 329.5,
+          "damage_share": 8.2,
+          "vision_score": 14.0
+        },
+        {
+          "account": "Adittive-EUW",
+          "id": "ta1XN8oiMOLIlUfVPDo9aa5AlotNemLwnFvinOgLu6k=",
+          "created_at": "2026-10-21T22:36:07+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "LOSE",
+          "champion": "Volibear",
+          "position": "JUNGLE",
+          "game_length_seconds": 1953,
+          "kills": 6,
+          "deaths": 11,
+          "assists": 4,
+          "kda": 0.91,
+          "kp": 48.0,
+          "op_score": 3.6,
+          "lane_score": 35.0,
+          "cs_per_min": 5.7,
+          "gold_per_min": 449.4,
+          "dpm": 710.8,
+          "damage_share": 24.0,
+          "vision_score": 22.0
+        },
         {
           "account": "Adittive-EUW",
           "id": "ta1XN8oiMOLRObClpZfrJDTEhK0e8i6r8minHvu7qAk=",
@@ -26735,18 +26945,18 @@
       "recent_match_summary": {
         "queues": {
           "RANKED": {
-            "games": 81,
-            "wins": 43,
-            "win_rate": 53.1,
-            "kda": 2.91,
-            "kp": 41.73,
-            "op_score": 4.7,
-            "lane_score": 43.89,
-            "cs_per_min": 5.74,
-            "gold_per_min": 396.48,
-            "dpm": 679.36,
-            "damage_share": 17.89,
-            "vision_score": 23.99
+            "games": 84,
+            "wins": 45,
+            "win_rate": 53.6,
+            "kda": 2.88,
+            "kp": 41.65,
+            "op_score": 4.68,
+            "lane_score": 43.73,
+            "cs_per_min": 5.75,
+            "gold_per_min": 396.3,
+            "dpm": 671.4,
+            "damage_share": 17.74,
+            "vision_score": 23.79
           },
           "NORMAL": {
             "games": 6,
@@ -26765,18 +26975,18 @@
         },
         "positions": {
           "JUNGLE": {
-            "games": 36,
-            "wins": 20,
-            "win_rate": 55.6,
-            "kda": 3.14,
-            "kp": 44.14,
-            "op_score": 4.86,
-            "lane_score": 45.25,
-            "cs_per_min": 5.94,
-            "gold_per_min": 410.93,
-            "dpm": 673.66,
-            "damage_share": 16.53,
-            "vision_score": 23.17
+            "games": 39,
+            "wins": 22,
+            "win_rate": 56.4,
+            "kda": 3.06,
+            "kp": 43.79,
+            "op_score": 4.81,
+            "lane_score": 44.79,
+            "cs_per_min": 5.95,
+            "gold_per_min": 409.43,
+            "dpm": 656.96,
+            "damage_share": 16.32,
+            "vision_score": 22.79
           },
           "TOP": {
             "games": 6,
@@ -26859,25 +27069,25 @@
             }
           },
           {
-            "games": 7,
+            "games": 8,
             "wins": 5,
-            "win_rate": 71.4,
-            "kda": 3.21,
-            "kp": 39.71,
-            "op_score": 4.87,
-            "lane_score": 41.14,
-            "cs_per_min": 5.47,
-            "gold_per_min": 437.63,
-            "dpm": 564.73,
-            "damage_share": 13.77,
-            "vision_score": 13.29,
+            "win_rate": 62.5,
+            "kda": 2.92,
+            "kp": 40.75,
+            "op_score": 4.71,
+            "lane_score": 40.38,
+            "cs_per_min": 5.5,
+            "gold_per_min": 439.1,
+            "dpm": 582.99,
+            "damage_share": 15.05,
+            "vision_score": 14.38,
             "champion": "Volibear",
             "positions": {
-              "JUNGLE": 6,
+              "JUNGLE": 7,
               "TOP": 1
             },
             "queues": {
-              "RANKED": 7
+              "RANKED": 8
             }
           },
           {
@@ -26989,6 +27199,27 @@
           },
           {
             "games": 4,
+            "wins": 3,
+            "win_rate": 75.0,
+            "kda": 3.29,
+            "kp": 37.5,
+            "op_score": 5.47,
+            "lane_score": 43.0,
+            "cs_per_min": 6.12,
+            "gold_per_min": 386.3,
+            "dpm": 388.52,
+            "damage_share": 11.8,
+            "vision_score": 15.25,
+            "champion": "Amumu",
+            "positions": {
+              "JUNGLE": 4
+            },
+            "queues": {
+              "RANKED": 4
+            }
+          },
+          {
+            "games": 4,
             "wins": 1,
             "win_rate": 25.0,
             "kda": 1.77,
@@ -27012,16 +27243,16 @@
             "games": 3,
             "wins": 2,
             "win_rate": 66.7,
-            "kda": 3.28,
-            "kp": 41.67,
-            "op_score": 5.27,
-            "lane_score": 42.0,
-            "cs_per_min": 5.7,
-            "gold_per_min": 377.87,
-            "dpm": 408.2,
-            "damage_share": 12.67,
-            "vision_score": 14.0,
-            "champion": "Amumu",
+            "kda": 2.32,
+            "kp": 48.0,
+            "op_score": 3.63,
+            "lane_score": 40.33,
+            "cs_per_min": 5.07,
+            "gold_per_min": 333.57,
+            "dpm": 373.8,
+            "damage_share": 10.0,
+            "vision_score": 18.33,
+            "champion": "Zac",
             "positions": {
               "JUNGLE": 3
             },
@@ -27113,27 +27344,6 @@
             },
             "queues": {
               "RANKED": 3
-            }
-          },
-          {
-            "games": 2,
-            "wins": 1,
-            "win_rate": 50.0,
-            "kda": 2.4,
-            "kp": 49.0,
-            "op_score": 3.85,
-            "lane_score": 42.0,
-            "cs_per_min": 5.05,
-            "gold_per_min": 343.75,
-            "dpm": 395.95,
-            "damage_share": 10.9,
-            "vision_score": 20.5,
-            "champion": "Zac",
-            "positions": {
-              "JUNGLE": 2
-            },
-            "queues": {
-              "RANKED": 2
             }
           },
           {
@@ -27531,7 +27741,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-21T17:09:59.728547+00:00",
+        "refreshed_at": "2026-10-22T04:40:56.538129+00:00",
         "accounts_ok": 1,
         "accounts_total": 1,
         "fresh_rows_seen": 20,
@@ -35331,7 +35541,7 @@
         "champions_observed": 84,
         "season_account_samples": 10,
         "accounts_loaded": 5,
-        "individual_ranked_games": 341,
+        "individual_ranked_games": 344,
         "individual_normal_games": 16
       },
       "champion_history": [
@@ -36765,6 +36975,78 @@
         }
       ],
       "recent_matches": [
+        {
+          "account": "RISE OF PETE-PING",
+          "id": "ta1XN8oiMOIgHAYDKtcS6FJ6fIpPWjSzy_j4zdrRLpg=",
+          "created_at": "2026-10-22T04:25:50+09:00",
+          "queue": "FLEXRANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Jax",
+          "position": "TOP",
+          "game_length_seconds": 1609,
+          "kills": 8,
+          "deaths": 5,
+          "assists": 6,
+          "kda": 2.8,
+          "kp": 35.0,
+          "op_score": 7.2,
+          "lane_score": 56.0,
+          "cs_per_min": 5.8,
+          "gold_per_min": 450.7,
+          "dpm": 903.9,
+          "damage_share": 25.2,
+          "vision_score": 22.0
+        },
+        {
+          "account": "RISE OF PETE-PING",
+          "id": "ta1XN8oiMOI4EvIJgfqNYQgsqlpm9h8wyr-VasPCPz8=",
+          "created_at": "2026-10-22T03:44:28+09:00",
+          "queue": "FLEXRANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Yasuo",
+          "position": "MID",
+          "game_length_seconds": 2238,
+          "kills": 7,
+          "deaths": 8,
+          "assists": 7,
+          "kda": 1.75,
+          "kp": 50.0,
+          "op_score": 4.1,
+          "lane_score": 47.0,
+          "cs_per_min": 9.1,
+          "gold_per_min": 454.8,
+          "dpm": 1043.1,
+          "damage_share": 25.9,
+          "vision_score": 32.0
+        },
+        {
+          "account": "RISE OF PETE-PING",
+          "id": "ta1XN8oiMOJBiBEM34JYQxPANPKh6WJQ77jvVSgcPc0=",
+          "created_at": "2026-10-22T01:01:47+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Yasuo",
+          "position": "MID",
+          "game_length_seconds": 2163,
+          "kills": 7,
+          "deaths": 12,
+          "assists": 8,
+          "kda": 1.25,
+          "kp": 33.0,
+          "op_score": 4.6,
+          "lane_score": 44.0,
+          "cs_per_min": 7.9,
+          "gold_per_min": 441.6,
+          "dpm": 1060.3,
+          "damage_share": 21.6,
+          "vision_score": 23.0
+        },
         {
           "account": "RISE OF PETE-PING",
           "id": "ta1XN8oiMOL9i0RinASqVBv_Emnt9olQD1tlmdmyQVw=",
@@ -45337,18 +45619,18 @@
       "recent_match_summary": {
         "queues": {
           "RANKED": {
-            "games": 341,
-            "wins": 162,
-            "win_rate": 47.5,
+            "games": 344,
+            "wins": 165,
+            "win_rate": 48.0,
             "kda": 2.71,
-            "kp": 37.88,
-            "op_score": 4.83,
+            "kp": 37.89,
+            "op_score": 4.84,
             "lane_score": 49.3,
-            "cs_per_min": 6.44,
-            "gold_per_min": 422.04,
-            "dpm": 783.0,
-            "damage_share": 21.86,
-            "vision_score": 22.58
+            "cs_per_min": 6.45,
+            "gold_per_min": 422.27,
+            "dpm": 784.91,
+            "damage_share": 21.89,
+            "vision_score": 22.6
           },
           "NORMAL": {
             "games": 16,
@@ -45366,19 +45648,33 @@
           }
         },
         "positions": {
+          "TOP": {
+            "games": 209,
+            "wins": 103,
+            "win_rate": 49.3,
+            "kda": 2.45,
+            "kp": 33.02,
+            "op_score": 4.67,
+            "lane_score": 49.85,
+            "cs_per_min": 6.4,
+            "gold_per_min": 411.92,
+            "dpm": 809.84,
+            "damage_share": 23.52,
+            "vision_score": 20.35
+          },
           "MID": {
-            "games": 29,
-            "wins": 15,
-            "win_rate": 51.7,
-            "kda": 2.72,
-            "kp": 42.14,
-            "op_score": 5.1,
-            "lane_score": 50.17,
-            "cs_per_min": 7.13,
-            "gold_per_min": 444.92,
-            "dpm": 930.81,
-            "damage_share": 25.12,
-            "vision_score": 22.34
+            "games": 31,
+            "wins": 17,
+            "win_rate": 54.8,
+            "kda": 2.64,
+            "kp": 42.1,
+            "op_score": 5.05,
+            "lane_score": 49.87,
+            "cs_per_min": 7.22,
+            "gold_per_min": 445.13,
+            "dpm": 938.61,
+            "damage_share": 25.04,
+            "vision_score": 22.68
           },
           "ADC": {
             "games": 6,
@@ -45393,20 +45689,6 @@
             "dpm": 947.45,
             "damage_share": 22.03,
             "vision_score": 25.33
-          },
-          "TOP": {
-            "games": 208,
-            "wins": 102,
-            "win_rate": 49.0,
-            "kda": 2.45,
-            "kp": 33.01,
-            "op_score": 4.66,
-            "lane_score": 49.82,
-            "cs_per_min": 6.41,
-            "gold_per_min": 411.73,
-            "dpm": 809.39,
-            "damage_share": 23.51,
-            "vision_score": 20.35
           },
           "JUNGLE": {
             "games": 113,
@@ -45571,47 +45853,47 @@
             }
           },
           {
-            "games": 15,
-            "wins": 9,
-            "win_rate": 60.0,
-            "kda": 3.15,
-            "kp": 40.27,
-            "op_score": 5.29,
-            "lane_score": 56.07,
-            "cs_per_min": 7.93,
-            "gold_per_min": 467.01,
-            "dpm": 866.23,
-            "damage_share": 24.65,
-            "vision_score": 22.67,
+            "games": 17,
+            "wins": 11,
+            "win_rate": 64.7,
+            "kda": 2.96,
+            "kp": 40.41,
+            "op_score": 5.18,
+            "lane_score": 54.82,
+            "cs_per_min": 7.99,
+            "gold_per_min": 464.79,
+            "dpm": 888.05,
+            "damage_share": 24.55,
+            "vision_score": 23.24,
             "champion": "Yasuo",
             "positions": {
-              "MID": 10,
+              "MID": 12,
               "ADC": 3,
               "TOP": 2
             },
             "queues": {
-              "RANKED": 15
+              "RANKED": 17
             }
           },
           {
-            "games": 13,
-            "wins": 10,
-            "win_rate": 76.9,
-            "kda": 2.08,
-            "kp": 34.69,
-            "op_score": 4.98,
-            "lane_score": 47.92,
-            "cs_per_min": 6.45,
-            "gold_per_min": 424.61,
-            "dpm": 878.15,
-            "damage_share": 24.12,
-            "vision_score": 21.54,
+            "games": 14,
+            "wins": 11,
+            "win_rate": 78.6,
+            "kda": 2.14,
+            "kp": 34.71,
+            "op_score": 5.14,
+            "lane_score": 48.5,
+            "cs_per_min": 6.4,
+            "gold_per_min": 426.47,
+            "dpm": 879.99,
+            "damage_share": 24.19,
+            "vision_score": 21.57,
             "champion": "Jax",
             "positions": {
-              "TOP": 13
+              "TOP": 14
             },
             "queues": {
-              "RANKED": 11,
+              "RANKED": 12,
               "NORMAL": 2
             }
           },
@@ -46030,7 +46312,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-21T17:09:59.728547+00:00",
+        "refreshed_at": "2026-10-22T04:40:56.538129+00:00",
         "accounts_ok": 5,
         "accounts_total": 5,
         "fresh_rows_seen": 40,
@@ -51409,7 +51691,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-21T17:09:59.728547+00:00",
+        "refreshed_at": "2026-10-22T04:40:56.538129+00:00",
         "accounts_ok": 2,
         "accounts_total": 2,
         "fresh_rows_seen": 20,
@@ -55806,7 +56088,7 @@
         "champions_observed": 40,
         "season_account_samples": 30,
         "accounts_loaded": 3,
-        "individual_ranked_games": 8,
+        "individual_ranked_games": 10,
         "individual_normal_games": 13
       },
       "champion_history": [
@@ -56493,6 +56775,54 @@
       ],
       "recent_matches": [
         {
+          "account": "ScubbaSte-EUWW",
+          "id": "ta1XN8oiMOIgHAYDKtcS6FJ6fIpPWjSzy_j4zdrRLpg=",
+          "created_at": "2026-10-22T04:25:50+09:00",
+          "queue": "FLEXRANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Akali",
+          "position": "MID",
+          "game_length_seconds": 1609,
+          "kills": 6,
+          "deaths": 4,
+          "assists": 1,
+          "kda": 1.75,
+          "kp": 18.0,
+          "op_score": 5.1,
+          "lane_score": 48.0,
+          "cs_per_min": 6.9,
+          "gold_per_min": 405.6,
+          "dpm": 475.5,
+          "damage_share": 13.3,
+          "vision_score": 19.0
+        },
+        {
+          "account": "ScubbaSte-EUWW",
+          "id": "ta1XN8oiMOI4EvIJgfqNYQgsqlpm9h8wyr-VasPCPz8=",
+          "created_at": "2026-10-22T03:44:28+09:00",
+          "queue": "FLEXRANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Lux",
+          "position": "SUPPORT",
+          "game_length_seconds": 2238,
+          "kills": 6,
+          "deaths": 8,
+          "assists": 10,
+          "kda": 2.0,
+          "kp": 57.0,
+          "op_score": 3.8,
+          "lane_score": 44.0,
+          "cs_per_min": 1.5,
+          "gold_per_min": 342.6,
+          "dpm": 618.7,
+          "damage_share": 15.4,
+          "vision_score": 96.0
+        },
+        {
           "account": "LargeLarry-EUW",
           "id": "ta1XN8oiMOLkBE-ILr7FyLcxA0Ij0gDPqV3_RzGEGcg=",
           "created_at": "2026-10-19T01:10:39+09:00",
@@ -57000,18 +57330,18 @@
       "recent_match_summary": {
         "queues": {
           "RANKED": {
-            "games": 8,
-            "wins": 6,
-            "win_rate": 75.0,
-            "kda": 4.49,
-            "kp": 47.12,
-            "op_score": 6.09,
-            "lane_score": 51.62,
-            "cs_per_min": 6.85,
-            "gold_per_min": 432.12,
-            "dpm": 882.44,
-            "damage_share": 22.06,
-            "vision_score": 23.0
+            "games": 10,
+            "wins": 8,
+            "win_rate": 80.0,
+            "kda": 3.97,
+            "kp": 45.2,
+            "op_score": 5.76,
+            "lane_score": 50.5,
+            "cs_per_min": 6.32,
+            "gold_per_min": 420.52,
+            "dpm": 815.37,
+            "damage_share": 20.52,
+            "vision_score": 29.9
           },
           "NORMAL": {
             "games": 13,
@@ -57030,18 +57360,32 @@
         },
         "positions": {
           "MID": {
-            "games": 15,
-            "wins": 9,
-            "win_rate": 60.0,
-            "kda": 3.47,
-            "kp": 41.27,
+            "games": 16,
+            "wins": 10,
+            "win_rate": 62.5,
+            "kda": 3.36,
+            "kp": 39.81,
             "op_score": 5.16,
-            "lane_score": 46.73,
-            "cs_per_min": 6.64,
-            "gold_per_min": 427.5,
-            "dpm": 808.28,
-            "damage_share": 21.07,
-            "vision_score": 23.93
+            "lane_score": 46.81,
+            "cs_per_min": 6.66,
+            "gold_per_min": 426.13,
+            "dpm": 787.48,
+            "damage_share": 20.59,
+            "vision_score": 23.62
+          },
+          "SUPPORT": {
+            "games": 1,
+            "wins": 1,
+            "win_rate": 100.0,
+            "kda": 2.0,
+            "kp": 57.0,
+            "op_score": 3.8,
+            "lane_score": 44.0,
+            "cs_per_min": 1.5,
+            "gold_per_min": 342.6,
+            "dpm": 618.7,
+            "damage_share": 15.4,
+            "vision_score": 96.0
           },
           "ADC": {
             "games": 6,
@@ -57060,25 +57404,48 @@
         },
         "champions": [
           {
+            "games": 4,
+            "wins": 3,
+            "win_rate": 75.0,
+            "kda": 5.62,
+            "kp": 45.5,
+            "op_score": 5.57,
+            "lane_score": 50.75,
+            "cs_per_min": 5.68,
+            "gold_per_min": 377.9,
+            "dpm": 635.62,
+            "damage_share": 18.85,
+            "vision_score": 39.5,
+            "champion": "Lux",
+            "positions": {
+              "SUPPORT": 1,
+              "MID": 3
+            },
+            "queues": {
+              "RANKED": 3,
+              "NORMAL": 1
+            }
+          },
+          {
             "games": 3,
             "wins": 2,
             "win_rate": 66.7,
-            "kda": 6.83,
-            "kp": 41.67,
-            "op_score": 6.17,
-            "lane_score": 53.0,
-            "cs_per_min": 7.07,
-            "gold_per_min": 389.67,
-            "dpm": 641.27,
-            "damage_share": 20.0,
-            "vision_score": 20.67,
-            "champion": "Lux",
+            "kda": 2.46,
+            "kp": 38.0,
+            "op_score": 4.03,
+            "lane_score": 34.67,
+            "cs_per_min": 5.93,
+            "gold_per_min": 501.07,
+            "dpm": 821.53,
+            "damage_share": 19.1,
+            "vision_score": 26.33,
+            "champion": "Akali",
             "positions": {
               "MID": 3
             },
             "queues": {
-              "RANKED": 2,
-              "NORMAL": 1
+              "RANKED": 1,
+              "NORMAL": 2
             }
           },
           {
@@ -57161,27 +57528,6 @@
             "champion": "Caitlyn",
             "positions": {
               "ADC": 2
-            },
-            "queues": {
-              "NORMAL": 2
-            }
-          },
-          {
-            "games": 2,
-            "wins": 1,
-            "win_rate": 50.0,
-            "kda": 2.81,
-            "kp": 48.0,
-            "op_score": 3.5,
-            "lane_score": 28.0,
-            "cs_per_min": 5.45,
-            "gold_per_min": 548.8,
-            "dpm": 994.55,
-            "damage_share": 22.0,
-            "vision_score": 30.0,
-            "champion": "Akali",
-            "positions": {
-              "MID": 2
             },
             "queues": {
               "NORMAL": 2
@@ -57366,10 +57712,10 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-21T17:09:59.728547+00:00",
+        "refreshed_at": "2026-10-22T04:40:56.538129+00:00",
         "accounts_ok": 3,
         "accounts_total": 3,
-        "fresh_rows_seen": 8,
+        "fresh_rows_seen": 10,
         "errors": []
       }
     },
@@ -60880,7 +61226,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-21T17:09:59.728547+00:00",
+        "refreshed_at": "2026-10-22T04:40:56.538129+00:00",
         "accounts_ok": 1,
         "accounts_total": 1,
         "fresh_rows_seen": 13,
@@ -60942,7 +61288,7 @@
       ],
       "notes": "Returning formerly strong player per teammate report. Historical ability not yet objectively evaluated; recent form unknown. No roles/champion selections assumed.",
       "recent_refresh": {
-        "refreshed_at": "2026-10-21T17:09:59.728547+00:00",
+        "refreshed_at": "2026-10-22T04:40:56.538129+00:00",
         "accounts_ok": 5,
         "accounts_total": 5,
         "fresh_rows_seen": 0,
@@ -60951,6 +61297,6 @@
       "collection_note": "All five linked accounts were reachable, but automated match-history import returned no rows. Historical rank/champion data may exist on public OP.GG pages; current form and historical peak are not yet established by this snapshot."
     }
   },
-  "recent_matches_refreshed_at": "2026-10-21T17:09:59.728547+00:00",
+  "recent_matches_refreshed_at": "2026-10-22T04:40:56.538129+00:00",
   "roster_updated_at": "2026-10-19"
 }
