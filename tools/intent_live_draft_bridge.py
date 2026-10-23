@@ -26,6 +26,7 @@ import league_comp_engine
 import league_multi_source
 import league_aggregate_sources
 from league_draft_backend import _pick_group_meta, recommend_live_drafts
+from league_flex_core import role_option_limit
 from league_pro_data import refresh_recent_pro_data
 
 ROLES = ["Top", "Jungle", "Mid", "ADC", "Support"]
@@ -1127,9 +1128,11 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         if row.get("role") in ROLES and (row.get("locked") or row.get("hover"))
     }
     def role_options_for(rec: dict, role: str) -> list[str]:
+        player = (rec.get("players") or {}).get(role) or {}
+        role_limit = role_option_limit(role, player.get("user_id"))
         options = [champion for champion in dict.fromkeys([
             (rec.get("champions") or {}).get(role),
-            *((rec.get("role_alternatives") or {}).get(role) or [])[:2],
+            *((rec.get("role_alternatives") or {}).get(role) or [])[:max(0, role_limit - 1)],
         ]) if champion]
         if visual_test:
             # Mixed custom/practice preview deliberately exercises all three layouts at once:
@@ -1144,7 +1147,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
                     if len(options) >= wanted:
                         break
             return options[:wanted]
-        return options[:3]
+        return options[:role_limit]
 
     def counter_bans_for(rec: dict) -> list[dict]:
         rows = []

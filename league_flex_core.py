@@ -486,6 +486,19 @@ def _conditional_ban_branches(
     return branches
 
 
+# User-requested variety: five visible options when Ste plays mid; the other
+# roles keep three. This does not boost a champion's composition score.
+_PLAYER_ROLE_OPTION_LIMITS = {286592835850076162: {"Mid": 5}}
+
+
+def role_option_limit(role: str, user_id: int | None) -> int:
+    try:
+        uid = int(user_id or 0)
+    except (TypeError, ValueError):
+        uid = 0
+    return int(_PLAYER_ROLE_OPTION_LIMITS.get(uid, {}).get(role, 3))
+
+
 def _attach_role_alternatives(selected: list[dict], candidates: list[dict], max_per_role: int = 2) -> list[dict]:
     """Attach same-plan one-role variants, including deliberate tank-vs-carry agency shifts."""
     for rec in selected:
@@ -494,6 +507,8 @@ def _attach_role_alternatives(selected: list[dict], candidates: list[dict], max_
         base_score = float(rec.get("score", 0))
         alternatives: dict[str, list[str]] = {}
         for role in ROLES:
+            player_id = (rec.get("players", {}).get(role) or {}).get("user_id")
+            alternative_limit = max(max_per_role, role_option_limit(role, player_id) - 1)
             viable: list[tuple[float, str]] = []
             for candidate in candidates:
                 if tuple(int(candidate["players"][r]["user_id"]) for r in ROLES) != base_players:
@@ -526,7 +541,7 @@ def _attach_role_alternatives(selected: list[dict], candidates: list[dict], max_
                 for _, champ in sorted(viable, reverse=True):
                     if champ not in ordered and champ != rec["champions"][role]:
                         ordered.append(champ)
-                    if len(ordered) >= max_per_role:
+                    if len(ordered) >= alternative_limit:
                         break
                 if ordered:
                     alternatives[role] = ordered

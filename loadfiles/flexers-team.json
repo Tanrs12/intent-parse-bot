@@ -261,18 +261,65 @@
       "pools": {
         "Mid": [
           {
-            "champion": "Anivia",
-            "note": "historical LargeLarry record; refresh wave control",
+            "champion": "Vex",
+            "note": "Player-confirmed mid pick; anti-dash, current-patch strength",
+            "familiarity": "refresh",
+            "live_confirmed": true
+          },
+          {
+            "champion": "Akali",
+            "note": "Player-confirmed mid assassin; dive and skirmish alternative",
+            "familiarity": "refresh",
+            "live_confirmed": true
+          },
+          {
+            "champion": "Ahri",
+            "note": "Previously registered mid pool; roaming and pick setup",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Sylas",
+            "note": "Previously registered mid pool; situational high-impact ult steals",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Orianna",
+            "note": "Previously registered mid pool; teamfight and jungle synergy",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Galio",
+            "note": "Previously registered mid pool; engage and AP protection",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Viktor",
+            "note": "Previously registered mid pool; control and scaling",
             "familiarity": "refresh"
           },
           {
             "champion": "Xerath",
-            "note": "historical flex success",
+            "note": "Historical flex success; long-range poke",
             "familiarity": "refresh"
           },
           {
-            "champion": "Vex",
-            "note": "current-year records",
+            "champion": "Anivia",
+            "note": "Historical LargeLarry record; wave control",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Ziggs",
+            "note": "Previously registered mid pool; siege and waveclear",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Annie",
+            "note": "Previously registered mid pool; straightforward burst engage",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Lux",
+            "note": "Previously registered mid pool; long-range picks and poke",
             "familiarity": "refresh"
           }
         ]
