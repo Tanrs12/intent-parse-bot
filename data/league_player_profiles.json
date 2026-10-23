@@ -10928,7 +10928,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-23T04:46:18.797695+00:00",
+        "refreshed_at": "2026-10-23T17:04:33.367021+00:00",
         "accounts_ok": 8,
         "accounts_total": 8,
         "fresh_rows_seen": 30,
@@ -17493,7 +17493,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-23T04:46:18.797695+00:00",
+        "refreshed_at": "2026-10-23T17:04:33.367021+00:00",
         "accounts_ok": 3,
         "accounts_total": 3,
         "fresh_rows_seen": 19,
@@ -27900,7 +27900,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-23T04:46:18.797695+00:00",
+        "refreshed_at": "2026-10-23T17:04:33.367021+00:00",
         "accounts_ok": 1,
         "accounts_total": 1,
         "fresh_rows_seen": 20,
@@ -35700,7 +35700,7 @@
         "champions_observed": 84,
         "season_account_samples": 10,
         "accounts_loaded": 5,
-        "individual_ranked_games": 353,
+        "individual_ranked_games": 355,
         "individual_normal_games": 16
       },
       "champion_history": [
@@ -37134,6 +37134,54 @@
         }
       ],
       "recent_matches": [
+        {
+          "account": "BAN EVADER BARRY-RIVEN",
+          "id": "ta1XN8oiMOIwnqJNzpf9e-NWLl0TUR2NwOeUf-pW_9w=",
+          "created_at": "2026-10-23T22:47:09+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Akali",
+          "position": "MID",
+          "game_length_seconds": 1133,
+          "kills": 6,
+          "deaths": 2,
+          "assists": 3,
+          "kda": 4.5,
+          "kp": 36.0,
+          "op_score": 6.5,
+          "lane_score": 58.0,
+          "cs_per_min": 6.3,
+          "gold_per_min": 387.0,
+          "dpm": 962.3,
+          "damage_share": 30.7,
+          "vision_score": 9.0
+        },
+        {
+          "account": "RISE OF PETE-PING",
+          "id": "ta1XN8oiMOI_lCBjTRVYxn36Rb2MHc443qqhUeEdjoI=",
+          "created_at": "2026-10-23T19:49:17+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Yone",
+          "position": "MID",
+          "game_length_seconds": 1987,
+          "kills": 15,
+          "deaths": 4,
+          "assists": 2,
+          "kda": 4.25,
+          "kp": 59.0,
+          "op_score": 7.4,
+          "lane_score": 49.0,
+          "cs_per_min": 9.2,
+          "gold_per_min": 575.3,
+          "dpm": 1282.0,
+          "damage_share": 38.9,
+          "vision_score": 28.0
+        },
         {
           "account": "RISE OF PETE-PING",
           "id": "ta1XN8oiMOK98ClVAa1rQH6qPituQvcD_DH2t0EVUIo=",
@@ -45994,18 +46042,18 @@
       "recent_match_summary": {
         "queues": {
           "RANKED": {
-            "games": 353,
-            "wins": 169,
-            "win_rate": 47.9,
-            "kda": 2.7,
-            "kp": 38.12,
-            "op_score": 4.86,
-            "lane_score": 49.38,
-            "cs_per_min": 6.47,
-            "gold_per_min": 422.52,
-            "dpm": 783.49,
-            "damage_share": 21.99,
-            "vision_score": 22.54
+            "games": 355,
+            "wins": 171,
+            "win_rate": 48.2,
+            "kda": 2.71,
+            "kp": 38.17,
+            "op_score": 4.87,
+            "lane_score": 49.41,
+            "cs_per_min": 6.48,
+            "gold_per_min": 422.85,
+            "dpm": 785.4,
+            "damage_share": 22.07,
+            "vision_score": 22.52
           },
           "NORMAL": {
             "games": 16,
@@ -46023,6 +46071,20 @@
           }
         },
         "positions": {
+          "MID": {
+            "games": 39,
+            "wins": 22,
+            "win_rate": 56.4,
+            "kda": 2.75,
+            "kp": 42.46,
+            "op_score": 5.26,
+            "lane_score": 50.97,
+            "cs_per_min": 7.21,
+            "gold_per_min": 442.34,
+            "dpm": 923.21,
+            "damage_share": 26.19,
+            "vision_score": 21.95
+          },
           "ADC": {
             "games": 8,
             "wins": 6,
@@ -46050,20 +46112,6 @@
             "dpm": 684.18,
             "damage_share": 17.75,
             "vision_score": 25.4
-          },
-          "MID": {
-            "games": 37,
-            "wins": 20,
-            "win_rate": 54.1,
-            "kda": 2.66,
-            "kp": 42.19,
-            "op_score": 5.17,
-            "lane_score": 50.84,
-            "cs_per_min": 7.18,
-            "gold_per_min": 440.25,
-            "dpm": 912.46,
-            "damage_share": 25.73,
-            "vision_score": 22.14
           },
           "TOP": {
             "games": 209,
@@ -46274,6 +46322,28 @@
           },
           {
             "games": 13,
+            "wins": 9,
+            "win_rate": 69.2,
+            "kda": 2.82,
+            "kp": 42.77,
+            "op_score": 6.18,
+            "lane_score": 50.08,
+            "cs_per_min": 7.74,
+            "gold_per_min": 474.95,
+            "dpm": 1030.49,
+            "damage_share": 28.25,
+            "vision_score": 20.92,
+            "champion": "Yone",
+            "positions": {
+              "MID": 12,
+              "TOP": 1
+            },
+            "queues": {
+              "RANKED": 13
+            }
+          },
+          {
+            "games": 13,
             "wins": 7,
             "win_rate": 53.8,
             "kda": 2.45,
@@ -46292,28 +46362,6 @@
             "queues": {
               "RANKED": 12,
               "NORMAL": 1
-            }
-          },
-          {
-            "games": 12,
-            "wins": 8,
-            "win_rate": 66.7,
-            "kda": 2.7,
-            "kp": 41.42,
-            "op_score": 6.07,
-            "lane_score": 50.17,
-            "cs_per_min": 7.62,
-            "gold_per_min": 466.59,
-            "dpm": 1009.53,
-            "damage_share": 27.36,
-            "vision_score": 20.33,
-            "champion": "Yone",
-            "positions": {
-              "MID": 11,
-              "TOP": 1
-            },
-            "queues": {
-              "RANKED": 12
             }
           },
           {
@@ -46555,6 +46603,27 @@
           },
           {
             "games": 1,
+            "wins": 1,
+            "win_rate": 100.0,
+            "kda": 4.5,
+            "kp": 36.0,
+            "op_score": 6.5,
+            "lane_score": 58.0,
+            "cs_per_min": 6.3,
+            "gold_per_min": 387.0,
+            "dpm": 962.3,
+            "damage_share": 30.7,
+            "vision_score": 9.0,
+            "champion": "Akali",
+            "positions": {
+              "MID": 1
+            },
+            "queues": {
+              "RANKED": 1
+            }
+          },
+          {
+            "games": 1,
             "wins": 0,
             "win_rate": 0.0,
             "kda": 1.62,
@@ -46687,7 +46756,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-23T04:46:18.797695+00:00",
+        "refreshed_at": "2026-10-23T17:04:33.367021+00:00",
         "accounts_ok": 5,
         "accounts_total": 5,
         "fresh_rows_seen": 40,
@@ -52066,7 +52135,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-23T04:46:18.797695+00:00",
+        "refreshed_at": "2026-10-23T17:04:33.367021+00:00",
         "accounts_ok": 2,
         "accounts_total": 2,
         "fresh_rows_seen": 20,
@@ -58137,7 +58206,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-23T04:46:18.797695+00:00",
+        "refreshed_at": "2026-10-23T17:04:33.367021+00:00",
         "accounts_ok": 3,
         "accounts_total": 3,
         "fresh_rows_seen": 12,
@@ -61699,7 +61768,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-23T04:46:18.797695+00:00",
+        "refreshed_at": "2026-10-23T17:04:33.367021+00:00",
         "accounts_ok": 1,
         "accounts_total": 1,
         "fresh_rows_seen": 15,
@@ -61761,7 +61830,7 @@
       ],
       "notes": "Returning formerly strong player per teammate report. Historical ability not yet objectively evaluated; recent form unknown. No roles/champion selections assumed.",
       "recent_refresh": {
-        "refreshed_at": "2026-10-23T04:46:18.797695+00:00",
+        "refreshed_at": "2026-10-23T17:04:33.367021+00:00",
         "accounts_ok": 5,
         "accounts_total": 5,
         "fresh_rows_seen": 0,
@@ -61770,6 +61839,6 @@
       "collection_note": "All five linked accounts were reachable, but automated match-history import returned no rows. Historical rank/champion data may exist on public OP.GG pages; current form and historical peak are not yet established by this snapshot."
     }
   },
-  "recent_matches_refreshed_at": "2026-10-23T04:46:18.797695+00:00",
+  "recent_matches_refreshed_at": "2026-10-23T17:04:33.367021+00:00",
   "roster_updated_at": "2026-10-19"
 }
