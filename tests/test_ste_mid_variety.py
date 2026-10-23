@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from league_flex_core import ROLES, _attach_role_alternatives, role_option_limit
+from league_comp_engine import _role_search_pool_limit
 
 
 class SteMidVarietyTests(unittest.TestCase):
@@ -13,12 +14,17 @@ class SteMidVarietyTests(unittest.TestCase):
         self.assertEqual(role_option_limit("ADC", 286592835850076162), 3)
         self.assertEqual(role_option_limit("Mid", 111), 3)
 
+    def test_mid_candidate_limit_is_ste_specific(self):
+        self.assertEqual(_role_search_pool_limit({"user_id": 286592835850076162}, "Mid", 10), 12)
+        self.assertEqual(_role_search_pool_limit({"user_id": 286592835850076162}, "ADC", 10), 10)
+        self.assertEqual(_role_search_pool_limit({"user_id": 999}, "Mid", 10), 10)
+
     def test_confirmed_ste_champions_are_in_persisted_pool(self):
         root = Path(__file__).resolve().parents[1]
         data = json.loads((root / "loadfiles" / "flexers-team.json").read_text(encoding="utf-8"))
         ste = next(p for p in data["players"] if p["user_id"] == 286592835850076162)
         entries = ste["pools"]["Mid"]
-        self.assertGreaterEqual(len(entries), 10)
+        self.assertEqual(len(entries), 20)
         self.assertEqual({r["champion"] for r in entries if r.get("live_confirmed")}, {"Vex", "Akali"})
         confirmations = json.loads((root / "data" / "league_player_confirmations.json").read_text(encoding="utf-8"))
         self.assertEqual(set(confirmations["players"]["286592835850076162"]["Mid"]), {"Vex", "Akali"})

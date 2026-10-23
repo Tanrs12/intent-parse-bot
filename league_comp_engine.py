@@ -2507,6 +2507,13 @@ def _verified_secondary_role_pick(player: dict, role: str, champion: str, meta: 
     return raw >= 3 or effective >= 1.5
 
 
+def _role_search_pool_limit(player: dict, role: str, default: int) -> int:
+    """Give Ste more mid-lane variety without expanding every player's search."""
+    if role == "Mid" and int(player.get("user_id") or 0) == 286592835850076162:
+        return max(int(default), 12)
+    return int(default)
+
+
 @source_stat_scope
 def recommend_comps(
     assignments: list[dict[str, dict]],
@@ -2547,6 +2554,7 @@ def recommend_comps(
                 and _verified_secondary_role_pick(player, role, champ, meta)
             ]
             inferred = [champ for champ in inferred if champ not in DISPLAY_EXCLUDED_CHAMPIONS]
+            role_limit = _role_search_pool_limit(player, role, pool_limit)
             # Once a player has declared a role and champion selection,
             # recent wins/losses must NEVER hard-delete those selections.
             # Off-role safety is checked above. Candidate compression below
@@ -2561,20 +2569,20 @@ def recommend_comps(
                     if partner_role else None
                 )
                 chosen = _prune_pool(
-                    role, selected, meta, pool_limit,
+                    role, selected, meta, role_limit,
                     enemy_roles=enemy_roles, user_id=int(player["user_id"]),
                     linked_bot_pool=partner_pool if role in {"ADC", "Support"} else None,
                     linked_role_pool=partner_pool if role in {"Jungle", "Mid"} else None,
-                ) if len(selected) > pool_limit else list(selected)
+                ) if len(selected) > role_limit else list(selected)
                 # Preserve the known cross-role counter in an explicit player pool
                 # even if a large generic pool was reduced to the top ten.
                 if "Malphite" in revealed_enemies and role in {"Top", "Jungle", "Mid"}:
                     if "Sylas" in selected and "Sylas" not in chosen:
-                        chosen = [*chosen[:max(0, pool_limit - 1)], "Sylas"]
+                        chosen = [*chosen[:max(0, role_limit - 1)], "Sylas"]
                 # Discord submissions are the primary pool. Inferred mastery must
                 # never silently overwrite a player's explicit champion choices.
-                suggestions = [champ for champ in inferred if champ not in chosen][:pool_limit]
-                pools[role] = chosen[:pool_limit]
+                suggestions = [champ for champ in inferred if champ not in chosen][:role_limit]
+                pools[role] = chosen[:role_limit]
                 history_suggestions[role] = suggestions
                 pool_sources[role] = "submitted"
                 continue

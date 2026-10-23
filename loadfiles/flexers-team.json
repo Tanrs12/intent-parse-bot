@@ -321,10 +321,50 @@
             "champion": "Lux",
             "note": "Previously registered mid pool; long-range picks and poke",
             "familiarity": "refresh"
+          },
+          {
+            "champion": "Zed",
+            "note": "207k mastery; assassin alternative",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Yasuo",
+            "note": "190k mastery; skirmish/knock-up combination",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Ryze",
+            "note": "133k mastery; scaling and roaming alternative",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Corki",
+            "note": "122k mastery; AD mid option, refresh role form",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Taliyah",
+            "note": "89k mastery; map movement and control",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Lissandra",
+            "note": "68k mastery; anti-dive and engage setup",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Twisted Fate",
+            "note": "77k mastery; side-lane/global setup",
+            "familiarity": "refresh"
+          },
+          {
+            "champion": "Veigar",
+            "note": "historical mid games; scaling/control option",
+            "familiarity": "refresh"
           }
         ]
       },
-      "notes": "Restore mid readiness, wave decisions and timely movement. Older ADC experience would need a separate refresh."
+      "notes": "Mid P1: broaden playable champions using linked-account mastery and recorded mid games; Akali and Vex are explicitly confirmed. Rank the full team composition and actual lane response; do not force the same champion every draft. ADC/Support are secondary fallback roles."
     },
     {
       "user_id": 548212317515677697,

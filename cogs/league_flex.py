@@ -56,6 +56,7 @@ from league_flex_core import (  # noqa: F401  shared drafting brain
     _roster_real_flex_value,
     _select_diverse_recommendations,
     generate_team_options,
+    role_option_limit,
 )
 from league_shared_data import sync_shared_league_data
 from league_pro_data import refresh_recent_pro_data
@@ -522,9 +523,14 @@ def _draw_draft_card(
         player = str(rec["players"][role]["display_name"])
         draw.text((x + 12, y + 12), role.upper(), font=_draft_font(20, True), fill=neutral)
         draw.text((x + 12, y + 40), player[:20], font=_draft_font(15), fill=muted)
-        owned_options = list(rec.get("role_alternatives", {}).get(role, []))[:2]
+        player_id = rec["players"][role].get("user_id")
+        option_count = role_option_limit(role, player_id)
+        owned_options = list(rec.get("role_alternatives", {}).get(role, []))[:option_count - 1]
+        # Ste's extra slots are only for scored, submitted alternatives.
+        # Do not fill them with unprepared historical "learn" suggestions.
         learn_all = list(rec.get("learn_suggestions", {}).get(role, []))
-        learn_options = learn_all[: max(0, 2 - len(owned_options))]
+        learn_allowance = 0 if role == "Mid" and int(player_id or 0) == 286592835850076162 else max(0, option_count - 1 - len(owned_options))
+        learn_options = learn_all[:learn_allowance]
         options = [rec["champions"][role]] + owned_options + learn_options
         primary_is_history = rec.get("pick_sources", rec.get("pool_sources", {})).get(role) == "history"
         if len(options) == 1:
@@ -533,14 +539,19 @@ def _draw_draft_card(
             if primary_is_history:
                 draw.text((x + col_w // 2 - 4, y + 200), "OP.GG suggestion", font=_draft_font(11, True), anchor="ma", fill=(96, 165, 250, 255))
         else:
-            icon_size = 58
-            gap = 8
+            compact = len(options) > 3
+            icon_size = 36 if compact else 58
+            gap = 6 if compact else 8
             total = len(options) * icon_size + (len(options) - 1) * gap
             start = x + (col_w - 8 - total) // 2
             for j, champion in enumerate(options):
                 ix = start + j * (icon_size + gap)
                 _paste_champion_icon(image, icons, champion, (ix, y + 87), icon_size)
-            draw.text((x + col_w // 2 - 4, y + 157), " / ".join(options), font=_draft_font(15, True), anchor="ma", fill=white)
+            if compact:
+                draw.text((x + col_w // 2 - 4, y + 148), " / ".join(options[:3]), font=_draft_font(11, True), anchor="ma", fill=white)
+                draw.text((x + col_w // 2 - 4, y + 166), " / ".join(options[3:]), font=_draft_font(11, True), anchor="ma", fill=white)
+            else:
+                draw.text((x + col_w // 2 - 4, y + 157), " / ".join(options), font=_draft_font(15, True), anchor="ma", fill=white)
             notes = []
             if owned_options:
                 notes.append("same-plan owned")
