@@ -1,0 +1,500 @@
+{
+  "schema_version": 1,
+  "verified_on": "2026-10-24",
+  "policy": "Verified public reference links and explicitly described video chapters. These entries do not grant bulk-statistics licensing or constitute extracted tiers, transcripts or champion win rates.",
+  "statistical_sources": [
+    {
+      "provider": "LoLMatchups.GG",
+      "url": "https://lolmatchups.gg/",
+      "tier": "Master/Grandmaster/Challenger NA/KR/EUW",
+      "window": "rolling last 30 days",
+      "reuse": "reference only; seek permission before bulk importing",
+      "fields": [
+        "lane matchup win rate",
+        "games",
+        "gold @15",
+        "community tips",
+        "matchup VODs"
+      ]
+    },
+    {
+      "provider": "Nerfplz",
+      "url": "https://www.nerfplz.com/lol-counters/akali/",
+      "tier": "Silver+",
+      "window": "26.21 champion matchup page",
+      "reuse": "reference only; seek permission for bulk feed"
+    },
+    {
+      "provider": "SeeMeta",
+      "url": "https://seemeta.com/en/lol/top",
+      "tier": "all ranks",
+      "window": "26.21",
+      "reuse": "reference only"
+    },
+    {
+      "provider": "LeagueCheck",
+      "url": "https://leaguecheck.net/",
+      "tier": "ladder sample",
+      "window": "current patch/hourly described by site",
+      "reuse": "reference only"
+    },
+    {
+      "provider": "Skill-Capped",
+      "url": "https://www.skill-capped.com/lol/guides/builds/akali/mid",
+      "tier": "site describes Challenger-authored context",
+      "window": "26.21",
+      "reuse": "reference only"
+    },
+    {
+      "provider": "GamGem",
+      "url": "https://gamgem.com/league-of-legends/champions/gwen",
+      "tier": "Master/Grandmaster/Challenger",
+      "window": "26.20",
+      "reuse": "reference only"
+    },
+    {
+      "provider": "Riot official Developer Portal",
+      "url": "https://developer.riotgames.com/docs/portal",
+      "tier": "match-v5 requires key",
+      "window": "key dependent",
+      "reuse": "API policies apply"
+    }
+  ],
+  "champion_guides": [
+    {
+      "champion": "Camille",
+      "role": "Top",
+      "url": "https://lolmatchups.gg/Camille/matchups",
+      "provider": "LoLMatchups.GG",
+      "description": "GM Camille advice with recent Master+ statistics",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    },
+    {
+      "champion": "Gwen",
+      "role": "Top",
+      "url": "https://lolmatchups.gg/Gwen/matchups",
+      "provider": "LoLMatchups.GG",
+      "description": "high-elo community tips plus recent Master+ stats",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    },
+    {
+      "champion": "Akali",
+      "role": "Mid",
+      "url": "https://lolmatchups.gg/Akali/matchups",
+      "provider": "LoLMatchups.GG",
+      "description": "recent Master+ stats and community lane guides",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    },
+    {
+      "champion": "Kayle",
+      "role": "Top",
+      "url": "https://lolmatchups.gg/Kayle/matchups",
+      "provider": "LoLMatchups.GG",
+      "description": "master-tier community lane guides",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    },
+    {
+      "champion": "Darius",
+      "role": "Top",
+      "url": "https://lolmatchups.gg/Darius/matchups",
+      "provider": "LoLMatchups.GG",
+      "description": "high-elo advice and Master+ stats",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    },
+    {
+      "champion": "Sett",
+      "role": "Top",
+      "url": "https://lolmatchups.gg/Sett/matchups",
+      "provider": "LoLMatchups.GG",
+      "description": "GM Sett contributors with matchup tips",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    },
+    {
+      "champion": "Gragas",
+      "role": "Top",
+      "url": "https://lolmatchups.gg/Gragas/matchups",
+      "provider": "LoLMatchups.GG",
+      "description": "Master+ opponent profiles; page may need lane selection",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    },
+    {
+      "champion": "Pantheon",
+      "role": "Top",
+      "url": "https://lolmatchups.gg/Pantheon/matchups",
+      "provider": "LoLMatchups.GG",
+      "description": "Master+ opponent profiles; page may default to another lane",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    },
+    {
+      "champion": "Camille",
+      "role": "Top",
+      "url": "https://www.reddit.com/r/CamilleMains/comments/1t8ugh8/camille_community_matchups_spreadsheet/",
+      "provider": "r/CamilleMains",
+      "description": "2026 community spreadsheet with GM Camille specialist review",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    },
+    {
+      "champion": "Kayle",
+      "role": "Top",
+      "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/",
+      "provider": "r/Kaylemains",
+      "description": "2025 opponent-by-opponent lane advice",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    },
+    {
+      "champion": "Gwen",
+      "role": "Top",
+      "url": "https://www.reddit.com/r/GwenMains/comments/1offihb/gwen_toplane_matchup_tierlist_as_a_400_mastery/",
+      "provider": "r/GwenMains",
+      "description": "2025 Gwen tier list; rank not verified",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    },
+    {
+      "champion": "Gwen",
+      "role": "Top",
+      "url": "https://www.reddit.com/r/GwenMains/comments/1rhtrfs/gwen_top_matchup_tier_lists_tier_list/",
+      "provider": "r/GwenMains",
+      "description": "2026 community comparison of multiple matchup tier lists",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    },
+    {
+      "champion": "Akali",
+      "role": "Mid",
+      "url": "https://www.reddit.com/r/akalimains/comments/1tnxdfp/matchup_spreadsheet/",
+      "provider": "r/akalimains",
+      "description": "2026 matchup spreadsheet discussion",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    },
+    {
+      "champion": "Urgot",
+      "role": "Top",
+      "url": "https://www.reddit.com/r/leagueoflegends/comments/1e6eo2r/the_1_challenger_urgot_guidematchup_spreadsheet/",
+      "provider": "r/leagueoflegends",
+      "description": "Challenger Urgot OTP detailed historical matchup guide",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    },
+    {
+      "champion": "Cho'Gath",
+      "role": "Mid",
+      "url": "https://www.reddit.com/r/leagueoflegends/comments/1igx3wr/i_created_a_matchupsheet_with_every_chogath/",
+      "provider": "r/leagueoflegends",
+      "description": "multi-season Challenger Cho'Gath Mid specialist",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    },
+    {
+      "champion": "Tryndamere",
+      "role": "Top",
+      "url": "https://www.reddit.com/r/leagueoflegends/comments/cdrmzj/foggedftw2s_complete_matchup_guide_to_top_lane/",
+      "provider": "r/leagueoflegends",
+      "description": "older Challenger Tryndamere matchup sheet",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    },
+    {
+      "champion": "Various top lanes",
+      "role": "Top",
+      "url": "https://www.reddit.com/r/summonerschool/comments/1mx3lp7/",
+      "provider": "r/summonerschool",
+      "description": "master+ authored source spreadsheet index, mixed freshness",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    },
+    {
+      "champion": "Various top lanes",
+      "role": "Top",
+      "url": "https://www.reddit.com/r/leagueoflegends/comments/1i5pdtn/",
+      "provider": "r/leagueoflegends",
+      "description": "top lane matchup bibles anthology, some stale",
+      "verified": "2026-10-24",
+      "usage": "reference_link_only",
+      "numerical_import_permitted": false
+    }
+  ],
+  "chapter_guides": [
+    {
+      "champion": "Gwen",
+      "role": "Top",
+      "title": "Gwen Season 16 Matchup Tier List",
+      "author": "KilllaaG",
+      "url": "https://www.youtube.com/watch?v=VXjsGYa3Z-g",
+      "published": "2026-08-20",
+      "source_type": "YouTube chapter index",
+      "scope": "2026 Season 16 Gwen top matchups",
+      "chapters": [
+        {
+          "enemy": "Aatrox",
+          "at": "1:33",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Akali",
+          "at": "3:30",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Ambessa",
+          "at": "5:36",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Cassiopeia",
+          "at": "8:07",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Camille",
+          "at": "10:17",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Cho'Gath",
+          "at": "11:53",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Darius",
+          "at": "13:55",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Dr. Mundo",
+          "at": "16:13",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Fiora",
+          "at": "17:22",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Garen",
+          "at": "19:40",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Gangplank",
+          "at": "22:20",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Gnar",
+          "at": "24:12",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Gragas",
+          "at": "26:36",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Illaoi",
+          "at": "28:45",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Irelia",
+          "at": "30:43",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Jax",
+          "at": "32:32",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Jayce",
+          "at": "35:13",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Kayle",
+          "at": "37:08",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Kennen",
+          "at": "39:32",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Kled",
+          "at": "41:35",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "K'Sante",
+          "at": "43:27",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Malphite",
+          "at": "45:22",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Mordekaiser",
+          "at": "47:38",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Nasus",
+          "at": "49:58",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Olaf",
+          "at": "52:09",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Ornn",
+          "at": "54:17",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Pantheon",
+          "at": "56:36",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Poppy",
+          "at": "59:32",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Quinn",
+          "at": "1:01:19",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Renekton",
+          "at": "1:03:31",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Riven",
+          "at": "1:05:36",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Rumble",
+          "at": "1:07:47",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Sett",
+          "at": "1:09:54",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Shen",
+          "at": "1:11:53",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Singed",
+          "at": "1:14:05",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Sion",
+          "at": "1:16:26",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Urgot",
+          "at": "1:18:32",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Trundle",
+          "at": "1:20:39",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Tryndamere",
+          "at": "1:23:32",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Vayne",
+          "at": "1:24:52",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Volibear",
+          "at": "1:26:55",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Vladimir",
+          "at": "1:29:35",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Warwick",
+          "at": "1:31:55",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Yasuo",
+          "at": "1:33:48",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Yone",
+          "at": "1:35:57",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Yorick",
+          "at": "1:39:10",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        },
+        {
+          "enemy": "Zaahen",
+          "at": "1:41:58",
+          "summary": "Chapter covers this matchup; outcome/tier not independently extracted or verified."
+        }
+      ]
+    }
+  ],
+  "constraints": [
+    "No tier guesses from unwatched video",
+    "No embedding commercial raw numerical tables from unlicensed sources",
+    "Time-stamp references are navigation aids not validated matchup outcomes",
+    "Patch and rank provenance required for quantitative imports"
+  ]
+}
