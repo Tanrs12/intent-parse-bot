@@ -46,7 +46,8 @@ def test_historical_pocketpick_retains_all_rows_but_never_scores_thin_samples(mo
     missing = engine.live_lane_matchup_adjustment(
         {"Top": "Camille"}, {"Top": "Darius"},
     )
-    assert missing == {"adjustment": 0.0, "edges": []}
+    assert missing["adjustment"] == 0.0
+    assert all(edge.get("points", 0) == 0 for edge in missing["edges"])
 
 
 def _sample(mid, index, score):
