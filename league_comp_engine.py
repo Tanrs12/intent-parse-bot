@@ -327,7 +327,9 @@ def load_lane_matchups(path: str | None = None) -> dict:
     # matches. Never combine differently ranked/dated samples as independent
     # games. Each row retains its own approved source attribution.
     if path is None:
-        patch = next(iter(data.get("source", {}).get("patches_detected", ())), None)
+        # The approved current-patch feed must not be discarded merely because
+        # our historical bundled fallback was exported on an older patch.
+        patch = LIVE_PATCH if live_patch_active() else next(iter(data.get("source", {}).get("patches_detected", ())), None)
         imported = approved_matchups(patch)
         if imported:
             data = dict(data)
@@ -1565,6 +1567,8 @@ def live_lane_matchup_adjustment(
     champions: dict[str, str],
     enemy_roles: dict[str, str] | None,
     matchup_data: dict | None = None,
+    *,
+    role_weights: dict[str, float] | None = None,
 ) -> dict:
     """Calibrated *same-role* matchup evidence, evaluated while assembling five-man drafts.
 
@@ -1587,16 +1591,22 @@ def live_lane_matchup_adjustment(
         advantage, games = matchup_response(role, enemy, own, data)
         if advantage is None:
             continue
-        residual, points = calibrated_matchup(role, advantage, games, quality=quality)
+        entry = data.get("matchups", {}).get(role, {}).get(enemy, {}).get("responses", {}).get(own, {})
+        entry_quality = 1.0 if entry.get("source") else quality
+        residual, points = calibrated_matchup(role, advantage, games, quality=entry_quality)
+        weight = max(1.0, min(3.0, float((role_weights or {}).get(role, 1.0))))
+        boosted = round(points * weight, 3)
         edges.append({
             "role": role, "enemy": enemy, "ours": own,
             "advantage": round(float(advantage), 2),
-            "adjusted": residual, "points": points, "games": games,
+            "adjusted": residual, "points": boosted, "games": games,
+            "base_points": points, "counterpick_weight": weight,
             "locked": True,
         })
-        total += points
-    # Prevent patch-specific matchup swings from overwhelming the better team plan.
-    return {"adjustment": round(max(-4.5, min(4.5, total)), 3), "edges": edges}
+        total += boosted
+    # Last pick has real value, but must never erase a large composition deficit.
+    cap = 8.0 if role_weights else 4.5
+    return {"adjustment": round(max(-cap, min(cap, total)), 3), "edges": edges}
 
 
 def live_enemy_draft_adjustment(champions: dict[str, str], enemies: Iterable[str], meta: dict) -> dict:
@@ -2642,6 +2652,8 @@ def recommend_comps(
     live_enemy_roles: dict[str, str] | None = None,
     rotation_token: str | None = None,
     preferred_champions: dict[str, str] | None = None,
+    full_counter_roles: frozenset[str] = frozenset(),
+    lane_leverage: dict[str, float] | None = None,
 ) -> tuple[list[dict], list[str]]:
     meta = meta or load_meta()
     revealed_enemies = set(live_enemy_champions or ())
@@ -2674,6 +2686,9 @@ def recommend_comps(
             ]
             inferred = [champ for champ in inferred if champ not in DISPLAY_EXCLUDED_CHAMPIONS]
             role_limit = _role_search_pool_limit(player, role, pool_limit)
+            # In a true late counterpick window, every selected solo laner is eligible.
+            if role in full_counter_roles and enemy_roles.get(role):
+                role_limit = max(role_limit, len(selected))
             # Once a player has declared a role and champion selection,
             # recent wins/losses must NEVER hard-delete those selections.
             # Off-role safety is checked above. Candidate compression below
@@ -2735,7 +2750,9 @@ def recommend_comps(
                 continue
             scored = score_comp(champions, meta)
             enemy_response = live_enemy_draft_adjustment(champions, revealed_enemies, meta)
-            lane_response = live_lane_matchup_adjustment(champions, enemy_roles)
+            lane_response = live_lane_matchup_adjustment(
+                champions, enemy_roles, role_weights=lane_leverage,
+            )
             enemy_score = float(enemy_response["adjustment"]) + float(lane_response["adjustment"])
             player_fit = _player_fit_adjustment(
                 assignment,
@@ -2846,6 +2863,7 @@ def recommend_comps(
                 "live_enemy_reasons": list(enemy_response["reasons"]),
                 "live_lane_adjustment": float(lane_response["adjustment"]),
                 "live_lane_edges": list(lane_response["edges"]),
+                "counterpick_leverage": dict(lane_leverage or {}),
                 "player_fit_adjustment": round(weighted_player_fit, 2),
                 "raw_player_fit_adjustment": player_fit["adjustment"],
                 "draft_structure_penalty": round(draft_structure_penalty, 2),

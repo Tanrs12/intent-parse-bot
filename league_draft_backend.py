@@ -122,6 +122,24 @@ def _pick_group_meta(side: str, position: int) -> dict:
     return {"pick_group": group, "pick_group_label": label, "pick_group_slots": slots}
 
 
+def _counterpick_window(side: str, ally_locks: Mapping[str, str],
+                        enemy_roles: Mapping[str, str]) -> dict[str, float]:
+    """Increase lane weight only during a genuine late solo-lane response.
+
+    Red R5: four ally locks, no enemy answer remaining.
+    Blue B4/B5: three ally locks, red R4 already revealed, but R5 remains.
+    Unknown enemy roles never create fictional matchup advantages.
+    """
+    remaining = {r for r in ("Top", "Mid") if r not in ally_locks and enemy_roles.get(r)}
+    if not remaining:
+        return {}
+    if side == "red" and len(ally_locks) == 4:
+        return {r: 2.8 if r == "Top" else 2.35 for r in remaining}
+    if side == "blue" and len(ally_locks) == 3:
+        return {r: 1.85 if r == "Top" else 1.6 for r in remaining}
+    return {}
+
+
 def recommend_live_drafts(
     signups: list[dict],
     *,
@@ -170,12 +188,15 @@ def recommend_live_drafts(
     if not assignments:
         return {"recommendations": [], "missing": [], "side": side_key}
 
+    counter_leverage = _counterpick_window(side_key, locked_champions, dict(enemy_roles or {}))
     candidates, missing = recommend_comps(
         assignments, limit=300, pool_limit=10,
         live_enemy_champions=enemy_champions,
         live_enemy_roles=dict(enemy_roles or {}),
         rotation_token=rotation_token,
         preferred_champions=dict(preferred_champions or {}),
+        full_counter_roles=frozenset(counter_leverage),
+        lane_leverage=counter_leverage,
     )
     selected = _select_diverse_recommendations(
         candidates,
