@@ -393,6 +393,40 @@ def _roster_real_flex_value(rec: dict, champion: str) -> float:
     return min(1.0, max(0, credible_roles - 1) / 2.0)
 
 
+def _protect_linked_bot_pick_order(rows: list[dict], side: str, meta: dict) -> list[dict]:
+    """Keep strong linked bot lanes in one uninterrupted pick round.
+
+    Blue: B1 / B2+B3 / B4+B5. Red: R1+R2 / R3+R4 / R5.
+    When the ADC would precede its essential support across an enemy round,
+    move both into the earlier paired round. If the ADC was B1, secure the
+    versatile support first instead, retaining multiple ADC follow-ups.
+    This changes only strong real packages, not generic playable duos.
+    """
+    current = list(rows)
+    positions = {row["role"]: index for index, row in enumerate(current)}
+    if "ADC" not in positions or "Support" not in positions:
+        return current
+    adc_pos, support_pos = positions["ADC"], positions["Support"]
+    if support_pos <= adc_pos:
+        return current
+    adc = current[adc_pos]["champion"]
+    support = current[support_pos]["champion"]
+    if float(_bot_lane_duo_score(adc, support, meta)["score"]) < 8.2:
+        return current
+    red = str(side).casefold() == "red"
+    groups = ((0, 1), (2, 3), (4,)) if red else ((0,), (1, 2), (3, 4))
+    pair_group = next((group for group in groups if adc_pos in group), None)
+    if pair_group is None or support_pos in pair_group:
+        return current
+    adc_row, support_row = current[adc_pos], current[support_pos]
+    other = [row for row in current if row["role"] not in {"ADC", "Support"}]
+    if len(pair_group) == 1:
+        # B1 Aphelios / enemy R1+R2 / B2 Thresh is unsafe.
+        return [support_row, adc_row, *other] if not red else current
+    first = pair_group[0]
+    return [*other[:first], adc_row, support_row, *other[first:]]
+
+
 def _pro_pick_order(rec: dict, meta: dict, side: str = "blue") -> list[tuple[str, str]]:
     """Plan our five slots for flex queue, prioritising real blindability over pro fashion.
 
@@ -442,6 +476,7 @@ def _pro_pick_order(rec: dict, meta: dict, side: str = "blue") -> list[tuple[str
             r5 = max(solo_rows, key=lambda row: row["late"])
             rows.remove(r5)
             rows.append(r5)
+    rows = _protect_linked_bot_pick_order(rows, side, meta)
     return [(row["role"], row["champion"]) for row in rows]
 
 

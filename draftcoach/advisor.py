@@ -395,6 +395,9 @@ def plan_pick_order(champions: dict[str, str], side: str, meta: dict, matchups: 
             if "R5 counter slot" not in r5["tags"]:
                 r5["tags"].append("R5 counter slot")
     ordered = revealed + open_rows
+    if not ({"ADC", "Support"} & set(locked)):
+        from league_flex_core import _protect_linked_bot_pick_order
+        ordered = _protect_linked_bot_pick_order(ordered, side, meta)
     letter = "R" if str(side).casefold() == "red" else "B"
     for i, row in enumerate(ordered):
         row["slot"] = f"{letter}{i + 1}"

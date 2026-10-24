@@ -183,9 +183,9 @@ BOT_DUO_PRIORS = {
 # Player-requested duo candidates must survive the *shortlisting* stage if
 # both players submitted them. This is candidate coverage, NOT a score bonus
 # or an unconditional recommendation. Every five-man still gets rescored.
+# Aphelios/Thresh remains legal through real scoring, not forcibly shortlisted.
 EXPLICIT_BOT_PAIR_COVERAGE = (
     ("Yunara", "Lulu"),
-    ("Aphelios", "Thresh"),
     ("Kalista", "Renata Glasc"),
 )
 
@@ -820,6 +820,39 @@ def _meta_value(role: str, champion: str, meta: dict) -> tuple[float, int]:
     return blended, historical_games + int(round(current_weight))
 
 
+@lru_cache(maxsize=128)
+def _adc_field_strength_adjustment(adc: str) -> float:
+    """Small, confidence-weighted ADC strength versus its own SoloQ sample.
+
+    Historical pro duo priors must not drown out current high-elo ADC strength.
+    Use the median of the same sampled ADC field, not a fixed 50% threshold:
+    high-rank LoLalytics champion win rates need not centre on exactly 50%.
+    Missing/sparse samples are neutral. Bounded so valid pairs remain playable.
+    """
+    # Do not treat last patch's D2+ snapshot as current-patch evidence.
+    if live_patch_active():
+        patches = load_lane_matchups().get("source", {}).get("patches_detected", ())
+        if not any(str(patch).split(".")[-1] == LIVE_PATCH.split(".")[-1] for patch in patches):
+            return 0.0
+    index = load_solo_queue_winrates().get("ADC", {})
+    row = index.get(adc) or {}
+    weight = int(row.get("weight", 0) or 0)
+    if weight < 1000 or row.get("win_rate") is None:
+        return 0.0
+    peers = sorted(
+        float(value["win_rate"]) for value in index.values()
+        if int(value.get("weight", 0) or 0) >= 1500
+        and value.get("win_rate") is not None
+    )
+    if len(peers) < 8:
+        return 0.0
+    n = len(peers)
+    baseline = (peers[(n - 1) // 2] + peers[n // 2]) / 2.0
+    differential = float(row["win_rate"]) - baseline
+    confidence = min(1.0, weight / 5000.0)
+    return round(max(-1.35, min(1.35, differential * 0.65 * confidence)), 3)
+
+
 def _bot_lane_duo_score(adc: str, support: str, meta: dict) -> dict:
     """Score ADC/support as one lane unit, using pro evidence plus kit/lane identity."""
     score = 5.0
@@ -867,6 +900,14 @@ def _bot_lane_duo_score(adc: str, support: str, meta: dict) -> dict:
     current_patch = next(iter(load_lane_matchups().get("source", {}).get("patches_detected", ())), None)
     solo_pair = approved_pair_signal("ADC", adc, "Support", support, current_patch)
     score += solo_pair["adjustment"]
+
+    # Historical synergy cannot keep a weaker current ADC at the top by itself.
+    # This is sampled evidence, not a hard-coded patch 26.21 win rate.
+    adc_field_adjustment = _adc_field_strength_adjustment(adc)
+    if adc_field_adjustment <= -0.30:
+        reasons.insert(0, "ADC below current sampled role median")
+    elif adc_field_adjustment >= 0.30:
+        reasons.insert(0, "ADC above current sampled role median")
     if solo_pair["games"] >= 500 and solo_pair["adjustment"] > 0.1:
         reasons.append(f"{solo_pair['games']} approved SoloQ duo observations")
     if open_pair["games"] >= 8 and open_pair["adjustment"] > 0.12:
