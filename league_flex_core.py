@@ -785,7 +785,7 @@ def _select_diverse_recommendations(
     top_score = float(recommendations[0].get("score", 0))
 
     def champion_signature(rec: dict):
-        return [rec["champions"][role] for role in ROLES]
+        return tuple(rec["champions"][role] for role in ROLES)
 
     def player_signature(rec: dict):
         return tuple(int(rec["players"][role]["user_id"]) for role in ROLES)
@@ -832,7 +832,10 @@ def _select_diverse_recommendations(
     else:
         first = recommendations[0]
     chosen = [first]
-    remaining = [rec for rec in recommendations if rec is not first]
+    # Champion lineups are distinct even when players swap roles. A duplicate
+    # five is not a new draft; never use a slot for the exact same composition.
+    seen_lineups = {champion_signature(first)}
+    remaining = [rec for rec in recommendations if champion_signature(rec) not in seen_lineups]
 
     def min_champion_difference(rec: dict) -> int:
         sig = champion_signature(rec)
@@ -879,12 +882,22 @@ def _select_diverse_recommendations(
             if balanced_adc:
                 quality_pool = balanced_adc
 
-        # A new draft must still be strong in the essential team packages.
-        # These floors apply only when alternatives meeting them exist.
+        # Keep coordinated bot / mid-jungle packages, but do not veto a very
+        # strong whole-team plan just because its mid-jungle DUO score is below
+        # 7/10. That hard threshold previously eliminated every Warwick and
+        # Hecarim route (and most Amumu routes) for a real submitted jungler.
+        # Full-team score and plan quality must be allowed to compete.
+        best_full_score = max(float(rec.get("score", 0)) for rec in quality_pool)
         strong_packages = [
             rec for rec in quality_pool
             if float(rec.get("bot_lane_score", 7.0) or 7.0) >= 7.0
-            and float(rec.get("mid_jungle_score", 7.0) or 7.0) >= 7.0
+            and (
+                float(rec.get("mid_jungle_score", 7.0) or 7.0) >= 7.0
+                or (
+                    float(rec.get("team_plan_score", 5.0) or 5.0) >= 7.5
+                    and float(rec.get("score", 0)) >= best_full_score - 6.0
+                )
+            )
         ]
         if strong_packages:
             quality_pool = strong_packages
@@ -963,6 +976,17 @@ def _select_diverse_recommendations(
             champ_band = 2 if min_champ_diff >= 3 else 1 if min_champ_diff >= 2 else 0
             role_band = 2 if min_player_diff >= 2 else 1 if min_player_diff >= 1 else 0
             new_champion_count = sum(champ not in used_champions for champ in champ_sig)
+            # Penalise a player's repeatedly assigned champion, including an
+            # overexposed jungler, without changing champion legality or score.
+            slot_reuses = [
+                sum(
+                    int(prev["players"][role]["user_id"]) == int(rec["players"][role]["user_id"])
+                    and prev["champions"][role] == rec["champions"][role]
+                    for prev in chosen
+                )
+                for role in ROLES
+            ]
+            jungle_reuses = slot_reuses[ROLES.index("Jungle")]
             new_adc = int((int(rec["players"]["ADC"]["user_id"]), rec["champions"]["ADC"]) not in used_adc)
             new_jungle = int((int(rec["players"]["Jungle"]["user_id"]), rec["champions"]["Jungle"]) not in used_jungles)
             new_mid = int((int(rec["players"]["Mid"]["user_id"]), rec["champions"]["Mid"]) not in used_mids)
@@ -983,6 +1007,13 @@ def _select_diverse_recommendations(
                 # the top two quality-first drafts. A new support with the same
                 # Aphelios must not crowd out every other ADC option.
                 new_mid if limit >= 8 and len(chosen) >= 2 and mid_id == 286592835850076162 else 0,
+                # Once the first two quality-first drafts are chosen, genuinely
+                # distinct shells and underused jungle choices must not lose to
+                # a new ADC attached to the same overused jungle+mid pairing.
+                champ_band,
+                -jungle_reuses,
+                -max(slot_reuses),
+                -sum(slot_reuses),
                 new_adc if limit >= 8 and len(chosen) >= 2 else 0,
                 new_jungle + new_mid if limit >= 8 and len(chosen) >= 2 else 0,
                 # Entire bot and mid+jungle units are worth more than repeatedly
@@ -1005,6 +1036,7 @@ def _select_diverse_recommendations(
 
         best = max(quality_pool, key=diversity_key)
         chosen.append(best)
-        remaining.remove(best)
+        seen_lineups.add(champion_signature(best))
+        remaining = [rec for rec in remaining if champion_signature(rec) not in seen_lineups]
 
     return chosen

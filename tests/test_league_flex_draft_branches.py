@@ -381,3 +381,99 @@ def test_flex_queue_pick_order_exposes_zac_and_zyra_before_single_player_camille
     roles = [role for role, _ in order]
     assert roles.index("Jungle") < roles.index("Top")
     assert roles.index("Support") < roles.index("Top")
+
+
+def test_portfolio_never_repeats_same_five_champions_across_role_assignments():
+    from league_flex_core import _select_diverse_recommendations
+    roles = ("Top", "Jungle", "Mid", "ADC", "Support")
+
+    def row(champs, ids, score):
+        return {
+            "score": score, "team_plan_score": 8.0, "team_plan": "balanced",
+            "carry_plan": {"role": "Mid"}, "archetypes": [],
+            "credible_mixed_damage": True,
+            "champions": dict(zip(roles, champs)),
+            "players": {
+                role: {"user_id": ids[index], "display_name": role, "roles": [role]}
+                for index, role in enumerate(roles)
+            },
+        }
+
+    duplicate = ["Ornn", "Jarvan IV", "Orianna", "Aphelios", "Lulu"]
+    options = [
+        row(duplicate, [1, 2, 3, 4, 5], 100),
+        row(duplicate, [3, 2, 1, 4, 5], 99.9),  # role assignments differ
+        row(["Camille", "Vi", "Ahri", "Kai'Sa", "Rakan"], [1, 2, 3, 4, 5], 98),
+        row(["Shen", "Amumu", "Vex", "Ashe", "Braum"], [1, 2, 3, 4, 5], 97),
+    ]
+    out = _select_diverse_recommendations(options, limit=10)
+    assert len(out) == 3  # fewer good unique drafts beats reprinting clones
+    assert len({tuple(r["champions"][role] for role in roles) for r in out}) == len(out)
+
+
+def test_portfolio_rotates_submitted_jungler_when_strong_alternatives_exist():
+    from league_flex_core import _select_diverse_recommendations
+    roles = ("Top", "Jungle", "Mid", "ADC", "Support")
+    jungler_id = 265219035019477002
+    players = {
+        role: {"user_id": (jungler_id if role == "Jungle" else i + 100),
+               "display_name": role, "roles": [role]}
+        for i, role in enumerate(roles)
+    }
+
+    def row(index, jungle, score):
+        return {
+            "score": score, "team_plan_score": 8.2, "team_plan": "engage",
+            "carry_plan": {"role": "Mid"}, "archetypes": ["engage"],
+            "credible_mixed_damage": True,
+            "champions": dict(zip(roles, [
+                ["Ornn", "Shen", "Camille", "Renekton"][index % 4], jungle,
+                ["Orianna", "Ahri", "Vex", "Lissandra"][index % 4],
+                ["Aphelios", "Jinx", "Kai'Sa", "Xayah"][index % 4],
+                ["Lulu", "Rakan", "Nautilus", "Braum"][index % 4],
+            ])),
+            "players": players,
+        }
+
+    options = [row(i, "Jarvan IV", 100 - i * .35) for i in range(4)]
+    options += [row(i, champ, 98 - i * .2) for i, champ in enumerate(
+        ("Amumu", "Hecarim", "Warwick", "Volibear"), start=4
+    )]
+    out = _select_diverse_recommendations(options, limit=8)
+    assert len(out) == 8
+    assert len({r["champions"]["Jungle"] for r in out}) >= 3
+    assert sum(r["champions"]["Jungle"] == "Jarvan IV" for r in out) < len(out)
+
+
+def test_strong_full_team_plans_keep_other_junglers_despite_duo_score_below_seven():
+    from league_flex_core import _select_diverse_recommendations
+    roles = ("Top", "Jungle", "Mid", "ADC", "Support")
+    players = {
+        role: {"user_id": i + 1, "display_name": role, "roles": [role]}
+        for i, role in enumerate(roles)
+    }
+
+    def row(index, jungle, score, duo_score):
+        return {
+            "score": score, "team_plan_score": 8.7, "team_plan": "engage",
+            "bot_lane_score": 8.5, "mid_jungle_score": duo_score,
+            "carry_plan": {"role": "Mid"}, "archetypes": ["engage"],
+            "credible_mixed_damage": True,
+            "champions": dict(zip(roles, [
+                ("Ornn", "Shen", "Renekton", "Camille", "Sion", "Garen")[index],
+                jungle,
+                ("Orianna", "Ahri", "Vex", "Lissandra", "Viktor", "Annie")[index],
+                ("Kai'Sa", "Aphelios", "Jinx", "Xayah", "Yunara", "Ashe")[index],
+                ("Rell", "Thresh", "Nautilus", "Rakan", "Lulu", "Braum")[index],
+            ])),
+            "players": players,
+        }
+
+    candidates = [row(i, "Jarvan IV", 95.0 - 0.2 * i, 7.3) for i in range(4)]
+    candidates.extend([
+        row(4, "Amumu", 94.1, 5.4),
+        row(5, "Warwick", 93.6, 4.8),
+    ])
+    selected = _select_diverse_recommendations(candidates, limit=4)
+    assert len(selected) == 4
+    assert len({item["champions"]["Jungle"] for item in selected}) >= 2
