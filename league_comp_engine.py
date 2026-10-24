@@ -17,6 +17,7 @@ from typing import Iterable
 from league_multi_source import open_pro_pair_signal
 from league_aggregate_sources import approved_matchups, approved_champions, approved_pair_signal
 from league_pocketpick_history import historical_matchup
+from league_riot_ranked_sample import ranked_matchup
 from league_chaincc_pro_history import pro_matchup
 from league_community_evidence import matchup_notes
 
@@ -1593,6 +1594,23 @@ def live_lane_matchup_adjustment(
     for role, enemy in enemy_roles.items():
         own = champions.get(role)
         if role not in ROLES or not enemy or not own:
+            continue
+        # Fresh verified Riot samples are preferable to old bundled snapshots.
+        # Gold/Platinum/Emerald dominate the rank mix for this Flex team.
+        ranked = ranked_matchup(role, own, enemy, patch=LIVE_PATCH) if not fixture_supplied else {}
+        if ranked:
+            leverage = max(1.0, min(3.0, float((role_weights or {}).get(role, 1.0))))
+            adjusted_points = round(ranked["draft_points"] * leverage, 3)
+            edges.append({
+                "role": role, "enemy": enemy, "ours": own,
+                "source": ranked["source"], "source_url": ranked["url"],
+                "source_patch": ranked["patch"], "source_tiers": ranked["tiers"],
+                "games": ranked["games"], "sampled_ranked": True,
+                "matchup_residual_pp": ranked["adjusted_matchup_pp"],
+                "points": adjusted_points, "counterpick_weight": leverage,
+                "locked": True,
+            })
+            total += adjusted_points
             continue
         advantage, games = matchup_response(role, enemy, own, data)
         # Explicit test/custom data is self-contained. Optional local history
