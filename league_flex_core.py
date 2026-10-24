@@ -889,6 +889,36 @@ def _select_diverse_recommendations(
         if strong_packages:
             quality_pool = strong_packages
 
+        # In pre-game ten-plan portfolios a teammate who explicitly wants Mid
+        # variety must not be shown Orianna/Galio six times while comparably
+        # scored Akali/Vex/other submitted mids are still available. Rebalance
+        # only scored, structurally viable choices within a bounded 7-point
+        # margin of the strongest current candidate. This does not affect
+        # in-champ-select counterpick ranking or invent player proficiency.
+        if limit >= 8 and len(chosen) >= 2:
+            ste_id = 286592835850076162
+            ste_options = [
+                rec for rec in quality_pool
+                if int(rec["players"]["Mid"]["user_id"]) == ste_id
+            ]
+            mids = {rec["champions"]["Mid"] for rec in ste_options}
+            if len(mids) >= 3:
+                prior_counts = {}
+                for prior in chosen:
+                    if int(prior["players"]["Mid"]["user_id"]) == ste_id:
+                        name = prior["champions"]["Mid"]
+                        prior_counts[name] = prior_counts.get(name, 0) + 1
+                min_seen = min(prior_counts.get(name, 0) for name in mids)
+                best_available = max(float(rec["score"]) for rec in quality_pool)
+                more_varied = [
+                    rec for rec in quality_pool
+                    if int(rec["players"]["Mid"]["user_id"]) == ste_id
+                    and prior_counts.get(rec["champions"]["Mid"], 0) == min_seen
+                    and float(rec["score"]) >= best_available - 7.0
+                ]
+                if more_varied:
+                    quality_pool = more_varied
+
         # One-pick changes are already shown as alternatives inside a role slot.
         different_shells = [rec for rec in quality_pool if min_champion_difference(rec) >= 2]
         if different_shells:
@@ -952,6 +982,7 @@ def _select_diverse_recommendations(
                 # In the extended cards, reward a different viable ADC after
                 # the top two quality-first drafts. A new support with the same
                 # Aphelios must not crowd out every other ADC option.
+                new_mid if limit >= 8 and len(chosen) >= 2 and mid_id == 286592835850076162 else 0,
                 new_adc if limit >= 8 and len(chosen) >= 2 else 0,
                 new_jungle + new_mid if limit >= 8 and len(chosen) >= 2 else 0,
                 # Entire bot and mid+jungle units are worth more than repeatedly

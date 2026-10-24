@@ -3015,10 +3015,33 @@ def recommend_comps(
             seen_adc.add(key)
             seen_other_roles.update(other)
             coverage.append(row)
+    # Guarantee that scored, credible Ste Mid options reach the final selector.
+    # Role coverage used to be dominated by ADC/other-role variations, and the
+    # fixed top-300 could discard Akali before the ten-plan diversity pass.
+    # Reserve at most sixteen slots; never rescue weak mid/jungle/bot plans.
+    ste_mid_coverage = []
+    seen_ste_mids = set()
+    for row in recommendations:
+        if float(row["score"]) < best_score - 12.0:
+            break
+        if int(row["players"]["Mid"]["user_id"]) != 286592835850076162:
+            continue
+        if (float(row.get("team_plan_score", 0)) < 6.0
+            or float(row.get("bot_lane_score", 0)) < 7.0
+            or float(row.get("mid_jungle_score", 0)) < 7.0):
+            continue
+        name = row["champions"]["Mid"]
+        if name not in seen_ste_mids:
+            ste_mid_coverage.append(row)
+            seen_ste_mids.add(name)
+        if len(ste_mid_coverage) >= 16:
+            break
     coverage_ids = {id(row) for row in coverage}
     reserved = min(len(coverage), max(0, limit // 3))
     # Champion representatives compete on objective score, not a fixed ADC list.
-    candidates = recommendations[:max(0, limit - reserved)] + coverage[:reserved]
+    mid_reserved = min(len(ste_mid_coverage), max(0, limit // 12))
+    candidates = (recommendations[:max(0, limit - reserved - mid_reserved)]
+                  + ste_mid_coverage[:mid_reserved] + coverage[:reserved])
     candidates += [row for row in recommendations if id(row) not in coverage_ids]
     unique: list[dict] = []
     seen = set()
