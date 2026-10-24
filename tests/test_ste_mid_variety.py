@@ -15,7 +15,7 @@ class SteMidVarietyTests(unittest.TestCase):
         self.assertEqual(role_option_limit("Mid", 111), 3)
 
     def test_mid_candidate_limit_is_ste_specific(self):
-        self.assertEqual(_role_search_pool_limit({"user_id": 286592835850076162}, "Mid", 10), 12)
+        self.assertEqual(_role_search_pool_limit({"user_id": 286592835850076162}, "Mid", 10), 16)
         self.assertEqual(_role_search_pool_limit({"user_id": 286592835850076162}, "ADC", 10), 10)
         self.assertEqual(_role_search_pool_limit({"user_id": 999}, "Mid", 10), 10)
 

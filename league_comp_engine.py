@@ -1848,6 +1848,9 @@ def _player_fit_adjustment(
         champion = champions[role]
         comfort = _champion_comfort(uid, champion, role)
         ownership = _champion_ownership(uid, champion, role)
+        comfort, ownership = _declared_pool_competence_floor(
+            player, role, champion, comfort, ownership,
+        )
         # Comfort captures results/form; ownership captures long-term champion identity.
         # Keep them separate so a short hot sample does not erase a genuine signature pick.
         # Comfort is necessary for playability but two recent great games
@@ -2357,6 +2360,9 @@ def _bounded_package_products(
         uid = int(assignment[role]["user_id"])
         comfort = _champion_comfort(uid, champion, role)
         ownership = _champion_ownership(uid, champion, role)
+        comfort, ownership = _declared_pool_competence_floor(
+            assignment[role], role, champion, comfort, ownership,
+        )
         solo_wr, solo_weight = _solo_queue_value(role, champion)
         bayes, pro_games = _meta_value(role, champion, meta)
         # The pair/game plan must outrank a short individual hot streak.
@@ -2556,6 +2562,22 @@ TRUST_DECLARED_POOL_ROLES = {
     139837324438536193: frozenset(ROLES),  # Cian: all voluntarily selected roles
     286592835850076162: frozenset({"Mid"}),  # Ste: broad self-selected Mid pool
 }
+
+
+def _declared_pool_competence_floor(
+    player: dict, role: str, champion: str, comfort: float, ownership: float,
+) -> tuple[float, float]:
+    """Avoid treating a trusted *selected* champion with no OP.GG history as unplayable.
+
+    Unknown match samples are neutral (5/10), never proof of incompetence;
+    strong real historical samples remain positive. No unsubmitted option gains
+    any floor, and no full-team objective or champion match-up is bypassed.
+    """
+    uid = int(player.get("user_id") or 0)
+    if (role in TRUST_DECLARED_POOL_ROLES.get(uid, ())
+        and champion in (player.get("champions") or {}).get(role, ())):
+        return max(5.0, comfort), max(5.0, ownership)
+    return comfort, ownership
 
 
 def _verified_secondary_role_pick(player: dict, role: str, champion: str, meta: dict) -> bool:

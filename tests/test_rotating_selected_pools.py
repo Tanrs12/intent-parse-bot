@@ -46,6 +46,23 @@ def test_wide_selected_pool_rotates_without_losing_core_candidates():
     assert set(first) | set(next_game) <= set(pool)
 
 
+def test_selected_pool_missing_account_history_is_neutral_not_penalised():
+    cian = {"user_id": CIAN, "champions": {"ADC": ["Lucian", "Kai'Sa"]}}
+    unknown = {"user_id": 999, "champions": {"ADC": ["Lucian"]}}
+    assert eng._declared_pool_competence_floor(
+        cian, "ADC", "Lucian", 4.0, 0.0,
+    ) == (5.0, 5.0)
+    assert eng._declared_pool_competence_floor(
+        cian, "ADC", "Kai'Sa", 8.0, 9.0,
+    ) == (8.0, 9.0)
+    assert eng._declared_pool_competence_floor(
+        cian, "ADC", "Vayne", 4.0, 0.0,
+    ) == (4.0, 0.0)
+    assert eng._declared_pool_competence_floor(
+        unknown, "ADC", "Lucian", 4.0, 0.0,
+    ) == (4.0, 0.0)
+
+
 def test_other_players_offrole_evidence_gate_remains(monkeypatch):
     # The high-competence declaration is specific; it must not automatically
     # make Jezz or an unfamiliar off-role player proficient on Vayne.
