@@ -899,6 +899,14 @@ def _select_diverse_recommendations(
             (int(rec["players"]["ADC"]["user_id"]), rec["champions"]["ADC"])
             for rec in chosen
         }
+        used_jungles = {
+            (int(rec["players"]["Jungle"]["user_id"]), rec["champions"]["Jungle"])
+            for rec in chosen
+        }
+        used_mids = {
+            (int(rec["players"]["Mid"]["user_id"]), rec["champions"]["Mid"])
+            for rec in chosen
+        }
         used_bot_styles = {bot_style(rec) for rec in chosen}
         used_mj = {mid_jungle_package(rec) for rec in chosen}
         used_carry_roles = {(rec.get("carry_plan") or {}).get("role") for rec in chosen}
@@ -925,11 +933,14 @@ def _select_diverse_recommendations(
             role_band = 2 if min_player_diff >= 2 else 1 if min_player_diff >= 1 else 0
             new_champion_count = sum(champ not in used_champions for champ in champ_sig)
             new_adc = int((int(rec["players"]["ADC"]["user_id"]), rec["champions"]["ADC"]) not in used_adc)
+            new_jungle = int((int(rec["players"]["Jungle"]["user_id"]), rec["champions"]["Jungle"]) not in used_jungles)
+            new_mid = int((int(rec["players"]["Mid"]["user_id"]), rec["champions"]["Mid"]) not in used_mids)
             return (
                 # In the extended cards, reward a different viable ADC after
                 # the top two quality-first drafts. A new support with the same
                 # Aphelios must not crowd out every other ADC option.
                 new_adc if limit >= 8 and len(chosen) >= 2 else 0,
+                new_jungle + new_mid if limit >= 8 and len(chosen) >= 2 else 0,
                 # Entire bot and mid+jungle units are worth more than repeatedly
                 # rotating one recently successful champion into every shell.
                 package_novelty,

@@ -6,6 +6,7 @@ from league_patch_live import (
     live_patch_draft_adjustment,
 )
 
+import hashlib
 import itertools
 import json
 import math
@@ -1321,7 +1322,7 @@ def _pair_value(role_a: str, champ_a: str, role_b: str, champ_b: str, meta: dict
     return blended, historical_games + int(round(current_weight))
 
 
-def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8, *, enemy_roles: dict[str, str] | None = None, user_id: int | None = None, linked_bot_pool: Iterable[str] | None = None, linked_role_pool: Iterable[str] | None = None) -> list[str]:
+def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8, *, enemy_roles: dict[str, str] | None = None, user_id: int | None = None, linked_bot_pool: Iterable[str] | None = None, linked_role_pool: Iterable[str] | None = None, rotation_token: str | None = None, pinned_champion: str | None = None) -> list[str]:
     """Keep the search small without turning it into a pure pro-meta shortlist."""
     unique = list(dict.fromkeys(champions))
     if len(unique) <= limit:
@@ -1354,6 +1355,11 @@ def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8,
     def add(champion: str):
         if champion not in selected and len(selected) < limit:
             selected.append(champion)
+
+    # A previously chosen /league plan deserves consideration on the live
+    # client unless the pick was banned or removed from the player's own pool.
+    if pinned_champion in unique:
+        add(pinned_champion)
 
     # Explicitly confirmed picks must survive candidate compression, especially
     # for a flexible player's secondary ADC role. This preserves eligibility,
@@ -1450,6 +1456,31 @@ def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8,
         add(champion)
         if len(selected) >= limit:
             break
+
+    # Prepared drafts should not evaluate exactly the same subset of a 40-pick
+    # self-declared pool game after game. Keep the important counter/synergy/
+    # top-meta core, then sample a *bounded* tail from the same selected pool.
+    # The scorer still rejects poor pairs, role fit and whole-team structure.
+    if (rotation_token and user_id and
+        role in TRUST_DECLARED_POOL_ROLES.get(int(user_id), ()) and
+        len(unique) > limit):
+        protected = {champ for champ in selected[:min(6, limit)]}
+        if pinned_champion:
+            protected.add(pinned_champion)
+        reserve = min(4, max(1, limit // 4))
+        kept = list(selected[:limit - reserve])
+        for champ in protected:
+            if champ in unique and champ not in kept:
+                kept[-1:] = [champ]
+        alternatives = [champ for champ in unique if champ not in kept]
+        alternatives.sort(key=lambda champ: hashlib.sha256(
+            f"{rotation_token}|{user_id}|{role}|{champ}".encode("utf-8")
+        ).digest())
+        for champ in alternatives:
+            if len(kept) >= limit:
+                break
+            kept.append(champ)
+        return kept[:limit]
     return selected
 
 
@@ -2518,6 +2549,15 @@ def _credible_broad_pool_pick(player: dict, role: str, champion: str, meta: dict
     return mastery >= 80_000 or int(history.get("games", 0) or 0) >= 5
 
 
+# These players have directly confirmed their role-selected pool is playable.
+# This is an ELIGIBILITY rule, never a confidence-weighted score bonus, and
+# never permission to suggest an unselected or banned champion.
+TRUST_DECLARED_POOL_ROLES = {
+    139837324438536193: frozenset(ROLES),  # Cian: all voluntarily selected roles
+    286592835850076162: frozenset({"Mid"}),  # Ste: broad self-selected Mid pool
+}
+
+
 def _verified_secondary_role_pick(player: dict, role: str, champion: str, meta: dict) -> bool:
     """Avoid recommending highly demanding picks to an unpractised role flex.
 
@@ -2525,6 +2565,9 @@ def _verified_secondary_role_pick(player: dict, role: str, champion: str, meta: 
     by the draft bridge. It only affects speculative prepared-draft choices.
     The person's deliberate first-priority role keeps its complete pool.
     """
+    user_id = int(player.get("user_id") or 0)
+    if role in TRUST_DECLARED_POOL_ROLES.get(user_id, ()):
+        return True
     priorities = player.get("role_priority") or {}
     try:
         priority = int(priorities.get(role, 1))
@@ -2557,12 +2600,12 @@ def _verified_secondary_role_pick(player: dict, role: str, champion: str, meta: 
 
 
 def _role_search_pool_limit(player: dict, role: str, default: int) -> int:
-    """Targeted pool coverage; extra candidates still require full-team scoring."""
+    """Wider selected-pool coverage while preserving bounded package search."""
     uid = int(player.get("user_id") or 0)
-    if role == "Mid" and uid == 286592835850076162:
-        return max(int(default), 12)
-    if role == "ADC" and uid == 139837324438536193:
-        return max(int(default), 14)
+    if uid == 286592835850076162 and role == "Mid":
+        return max(int(default), 16)
+    if uid == 139837324438536193:
+        return max(int(default), 18 if role in {"Jungle", "Mid", "ADC"} else 14)
     return int(default)
 
 
@@ -2575,6 +2618,8 @@ def recommend_comps(
     meta: dict | None = None,
     live_enemy_champions: Iterable[str] | None = None,
     live_enemy_roles: dict[str, str] | None = None,
+    rotation_token: str | None = None,
+    preferred_champions: dict[str, str] | None = None,
 ) -> tuple[list[dict], list[str]]:
     meta = meta or load_meta()
     revealed_enemies = set(live_enemy_champions or ())
@@ -2625,6 +2670,8 @@ def recommend_comps(
                     enemy_roles=enemy_roles, user_id=int(player["user_id"]),
                     linked_bot_pool=partner_pool if role in {"ADC", "Support"} else None,
                     linked_role_pool=partner_pool if role in {"Jungle", "Mid"} else None,
+                    rotation_token=rotation_token,
+                    pinned_champion=(preferred_champions or {}).get(role),
                 ) if len(selected) > role_limit else list(selected)
                 # Preserve the known cross-role counter in an explicit player pool
                 # even if a large generic pool was reduced to the top ten.
@@ -2650,6 +2697,14 @@ def recommend_comps(
 
         best_for_assignment: list[dict] = []
         candidate_products = _bounded_package_products(pools, assignment, meta, history_suggestions, enemy_roles=enemy_roles)
+        # A captain-selected opening plan is considered in full-team scoring,
+        # even when it would otherwise miss the bounded heuristic candidate set.
+        # It is never forced: ranked fitness/counters still determine viability.
+        preferred = preferred_champions or {}
+        if all(preferred.get(role) in pools[role] for role in ROLES):
+            pick_tuple = tuple(preferred[role] for role in ROLES)
+            if pick_tuple not in candidate_products:
+                candidate_products.append(pick_tuple)
         for picks in candidate_products:
             if len(set(picks)) != len(picks):
                 continue
@@ -2816,6 +2871,26 @@ def recommend_comps(
                 shortlist.append(row)
                 seen_adc.add(adc_key)
                 seen_pairs.add(pair_key)
+        covered = {
+            (role, int(row["players"][role]["user_id"]), row["champions"][role])
+            for row in shortlist for role in ROLES
+        }
+        added = 0
+        for row in best_for_assignment:
+            if float(row["score"]) < leader - 10.0 or added >= 40:
+                break
+            if (float(row.get("team_plan_score", 0)) < 6.0
+                or float(row.get("bot_lane_score", 0)) < 7.0
+                or float(row.get("mid_jungle_score", 0)) < 7.0):
+                continue
+            keys = {
+                (role, int(row["players"][role]["user_id"]), row["champions"][role])
+                for role in ROLES
+            }
+            if keys - covered:
+                shortlist.append(row)
+                covered.update(keys)
+                added += 1
         recommendations.extend(shortlist)
 
     recommendations.sort(
@@ -2826,6 +2901,7 @@ def recommend_comps(
     # champion is forced into the ten visible plans by this candidate step.
     coverage = []
     seen_adc = set()
+    seen_other_roles = set()
     best_score = float(recommendations[0]["score"]) if recommendations else 0.0
     for row in recommendations:
         if float(row["score"]) < best_score - 10.0:
@@ -2835,8 +2911,13 @@ def recommend_comps(
             or float(row.get("mid_jungle_score", 0)) < 7.0):
             continue
         key = (int(row["players"]["ADC"]["user_id"]), row["champions"]["ADC"])
-        if key not in seen_adc:
+        other = {
+            (role, int(row["players"][role]["user_id"]), row["champions"][role])
+            for role in ("Top", "Jungle", "Mid", "Support")
+        }
+        if key not in seen_adc or other - seen_other_roles:
             seen_adc.add(key)
+            seen_other_roles.update(other)
             coverage.append(row)
     coverage_ids = {id(row) for row in coverage}
     reserved = min(len(coverage), max(0, limit // 3))

@@ -1745,6 +1745,7 @@ class LeagueFlexCog(commands.Cog):
                 assignments,
                 limit=300,
                 pool_limit=10,
+                rotation_token=None if locked_assignment else str(interaction.id),
             )
             recommendations = _select_diverse_recommendations(
                 candidate_pool,

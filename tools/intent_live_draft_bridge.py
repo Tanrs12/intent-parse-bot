@@ -1415,6 +1415,7 @@ def build_response():
     enemy_roles = _locked_enemy_roles(effective_state)
     cache_key = json.dumps({
         "side": state.get("side") or "blue",
+        "game_id": state.get("game_id"),
         "active": state.get("active") or {},
         "our_bans": effective_state.get("our_bans") or [],
         "enemy_bans": effective_state.get("enemy_bans") or [],
@@ -1436,6 +1437,12 @@ def build_response():
         now = time.time()
         if cache_key == _response_cache_key and _response_cache_value is not None:
             return _response_cache_value
+        signature = _get_preference()
+        selected_plan = {}
+        if signature:
+            values = signature.split("|")
+            if len(values) == len(ROLES) and all(value and value != "?" for value in values):
+                selected_plan = dict(zip(ROLES, values))
         result = recommend_live_drafts(
             five,
             unavailable=unavailable,
@@ -1449,7 +1456,9 @@ def build_response():
             enemy_roles=_locked_enemy_roles(effective_state),
             side=state.get("side") or "blue",
             limit=10,
-            rotation_token=None,
+            # Stable through picks/bans, different for a new champ-select ID.
+            rotation_token=str(state.get("game_id") or "live-no-game-id"),
+            preferred_champions=selected_plan,
         )
         response = {"active": True, "disabled": False, "reason": "Intent backend active", "testing": testing,
                     "known_profiles": known_profiles, "party_inferred": party_inferred,

@@ -134,6 +134,7 @@ def recommend_live_drafts(
     side: str = "blue",
     limit: int = 10,
     rotation_token: str | None = None,
+    preferred_champions: Mapping[str, str] | None = None,
 ) -> dict:
     """Return live draft recommendations using the same brain as ``/league game``.
 
@@ -173,6 +174,8 @@ def recommend_live_drafts(
         assignments, limit=300, pool_limit=10,
         live_enemy_champions=enemy_champions,
         live_enemy_roles=dict(enemy_roles or {}),
+        rotation_token=rotation_token,
+        preferred_champions=dict(preferred_champions or {}),
     )
     selected = _select_diverse_recommendations(
         candidates,
@@ -181,6 +184,21 @@ def recommend_live_drafts(
         role_mix_slots=min(2, max(0, limit - min(4, limit))),
         rotation_token=rotation_token,
     )
+    # Preserve the captain's planned five if still legal and objectively close
+    # to the strongest current option; never force it when the enemy draft makes
+    # the plan significantly worse. It may naturally appear in selected already.
+    if preferred_champions and len(preferred_champions) == 5 and candidates:
+        exact = next(
+            (rec for rec in candidates if all(rec["champions"].get(role) == champ
+                                              for role, champ in preferred_champions.items())),
+            None,
+        )
+        if exact and float(exact.get("score", 0)) >= float(candidates[0].get("score", 0)) - 2.5:
+            if (float(exact.get("team_plan_score", 0)) >= 6.0
+                and float(exact.get("bot_lane_score", 0)) >= 7.0
+                and float(exact.get("mid_jungle_score", 0)) >= 7.0
+                and not any(rec["champions"] == exact["champions"] for rec in selected)):
+                selected = [*selected[:max(0, limit - 1)], exact]
     selected = _attach_role_alternatives(selected, candidates)
     selected = attach_learn_suggestions(selected)
 

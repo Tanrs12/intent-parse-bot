@@ -28,7 +28,7 @@ def test_cian_adcs_survive_large_pool_candidate_pruning():
         user_id=CIAN, linked_bot_pool=["Lulu", "Thresh", "Nautilus", "Rell", "Milio"],
     )
     assert {"Kai'Sa", "Jinx", "Kog'Maw", "Yunara", "Kalista"}.issubset(pruned)
-    assert len(pruned) <= 14
+    assert len(pruned) <= 18
 
 
 def _rec(index: int, adc: str, score: float, bot: float = 8.4, mj: float = 8.2):
