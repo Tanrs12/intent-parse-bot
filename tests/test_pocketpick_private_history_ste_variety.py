@@ -34,9 +34,9 @@ def test_historical_pocketpick_retains_all_rows_but_never_scores_thin_samples(mo
     assert darius["confidence"] == "low / historical"
     assert darius["rank"] == "Silver-Platinum"
     assert 0 < darius["draft_points"] < 0.65
+    monkeypatch.setattr(engine, "load_lane_matchups", lambda: {"matchups": {}})
     scored = engine.live_lane_matchup_adjustment(
-        {"Top": "Gwen"}, {"Top": "Darius"}, matchup_data={"matchups": {}},
-        role_weights={"Top": 2.8},
+        {"Top": "Gwen"}, {"Top": "Darius"}, role_weights={"Top": 2.8},
     )
     assert scored["adjustment"] > 0
     assert scored["edges"][0]["historical"] is True
@@ -44,7 +44,7 @@ def test_historical_pocketpick_retains_all_rows_but_never_scores_thin_samples(mo
     assert scored["edges"][0]["source_tier"] == "Silver-Platinum"
     assert scored["edges"][0]["counterpick_weight"] == 2.8
     missing = engine.live_lane_matchup_adjustment(
-        {"Top": "Camille"}, {"Top": "Darius"}, matchup_data={"matchups": {}},
+        {"Top": "Camille"}, {"Top": "Darius"},
     )
     assert missing == {"adjustment": 0.0, "edges": []}
 

@@ -7,6 +7,7 @@ import io
 import json
 import logging
 import math
+import os
 from pathlib import Path
 from datetime import datetime, time, timezone
 from zoneinfo import ZoneInfo
@@ -858,6 +859,22 @@ class LeagueFlexCog(commands.Cog):
         self._legacy_reminder_cleanup = asyncio.create_task(self.remove_existing_reminder())
         self._pro_meta_refresh_task = asyncio.create_task(self.refresh_pro_meta_forever())
         self._player_data_refresh_task = asyncio.create_task(self.refresh_player_data_forever())
+        # Only the explicitly authorised private Render deployment opts into
+        # permitted historical archives; CI/public source never stores the
+        # provider's raw aggregate exports. Never download in champ select.
+        self._pocketpick_sync_task = None
+        if os.getenv("RENDER_SERVICE_ID") or os.getenv("DRAFTCOACH_POCKETPICK_SYNC") == "1":
+            self._pocketpick_sync_task = asyncio.create_task(self._sync_private_history_once())
+
+    async def _sync_private_history_once(self):
+        try:
+            from tools.sync_pocketpick_data import sync_archive
+            payload = await asyncio.to_thread(sync_archive)
+            log.info("PocketPick private historical cache: %s aggregate matchups available",
+                     payload["manifest"]["matchups"])
+        except Exception:
+            # Network failures or site changes must not block bot startup.
+            log.exception("Permissioned PocketPick cache unavailable; using existing draft evidence")
 
     def cog_unload(self):
         if not self._legacy_reminder_cleanup.done():
@@ -866,6 +883,8 @@ class LeagueFlexCog(commands.Cog):
             self._pro_meta_refresh_task.cancel()
         if not self._player_data_refresh_task.done():
             self._player_data_refresh_task.cancel()
+        if getattr(self, "_pocketpick_sync_task", None) and not self._pocketpick_sync_task.done():
+            self._pocketpick_sync_task.cancel()
 
     async def refresh_pro_meta_forever(self):
         await self.bot.wait_until_ready()

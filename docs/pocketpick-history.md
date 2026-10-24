@@ -22,8 +22,11 @@ raw match records, PUUIDs or summoner names. You can also use
 
 On Windows DraftCoach, point `DRAFTCOACH_POCKETPICK_DIR` to a persistent
 local folder, or put the downloaded files beside the installed executable
-under `var/pocketpick`. On Render, a separate deployment/private startup sync
-is needed; do not commit the full provider exports to a public repository.
+under `var/pocketpick`. On the team's Render deployment, the private
+Discord cog syncs the approved aggregates once when the bot starts if
+`RENDER_SERVICE_ID` is present (or `DRAFTCOACH_POCKETPICK_SYNC=1`).
+It runs in a worker thread and never blocks a live draft request. Do not
+commit the full provider exports to a public repository.
 
 ## Current coverage
 

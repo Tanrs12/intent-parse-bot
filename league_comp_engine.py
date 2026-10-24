@@ -1582,7 +1582,8 @@ def live_lane_matchup_adjustment(
     """
     if not enemy_roles:
         return {"adjustment": 0.0, "edges": []}
-    data = matchup_data if matchup_data is not None else load_lane_matchups()
+    fixture_supplied = matchup_data is not None
+    data = matchup_data if fixture_supplied else load_lane_matchups()
     edges = []
     total = 0.0
     observed_patches = {str(p).split('.')[-1] for p in data.get('source', {}).get('patches_detected', [])}
@@ -1593,11 +1594,13 @@ def live_lane_matchup_adjustment(
         if role not in ROLES or not enemy or not own:
             continue
         advantage, games = matchup_response(role, enemy, own, data)
-        qualitative = matchup_notes(role, own, enemy)
+        # Explicit test/custom data is self-contained. Optional local history
+        # must not leak into injected fixtures or override controlled comparisons.
+        qualitative = matchup_notes(role, own, enemy) if not fixture_supplied else []
         if advantage is None:
             # Separate permissioned historical feed. Low Elo/old patch never
             # masquerades as current D2+; small samples are commentary only.
-            past = historical_matchup(role, own, enemy)
+            past = historical_matchup(role, own, enemy) if not fixture_supplied else {}
             if not past:
                 if qualitative:
                     edges.append({

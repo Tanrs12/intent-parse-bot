@@ -60,14 +60,11 @@ def validate(files: dict[str, bytes]) -> dict:
     }
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--from-dir", type=Path, help="Existing downloaded PocketPick aggregates")
-    parser.add_argument("--target", type=Path, default=None)
-    opts = parser.parse_args()
-    target = opts.target or storage_dir()
+def sync_archive(*, from_dir: Path | None = None, target: Path | None = None) -> dict:
+    """Explicit private archive download, called at bot boot outside draft scoring."""
+    target = target or storage_dir()
     files = {
-        name: ((opts.from_dir / name).read_bytes() if opts.from_dir else fetch(name))
+        name: ((from_dir / name).read_bytes() if from_dir else fetch(name))
         for name in NAMES
     }
     manifest = validate(files)
@@ -78,7 +75,15 @@ def main() -> int:
         temp.write_bytes(blob)
         temp.replace(target / name)
     (target / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    print(json.dumps({"manifest": manifest, "summary": archive_summary()}, indent=2))
+    return {"manifest": manifest, "summary": archive_summary()}
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--from-dir", type=Path, help="Existing downloaded PocketPick aggregates")
+    parser.add_argument("--target", type=Path, default=None)
+    opts = parser.parse_args()
+    print(json.dumps(sync_archive(from_dir=opts.from_dir, target=opts.target), indent=2))
     return 0
 
 
