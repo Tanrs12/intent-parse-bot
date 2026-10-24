@@ -71,8 +71,10 @@ def test_yunara_lulu_and_kalista_renata_are_established_packages():
 def test_draft_four_exposes_complete_linked_pairs_and_plan_changes():
     packages = _linked_bot_lane_packages(_rec())
     names = {(row["adc"], row["support"]) for row in packages}
-    assert {("Aphelios", "Thresh"), ("Yunara", "Lulu"),
-            ("Kalista", "Renata Glasc")}.issubset(names)
+    # Only current strong full-team packages deserve guaranteed display space.
+    # Aphelios/Thresh remains selectable, not compulsory in every three-pair card.
+    assert {("Yunara", "Lulu"), ("Kalista", "Renata Glasc")}.issubset(names)
+    assert len(packages) == 3
     assert next(row for row in packages if row["adc"] == "Kalista")["plan_change"]
     assert not next(row for row in packages if row["adc"] == "Yunara")["plan_change"]
 
