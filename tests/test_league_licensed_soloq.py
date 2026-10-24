@@ -33,7 +33,9 @@ def test_schema_normalizer_keeps_scope_and_provenance():
     assert result["matchups"][0]["response_advantage"] == 4.7
 
 def test_imported_current_patch_affects_lane_and_pair(monkeypatch, tmp_path):
-    snap = clean(_approved())
+    approved = _approved()
+    approved["patch"] = engine.LIVE_PATCH
+    snap = clean(approved)
     f=tmp_path/"approved.json"
     f.write_text(json.dumps(snap), encoding="utf8")
     monkeypatch.setattr(aggregate,"SOLOQ_PATH",f)
@@ -49,7 +51,7 @@ def test_imported_current_patch_affects_lane_and_pair(monkeypatch, tmp_path):
         assert actual["source"] == "Approved Example Vendor"
         wr=engine.load_solo_queue_winrates()["Mid"]["Veigar"]
         assert wr["win_rate"] == 53.2
-        sig=aggregate.approved_pair_signal("ADC","Jinx","Support","Lulu","16.20")
+        sig=aggregate.approved_pair_signal("ADC","Jinx","Support","Lulu",engine.LIVE_PATCH)
         assert sig["games"] == 2400
         assert 0 < sig["adjustment"] < 0.3
     finally:
@@ -73,7 +75,7 @@ def test_stale_patch_never_overrides_current(monkeypatch,tmp_path):
         result = engine.load_lane_matchups()
         entry=result.get("matchups",{}).get("Mid",{}).get("Ahri",{}).get("responses",{}).get("Veigar",{})
         assert entry.get("source") != "Approved Example Vendor"
-        assert aggregate.approved_pair_signal("ADC","Jinx","Support","Lulu","16.20")["games"]==0
+        assert aggregate.approved_pair_signal("ADC","Jinx","Support","Lulu",engine.LIVE_PATCH)["games"]==0
     finally:
         engine.load_lane_matchups.cache_clear()
         engine.load_solo_queue_winrates.cache_clear()

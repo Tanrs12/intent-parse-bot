@@ -198,13 +198,19 @@ def recommend_live_drafts(
         full_counter_roles=frozenset(counter_leverage),
         lane_leverage=counter_leverage,
     )
-    selected = _select_diverse_recommendations(
-        candidates,
-        limit=limit,
-        core_limit=min(4, limit),
-        role_mix_slots=min(2, max(0, limit - min(4, limit))),
-        rotation_token=rotation_token,
-    )
+    if side_key == "red" and len(locked_champions) == 4 and counter_leverage:
+        # R5 is a single decisive pick, not a new /league-game variety gallery.
+        # Show the objectively highest-scoring answers first, including lane
+        # counter evidence. Same-role full-pool scoring has already happened.
+        selected = candidates[:limit]
+    else:
+        selected = _select_diverse_recommendations(
+            candidates,
+            limit=limit,
+            core_limit=min(4, limit),
+            role_mix_slots=min(2, max(0, limit - min(4, limit))),
+            rotation_token=rotation_token,
+        )
     # Preserve the captain's planned five if still legal and objectively close
     # to the strongest current option; never force it when the enemy draft makes
     # the plan significantly worse. It may naturally appear in selected already.

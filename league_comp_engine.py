@@ -388,7 +388,9 @@ def load_solo_queue_winrates(path: str | None = None) -> dict[str, dict[str, dic
                 "weight": total_weight,
             }
     if path is None:
-        patch = next(iter(data.get("source", {}).get("patches_detected", ())), None)
+        # Prefer current approved champion strength even if the historical
+        # matchup fallback in this package was sampled on another patch.
+        patch = LIVE_PATCH if live_patch_active() else next(iter(data.get("source", {}).get("patches_detected", ())), None)
         for row in approved_champions(patch):
             index[row["role"]][row["champion"]] = {
                 "win_rate": float(row["win_rate"]),
