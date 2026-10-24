@@ -26,6 +26,20 @@ TEAM_SYNC_RELAY = "https://draft--intent-parse-bot--cdzz6bjv54yz.code.run"
 TEAM_SYNC_ROOM_KEY = "flexers-intent-ranked-flex-room-v1"  # shared room identity, not a credential
 
 LAUNCHERS = {
+    "Repair Draft Coach Update.bat": r'''@echo off
+cd /d "%~dp0"
+echo Repairing your Draft Coach installation without the in-app updater...
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0repair-draftcoach.ps1"
+if errorlevel 1 (
+  echo.
+  echo Repair failed. See var\updater.log for details.
+  pause
+  exit /b 1
+)
+echo.
+echo Update repaired and verified. You can now open Draft Coach normally.
+pause
+''',
     "Draft Coach (live client).bat": r'''@echo off
 cd /d "%~dp0"
 echo Starting Flexers Draft Coach against your League client...
@@ -82,6 +96,12 @@ Double-click one of these:
   Draft Coach (any queue).bat            Also coaches normals / solo queue (default: Ranked Flex + customs).
   Player (sync from coach PC).bat        LAN-only alternative: type the coach PC's local IP.
   Coach PC (share roster on the LAN).bat LAN-only host for the above.
+
+If the in-app updater keeps requesting the same update, close Draft Coach, then
+double-click "Repair Draft Coach Update.bat" in this folder. It independently downloads
+and verifies the latest GitHub build without depending on the old executable. Your
+var folder, config.json and team-sync.json are preserved. Check var\\updater.log
+if the repair fails.
 
 If Windows marked the zip as "downloaded from the internet", the app removes that mark from its own
 files on first start (what Explorer's Unblock button does). If a start still fails on a .NET error, right-click
@@ -216,6 +236,8 @@ def main() -> int:
     }, indent=2), encoding="utf-8")
     for name, body in LAUNCHERS.items():
         (DIST / name).write_text(body, encoding="utf-8")
+    # Standalone repair helper: works even if the installed EXE has a broken updater.
+    shutil.copy2(ROOT / "tools" / "repair_draftcoach.ps1", DIST / "repair-draftcoach.ps1")
     (DIST / "START HERE.txt").write_text(START_HERE, encoding="utf-8")
 
     if not args.no_zip:
