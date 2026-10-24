@@ -163,10 +163,10 @@ def test_live_guidance_uses_revealed_enemy_lane_matchup(monkeypatch):
     assert guidance["picks"][0]["lane"][0]["enemy"] == "Sett"
 
 
-def test_live_guidance_exposes_six_compositions(monkeypatch):
+def test_live_guidance_exposes_ten_compositions(monkeypatch):
     monkeypatch.setattr(bridge, "_live_lane_adjustment", lambda rec, state: (0.0, []))
     recs = []
-    for index in range(6):
+    for index in range(12):
         champ = f"Top{index}"
         recs.append({
             "score": 100 - index,
@@ -176,7 +176,7 @@ def test_live_guidance_exposes_six_compositions(monkeypatch):
         })
     state = {"our_team": [{"role": role, "locked": None} for role in bridge.ROLES], "enemy_team": [], "active": {}}
     guidance = bridge._guidance_from_result({"recommendations": recs}, state)
-    assert len(guidance["comps"]) == 6
+    assert len(guidance["comps"]) == 10
 
 
 def test_current_five_fills_solo_bot_test_lineup(monkeypatch):

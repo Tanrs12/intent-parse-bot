@@ -132,7 +132,7 @@ def recommend_live_drafts(
     enemy_champions: Iterable[str] | None = None,
     enemy_roles: Mapping[str, str] | None = None,
     side: str = "blue",
-    limit: int = 6,
+    limit: int = 10,
     rotation_token: str | None = None,
 ) -> dict:
     """Return live draft recommendations using the same brain as ``/league game``.

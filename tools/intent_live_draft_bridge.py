@@ -1172,7 +1172,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
 
     comps = []
     side_key = str(result.get("side") or state.get("side") or "blue").casefold()
-    for rec in recs[:6]:
+    for rec in recs[:10]:
         annotated_order = []
         for index, original_row in enumerate(rec.get("pick_order") or []):
             row = dict(original_row)
@@ -1448,7 +1448,7 @@ def build_response():
             ],
             enemy_roles=_locked_enemy_roles(effective_state),
             side=state.get("side") or "blue",
-            limit=6,
+            limit=10,
             rotation_token=None,
         )
         response = {"active": True, "disabled": False, "reason": "Intent backend active", "testing": testing,

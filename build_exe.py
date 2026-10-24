@@ -43,7 +43,7 @@ pause
     "Draft Coach (live client).bat": r'''@echo off
 cd /d "%~dp0"
 echo Starting Flexers Draft Coach against your League client...
-echo Six INTent composition cards appear on the left during champ select.
+echo Ten INTent composition plans are available during champ select (PgUp/PgDn for pages).
 echo Coach page: http://127.0.0.1:8765/   (close this window to stop)
 :restart
 FlexersDraftCoach.exe --load "loadfiles\flexers-team.json" --hud
@@ -93,6 +93,8 @@ Double-click one of these:
                                          account and automatically joins the shared Flexers draft room.
                                          No code/IP needs to be pasted or shared.
   Draft Coach (practice, no client).bat  Replays a scripted draft so you can see how it works.
+                                         In the outside-left overlay, PgDn/PgUp switches between
+                                         drafts 1-5 and 6-10 while in champion select.
   Draft Coach (any queue).bat            Also coaches normals / solo queue (default: Ranked Flex + customs).
   Player (sync from coach PC).bat        LAN-only alternative: type the coach PC's local IP.
   Coach PC (share roster on the LAN).bat LAN-only host for the above.

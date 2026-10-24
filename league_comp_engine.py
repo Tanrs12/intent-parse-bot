@@ -1355,6 +1355,14 @@ def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8,
         if champion not in selected and len(selected) < limit:
             selected.append(champion)
 
+    # Explicitly confirmed picks must survive candidate compression, especially
+    # for a flexible player's secondary ADC role. This preserves eligibility,
+    # NOT a ranking bonus: bad pairings and full-team plans can still lose.
+    if user_id is not None:
+        for champion in unique:
+            if _explicitly_confirmed_player_pick(int(user_id), role, champion):
+                add(champion)
+
     # Preserve known favourable responses from the player's *actual pool* before
     # pruning it to the ten candidates the live search can afford.
     if enemy_roles and enemy_roles.get(role):
@@ -2549,9 +2557,12 @@ def _verified_secondary_role_pick(player: dict, role: str, champion: str, meta: 
 
 
 def _role_search_pool_limit(player: dict, role: str, default: int) -> int:
-    """Give Ste more mid-lane variety without expanding every player's search."""
-    if role == "Mid" and int(player.get("user_id") or 0) == 286592835850076162:
+    """Targeted pool coverage; extra candidates still require full-team scoring."""
+    uid = int(player.get("user_id") or 0)
+    if role == "Mid" and uid == 286592835850076162:
         return max(int(default), 12)
+    if role == "ADC" and uid == 139837324438536193:
+        return max(int(default), 14)
     return int(default)
 
 
@@ -2777,14 +2788,64 @@ def recommend_comps(
         best_for_assignment.sort(
             key=lambda item: (item["score"], item["rank_score"]), reverse=True
         )
-        recommendations.extend(best_for_assignment[: max(limit * 2, 8)])
+        # Retain the best representative of each eligible ADC and bot package.
+        # The original flat top-600 could contain hundreds of the same strong
+        # duo, leaving Kai'Sa/Jinx/Kog'Maw out before diversity was even tested.
+        # Coverage does NOT award points or accept structurally weak drafts.
+        leader = float(best_for_assignment[0]["score"]) if best_for_assignment else 0.0
+        shortlist = list(best_for_assignment[: max(limit * 2, 8)])
+        seen_adc = {
+            (int(row["players"]["ADC"]["user_id"]), row["champions"]["ADC"])
+            for row in shortlist
+        }
+        seen_pairs = {
+            (int(row["players"]["ADC"]["user_id"]),
+             row["champions"]["ADC"], row["champions"]["Support"])
+            for row in shortlist
+        }
+        for row in best_for_assignment:
+            if float(row["score"]) < leader - 10.0:
+                break
+            if (float(row.get("team_plan_score", 0)) < 6.0
+                or float(row.get("bot_lane_score", 0)) < 7.0
+                or float(row.get("mid_jungle_score", 0)) < 7.0):
+                continue
+            adc_key = (int(row["players"]["ADC"]["user_id"]), row["champions"]["ADC"])
+            pair_key = (*adc_key, row["champions"]["Support"])
+            if adc_key not in seen_adc or (pair_key not in seen_pairs and len(seen_pairs) < 50):
+                shortlist.append(row)
+                seen_adc.add(adc_key)
+                seen_pairs.add(pair_key)
+        recommendations.extend(shortlist)
 
     recommendations.sort(
         key=lambda item: (item["score"], item["rank_score"]), reverse=True
     )
+    # Keep a coverage representative per credible ADC before returning the
+    # top 300 to the *real* composition selector. No weak or unsubmitted
+    # champion is forced into the ten visible plans by this candidate step.
+    coverage = []
+    seen_adc = set()
+    best_score = float(recommendations[0]["score"]) if recommendations else 0.0
+    for row in recommendations:
+        if float(row["score"]) < best_score - 10.0:
+            break
+        if (float(row.get("team_plan_score", 0)) < 6.0
+            or float(row.get("bot_lane_score", 0)) < 7.0
+            or float(row.get("mid_jungle_score", 0)) < 7.0):
+            continue
+        key = (int(row["players"]["ADC"]["user_id"]), row["champions"]["ADC"])
+        if key not in seen_adc:
+            seen_adc.add(key)
+            coverage.append(row)
+    coverage_ids = {id(row) for row in coverage}
+    reserved = min(len(coverage), max(0, limit // 3))
+    # Champion representatives compete on objective score, not a fixed ADC list.
+    candidates = recommendations[:max(0, limit - reserved)] + coverage[:reserved]
+    candidates += [row for row in recommendations if id(row) not in coverage_ids]
     unique: list[dict] = []
     seen = set()
-    for item in recommendations:
+    for item in candidates:
         key = tuple(
             (
                 role,

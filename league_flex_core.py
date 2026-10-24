@@ -764,7 +764,7 @@ def _select_diverse_recommendations(
     role_mix_slots: int = 2,
     rotation_token: str | None = None,
 ) -> list[dict]:
-    """Choose 4-6 genuinely different high-quality composition shells.
+    """Choose up to ten genuinely different high-quality composition shells.
 
     Small one-role swaps belong inside a draft as role alternatives; they should not
     consume a separate prepared-draft slot. ``core_limit``/``role_mix_slots`` remain
@@ -878,6 +878,16 @@ def _select_diverse_recommendations(
             if balanced_adc:
                 quality_pool = balanced_adc
 
+        # A new draft must still be strong in the essential team packages.
+        # These floors apply only when alternatives meeting them exist.
+        strong_packages = [
+            rec for rec in quality_pool
+            if float(rec.get("bot_lane_score", 7.0) or 7.0) >= 7.0
+            and float(rec.get("mid_jungle_score", 7.0) or 7.0) >= 7.0
+        ]
+        if strong_packages:
+            quality_pool = strong_packages
+
         # One-pick changes are already shown as alternatives inside a role slot.
         different_shells = [rec for rec in quality_pool if min_champion_difference(rec) >= 2]
         if different_shells:
@@ -885,6 +895,10 @@ def _select_diverse_recommendations(
 
         used_plans = {str(rec.get("team_plan", "balanced")) for rec in chosen}
         used_bot = {bot_package(rec) for rec in chosen}
+        used_adc = {
+            (int(rec["players"]["ADC"]["user_id"]), rec["champions"]["ADC"])
+            for rec in chosen
+        }
         used_bot_styles = {bot_style(rec) for rec in chosen}
         used_mj = {mid_jungle_package(rec) for rec in chosen}
         used_carry_roles = {(rec.get("carry_plan") or {}).get("role") for rec in chosen}
@@ -910,7 +924,12 @@ def _select_diverse_recommendations(
             champ_band = 2 if min_champ_diff >= 3 else 1 if min_champ_diff >= 2 else 0
             role_band = 2 if min_player_diff >= 2 else 1 if min_player_diff >= 1 else 0
             new_champion_count = sum(champ not in used_champions for champ in champ_sig)
+            new_adc = int((int(rec["players"]["ADC"]["user_id"]), rec["champions"]["ADC"]) not in used_adc)
             return (
+                # In the extended cards, reward a different viable ADC after
+                # the top two quality-first drafts. A new support with the same
+                # Aphelios must not crowd out every other ADC option.
+                new_adc if limit >= 8 and len(chosen) >= 2 else 0,
                 # Entire bot and mid+jungle units are worth more than repeatedly
                 # rotating one recently successful champion into every shell.
                 package_novelty,

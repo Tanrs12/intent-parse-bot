@@ -1,6 +1,7 @@
-"""Outside-left six-composition overlay for INTent Draft Coach.
+"""Outside-left ten-composition overlay for INTent Draft Coach.
 
-Shows the current six /league-game plans beside the League client.  Live plans re-rank as the
+Shows ten /league-game plans in two readable pages of five beside the League client.
+The player can press PageDown/PageUp during champ select; live plans still re-rank as the
 shared backend reacts to picks/bans; an invalidated plan remains red/grey for a few seconds so the
 user can see what changed.  Champion portraits, role/player labels and full planned reveal-order
 badges are presentation only: scoring still comes from league_draft_backend + Rat's bounded live
@@ -31,6 +32,16 @@ ROLE_SHORT = {"Top": "TOP", "Jungle": "JGL", "Mid": "MID", "ADC": "ADC", "Suppor
 SM_XVIRTUALSCREEN = 76
 DEAD_HOLD_SECONDS = 20.0
 LIVE_GRACE_SECONDS = 4.0
+MAX_DRAFT_CARDS = 10
+VISIBLE_DRAFT_CARDS = 5
+
+
+def _paged_draft_cards(cards: list[dict], page: int) -> list[dict]:
+    """Pure helper: ten underlying plans, five readable cards per page."""
+    maximum = max(0, (len(cards) - 1) // VISIBLE_DRAFT_CARDS)
+    index = max(0, min(int(page), maximum))
+    first = index * VISIBLE_DRAFT_CARDS
+    return cards[first:first + VISIBLE_DRAFT_CARDS]
 
 
 def _get(url: str, timeout: float = 2.0) -> dict:
@@ -79,6 +90,9 @@ class CompOverlay:
         self.snapshot: dict = {}
         self.bridge: dict = {}
         self.cards: list[dict] = []
+        self.page_index = 0
+        self._last_page_down = False
+        self._last_page_up = False
         self.dead_archive: dict[tuple, dict] = {}
         self.in_draft = False
         self._last_live_at = 0.0
@@ -218,11 +232,12 @@ class CompOverlay:
             # Grace is only for a backend recompute while LCU still says ChampSelect. The instant
             # League leaves ChampSelect we hide, even if the last six cards are still cached.
             live = live_now or (in_champ_select and self.in_draft and now - self._last_live_at <= LIVE_GRACE_SECONDS)
-            fresh = [dict(c) for c in ((bridge.get("guidance") or {}).get("comps") or [])[:6]]
+            fresh = [dict(c) for c in ((bridge.get("guidance") or {}).get("comps") or [])[:MAX_DRAFT_CARDS]]
 
             if live:
                 if not self.in_draft:
                     self.dead_archive.clear()
+                    self.page_index = 0
                     self.in_draft = True
                 # Only replace the visible live list when a real fresh result exists. During a
                 # recompute, retain the existing six cards rather than collapsing them to zero.
@@ -244,13 +259,18 @@ class CompOverlay:
 
                     dead_cards = sorted(self.dead_archive.values(), key=lambda c: float(c.get("_dead_until", 0)), reverse=True)
                     reserve = min(3, len(dead_cards))
-                    self.cards = fresh[: max(0, 6 - reserve)] + dead_cards[:reserve]
+                    self.cards = fresh[: max(0, MAX_DRAFT_CARDS - reserve)] + dead_cards[:reserve]
+                    self.page_index = min(
+                        self.page_index,
+                        max(0, (len(self.cards) - 1) // VISIBLE_DRAFT_CARDS),
+                    )
             else:
                 self.cards = []
+                self.page_index = 0
                 self.dead_archive.clear()
                 self.in_draft = False
 
-            # Rendering the six cards is much more expensive than moving the transparent window.
+            # Rendering five portraits-heavy cards is more expensive than moving the transparent window.
             # Only redraw when draft data actually changed; window movement is handled separately.
             guidance = bridge.get("guidance") or {}
             render_key = json.dumps({
@@ -337,15 +357,22 @@ class CompOverlay:
         c.delete("all")
 
         gap = px(5)
-        top = px(8)
+        top = px(26)
         bottom = h - px(8)
-        count = max(1, min(6, len(self.cards)))
+        visible_cards = _paged_draft_cards(self.cards, self.page_index)
+        count = max(1, len(visible_cards))
         card_h = max(px(86), (bottom - top - gap * (count - 1)) // count)
+        total = len(self.cards)
+        first = self.page_index * VISIBLE_DRAFT_CARDS
+        last = min(total, first + VISIBLE_DRAFT_CARDS)
+        c.create_text(px(7), px(4),
+                      text=f"DRAFTS {first+1}-{last} / {total}   PAGE UP / PAGE DOWN",
+                      anchor="nw", font=self.font_role, fill="#c8aa6e")
         g = self.bridge.get("guidance") or {}
         live_sigs = [_signature(comp) for comp in (g.get("comps") or [])]
         current_best = live_sigs[0] if live_sigs else None
 
-        for i, comp in enumerate(self.cards[:6]):
+        for i, comp in enumerate(visible_cards):
             y0 = top + i * (card_h + gap)
             y1 = min(bottom, y0 + card_h)
             dead, marks = self._status(comp)
@@ -370,7 +397,7 @@ class CompOverlay:
             if dead:
                 head = f"OUT · WAS #{int(comp.get('_was_rank', i + 1))} · {score:.1f} · {side}"
             else:
-                head = f"#{live_rank or i + 1} {'BEST' if is_best else 'LIVE'} · {score:.1f} · {side}"
+                head = f"#{live_rank or first + i + 1} {'BEST' if is_best else 'LIVE'} · {score:.1f} · {side}"
                 if lane:
                     head += f" · {lane:+.1f}"
             if pug_count:
@@ -522,6 +549,19 @@ class CompOverlay:
         # Stay attached to League while the user types/browses on another monitor. Visibility is
         # controlled by actual champ-select state, not foreground focus.
         show = bool(client_rect and self.in_draft and self.cards and not self.u.IsIconic(self.client))
+        # Passively read page keys; the overlay remains click-through/no-activate
+        # and never steals mouse or keyboard focus from the League client.
+        page_down = bool(self.u.GetAsyncKeyState(0x22) & 0x8000)
+        page_up = bool(self.u.GetAsyncKeyState(0x21) & 0x8000)
+        max_page = max(0, (len(self.cards) - 1) // VISIBLE_DRAFT_CARDS)
+        if show and page_down and not self._last_page_down and self.page_index < max_page:
+            self.page_index += 1
+            self._dirty = True
+        if show and page_up and not self._last_page_up and self.page_index > 0:
+            self.page_index -= 1
+            self._dirty = True
+        self._last_page_down = page_down
+        self._last_page_up = page_up
         if show:
             cx, cy, cw, ch = client_rect
             virtual_left = self.u.GetSystemMetrics(SM_XVIRTUALSCREEN)
