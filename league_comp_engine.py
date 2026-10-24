@@ -16,6 +16,8 @@ from typing import Iterable
 
 from league_multi_source import open_pro_pair_signal
 from league_aggregate_sources import approved_matchups, approved_champions, approved_pair_signal
+from league_pocketpick_history import historical_matchup
+from league_community_evidence import matchup_notes
 
 ROLES = ("Top", "Jungle", "Mid", "ADC", "Support")
 DATA_PATH = Path(__file__).with_name("data") / "league_comp_meta.json"
@@ -1591,7 +1593,33 @@ def live_lane_matchup_adjustment(
         if role not in ROLES or not enemy or not own:
             continue
         advantage, games = matchup_response(role, enemy, own, data)
+        qualitative = matchup_notes(role, own, enemy)
         if advantage is None:
+            # Separate permissioned historical feed. Low Elo/old patch never
+            # masquerades as current D2+; small samples are commentary only.
+            past = historical_matchup(role, own, enemy)
+            if not past:
+                if qualitative:
+                    edges.append({
+                        "role": role, "enemy": enemy, "ours": own,
+                        "historical": True, "qualitative_only": True,
+                        "points": 0.0, "games": 0,
+                        "community_notes": qualitative, "locked": True,
+                    })
+                continue
+            weight = max(1.0, min(3.0, float((role_weights or {}).get(role, 1.0))))
+            points = round(float(past["draft_points"]) * weight, 3)
+            edges.append({
+                "role": role, "enemy": enemy, "ours": own,
+                "adjusted": 0.0, "points": points, "games": past["games"],
+                "gold_diff_15": past["gold_diff_15"],
+                "historical": True, "source": past["source"],
+                "source_url": past["url"], "source_patch": past["patch"],
+                "source_tier": past["rank"], "usable_for_ranking": past["usable_for_ranking"],
+                "confidence": past["confidence"], "counterpick_weight": weight,
+                "community_notes": qualitative, "locked": True,
+            })
+            total += points
             continue
         entry = data.get("matchups", {}).get(role, {}).get(enemy, {}).get("responses", {}).get(own, {})
         entry_quality = 1.0 if entry.get("source") else quality
@@ -1603,7 +1631,7 @@ def live_lane_matchup_adjustment(
             "advantage": round(float(advantage), 2),
             "adjusted": residual, "points": boosted, "games": games,
             "base_points": points, "counterpick_weight": weight,
-            "locked": True,
+            "community_notes": qualitative, "locked": True,
         })
         total += boosted
     # Last pick has real value, but must never erase a large composition deficit.

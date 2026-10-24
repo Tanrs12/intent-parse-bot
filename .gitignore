@@ -1,4 +1,4 @@
-﻿__pycache__/
+__pycache__/
 *.py[cod]
 _tmp_*.html
 
@@ -10,3 +10,5 @@ data/live_league_recent_pro.json
 var/
 dist/
 build/
+
+data/pocketpick/

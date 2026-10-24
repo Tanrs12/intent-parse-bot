@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "method": "Qualitative champion-main claims, not population win-rate measurements. Use as explanation and candidate exploration only.",
+  "entries": [
+    {
+      "role": "Jungle",
+      "ours": "Gragas",
+      "enemy": "Lee Sin",
+      "mechanic": "Gragas E can interrupt Lee Sin Q2 when timed to meet his dash; matchup execution matters.",
+      "source_url": "https://www.reddit.com/r/GragasMains/comments/1cochic/when_to_pick_gragas_jungle_counter_picks/",
+      "source_type": "Reddit champion-main discussion",
+      "evidence_kind": "kit interaction",
+      "confidence": "community observation; verify timing on current patch",
+      "patch": "historical",
+      "draft_points": 0
+    },
+    {
+      "role": "Mid",
+      "ours": "Vex",
+      "enemy": "Akali",
+      "mechanic": "Akali mains frequently describe Vex's anti-dash/laning pattern as difficult for Akali.",
+      "source_url": "https://www.reddit.com/r/akalimains/comments/1u6ijss/matchups_and_counter_tips/",
+      "source_type": "Reddit champion-main discussion",
+      "evidence_kind": "matchup opinion",
+      "confidence": "qualitative; not a win-rate estimate",
+      "patch": "historical",
+      "draft_points": 0
+    },
+    {
+      "role": "Mid",
+      "ours": "Galio",
+      "enemy": "Akali",
+      "mechanic": "Akali mains report that Galio's durability and control can make Akali's lane and early skirmishing difficult.",
+      "source_url": "https://www.reddit.com/r/akalimains/comments/1u6ijss/matchups_and_counter_tips/",
+      "source_type": "Reddit champion-main discussion",
+      "evidence_kind": "matchup opinion",
+      "confidence": "qualitative; not a win-rate estimate",
+      "patch": "historical",
+      "draft_points": 0
+    }
+  ]
+}

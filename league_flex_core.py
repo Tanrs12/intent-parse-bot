@@ -27,6 +27,7 @@ from league_comp_engine import (
     role_experience_score,
     _bot_lane_duo_score,
     _coordinated_duo_score,
+    _explicitly_confirmed_player_pick,
     EXPLICIT_BOT_PAIR_COVERAGE,
     load_meta,
     score_comp,
@@ -935,7 +936,19 @@ def _select_diverse_recommendations(
             new_adc = int((int(rec["players"]["ADC"]["user_id"]), rec["champions"]["ADC"]) not in used_adc)
             new_jungle = int((int(rec["players"]["Jungle"]["user_id"]), rec["champions"]["Jungle"]) not in used_jungles)
             new_mid = int((int(rec["players"]["Mid"]["user_id"]), rec["champions"]["Mid"]) not in used_mids)
+            # Ste specifically confirmed Akali and Vex as playable. When a
+            # genuinely strong composition contains either, do not let ten
+            # mechanically different Orianna/Galio drafts crowd them out.
+            # This does NOT modify strength scores or admit bad packages.
+            mid_id = int(rec["players"]["Mid"]["user_id"])
+            ste_confirmed_mid_novelty = int(
+                limit >= 8 and len(chosen) >= 2 and mid_id == 286592835850076162
+                and new_mid and _explicitly_confirmed_player_pick(
+                    mid_id, "Mid", rec["champions"]["Mid"]
+                )
+            )
             return (
+                ste_confirmed_mid_novelty,
                 # In the extended cards, reward a different viable ADC after
                 # the top two quality-first drafts. A new support with the same
                 # Aphelios must not crowd out every other ADC option.
