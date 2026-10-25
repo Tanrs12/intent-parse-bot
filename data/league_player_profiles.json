@@ -10973,7 +10973,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-24T04:33:44.286096+00:00",
+        "refreshed_at": "2026-10-25T16:14:28.379414+00:00",
         "accounts_ok": 8,
         "accounts_total": 8,
         "fresh_rows_seen": 30,
@@ -17562,7 +17562,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-24T04:33:44.286096+00:00",
+        "refreshed_at": "2026-10-25T16:14:28.379414+00:00",
         "accounts_ok": 3,
         "accounts_total": 3,
         "fresh_rows_seen": 20,
@@ -27993,7 +27993,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-24T04:33:44.286096+00:00",
+        "refreshed_at": "2026-10-25T16:14:28.379414+00:00",
         "accounts_ok": 1,
         "accounts_total": 1,
         "fresh_rows_seen": 20,
@@ -35793,7 +35793,7 @@
         "champions_observed": 84,
         "season_account_samples": 10,
         "accounts_loaded": 5,
-        "individual_ranked_games": 356,
+        "individual_ranked_games": 357,
         "individual_normal_games": 16
       },
       "champion_history": [
@@ -37274,6 +37274,30 @@
           "dpm": 962.3,
           "damage_share": 30.7,
           "vision_score": 9.0
+        },
+        {
+          "account": "BAN EVADER BARRY-RIVEN",
+          "id": "ta1XN8oiMOKOnfoFUW9HzEHGwnUKaQmwhjb8_NFLryQ=",
+          "created_at": "2026-10-23T21:25:45+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Zed",
+          "position": "MID",
+          "game_length_seconds": 2658,
+          "kills": 16,
+          "deaths": 11,
+          "assists": 17,
+          "kda": 3.0,
+          "kp": 58.0,
+          "op_score": 6.4,
+          "lane_score": 53.0,
+          "cs_per_min": 5.3,
+          "gold_per_min": 527.8,
+          "dpm": 1320.6,
+          "damage_share": 25.5,
+          "vision_score": 38.0
         },
         {
           "account": "RISE OF PETE-PING",
@@ -46159,18 +46183,18 @@
       "recent_match_summary": {
         "queues": {
           "RANKED": {
-            "games": 356,
-            "wins": 172,
-            "win_rate": 48.3,
+            "games": 357,
+            "wins": 173,
+            "win_rate": 48.5,
             "kda": 2.76,
-            "kp": 38.19,
+            "kp": 38.24,
             "op_score": 4.88,
-            "lane_score": 49.47,
-            "cs_per_min": 6.48,
-            "gold_per_min": 422.84,
-            "dpm": 786.27,
-            "damage_share": 22.08,
-            "vision_score": 22.52
+            "lane_score": 49.48,
+            "cs_per_min": 6.47,
+            "gold_per_min": 423.13,
+            "dpm": 787.77,
+            "damage_share": 22.09,
+            "vision_score": 22.56
           },
           "NORMAL": {
             "games": 16,
@@ -46189,18 +46213,18 @@
         },
         "positions": {
           "MID": {
-            "games": 40,
-            "wins": 23,
-            "win_rate": 57.5,
+            "games": 41,
+            "wins": 24,
+            "win_rate": 58.5,
             "kda": 3.15,
-            "kp": 42.45,
-            "op_score": 5.33,
-            "lane_score": 51.55,
-            "cs_per_min": 7.18,
-            "gold_per_min": 441.77,
-            "dpm": 927.57,
-            "damage_share": 26.19,
-            "vision_score": 21.98
+            "kp": 42.83,
+            "op_score": 5.36,
+            "lane_score": 51.59,
+            "cs_per_min": 7.14,
+            "gold_per_min": 443.87,
+            "dpm": 937.15,
+            "damage_share": 26.17,
+            "vision_score": 22.37
           },
           "ADC": {
             "games": 8,
@@ -46741,6 +46765,27 @@
           },
           {
             "games": 1,
+            "wins": 1,
+            "win_rate": 100.0,
+            "kda": 3.0,
+            "kp": 58.0,
+            "op_score": 6.4,
+            "lane_score": 53.0,
+            "cs_per_min": 5.3,
+            "gold_per_min": 527.8,
+            "dpm": 1320.6,
+            "damage_share": 25.5,
+            "vision_score": 38.0,
+            "champion": "Zed",
+            "positions": {
+              "MID": 1
+            },
+            "queues": {
+              "RANKED": 1
+            }
+          },
+          {
+            "games": 1,
             "wins": 0,
             "win_rate": 0.0,
             "kda": 1.62,
@@ -46873,7 +46918,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-24T04:33:44.286096+00:00",
+        "refreshed_at": "2026-10-25T16:14:28.379414+00:00",
         "accounts_ok": 5,
         "accounts_total": 5,
         "fresh_rows_seen": 40,
@@ -52276,7 +52321,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-24T04:33:44.286096+00:00",
+        "refreshed_at": "2026-10-25T16:14:28.379414+00:00",
         "accounts_ok": 2,
         "accounts_total": 2,
         "fresh_rows_seen": 20,
@@ -58371,7 +58416,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-24T04:33:44.286096+00:00",
+        "refreshed_at": "2026-10-25T16:14:28.379414+00:00",
         "accounts_ok": 3,
         "accounts_total": 3,
         "fresh_rows_seen": 13,
@@ -61933,7 +61978,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-24T04:33:44.286096+00:00",
+        "refreshed_at": "2026-10-25T16:14:28.379414+00:00",
         "accounts_ok": 1,
         "accounts_total": 1,
         "fresh_rows_seen": 15,
@@ -61995,7 +62040,7 @@
       ],
       "notes": "Returning formerly strong player per teammate report. Historical ability not yet objectively evaluated; recent form unknown. No roles/champion selections assumed.",
       "recent_refresh": {
-        "refreshed_at": "2026-10-24T04:33:44.286096+00:00",
+        "refreshed_at": "2026-10-25T16:14:28.379414+00:00",
         "accounts_ok": 5,
         "accounts_total": 5,
         "fresh_rows_seen": 0,
@@ -62004,6 +62049,6 @@
       "collection_note": "All five linked accounts were reachable, but automated match-history import returned no rows. Historical rank/champion data may exist on public OP.GG pages; current form and historical peak are not yet established by this snapshot."
     }
   },
-  "recent_matches_refreshed_at": "2026-10-24T04:33:44.286096+00:00",
+  "recent_matches_refreshed_at": "2026-10-25T16:14:28.379414+00:00",
   "roster_updated_at": "2026-10-19"
 }
