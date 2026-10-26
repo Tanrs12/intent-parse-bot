@@ -765,11 +765,12 @@ def _select_diverse_recommendations(
     role_mix_slots: int = 2,
     rotation_token: str | None = None,
 ) -> list[dict]:
-    """Choose up to ten genuinely different high-quality composition shells.
+    """Choose quality-first shells, with real player-role rotation in drafts 5–10.
 
     Small one-role swaps belong inside a draft as role alternatives; they should not
-    consume a separate prepared-draft slot. ``core_limit``/``role_mix_slots`` remain
-    accepted for compatibility, but all output slots now compete on composition diversity.
+    consume a separate prepared-draft slot. ``role_mix_slots >= 4`` opts the
+    pre-game board into substantial role rotation after ``core_limit`` drafts.
+    Live-draft calls keep that rotation off to preserve locked assignments.
     """
     recommendations = [rec for rec in recommendations if _recommendation_respects_selected_roles(rec)]
     if not recommendations:
@@ -844,10 +845,23 @@ def _select_diverse_recommendations(
             for prev in chosen
         )
 
+    # Roles may change across plans, but the actual five champions must never
+    # be a duplicate of another displayed draft, even with different pilots.
     while remaining and len(chosen) < limit:
+        used_lineups = {tuple(champion_signature(rec)) for rec in chosen}
+        remaining = [
+            rec for rec in remaining
+            if tuple(champion_signature(rec)) not in used_lineups
+        ]
+        if not remaining:
+            break
+        tail_role_rotation = (
+            limit >= 8 and core_limit >= 4 and role_mix_slots >= 4
+            and core_limit <= len(chosen) < core_limit + role_mix_slots
+        )
         score_pool = [
             rec for rec in remaining
-            if float(rec.get("score", 0)) >= top_score - 12.0
+            if float(rec.get("score", 0)) >= top_score - (16.0 if tail_role_rotation else 12.0)
         ] or remaining
         best_plan = max(float(rec.get("team_plan_score", 5.0) or 5.0) for rec in score_pool)
         plan_floor = max(5.5, best_plan - 1.5)
@@ -855,6 +869,15 @@ def _select_diverse_recommendations(
             rec for rec in score_pool
             if float(rec.get("team_plan_score", 5.0) or 5.0) >= plan_floor
         ] or score_pool
+        # Do not let ADC novelty restrict us to weak duo packages before
+        # the essential bot/mid-jungle quality check has a chance to run.
+        strong_before_rotation = [
+            rec for rec in quality_pool
+            if float(rec.get("bot_lane_score", 7.0) or 7.0) >= 7.0
+            and float(rec.get("mid_jungle_score", 7.0) or 7.0) >= 7.0
+        ]
+        if limit >= 8 and strong_before_rotation:
+            quality_pool = strong_before_rotation
 
         # Only rotate ADC duty deliberately when this five has no true P1 ADC.
         # In that fallback-only case, spreading viable ADC assignments stops a P2
@@ -932,6 +955,34 @@ def _select_diverse_recommendations(
                 if more_varied:
                     quality_pool = more_varied
 
+        # Drafts 5–10 are genuine role-rotation options, not six more
+        # champion permutations with the same players in the same lanes.
+        # Never invent eligibility: candidates already passed declared-role,
+        # champion-pool, composition and synergy checks in recommend_comps.
+        if tail_role_rotation:
+            core_players = player_signature(chosen[0])
+            used_assignments = {player_signature(prev) for prev in chosen}
+            credible_swaps = [
+                rec for rec in score_pool
+                if player_signature(rec) not in used_assignments
+                and float(rec.get("score", 0)) >= top_score - 16.0
+                and float(rec.get("team_plan_score", 0) or 0) >= 6.0
+                and float(rec.get("bot_lane_score", 0) or 0) >= 7.0
+                and float(rec.get("mid_jungle_score", 0) or 0) >= 7.0
+            ]
+            substantial_swaps = [
+                rec for rec in credible_swaps
+                if sum(a != b for a, b in zip(
+                    player_signature(rec), core_players
+                )) >= 2
+            ]
+            if substantial_swaps:
+                quality_pool = substantial_swaps
+            elif credible_swaps:
+                # Swapping one role necessarily shifts at least one other
+                # player as well when the same five players are drafting.
+                quality_pool = credible_swaps
+
         # One-pick changes are already shown as alternatives inside a role slot.
         different_shells = [rec for rec in quality_pool if min_champion_difference(rec) >= 2]
         if different_shells:
@@ -955,6 +1006,12 @@ def _select_diverse_recommendations(
         used_mj = {mid_jungle_package(rec) for rec in chosen}
         used_carry_roles = {(rec.get("carry_plan") or {}).get("role") for rec in chosen}
         used_champions = {champ for prev in chosen for champ in champion_signature(prev)}
+        rat_id = 270517092703272960
+        rat_used_picks = {
+            (role, prev["champions"][role])
+            for prev in chosen for role in ROLES
+            if int(prev["players"][role]["user_id"]) == rat_id
+        }
 
         def diversity_key(rec: dict):
             champ_sig = champion_signature(rec)
@@ -990,6 +1047,11 @@ def _select_diverse_recommendations(
             new_adc = int((int(rec["players"]["ADC"]["user_id"]), rec["champions"]["ADC"]) not in used_adc)
             new_jungle = int((int(rec["players"]["Jungle"]["user_id"]), rec["champions"]["Jungle"]) not in used_jungles)
             new_mid = int((int(rec["players"]["Mid"]["user_id"]), rec["champions"]["Mid"]) not in used_mids)
+            rat_new_pick = int(any(
+                int(rec["players"][role]["user_id"]) == rat_id
+                and (role, rec["champions"][role]) not in rat_used_picks
+                for role in ("Mid", "Top", "Jungle")
+            ))
             # Ste specifically confirmed Akali and Vex as playable. When a
             # genuinely strong composition contains either, do not let ten
             # mechanically different Orianna/Galio drafts crowd them out.
@@ -1016,6 +1078,9 @@ def _select_diverse_recommendations(
                 -sum(slot_reuses),
                 new_adc if limit >= 8 and len(chosen) >= 2 else 0,
                 new_jungle + new_mid if limit >= 8 and len(chosen) >= 2 else 0,
+                # Rat gets a broader range of his OWN submitted Mid/Top/Jungle
+                # champions, not fabricated comfort on unselected picks.
+                rat_new_pick if limit >= 8 and len(chosen) >= 2 else 0,
                 # Entire bot and mid+jungle units are worth more than repeatedly
                 # rotating one recently successful champion into every shell.
                 package_novelty,

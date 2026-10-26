@@ -2694,6 +2694,10 @@ def _role_search_pool_limit(player: dict, role: str, default: int) -> int:
         return max(int(default), 16)
     if uid == 139837324438536193:
         return max(int(default), 18 if role in {"Jungle", "Mid", "ADC"} else 14)
+    if uid == 270517092703272960 and role in {"Mid", "Top", "Jungle"}:
+        # Rat's selected flexible-role pool should not disappear under generic
+        # ten-champion pruning; this does not add unsubmitted picks.
+        return max(int(default), 16)
     return int(default)
 
 
@@ -3036,12 +3040,26 @@ def recommend_comps(
             seen_ste_mids.add(name)
         if len(ste_mid_coverage) >= 16:
             break
+    # Reserve one viable representative per legal player-role assignment.
+    # Without this, a top-300 full of different champions for the *same*
+    # five-role layout can erase every alternative before portfolio selection.
+    role_representatives = {}
+    for row in recommendations:
+        if float(row["score"]) < best_score - 16.0:
+            break
+        if (float(row.get("team_plan_score", 0)) < 6.0
+            or float(row.get("bot_lane_score", 0)) < 7.0
+            or float(row.get("mid_jungle_score", 0)) < 7.0):
+            continue
+        signature = tuple(int(row["players"][role]["user_id"]) for role in ROLES)
+        role_representatives.setdefault(signature, row)
+    role_coverage = list(role_representatives.values())[:max(1, min(32, limit // 3))]
     coverage_ids = {id(row) for row in coverage}
     reserved = min(len(coverage), max(0, limit // 3))
-    # Champion representatives compete on objective score, not a fixed ADC list.
     mid_reserved = min(len(ste_mid_coverage), max(0, limit // 12))
-    candidates = (recommendations[:max(0, limit - reserved - mid_reserved)]
-                  + ste_mid_coverage[:mid_reserved] + coverage[:reserved])
+    role_reserved = len(role_coverage)
+    candidates = (recommendations[:max(0, limit - reserved - mid_reserved - role_reserved)]
+                  + role_coverage + ste_mid_coverage[:mid_reserved] + coverage[:reserved])
     candidates += [row for row in recommendations if id(row) not in coverage_ids]
     unique: list[dict] = []
     seen = set()
@@ -3119,6 +3137,10 @@ def attach_learn_suggestions(recommendations: list[dict], meta: dict | None = No
             uid = int(rec["players"][role]["user_id"])
             # Learn suggestions are for genuine pool gaps, not homework for players
             # who already submitted a broad set of picks in this role.
+            # Rat asked for broader choices across his flex roles. Keep extra
+            # learn ideas clearly advisory, never primary picks unless he adds
+            # them to the live Discord signup himself.
+            rat_flex = uid == 270517092703272960 and role in {"Mid", "Top", "Jungle"}
             if len(submitted.get(role, [])) > 3:
                 continue
             base = base_champions[role]
@@ -3188,7 +3210,7 @@ def attach_learn_suggestions(recommendations: list[dict], meta: dict | None = No
                 for _, champion in sorted(candidate_rows, reverse=True):
                     if champion not in chosen:
                         chosen.append(champion)
-                    if len(chosen) >= max_per_role:
+                    if len(chosen) >= (max(3, max_per_role) if rat_flex else max_per_role):
                         break
                 if chosen:
                     learn[role] = chosen

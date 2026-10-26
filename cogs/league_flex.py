@@ -1747,7 +1747,9 @@ class LeagueFlexCog(commands.Cog):
                 locked[role] = by_id[uid]
             assignments = [locked] if locked else []
         else:
-            assignments = generate_team_options(signups, limit=8)
+            # Ten visible drafts need enough legal role layouts before scoring.
+            # Eight options were saturated by P1 defaults and repeated champion shells.
+            assignments = generate_team_options(signups, limit=16)
         if not assignments:
             counts = {role: sum(role in s["roles"] for s in signups) for role in ROLES}
             coverage = " • ".join(f"{role}: {counts[role]}" for role in ROLES)
@@ -1770,7 +1772,7 @@ class LeagueFlexCog(commands.Cog):
                 candidate_pool,
                 limit=10,
                 core_limit=4,
-                role_mix_slots=6,
+                role_mix_slots=0 if locked_assignment else 6,
                 rotation_token=None if locked_assignment else str(interaction.id),
             )
             recommendations = _attach_role_alternatives(recommendations, candidate_pool)
