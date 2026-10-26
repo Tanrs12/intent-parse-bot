@@ -171,8 +171,15 @@ def _assignment_priority3_users(result: dict[str, dict]) -> tuple[int, ...]:
     ))
 
 
-def generate_team_options(signups: list[dict], limit: int = 5) -> list[dict[str, dict]]:
-    """Return legal five-player assignments while respecting, but not hard-locking, 1/2/3 priorities."""
+def generate_team_options(
+    signups: list[dict], limit: int = 5, *, require_pools: bool = False
+) -> list[dict[str, dict]]:
+    """Return legal five-player assignments while respecting 1/2/3 priorities.
+
+    Prepared draft generation can require submitted role champion pools
+    up front, avoiding an assignment shortlist full of unscorable P1 slots.
+    The standalone Team Options feature still allows role-only signups.
+    """
     eligible = [s for s in signups if s.get("roles")]
     if len(eligible) < 5:
         return []
@@ -188,7 +195,11 @@ def generate_team_options(signups: list[dict], limit: int = 5) -> list[dict[str,
             results.append(dict(current))
             return
         role = ROLES[role_index]
-        candidates = [p for p in ordered if role in p["roles"] and p["user_id"] not in used]
+        candidates = [
+            p for p in ordered
+            if role in p["roles"] and p["user_id"] not in used
+            and (not require_pools or bool(p.get("champions", {}).get(role)))
+        ]
         candidates.sort(
             key=lambda p: (
                 _role_preference_penalty(p, role),
@@ -270,6 +281,39 @@ def generate_team_options(signups: list[dict], limit: int = 5) -> list[dict[str,
         add(candidates[0])
         if len(varied) >= limit:
             return varied
+
+    # The ten-draft gallery needs the *whole roster* to rotate, not just
+    # whichever two accounts currently have the highest carry index. Preserve
+    # viable alternate (player, role) coverage before taking more P1 variants.
+    # Only a declared role with a real submitted pool can produce a legal draft.
+    covered_pairs = {
+        (int(result[role]["user_id"]), role) for result in varied for role in ROLES
+    }
+    while len(varied) < limit:
+        candidates = [
+            result for result in results
+            if tuple(int(result[role]["user_id"]) for role in ROLES) not in seen_signatures
+            and _assignment_preference_cost(result) <= best_cost + 12.0
+            and all(result[role].get("champions", {}).get(role) for role in ROLES)
+        ]
+        if not candidates:
+            break
+        def coverage_key(result):
+            pairs = {
+                (int(result[role]["user_id"]), role) for role in ROLES
+            }
+            new_pairs = len(pairs - covered_pairs)
+            return (
+                new_pairs,
+                -_assignment_preference_cost(result),
+                sum(role_experience_score(int(result[role]["user_id"]), role) for role in ROLES),
+            )
+        best = max(candidates, key=coverage_key)
+        pairs = {(int(best[role]["user_id"]), role) for role in ROLES}
+        if not pairs - covered_pairs:
+            break
+        add(best)
+        covered_pairs.update(pairs)
 
     # Preserve role variety for the strongest flexible carry profiles before the
     # composition solver runs. Otherwise an excellent Mid/Jungle option can disappear
@@ -876,8 +920,55 @@ def _select_diverse_recommendations(
             if float(rec.get("bot_lane_score", 7.0) or 7.0) >= 7.0
             and float(rec.get("mid_jungle_score", 7.0) or 7.0) >= 7.0
         ]
-        if limit >= 8 and strong_before_rotation:
+        if limit >= 8 and strong_before_rotation and not tail_role_rotation:
             quality_pool = strong_before_rotation
+
+        if tail_role_rotation:
+            # Make the *role layout* the first-class unit for drafts 5–10.
+            # Previous code promoted Ste-Mid / ADC champion novelty before
+            # evaluating swaps, often erasing the flex options entirely.
+            used_assignments = {player_signature(prev) for prev in chosen}
+            used_role_pairs = {
+                (role, int(prev["players"][role]["user_id"]))
+                for prev in chosen for role in ROLES
+            }
+            viable_rotations = [
+                rec for rec in remaining
+                if player_signature(rec) not in used_assignments
+                and float(rec.get("score", 0)) >= top_score - 22.0
+                and float(rec.get("team_plan_score", 0) or 0) >= 5.8
+                and float(rec.get("bot_lane_score", 0) or 0) >= 6.8
+                and (float(rec.get("mid_jungle_score", 0) or 0) >= 6.5
+                     or float(rec.get("team_plan_score", 0) or 0) >= 7.5)
+            ]
+            if viable_rotations:
+                def role_rotation_key(rec):
+                    signature = player_signature(rec)
+                    novel_pairs = sum(
+                        (role, int(rec["players"][role]["user_id"])) not in used_role_pairs
+                        for role in ROLES
+                    )
+                    swapped_from_core = sum(
+                        a != b for a, b in zip(signature, player_signature(chosen[0]))
+                    )
+                    # A brand-new player/role pairing takes precedence over
+                    # a cosmetic champion swap, with quality breaking ties.
+                    return (
+                        novel_pairs,
+                        swapped_from_core,
+                        min(sum(a != b for a, b in zip(signature, player_signature(prev)))
+                            for prev in chosen),
+                        min_champion_difference(rec),
+                        float(rec.get("score", 0)),
+                    )
+                winner = max(viable_rotations, key=role_rotation_key)
+                chosen.append(winner)
+                seen_lineups.add(champion_signature(winner))
+                remaining = [
+                    rec for rec in remaining
+                    if champion_signature(rec) not in seen_lineups
+                ]
+                continue
 
         # Only rotate ADC duty deliberately when this five has no true P1 ADC.
         # In that fallback-only case, spreading viable ADC assignments stops a P2

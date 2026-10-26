@@ -2714,6 +2714,7 @@ def recommend_comps(
     preferred_champions: dict[str, str] | None = None,
     full_counter_roles: frozenset[str] = frozenset(),
     lane_leverage: dict[str, float] | None = None,
+    prepared_flex_gallery: bool = False,
 ) -> tuple[list[dict], list[str]]:
     meta = meta or load_meta()
     revealed_enemies = set(live_enemy_champions or ())
@@ -2742,7 +2743,7 @@ def recommend_comps(
             selected = [
                 champ for champ in selected
                 if champ not in DISPLAY_EXCLUDED_CHAMPIONS
-                and _verified_secondary_role_pick(player, role, champ, meta)
+                and (prepared_flex_gallery or _verified_secondary_role_pick(player, role, champ, meta))
             ]
             inferred = [champ for champ in inferred if champ not in DISPLAY_EXCLUDED_CHAMPIONS]
             role_limit = _role_search_pool_limit(player, role, pool_limit)
@@ -3045,11 +3046,14 @@ def recommend_comps(
     # five-role layout can erase every alternative before portfolio selection.
     role_representatives = {}
     for row in recommendations:
-        if float(row["score"]) < best_score - 16.0:
+        # A genuine P2/P3 flex gets a larger role-gallery window; this does
+        # not change primary scores or reduce the quality floor of drafts 1–4.
+        if float(row["score"]) < best_score - 22.0:
             break
-        if (float(row.get("team_plan_score", 0)) < 6.0
-            or float(row.get("bot_lane_score", 0)) < 7.0
-            or float(row.get("mid_jungle_score", 0)) < 7.0):
+        if (float(row.get("team_plan_score", 0)) < 5.8
+            or float(row.get("bot_lane_score", 0)) < 6.8
+            or (float(row.get("mid_jungle_score", 0)) < 6.5
+                and float(row.get("team_plan_score", 0)) < 7.5)):
             continue
         signature = tuple(int(row["players"][role]["user_id"]) for role in ROLES)
         role_representatives.setdefault(signature, row)

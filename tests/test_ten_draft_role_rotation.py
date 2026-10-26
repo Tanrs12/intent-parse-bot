@@ -116,3 +116,118 @@ def test_cian_mid_rat_jungle_jack_top_ste_adc_legal_rotation_survives():
     )
     assert target in signatures
     assert all(role in option[role]["roles"] for option in options for role in ROLES)
+
+
+def test_tail_flex_replaces_ste_mid_and_jack_top_even_if_base_has_higher_score():
+    # This is the specific complaint: first four drafts can be strong defaults;
+    # drafts 5-10 must offer real Cian Mid / Rat Jungle / Jack Top / Ste ADC.
+    cian, rat, jack, ste, jezz = (
+        139837324438536193, 270517092703272960,
+        332490596004659201, 286592835850076162,
+        400745307467415553,
+    )
+    fixed_roles = (rat, cian, ste, jack, jezz)
+    flex_roles = (jack, rat, cian, ste, jezz)
+    pool = [_candidate(i, fixed_roles, score=99.8 - .2*i) for i in range(18)]
+    pool.append(_candidate(18, flex_roles, score=81.2))
+    result = _select_diverse_recommendations(
+        pool, limit=10, core_limit=4, role_mix_slots=6
+    )
+    assert len(result) == 10
+    assert any(_signature(item) == flex_roles for item in result[4:])
+    assert len({tuple(item["champions"][r] for r in ROLES) for item in result}) == 10
+
+
+def test_role_rotations_do_not_invent_missing_submitted_champion_pools():
+    players = [
+        {"user_id": i, "display_name": str(i), "roles": list(ROLES),
+         "role_priority": {r: 2 for r in ROLES},
+         "champions": {r: [f"{r}-{i}"] for r in ROLES}}
+        for i in range(5)
+    ]
+    players[3]["champions"]["ADC"] = []
+    options = generate_team_options(players, limit=24, require_pools=True)
+    # Other players may rotate through ADC; none can place player 3 there.
+    assert options
+    assert all(int(option["ADC"]["user_id"]) != 3 for option in options)
+    assert all(
+        option[role].get("champions", {}).get(role)
+        for option in options for role in ROLES
+    )
+
+
+def test_role_gallery_eligibility_preserves_ste_adc_when_confirmed():
+    roster = [
+        (139837324438536193, ["Jungle", "Mid", "Top", "ADC"]),
+        (270517092703272960, ["Mid", "Jungle", "Top"]),
+        (332490596004659201, ["ADC", "Top"]),
+        (286592835850076162, ["Mid", "ADC"]),
+        (400745307467415553, ["Support"]),
+    ]
+    signups = [
+        {"user_id": uid, "display_name": str(uid), "roles": roles,
+         "role_priority": {role: (1 if k == 0 else 3) for k, role in enumerate(roles)},
+         "champions": {role: [f"{uid}-{role}"] for role in roles}}
+        for uid, roles in roster
+    ]
+    layouts = generate_team_options(signups, limit=24, require_pools=True)
+    target = (332490596004659201, 270517092703272960, 139837324438536193,
+              286592835850076162, 400745307467415553)
+    assert target in {
+        tuple(row[role]["user_id"] for role in ROLES) for row in layouts
+    }
+
+
+def test_bundled_five_player_flex_gallery_end_to_end():
+    # Regression for the real failure: champion/role rotation looked legal
+    # but secondary-role gating erased Ste bot BEFORE the top-300 stage.
+    # Additional champions below are deliberately test-only, not Discord edits.
+    import json
+    from pathlib import Path
+    saved = json.loads(
+        (Path(__file__).resolve().parents[1] / "loadfiles" / "flexers-team.json")
+        .read_text(encoding="utf-8")
+    )
+    who = {"Cian", "Aristo", "Jack", "Ste", "Jezz"}
+    squad = []
+    for record in saved["players"]:
+        if record.get("rename") not in who:
+            continue
+        pools = {
+            role: [row["champion"] for row in entries]
+            for role, entries in record.get("pools", {}).items()
+        }
+        if record["rename"] == "Cian":
+            pools["Mid"] = ["Sylas"]
+        if record["rename"] == "Ste":
+            pools["ADC"] = ["Jinx", "Ashe"]
+        player = {
+            "user_id": record["user_id"],
+            "display_name": record["rename"],
+            "roles": list(record["roles"]),
+            "role_priority": {
+                role: (1 if index == 0 else 2 if index == 1 else 3)
+                for index, role in enumerate(record["roles"])
+            },
+            "champions": pools,
+        }
+        squad.append(player)
+    assignments = generate_team_options(squad, limit=24, require_pools=True)
+    candidates, missing = eng.recommend_comps(
+        assignments, limit=300, pool_limit=10, prepared_flex_gallery=True
+    )
+    assert not missing
+    assert len({
+        tuple(c["players"][role]["user_id"] for role in ROLES)
+        for c in candidates
+    }) >= 4
+    selected = _select_diverse_recommendations(
+        candidates, limit=10, core_limit=4, role_mix_slots=6
+    )
+    assert len(selected) == 10
+    assert any(int(rec["players"]["ADC"]["user_id"]) == 286592835850076162
+               for rec in selected[4:])
+    assert len({
+        tuple(rec["players"][role]["user_id"] for role in ROLES)
+        for rec in selected
+    }) >= 4

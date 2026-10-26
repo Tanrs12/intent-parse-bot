@@ -1749,7 +1749,7 @@ class LeagueFlexCog(commands.Cog):
         else:
             # Ten visible drafts need enough legal role layouts before scoring.
             # Eight options were saturated by P1 defaults and repeated champion shells.
-            assignments = generate_team_options(signups, limit=16)
+            assignments = generate_team_options(signups, limit=24, require_pools=True)
         if not assignments:
             counts = {role: sum(role in s["roles"] for s in signups) for role in ROLES}
             coverage = " • ".join(f"{role}: {counts[role]}" for role in ROLES)
@@ -1766,6 +1766,9 @@ class LeagueFlexCog(commands.Cog):
                 assignments,
                 limit=300,
                 pool_limit=10,
+                # The pre-game FLEX gallery can trial deliberately submitted
+                # off-role champions; live/locked drafts keep experience gates.
+                prepared_flex_gallery=not bool(locked_assignment),
                 rotation_token=None if locked_assignment else str(interaction.id),
             )
             recommendations = _select_diverse_recommendations(
@@ -1840,8 +1843,52 @@ class LeagueFlexCog(commands.Cog):
                     old_state,
                     keep_message_id=new_message.id,
                 )
+                # The visible role-coverage count matters: a player may select
+                # an off-role without submitting champions for it. A missing
+                # pool is not something the scorer can legally invent.
+                layouts = {
+                    tuple(int(rec["players"][role]["user_id"]) for role in ROLES)
+                    for rec in recommendations
+                }
+                coverage_note = f"**Distinct role layouts:** {len(layouts)} / {len(recommendations)} drafts."
+                if not locked_assignment:
+                    missing_pools = [
+                        f"{s['display_name']} {role}"
+                        for s in signups
+                        for role in s.get("roles", [])
+                        if not s.get("champions", {}).get(role)
+                    ]
+                    if missing_pools:
+                        coverage_note += (
+                            "\n**No submitted champions for:** " +
+                            ", ".join(missing_pools[:8]) +
+                            ". Add champions for these roles in League signup to unlock more swaps."
+                        )
+                    single_role = [
+                        s["display_name"] + " (" + ", ".join(
+                            role for role in s.get("roles", [])
+                            if s.get("champions", {}).get(role)
+                        ) + ")"
+                        for s in signups
+                        if len([
+                            role for role in s.get("roles", [])
+                            if s.get("champions", {}).get(role)
+                        ]) == 1
+                    ]
+                    if single_role:
+                        coverage_note += (
+                            "\n**Only one playable role registered:** " +
+                            ", ".join(single_role[:5]) +
+                            ". To rotate these players, they need more roles AND champions selected."
+                        )
+                    if len(layouts) < 4:
+                        coverage_note += (
+                            "\n**Limited role rotation:** only the submitted roles and "
+                            "champion pools can be used. Try updating role priorities/pools."
+                        )
                 await interaction.followup.send(
-                    f"\u2705 Draft board updated in <#{new_message.channel.id}>. The previous board was removed.",
+                    f"\u2705 Draft board updated in <#{new_message.channel.id}>. "
+                    f"The previous board was removed.\n{coverage_note}",
                     ephemeral=True,
                 )
                 return
