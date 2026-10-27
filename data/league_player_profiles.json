@@ -10997,7 +10997,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-26T18:40:35.212578+00:00",
+        "refreshed_at": "2026-10-27T05:00:28.401421+00:00",
         "accounts_ok": 8,
         "accounts_total": 8,
         "fresh_rows_seen": 30,
@@ -17610,7 +17610,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-26T18:40:35.212578+00:00",
+        "refreshed_at": "2026-10-27T05:00:28.401421+00:00",
         "accounts_ok": 3,
         "accounts_total": 3,
         "fresh_rows_seen": 20,
@@ -28041,7 +28041,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-26T18:40:35.212578+00:00",
+        "refreshed_at": "2026-10-27T05:00:28.401421+00:00",
         "accounts_ok": 1,
         "accounts_total": 1,
         "fresh_rows_seen": 20,
@@ -35841,7 +35841,7 @@
         "champions_observed": 84,
         "season_account_samples": 10,
         "accounts_loaded": 5,
-        "individual_ranked_games": 359,
+        "individual_ranked_games": 360,
         "individual_normal_games": 16
       },
       "champion_history": [
@@ -37275,6 +37275,30 @@
         }
       ],
       "recent_matches": [
+        {
+          "account": "BAN EVADER BARRY-RIVEN",
+          "id": "ta1XN8oiMOIurwd45-xd14qsD_c5FMbRVKPNXHIGzJc=",
+          "created_at": "2026-10-27T07:31:18+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Akali",
+          "position": "MID",
+          "game_length_seconds": 2201,
+          "kills": 7,
+          "deaths": 9,
+          "assists": 7,
+          "kda": 1.56,
+          "kp": 44.0,
+          "op_score": 4.2,
+          "lane_score": 41.0,
+          "cs_per_min": 5.5,
+          "gold_per_min": 375.7,
+          "dpm": 737.9,
+          "damage_share": 17.7,
+          "vision_score": 30.0
+        },
         {
           "account": "RISE OF PETE-PING",
           "id": "ta1XN8oiMOLI0eRp0sHjIpSIrTiInDyw1KINY3hXIYA=",
@@ -46279,18 +46303,18 @@
       "recent_match_summary": {
         "queues": {
           "RANKED": {
-            "games": 359,
-            "wins": 173,
-            "win_rate": 48.2,
-            "kda": 2.75,
-            "kp": 38.25,
+            "games": 360,
+            "wins": 174,
+            "win_rate": 48.3,
+            "kda": 2.74,
+            "kp": 38.27,
             "op_score": 4.88,
-            "lane_score": 49.44,
+            "lane_score": 49.42,
             "cs_per_min": 6.47,
-            "gold_per_min": 423.04,
-            "dpm": 787.21,
-            "damage_share": 22.08,
-            "vision_score": 22.54
+            "gold_per_min": 422.91,
+            "dpm": 787.07,
+            "damage_share": 22.07,
+            "vision_score": 22.56
           },
           "NORMAL": {
             "games": 16,
@@ -46308,6 +46332,20 @@
           }
         },
         "positions": {
+          "MID": {
+            "games": 43,
+            "wins": 25,
+            "win_rate": 58.1,
+            "kda": 3.07,
+            "kp": 43.02,
+            "op_score": 5.31,
+            "lane_score": 51.33,
+            "cs_per_min": 7.1,
+            "gold_per_min": 442.97,
+            "dpm": 934.92,
+            "damage_share": 25.99,
+            "vision_score": 22.58
+          },
           "JUNGLE": {
             "games": 115,
             "wins": 51,
@@ -46321,20 +46359,6 @@
             "dpm": 681.12,
             "damage_share": 17.72,
             "vision_score": 25.3
-          },
-          "MID": {
-            "games": 42,
-            "wins": 24,
-            "win_rate": 57.1,
-            "kda": 3.1,
-            "kp": 43.0,
-            "op_score": 5.34,
-            "lane_score": 51.57,
-            "cs_per_min": 7.13,
-            "gold_per_min": 444.57,
-            "dpm": 939.61,
-            "damage_share": 26.19,
-            "vision_score": 22.4
           },
           "ADC": {
             "games": 8,
@@ -46690,6 +46714,27 @@
             "games": 3,
             "wins": 3,
             "win_rate": 100.0,
+            "kda": 8.35,
+            "kp": 40.67,
+            "op_score": 6.2,
+            "lane_score": 57.67,
+            "cs_per_min": 5.93,
+            "gold_per_min": 394.07,
+            "dpm": 932.57,
+            "damage_share": 24.83,
+            "vision_score": 20.67,
+            "champion": "Akali",
+            "positions": {
+              "MID": 3
+            },
+            "queues": {
+              "RANKED": 3
+            }
+          },
+          {
+            "games": 3,
+            "wins": 3,
+            "win_rate": 100.0,
             "kda": 3.0,
             "kp": 55.33,
             "op_score": 7.13,
@@ -46810,27 +46855,6 @@
             "damage_share": 26.2,
             "vision_score": 31.0,
             "champion": "Zed",
-            "positions": {
-              "MID": 2
-            },
-            "queues": {
-              "RANKED": 2
-            }
-          },
-          {
-            "games": 2,
-            "wins": 2,
-            "win_rate": 100.0,
-            "kda": 11.75,
-            "kp": 39.0,
-            "op_score": 7.2,
-            "lane_score": 66.0,
-            "cs_per_min": 6.15,
-            "gold_per_min": 403.25,
-            "dpm": 1029.9,
-            "damage_share": 28.4,
-            "vision_score": 16.0,
-            "champion": "Akali",
             "positions": {
               "MID": 2
             },
@@ -47014,7 +47038,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-26T18:40:35.212578+00:00",
+        "refreshed_at": "2026-10-27T05:00:28.401421+00:00",
         "accounts_ok": 5,
         "accounts_total": 5,
         "fresh_rows_seen": 40,
@@ -52417,7 +52441,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-26T18:40:35.212578+00:00",
+        "refreshed_at": "2026-10-27T05:00:28.401421+00:00",
         "accounts_ok": 2,
         "accounts_total": 2,
         "fresh_rows_seen": 20,
@@ -58536,7 +58560,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-26T18:40:35.212578+00:00",
+        "refreshed_at": "2026-10-27T05:00:28.401421+00:00",
         "accounts_ok": 3,
         "accounts_total": 3,
         "fresh_rows_seen": 14,
@@ -62098,7 +62122,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-26T18:40:35.212578+00:00",
+        "refreshed_at": "2026-10-27T05:00:28.401421+00:00",
         "accounts_ok": 1,
         "accounts_total": 1,
         "fresh_rows_seen": 15,
@@ -62160,7 +62184,7 @@
       ],
       "notes": "Returning formerly strong player per teammate report. Historical ability not yet objectively evaluated; recent form unknown. No roles/champion selections assumed.",
       "recent_refresh": {
-        "refreshed_at": "2026-10-26T18:40:35.212578+00:00",
+        "refreshed_at": "2026-10-27T05:00:28.401421+00:00",
         "accounts_ok": 5,
         "accounts_total": 5,
         "fresh_rows_seen": 0,
@@ -62169,6 +62193,6 @@
       "collection_note": "All five linked accounts were reachable, but automated match-history import returned no rows. Historical rank/champion data may exist on public OP.GG pages; current form and historical peak are not yet established by this snapshot."
     }
   },
-  "recent_matches_refreshed_at": "2026-10-26T18:40:35.212578+00:00",
+  "recent_matches_refreshed_at": "2026-10-27T05:00:28.401421+00:00",
   "roster_updated_at": "2026-10-19"
 }
