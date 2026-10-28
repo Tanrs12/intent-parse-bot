@@ -11021,7 +11021,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-28T05:39:26.680104+00:00",
+        "refreshed_at": "2026-10-28T18:20:30.181953+00:00",
         "accounts_ok": 8,
         "accounts_total": 8,
         "fresh_rows_seen": 30,
@@ -17634,7 +17634,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-28T05:39:26.680104+00:00",
+        "refreshed_at": "2026-10-28T18:20:30.181953+00:00",
         "accounts_ok": 3,
         "accounts_total": 3,
         "fresh_rows_seen": 20,
@@ -23528,7 +23528,7 @@
         "champions_observed": 91,
         "season_account_samples": 5,
         "accounts_loaded": 1,
-        "individual_ranked_games": 85,
+        "individual_ranked_games": 87,
         "individual_normal_games": 6
       },
       "champion_history": [
@@ -25081,6 +25081,54 @@
         }
       ],
       "recent_matches": [
+        {
+          "account": "Adittive-EUW",
+          "id": "ta1XN8oiMOINlxvcqSHMbOfedov0R37kLQU5HR9QnpI=",
+          "created_at": "2026-10-29T00:48:53+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "LOSE",
+          "champion": "Zac",
+          "position": "JUNGLE",
+          "game_length_seconds": 1631,
+          "kills": 2,
+          "deaths": 4,
+          "assists": 9,
+          "kda": 2.75,
+          "kp": 61.0,
+          "op_score": 5.0,
+          "lane_score": 45.0,
+          "cs_per_min": 5.5,
+          "gold_per_min": 359.6,
+          "dpm": 350.1,
+          "damage_share": 12.5,
+          "vision_score": 17.0
+        },
+        {
+          "account": "Adittive-EUW",
+          "id": "ta1XN8oiMOJTl3ve5XlJCuEQ1x7TzJKXAmqw_rhDUx8=",
+          "created_at": "2026-10-28T21:15:10+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "LOSE",
+          "champion": "Zac",
+          "position": "JUNGLE",
+          "game_length_seconds": 2304,
+          "kills": 4,
+          "deaths": 9,
+          "assists": 16,
+          "kda": 2.22,
+          "kp": 95.0,
+          "op_score": 4.9,
+          "lane_score": 42.0,
+          "cs_per_min": 5.3,
+          "gold_per_min": 370.4,
+          "dpm": 553.5,
+          "damage_share": 16.4,
+          "vision_score": 19.0
+        },
         {
           "account": "Adittive-EUW",
           "id": "ta1XN8oiMOIgHAYDKtcS6FJ6fIpPWjSzy_j4zdrRLpg=",
@@ -27269,18 +27317,18 @@
       "recent_match_summary": {
         "queues": {
           "RANKED": {
-            "games": 85,
+            "games": 87,
             "wins": 45,
-            "win_rate": 52.9,
-            "kda": 2.85,
-            "kp": 41.4,
-            "op_score": 4.65,
-            "lane_score": 43.64,
-            "cs_per_min": 5.76,
-            "gold_per_min": 395.62,
-            "dpm": 670.36,
-            "damage_share": 17.8,
-            "vision_score": 23.66
+            "win_rate": 51.7,
+            "kda": 2.84,
+            "kp": 42.24,
+            "op_score": 4.66,
+            "lane_score": 43.63,
+            "cs_per_min": 5.75,
+            "gold_per_min": 394.91,
+            "dpm": 665.34,
+            "damage_share": 17.72,
+            "vision_score": 23.53
           },
           "NORMAL": {
             "games": 6,
@@ -27299,18 +27347,18 @@
         },
         "positions": {
           "JUNGLE": {
-            "games": 39,
+            "games": 41,
             "wins": 22,
-            "win_rate": 56.4,
-            "kda": 3.06,
-            "kp": 43.79,
-            "op_score": 4.81,
-            "lane_score": 44.79,
-            "cs_per_min": 5.95,
-            "gold_per_min": 409.43,
-            "dpm": 656.96,
-            "damage_share": 16.32,
-            "vision_score": 22.79
+            "win_rate": 53.7,
+            "kda": 3.04,
+            "kp": 45.46,
+            "op_score": 4.82,
+            "lane_score": 44.73,
+            "cs_per_min": 5.92,
+            "gold_per_min": 407.26,
+            "dpm": 646.96,
+            "damage_share": 16.23,
+            "vision_score": 22.56
           },
           "MID": {
             "games": 39,
@@ -27483,6 +27531,27 @@
             "games": 5,
             "wins": 2,
             "win_rate": 40.0,
+            "kda": 2.39,
+            "kp": 60.0,
+            "op_score": 4.16,
+            "lane_score": 41.6,
+            "cs_per_min": 5.2,
+            "gold_per_min": 346.14,
+            "dpm": 405.0,
+            "damage_share": 11.78,
+            "vision_score": 18.2,
+            "champion": "Zac",
+            "positions": {
+              "JUNGLE": 5
+            },
+            "queues": {
+              "RANKED": 5
+            }
+          },
+          {
+            "games": 5,
+            "wins": 2,
+            "win_rate": 40.0,
             "kda": 2.07,
             "kp": 41.0,
             "op_score": 4.24,
@@ -27561,27 +27630,6 @@
             },
             "queues": {
               "RANKED": 4
-            }
-          },
-          {
-            "games": 3,
-            "wins": 2,
-            "win_rate": 66.7,
-            "kda": 2.32,
-            "kp": 48.0,
-            "op_score": 3.63,
-            "lane_score": 40.33,
-            "cs_per_min": 5.07,
-            "gold_per_min": 333.57,
-            "dpm": 373.8,
-            "damage_share": 10.0,
-            "vision_score": 18.33,
-            "champion": "Zac",
-            "positions": {
-              "JUNGLE": 3
-            },
-            "queues": {
-              "RANKED": 3
             }
           },
           {
@@ -28065,7 +28113,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-28T05:39:26.680104+00:00",
+        "refreshed_at": "2026-10-28T18:20:30.181953+00:00",
         "accounts_ok": 1,
         "accounts_total": 1,
         "fresh_rows_seen": 20,
@@ -35865,7 +35913,7 @@
         "champions_observed": 84,
         "season_account_samples": 10,
         "accounts_loaded": 5,
-        "individual_ranked_games": 371,
+        "individual_ranked_games": 381,
         "individual_normal_games": 16
       },
       "champion_history": [
@@ -37301,6 +37349,150 @@
       "recent_matches": [
         {
           "account": "BAN EVADER BARRY-RIVEN",
+          "id": "ta1XN8oiMOL5ECp4Tvdz4xIOjLg7fW0ie8t4muo-4D8=",
+          "created_at": "2026-10-29T01:38:19+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Akali",
+          "position": "MID",
+          "game_length_seconds": 1245,
+          "kills": 11,
+          "deaths": 1,
+          "assists": 2,
+          "kda": 13.0,
+          "kp": 36.0,
+          "op_score": 7.9,
+          "lane_score": 71.0,
+          "cs_per_min": 7.0,
+          "gold_per_min": 517.5,
+          "dpm": 947.2,
+          "damage_share": 23.7,
+          "vision_score": 14.0
+        },
+        {
+          "account": "BAN EVADER BARRY-RIVEN",
+          "id": "ta1XN8oiMOLJ9Hxi-LyWqA8gSwDffY5tuhsF8kwf4OY=",
+          "created_at": "2026-10-29T00:57:44+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Akali",
+          "position": "MID",
+          "game_length_seconds": 1829,
+          "kills": 5,
+          "deaths": 7,
+          "assists": 6,
+          "kda": 1.57,
+          "kp": 26.0,
+          "op_score": 4.2,
+          "lane_score": 45.0,
+          "cs_per_min": 3.7,
+          "gold_per_min": 302.6,
+          "dpm": 772.6,
+          "damage_share": 18.3,
+          "vision_score": 12.0
+        },
+        {
+          "account": "BAN EVADER BARRY-RIVEN",
+          "id": "ta1XN8oiMOLJz11IV-21Og_uzGJjd8NJyElzI0CARNs=",
+          "created_at": "2026-10-28T23:49:53+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Akali",
+          "position": "MID",
+          "game_length_seconds": 1822,
+          "kills": 12,
+          "deaths": 5,
+          "assists": 5,
+          "kda": 3.4,
+          "kp": 55.0,
+          "op_score": 6.8,
+          "lane_score": 63.0,
+          "cs_per_min": 5.5,
+          "gold_per_min": 410.3,
+          "dpm": 1086.4,
+          "damage_share": 26.6,
+          "vision_score": 35.0
+        },
+        {
+          "account": "BAN EVADER BARRY-RIVEN",
+          "id": "ta1XN8oiMOJE84vt9qDtMvp0mn0NvkTmk73uij6D4es=",
+          "created_at": "2026-10-28T23:08:24+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Akali",
+          "position": "MID",
+          "game_length_seconds": 1605,
+          "kills": 15,
+          "deaths": 3,
+          "assists": 5,
+          "kda": 6.67,
+          "kp": 59.0,
+          "op_score": 8.2,
+          "lane_score": 54.0,
+          "cs_per_min": 6.2,
+          "gold_per_min": 536.2,
+          "dpm": 1130.0,
+          "damage_share": 32.6,
+          "vision_score": 26.0
+        },
+        {
+          "account": "BAN EVADER BARRY-RIVEN",
+          "id": "ta1XN8oiMOIIFThxyIkStNiNDG2x2yhZqd63oWGxhLc=",
+          "created_at": "2026-10-28T22:23:29+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Akali",
+          "position": "MID",
+          "game_length_seconds": 2530,
+          "kills": 15,
+          "deaths": 8,
+          "assists": 13,
+          "kda": 3.5,
+          "kp": 41.0,
+          "op_score": 5.9,
+          "lane_score": 46.0,
+          "cs_per_min": 5.6,
+          "gold_per_min": 445.3,
+          "dpm": 1298.2,
+          "damage_share": 20.9,
+          "vision_score": 36.0
+        },
+        {
+          "account": "BAN EVADER BARRY-RIVEN",
+          "id": "ta1XN8oiMOIJqnD_yXRr0QA8ejDFCvVsjlXvJfFNzy8=",
+          "created_at": "2026-10-28T21:33:28+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "LOSE",
+          "champion": "Yasuo",
+          "position": "ADC",
+          "game_length_seconds": 1886,
+          "kills": 8,
+          "deaths": 9,
+          "assists": 6,
+          "kda": 1.56,
+          "kp": 47.0,
+          "op_score": 5.1,
+          "lane_score": 45.0,
+          "cs_per_min": 8.1,
+          "gold_per_min": 525.6,
+          "dpm": 960.4,
+          "damage_share": 24.9,
+          "vision_score": 22.0
+        },
+        {
+          "account": "BAN EVADER BARRY-RIVEN",
           "id": "ta1XN8oiMOKZu7MPwE5srjPpCeFGA9x3YvNA63QTTU0=",
           "created_at": "2026-10-28T07:52:12+09:00",
           "queue": "SOLORANKED",
@@ -37349,6 +37541,54 @@
         },
         {
           "account": "BAN EVADER BARRY-RIVEN",
+          "id": "ta1XN8oiMOKs6DcvdO4jDxPxnYLrMGGC7Iycsi2CCPQ=",
+          "created_at": "2026-10-28T06:33:50+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "LOSE",
+          "champion": "Akali",
+          "position": "MID",
+          "game_length_seconds": 920,
+          "kills": 3,
+          "deaths": 6,
+          "assists": 1,
+          "kda": 0.67,
+          "kp": 44.0,
+          "op_score": 4.7,
+          "lane_score": 48.0,
+          "cs_per_min": 4.2,
+          "gold_per_min": 298.4,
+          "dpm": 832.0,
+          "damage_share": 36.9,
+          "vision_score": 3.0
+        },
+        {
+          "account": "BAN EVADER BARRY-RIVEN",
+          "id": "ta1XN8oiMOL2sb3dCKtjNtqZN1Q5__jbeKWMG613g0k=",
+          "created_at": "2026-10-28T06:07:59+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Akali",
+          "position": "MID",
+          "game_length_seconds": 1438,
+          "kills": 16,
+          "deaths": 3,
+          "assists": 7,
+          "kda": 7.67,
+          "kp": 50.0,
+          "op_score": 9.0,
+          "lane_score": 66.0,
+          "cs_per_min": 5.0,
+          "gold_per_min": 527.2,
+          "dpm": 1385.9,
+          "damage_share": 28.8,
+          "vision_score": 11.0
+        },
+        {
+          "account": "BAN EVADER BARRY-RIVEN",
           "id": "ta1XN8oiMOL7jCLBvogf60mQAMxJ-bI4noZ6rhd4p9s=",
           "created_at": "2026-10-28T01:51:13+09:00",
           "queue": "SOLORANKED",
@@ -37370,6 +37610,30 @@
           "dpm": 1094.2,
           "damage_share": 24.6,
           "vision_score": 38.0
+        },
+        {
+          "account": "BAN EVADER BARRY-RIVEN",
+          "id": "ta1XN8oiMOL5jvD-NAy6dyTouARIxX959smh5L9lD0s=",
+          "created_at": "2026-10-28T00:52:18+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "LOSE",
+          "champion": "Akali",
+          "position": "MID",
+          "game_length_seconds": 1380,
+          "kills": 6,
+          "deaths": 8,
+          "assists": 4,
+          "kda": 1.25,
+          "kp": 43.0,
+          "op_score": 4.1,
+          "lane_score": 49.0,
+          "cs_per_min": 5.6,
+          "gold_per_min": 393.9,
+          "dpm": 735.0,
+          "damage_share": 28.7,
+          "vision_score": 9.0
         },
         {
           "account": "RISE OF PETE-PING",
@@ -37490,6 +37754,30 @@
           "dpm": 627.4,
           "damage_share": 24.6,
           "vision_score": 7.0
+        },
+        {
+          "account": "BAN EVADER BARRY-RIVEN",
+          "id": "ta1XN8oiMOKdWwUmHEyYHv4KlvrRDaPZhvHYuhWeW7s=",
+          "created_at": "2026-10-27T20:58:35+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Akali",
+          "position": "MID",
+          "game_length_seconds": 1739,
+          "kills": 11,
+          "deaths": 8,
+          "assists": 3,
+          "kda": 1.75,
+          "kp": 37.0,
+          "op_score": 4.2,
+          "lane_score": 41.0,
+          "cs_per_min": 4.2,
+          "gold_per_min": 374.9,
+          "dpm": 688.7,
+          "damage_share": 20.7,
+          "vision_score": 25.0
         },
         {
           "account": "RISE OF PETE-PING",
@@ -46591,18 +46879,18 @@
       "recent_match_summary": {
         "queues": {
           "RANKED": {
-            "games": 371,
-            "wins": 183,
-            "win_rate": 49.3,
-            "kda": 2.74,
-            "kp": 38.39,
-            "op_score": 4.9,
-            "lane_score": 49.6,
-            "cs_per_min": 6.47,
-            "gold_per_min": 423.91,
-            "dpm": 795.08,
-            "damage_share": 22.18,
-            "vision_score": 22.49
+            "games": 381,
+            "wins": 190,
+            "win_rate": 49.9,
+            "kda": 2.78,
+            "kp": 38.54,
+            "op_score": 4.93,
+            "lane_score": 49.68,
+            "cs_per_min": 6.45,
+            "gold_per_min": 424.15,
+            "dpm": 800.03,
+            "damage_share": 22.29,
+            "vision_score": 22.4
           },
           "NORMAL": {
             "games": 16,
@@ -46620,6 +46908,34 @@
           }
         },
         "positions": {
+          "MID": {
+            "games": 58,
+            "wins": 38,
+            "win_rate": 65.5,
+            "kda": 3.27,
+            "kp": 43.29,
+            "op_score": 5.6,
+            "lane_score": 52.07,
+            "cs_per_min": 6.76,
+            "gold_per_min": 444.57,
+            "dpm": 969.98,
+            "damage_share": 26.14,
+            "vision_score": 21.71
+          },
+          "ADC": {
+            "games": 9,
+            "wins": 6,
+            "win_rate": 66.7,
+            "kda": 2.57,
+            "kp": 48.33,
+            "op_score": 6.03,
+            "lane_score": 51.78,
+            "cs_per_min": 7.4,
+            "gold_per_min": 488.89,
+            "dpm": 882.98,
+            "damage_share": 22.41,
+            "vision_score": 23.0
+          },
           "TOP": {
             "games": 213,
             "wins": 106,
@@ -46634,20 +46950,6 @@
             "damage_share": 23.59,
             "vision_score": 20.38
           },
-          "MID": {
-            "games": 49,
-            "wins": 31,
-            "win_rate": 63.3,
-            "kda": 3.07,
-            "kp": 43.27,
-            "op_score": 5.5,
-            "lane_score": 51.78,
-            "cs_per_min": 7.04,
-            "gold_per_min": 448.55,
-            "dpm": 966.99,
-            "damage_share": 26.1,
-            "vision_score": 22.2
-          },
           "JUNGLE": {
             "games": 116,
             "wins": 51,
@@ -46661,20 +46963,6 @@
             "dpm": 678.33,
             "damage_share": 17.7,
             "vision_score": 25.22
-          },
-          "ADC": {
-            "games": 8,
-            "wins": 6,
-            "win_rate": 75.0,
-            "kda": 2.69,
-            "kp": 48.5,
-            "op_score": 6.15,
-            "lane_score": 52.62,
-            "cs_per_min": 7.31,
-            "gold_per_min": 484.3,
-            "dpm": 873.3,
-            "damage_share": 22.1,
-            "vision_score": 23.12
           },
           "SUPPORT": {
             "games": 1,
@@ -46782,26 +47070,26 @@
             }
           },
           {
-            "games": 21,
+            "games": 22,
             "wins": 13,
-            "win_rate": 61.9,
-            "kda": 3.16,
-            "kp": 41.05,
-            "op_score": 5.39,
-            "lane_score": 54.05,
+            "win_rate": 59.1,
+            "kda": 3.09,
+            "kp": 41.32,
+            "op_score": 5.38,
+            "lane_score": 53.64,
             "cs_per_min": 8.04,
-            "gold_per_min": 467.1,
-            "dpm": 899.73,
-            "damage_share": 25.41,
-            "vision_score": 23.14,
+            "gold_per_min": 469.76,
+            "dpm": 902.49,
+            "damage_share": 25.39,
+            "vision_score": 23.09,
             "champion": "Yasuo",
             "positions": {
+              "ADC": 5,
               "MID": 15,
-              "ADC": 4,
               "TOP": 2
             },
             "queues": {
-              "RANKED": 21
+              "RANKED": 22
             }
           },
           {
@@ -46893,6 +47181,28 @@
           },
           {
             "games": 13,
+            "wins": 11,
+            "win_rate": 84.6,
+            "kda": 5.12,
+            "kp": 42.0,
+            "op_score": 6.04,
+            "lane_score": 55.62,
+            "cs_per_min": 5.41,
+            "gold_per_min": 414.5,
+            "dpm": 982.15,
+            "damage_share": 25.87,
+            "vision_score": 20.85,
+            "champion": "Akali",
+            "positions": {
+              "MID": 12,
+              "TOP": 1
+            },
+            "queues": {
+              "RANKED": 13
+            }
+          },
+          {
+            "games": 13,
             "wins": 3,
             "win_rate": 23.1,
             "kda": 1.59,
@@ -46974,28 +47284,6 @@
             },
             "queues": {
               "RANKED": 5
-            }
-          },
-          {
-            "games": 4,
-            "wins": 4,
-            "win_rate": 100.0,
-            "kda": 6.76,
-            "kp": 38.75,
-            "op_score": 5.88,
-            "lane_score": 60.0,
-            "cs_per_min": 5.83,
-            "gold_per_min": 395.55,
-            "dpm": 972.97,
-            "damage_share": 24.78,
-            "vision_score": 25.0,
-            "champion": "Akali",
-            "positions": {
-              "TOP": 1,
-              "MID": 3
-            },
-            "queues": {
-              "RANKED": 4
             }
           },
           {
@@ -47327,7 +47615,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-28T05:39:26.680104+00:00",
+        "refreshed_at": "2026-10-28T18:20:30.181953+00:00",
         "accounts_ok": 5,
         "accounts_total": 5,
         "fresh_rows_seen": 40,
@@ -52775,7 +53063,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-28T05:39:26.680104+00:00",
+        "refreshed_at": "2026-10-28T18:20:30.181953+00:00",
         "accounts_ok": 2,
         "accounts_total": 2,
         "fresh_rows_seen": 20,
@@ -58918,7 +59206,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-28T05:39:26.680104+00:00",
+        "refreshed_at": "2026-10-28T18:20:30.181953+00:00",
         "accounts_ok": 3,
         "accounts_total": 3,
         "fresh_rows_seen": 15,
@@ -62587,7 +62875,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-10-28T05:39:26.680104+00:00",
+        "refreshed_at": "2026-10-28T18:20:30.181953+00:00",
         "accounts_ok": 1,
         "accounts_total": 1,
         "fresh_rows_seen": 18,
@@ -62649,7 +62937,7 @@
       ],
       "notes": "Returning formerly strong player per teammate report. Historical ability not yet objectively evaluated; recent form unknown. No roles/champion selections assumed.",
       "recent_refresh": {
-        "refreshed_at": "2026-10-28T05:39:26.680104+00:00",
+        "refreshed_at": "2026-10-28T18:20:30.181953+00:00",
         "accounts_ok": 5,
         "accounts_total": 5,
         "fresh_rows_seen": 0,
@@ -62658,6 +62946,6 @@
       "collection_note": "All five linked accounts were reachable, but automated match-history import returned no rows. Historical rank/champion data may exist on public OP.GG pages; current form and historical peak are not yet established by this snapshot."
     }
   },
-  "recent_matches_refreshed_at": "2026-10-28T05:39:26.680104+00:00",
+  "recent_matches_refreshed_at": "2026-10-28T18:20:30.181953+00:00",
   "roster_updated_at": "2026-10-19"
 }
