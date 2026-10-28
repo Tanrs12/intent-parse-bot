@@ -16,7 +16,7 @@ import aiohttp
 ROLES = ("Top", "Jungle", "Mid", "ADC", "Support")
 DATA_PATH = Path(__file__).with_name("data") / "league_recent_pro.json"
 GOL_BASE = "https://gol.gg"
-TOURNAMENTS = ("Demacia Cup Global Invitational 2026", "Worlds")
+TOURNAMENTS = ("Demacia Cup Global Invitational 2026", "Worlds 2026 Play-In", "Worlds 2026 Main Event")
 USER_AGENT = "Mozilla/5.0 (compatible; IntentLeagueBot/1.0)"
 MAX_GAMES = 140
 MAX_AGE_DAYS = 50
