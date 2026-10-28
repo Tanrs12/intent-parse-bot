@@ -7,14 +7,17 @@ all-tier-unknown, freshness-gated tie-breaker; full draft quality and comfort wi
 from __future__ import annotations
 import json
 import os
+import sys
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from statistics import median
 from league_source_stats import source_mtime_ns
 
+ROOT = (Path(sys.executable).resolve().parent if getattr(sys, "frozen", False)
+        else Path(__file__).resolve().parent)
 PATH = Path(os.environ.get("DRAFTCOACH_OPGG_CACHE") or
-            Path(__file__).resolve().parent / "var" / "opgg" / "lane_meta.json")
+            ROOT / "var" / "opgg" / "lane_meta.json")
 ROLES = ("Top","Jungle","Mid","ADC","Support")
 MIN_GAMES = 300
 MAX_CACHE_HOURS = 48
