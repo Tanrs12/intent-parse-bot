@@ -72,7 +72,9 @@ def _ingest(hub, sess, queue):
     asyncio.run(go())
 
 
-def test_live_sessions_outside_ranked_flex_stand_by(roster):
+def test_live_sessions_outside_ranked_flex_stand_by(roster, monkeypatch):
+    # Test production lightweight LCU queue handling, not slow composition ranking.
+    monkeypatch.setenv('INTENT_LIVE', '1')
     hub = Hub(roster)
     sess = session({}, {}, [], [], [0])
     _ingest(hub, sess, {"id": 430, "name": "Normal Draft", "type": "NORMAL"})

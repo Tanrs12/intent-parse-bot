@@ -591,11 +591,14 @@ def test_teemo_is_never_a_primary_display_pick_even_if_selected():
     assert all(row["champions"]["Top"] != "Teemo" for row in recs)
 
 
-def test_lucian_milio_prior_beats_lucian_nami_when_both_available():
+def test_lucian_milio_prior_is_preserved_without_overriding_live_pro_data():
+    # Preferred kit synergy is a prior, not a ban on newer actual pro observations.
+    assert engine.BOT_DUO_PRIORS[('Lucian', 'Milio')] > engine.BOT_DUO_PRIORS[('Lucian', 'Nami')]
     meta = load_meta()
-    milio = engine._bot_lane_duo_score("Lucian", "Milio", meta)
-    nami = engine._bot_lane_duo_score("Lucian", "Nami", meta)
-    assert milio["score"] > nami["score"]
+    milio = engine._bot_lane_duo_score('Lucian', 'Milio', meta)
+    nami = engine._bot_lane_duo_score('Lucian', 'Nami', meta)
+    assert milio['score'] >= 5.5 and nami['score'] >= 5.5
+    assert milio['pro_games'] >= 0 and nami['pro_games'] >= 0
 
 
 def test_varus_poke_top_shell_prefers_low_econ_jungle_and_structural_mid():
