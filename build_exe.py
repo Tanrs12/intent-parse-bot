@@ -162,6 +162,9 @@ def main() -> int:
         "--add-data", f"{ROOT / 'league_matchup_catalog.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_chaincc_pro_history.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_riot_ranked_sample.py'}{sep}engine",
+        "--add-data", f"{ROOT / 'league_source_stats.py'}{sep}engine",
+        "--add-data", f"{ROOT / 'league_pro_archetypes.py'}{sep}engine",
+        "--add-data", f"{ROOT / 'league_opgg_reference.py'}{sep}engine",
         "--add-data", f"{ROOT / 'data'}{sep}engine/data",
         "--add-data", f"{ROOT / 'tools'}{sep}engine/tools",
         # The brain is imported from _internal/engine at runtime, exactly like the source tree.
