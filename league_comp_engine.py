@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Iterable
 
 from league_multi_source import open_pro_pair_signal
+from league_pro_archetypes import pro_archetype_signal
+from league_opgg_reference import reference_signal
 from league_aggregate_sources import approved_matchups, approved_champions, approved_pair_signal
 from league_pocketpick_history import historical_matchup
 from league_riot_ranked_sample import ranked_matchup
@@ -2822,6 +2824,8 @@ def recommend_comps(
                 meta,
             )
             composition_score = float(scored["score"])
+            pro_shapes = pro_archetype_signal(champions)
+            opgg_ref = reference_signal(champions)
             early_map = _early_map_resilience(
                 champions, enemy_roles=enemy_roles, player_fit=player_fit,
             )
@@ -2875,7 +2879,9 @@ def recommend_comps(
                     - role_preference_penalty
                     - draft_structure_penalty
                     + enemy_score
-                    + float(early_map["adjustment"]),
+                    + float(early_map["adjustment"])
+                    + float(pro_shapes["adjustment"])
+                    + float(opgg_ref["adjustment"]),
                 ),
             )
             item = {
@@ -2914,7 +2920,13 @@ def recommend_comps(
                 "composition_score": round(composition_score, 1),
                 "rank_score": round(float(scored.get("rank_score", composition_score)) + weighted_player_fit - suggestion_penalty
                                     - role_preference_penalty - draft_structure_penalty + enemy_score
-                                    + float(early_map["adjustment"]), 3),
+                                    + float(early_map["adjustment"]) + float(pro_shapes["adjustment"])
+                                    + float(opgg_ref["adjustment"]), 3),
+                "opgg_reference_adjustment": opgg_ref["adjustment"],
+                "opgg_reference_evidence": opgg_ref["evidence"],
+                "pro_2026_archetype_adjustment": pro_shapes["adjustment"],
+                "pro_2026_archetypes": pro_shapes["labels"],
+                "pro_2026_archetype_evidence": pro_shapes["evidence"],
                 "early_map_adjustment": early_map["adjustment"],
                 "early_map_bot_priority": early_map["bot_priority"],
                 "early_map_lane_priority": early_map["lane_priority"],

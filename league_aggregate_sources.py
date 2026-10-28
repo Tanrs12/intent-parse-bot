@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from functools import lru_cache
 from pathlib import Path
 from league_source_stats import source_mtime_ns
 
-SOLOQ_PATH = Path(__file__).with_name("data") / "league_licensed_soloq.json"
+SOLOQ_PATH = Path(os.environ.get("DRAFTCOACH_LICENSED_SOLOQ_PATH") or
+                  (Path(__file__).with_name("data") / "league_licensed_soloq.json"))
 ROLES = ("Top", "Jungle", "Mid", "ADC", "Support")
 MIN_MATCHUP_GAMES = 120
 MIN_PAIR_GAMES = 150
