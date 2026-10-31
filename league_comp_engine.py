@@ -1781,6 +1781,35 @@ def _champion_carry_demand(role: str, champion: str, meta: dict) -> float:
     demand -= toughness * 0.05
     return max(0.05, min(1.0, demand))
 
+# Explicit playstyle preference: Cian should usually be the team's Jungle
+# playmaker/carry rather than being relegated to low-economy setup. This is
+# separate from champion meta strength, comfort, counterpicks, and composition.
+CIAN_JUNGLE_AGENCY_FLOORS = {
+    "Diana": 0.72, "Gragas": 0.70, "Lee Sin": 0.70,
+    "Elise": 0.70, "Kindred": 0.76, "Lillia": 0.70,
+    "Taliyah": 0.67, "Sylas": 0.73, "Xin Zhao": 0.65,
+    "Wukong": 0.63, "Nocturne": 0.67, "Graves": 0.70,
+}
+
+
+def _player_jungle_agency_adjustment(player: dict, role: str, champion: str, meta: dict) -> tuple[float, float]:
+    """Return (bounded score adjustment, effective agency demand).
+
+    Selected Jungle champions only. A genuinely superior draft may still use
+    Zac/Sejuani; no pick is banned and no champion is added to a user's pool.
+    """
+    demand = _champion_carry_demand(role, champion, meta)
+    if (role != "Jungle"
+        or int(player.get("user_id") or 0) != 139837324438536193
+        or champion not in (player.get("champions") or {}).get("Jungle", ())):
+        return 0.0, demand
+
+    demand = max(demand, CIAN_JUNGLE_AGENCY_FLOORS.get(champion, 0.0))
+    # An at-most ~4 point swing between full setup and a true playmaker
+    # preserves quality-first compositions and meaningful role rotation.
+    preference = max(-2.4, min(1.65, (demand - 0.45) * 6.0))
+    return round(preference, 2), demand
+
 
 @lru_cache(maxsize=None)
 def _mastery_points_for(user_id: int, champion: str) -> int:
@@ -1956,12 +1985,19 @@ def _player_fit_adjustment(
             adjustment += (reliability - 50.0) / 50.0 * 0.8
             adjustment += (float(metrics.get("kp", 50.0)) - 50.0) / 50.0 * 0.4
 
+        # A higher-competence carry player on a low-agency Jungle setup pick
+        # should be a conscious composition tradeoff, not the default outcome.
+        # This never grants eligibility or overrides bad draft structure.
+        agency_preference, demand = _player_jungle_agency_adjustment(
+            player, role, champion, meta
+        )
+        adjustment += agency_preference
         total += adjustment
         carry_values[role] = carry
-        demand = _champion_carry_demand(role, champion, meta)
         demand_values[role] = demand
         win_condition_values[role] = carry * demand
         role_details[role] = {
+            "agency_preference_adjustment": round(agency_preference, 2),
             "carry_index": round(carry, 1),
             "reliability_index": round(reliability, 1),
             "champion_comfort": round(comfort, 1),
@@ -2452,6 +2488,12 @@ def _bounded_package_products(
         # OP.GG additions are suggestions, not silent replacements for the player's pool.
         if champion not in suggestion_sets[role]:
             value += 0.65
+        # Carry/playmaker choices need to survive bounded candidate search to
+        # reach final scoring. Respect the same bounded player-specific signal.
+        agency_preference, _ = _player_jungle_agency_adjustment(
+            assignment[role], role, champion, meta
+        )
+        value += agency_preference * 0.8
         return value
 
     bot_rows = []
