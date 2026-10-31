@@ -138,6 +138,82 @@ def test_tail_flex_replaces_ste_mid_and_jack_top_even_if_base_has_higher_score()
     assert len({tuple(item["champions"][r] for r in ROLES) for item in result}) == 10
 
 
+def test_rat_mid_is_visible_in_flex_gallery_when_strong_and_legal():
+    # Preserve one P1 Rat-Mid option in the six flex cards even when many
+    # higher-scored non-Rat-Mid layouts compete for those positions.
+    cian, rat, jack, ste, jezz = (
+        139837324438536193, 270517092703272960,
+        332490596004659201, 286592835850076162,
+        400745307467415553,
+    )
+    base = (rat, cian, ste, jack, jezz)
+    rat_mid = (jack, cian, rat, ste, jezz)
+    pool = [_candidate(i, base, score=100 - i * .15) for i in range(12)]
+    competing = [
+        sig for sig in itertools.permutations(base)
+        if sig != base and sig != rat_mid and sig[2] != rat
+    ]
+    pool.extend(
+        _candidate(12 + i, sig, score=98.0 - .08 * i)
+        for i, sig in enumerate(competing[:35])
+    )
+    rat_mid_comp = _candidate(100, rat_mid, score=87.0, bot=8.2, mid_jungle=8.1)
+    rat_mid_comp["players"]["Mid"]["role_priority"]["Mid"] = 1
+    pool.append(rat_mid_comp)
+    selected = _select_diverse_recommendations(
+        pool, limit=10, core_limit=4, role_mix_slots=6
+    )
+    assert len(selected) == 10
+    assert any(int(row["players"]["Mid"]["user_id"]) == rat for row in selected[4:])
+    assert len({
+        tuple(row["champions"][role] for role in ROLES)
+        for row in selected
+    }) == 10
+
+
+def test_rat_mid_is_not_forced_when_bot_lane_is_bad():
+    rat, cian, ste, jack, jezz = (
+        270517092703272960, 139837324438536193,
+        286592835850076162, 332490596004659201,
+        400745307467415553,
+    )
+    base = (rat, cian, ste, jack, jezz)
+    bad = _candidate(100, (jack, cian, rat, ste, jezz),
+                     score=92.0, bot=5.0, mid_jungle=8.0)
+    bad["players"]["Mid"]["role_priority"]["Mid"] = 1
+    pool = [_candidate(i, base, score=100 - .2*i) for i in range(12)]
+    pool.append(bad)
+    selected = _select_diverse_recommendations(
+        pool, limit=10, core_limit=4, role_mix_slots=6
+    )
+    assert len(selected) == 10
+    assert all(int(row["players"]["Mid"]["user_id"]) != rat for row in selected)
+
+
+def test_rat_mid_cannot_be_invented_without_ste_adc_pool():
+    cian, rat, jack, ste, jezz = (
+        139837324438536193, 270517092703272960,
+        332490596004659201, 286592835850076162,
+        400745307467415553,
+    )
+    roster = [
+        (cian, "Cian", ["Jungle", "Mid"]),
+        (rat, "Rat", ["Mid", "Top"]),
+        (jack, "Jack", ["ADC", "Top"]),
+        (ste, "Ste", ["Mid", "ADC"]),
+        (jezz, "Jezz", ["Support"]),
+    ]
+    signups = [{
+        "user_id": uid, "display_name": name, "roles": roles,
+        "role_priority": {r: 1 for r in roles},
+        "champions": {r: [f"{name}-{r}"] for r in roles
+                      if not (name == "Ste" and r == "ADC")},
+    } for uid, name, roles in roster]
+    assignments = generate_team_options(signups, limit=24, require_pools=True)
+    assert assignments
+    assert all(int(a["Mid"]["user_id"]) != rat for a in assignments)
+
+
 def test_role_rotations_do_not_invent_missing_submitted_champion_pools():
     players = [
         {"user_id": i, "display_name": str(i), "roles": list(ROLES),

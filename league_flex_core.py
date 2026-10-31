@@ -187,9 +187,10 @@ def generate_team_options(
     results: list[dict[str, dict]] = []
 
     def walk(role_index: int, used: set[int], current: dict[str, dict]):
-        # A wider assignment search is intentional: Priority-3 roles must remain available
-        # when they unlock a materially better champion composition.
-        if len(results) >= max(limit * 24, 80):
+        # Preserve enough complete layouts to reach all players' legal roles.
+        # The previous 24x cap cut off later DFS branches before the role-coverage
+        # pass could find them, even for ordinary 7- or 8-player flex signups.
+        if len(results) >= max(limit * 500, 12000):
             return
         if role_index == len(ROLES):
             results.append(dict(current))
@@ -820,6 +821,26 @@ def _select_diverse_recommendations(
     if not recommendations:
         return []
 
+    # A ten-card gallery can be adventurous without suggesting a broken duo.
+    # Where there are at least ten different, structurally credible champion
+    # lineups, discard weak packages *before* ranking for role novelty. This
+    # retains strong P2/P3 role swaps, but a 5/10 bot lane cannot consume a
+    # slot just because it is the only unseen player-role arrangement.
+    if limit >= 8:
+        credible_gallery = [
+            rec for rec in recommendations
+            if float(rec.get("team_plan_score", 0) or 0) >= 5.8
+            and float(rec.get("bot_lane_score", 0) or 0) >= 6.8
+            and (float(rec.get("mid_jungle_score", 0) or 0) >= 6.5
+                 or float(rec.get("team_plan_score", 0) or 0) >= 7.5)
+        ]
+        distinct_credible = {
+            tuple(rec["champions"][role] for role in ROLES)
+            for rec in credible_gallery
+        }
+        if len(distinct_credible) >= limit:
+            recommendations = credible_gallery
+
     limit = max(1, int(limit))
     mixed = [rec for rec in recommendations if rec.get("credible_mixed_damage", True)]
     if len(mixed) >= min(4, limit):
@@ -942,6 +963,28 @@ def _select_diverse_recommendations(
                      or float(rec.get("team_plan_score", 0) or 0) >= 7.5)
             ]
             if viable_rotations:
+                # Rat explicitly prefers Mid (P1). A scored, strong Rat-Mid
+                # layout should get one trial in cards 5-10 rather than being
+                # crowded out by unrelated role/champion novelty.
+                # Do not bypass submitted roles/pools or quality thresholds.
+                rat_id = 270517092703272960
+                rat_mid_already_shown = any(
+                    int(prev["players"]["Mid"]["user_id"]) == rat_id
+                    for prev in chosen
+                )
+                if not rat_mid_already_shown:
+                    rat_mid_rotations = [
+                        rec for rec in viable_rotations
+                        if int(rec["players"]["Mid"]["user_id"]) == rat_id
+                        and _role_priority_level(rec["players"]["Mid"], "Mid") == 1
+                        and float(rec.get("score", 0)) >= top_score - 16.0
+                        and float(rec.get("team_plan_score", 0) or 0) >= 6.0
+                        and float(rec.get("bot_lane_score", 0) or 0) >= 7.0
+                        and float(rec.get("mid_jungle_score", 0) or 0) >= 7.0
+                    ]
+                    if rat_mid_rotations:
+                        viable_rotations = rat_mid_rotations
+
                 def role_rotation_key(rec):
                     signature = player_signature(rec)
                     novel_pairs = sum(
@@ -1073,6 +1116,24 @@ def _select_diverse_recommendations(
                 # Swapping one role necessarily shifts at least one other
                 # player as well when the same five players are drafting.
                 quality_pool = credible_swaps
+
+        # The flex-gallery fallback must not admit an obviously weak bot lane
+        # merely because its player layout or champion signature is new. The
+        # stronger role-rotation branch above already has these minimums, but
+        # when it has no candidates the ordinary diversity scorer used to pick
+        # weak rotations as if champion novelty alone were sufficient.
+        # Retain the fallback for genuinely sparse portfolios: filter only if
+        # enough credible options exist to fill the remaining visible cards.
+        if tail_role_rotation:
+            credible_tail_pool = [
+                rec for rec in quality_pool
+                if float(rec.get("team_plan_score", 0) or 0) >= 5.8
+                and float(rec.get("bot_lane_score", 0) or 0) >= 6.8
+                and (float(rec.get("mid_jungle_score", 0) or 0) >= 6.5
+                     or float(rec.get("team_plan_score", 0) or 0) >= 7.5)
+            ]
+            if len(credible_tail_pool) >= limit - len(chosen):
+                quality_pool = credible_tail_pool
 
         # One-pick changes are already shown as alternatives inside a role slot.
         different_shells = [rec for rec in quality_pool if min_champion_difference(rec) >= 2]

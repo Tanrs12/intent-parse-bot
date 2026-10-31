@@ -3053,6 +3053,26 @@ def recommend_comps(
             seen_ste_mids.add(name)
         if len(ste_mid_coverage) >= 16:
             break
+    # Protect genuine Rat-Mid choices from the global top-300 cutoff.
+    # This is candidate coverage, not a score boost: only already-selected,
+    # fully scored, structurally credible compositions qualify.
+    rat_mid_coverage = []
+    rat_mids_seen = set()
+    for row in recommendations:
+        if float(row["score"]) < best_score - 16.0:
+            break
+        if int(row["players"]["Mid"]["user_id"]) != 270517092703272960:
+            continue
+        if (float(row.get("team_plan_score", 0)) < 6.0
+            or float(row.get("bot_lane_score", 0)) < 7.0
+            or float(row.get("mid_jungle_score", 0)) < 7.0):
+            continue
+        champion = row["champions"]["Mid"]
+        if champion not in rat_mids_seen:
+            rat_mid_coverage.append(row)
+            rat_mids_seen.add(champion)
+        if len(rat_mid_coverage) >= 4:
+            break
     # Reserve one viable representative per legal player-role assignment.
     # Without this, a top-300 full of different champions for the *same*
     # five-role layout can erase every alternative before portfolio selection.
@@ -3074,7 +3094,9 @@ def recommend_comps(
     reserved = min(len(coverage), max(0, limit // 3))
     mid_reserved = min(len(ste_mid_coverage), max(0, limit // 12))
     role_reserved = len(role_coverage)
-    candidates = (recommendations[:max(0, limit - reserved - mid_reserved - role_reserved)]
+    rat_mid_reserved = min(len(rat_mid_coverage), max(0, limit // 75))
+    candidates = (recommendations[:max(0, limit - reserved - mid_reserved - role_reserved - rat_mid_reserved)]
+                  + rat_mid_coverage[:rat_mid_reserved]
                   + role_coverage + ste_mid_coverage[:mid_reserved] + coverage[:reserved])
     candidates += [row for row in recommendations if id(row) not in coverage_ids]
     unique: list[dict] = []
