@@ -119,6 +119,7 @@ async def _relay_heartbeat(request: web.Request) -> web.Response:
         "leader_name": (leader or {}).get("player_name"),
         "participant_count": len(_active_participants(row)),
         "preference": row.get("preference"),
+        "control": row.get("control"),
         "preference_version": int(row.get("preference_version") or 0),
     })
 
@@ -138,7 +139,7 @@ async def _relay_put(request: web.Request) -> web.Response:
     row["payload"] = payload
     row["updated"] = time.time()
     row["publisher_id"] = publisher_id
-    return web.json_response({"ok": True, "preference": row.get("preference"),
+    return web.json_response({"ok": True, "preference": row.get("preference"), "control": row.get("control"),
                               "preference_version": int(row.get("preference_version") or 0)})
 
 
@@ -156,8 +157,22 @@ async def _relay_preference(request: web.Request) -> web.Response:
     payload = await request.json()
     signature = str(payload.get("signature") or "").strip() or None
     row["preference"] = signature
+    control = payload.get("control")
+    if isinstance(control, dict):
+        # Shared draft control: identity, hard locks and the shake counter travel with the signature.
+        clean = {
+            "signature": signature,
+            "identity": (str(control.get("identity") or "").strip()[:32] or None),
+            "role_locks": {str(k)[:12]: int(v) for k, v in (control.get("role_locks") or {}).items()
+                           if str(v).lstrip("-").isdigit()},
+            "champion_locks": {str(k)[:12]: str(v)[:40] for k, v in (control.get("champion_locks") or {}).items() if v},
+            "shake": int(control.get("shake") or 0),
+        }
+        row["control"] = clean
+    elif "control" in payload and payload.get("control") is None:
+        row["control"] = None
     row["preference_version"] = int(row.get("preference_version") or 0) + 1
-    return web.json_response({"ok": True, "signature": signature,
+    return web.json_response({"ok": True, "signature": signature, "control": row.get("control"),
                               "preference_version": row["preference_version"]})
 
 

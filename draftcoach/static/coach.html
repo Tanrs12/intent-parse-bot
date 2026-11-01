@@ -103,6 +103,22 @@
           <span class="mm-meta" id="action-note"></span>
         </div>
 
+        <section id="control-section" hidden>
+          <header class="coach-section-head"><h3>Draft control</h3><span class="mm-meta" id="control-sync"></span></header>
+          <div class="control-row">
+            <label class="control-field"><span class="mm-meta">Team identity</span>
+              <select id="control-identity"><option value="">Auto (best draft)</option></select></label>
+            <button class="fd-button" id="control-shake" type="button" title="Retire the drafts already shown this game and reshuffle">Shake it up</button>
+          </div>
+          <p class="plan-note" id="control-identity-note"></p>
+          <div class="control-locks" id="control-locks"></div>
+          <div class="control-actions" id="intent-actions" hidden>
+            <span class="mm-meta" id="intent-actions-label"></span>
+            <button class="fd-button" id="intent-hover" type="button">Hover</button>
+            <button class="fd-button primary" id="intent-lock" type="button">Lock in</button>
+          </div>
+        </section>
+
         <section id="captain-section" hidden>
           <header class="coach-section-head"><h3>Draft captain</h3><span class="mm-meta" id="captain-side"></span></header>
           <div class="captain-phase" id="captain-phase"></div>
@@ -540,6 +556,89 @@
       box.append(row);
     }
   }
+  // ---- shared draft control: identity, hard locks, shake, and this seat's hover / lock ----------------
+  // Independent of the INTent UI patch: polls the bridge itself so it works patched or unpatched.
+  let intentGuidance = null, intentControl = null, identityList = [], controlBusy = false;
+  const BRIDGE = "http://127.0.0.1:8766";
+  async function pollDraftControl() {
+    try {
+      const r = await fetch(BRIDGE + "/api/guidance", { cache: "no-store" });
+      intentGuidance = r.ok ? await r.json() : null;
+    } catch (e) { intentGuidance = null; }
+    try {
+      const r = await fetch(BRIDGE + "/api/control", { cache: "no-store" });
+      if (r.ok) { const d = await r.json(); intentControl = d.control; identityList = d.identities || identityList; }
+    } catch (e) { intentControl = null; }
+    if (latest) renderDraftControl(latest);
+  }
+  setInterval(pollDraftControl, 1000);
+  pollDraftControl();
+  async function postControl(update) {
+    if (controlBusy) return;
+    controlBusy = true;
+    try {
+      const r = await fetch(BRIDGE + "/api/control", { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify(update) });
+      if (!r.ok) throw new Error("control " + r.status);
+      const d = await r.json(); if (d.control) intentControl = d.control;
+      toast(update.shake_it_up ? "Shaken: new drafts coming" : "Draft control updated");
+    } catch (e) { toast("Could not update draft control: " + e.message, true); }
+    finally { controlBusy = false; if (latest) renderDraftControl(latest); }
+  }
+  $("control-identity").onchange = () => postControl({ identity: $("control-identity").value || null });
+  $("control-shake").onclick = () => postControl({ shake_it_up: true });
+  function renderDraftControl(snapshot) {
+    const section = $("control-section"), state = snapshot.state, st = snapshot.status || {};
+    const live = state && state.source !== "manual";
+    if (!live || !intentControl) { section.hidden = true; return; }
+    section.hidden = false;
+    const g = intentGuidance && intentGuidance.active ? intentGuidance.guidance : null;
+    const sync = (intentGuidance && intentGuidance.sync) || {};
+    $("control-sync").textContent = (sync.mode ? sync.mode.toUpperCase() + (sync.room ? " \u00b7 " + sync.room : "") : "LOCAL") + (sync.leader ? " \u00b7 captain " + sync.leader : "");
+    const sel = $("control-identity");
+    if (sel.options.length <= 1 && identityList.length) {
+      for (const it of identityList) sel.append(new Option(it.label, it.key));
+    }
+    if (document.activeElement !== sel) sel.value = intentControl.identity || "";
+    const counts = (g && g.identities) || [];
+    const chosen = counts.find((it) => it.key === intentControl.identity);
+    $("control-identity-note").textContent = intentControl.identity
+      ? ((chosen && chosen.description) || "") + (chosen ? " \u00b7 " + chosen.count + " of the current drafts fit." : "")
+      : "Auto: the engine picks the strongest draft for the five. Choose an identity to keep it while a matching draft stays close to the best.";
+    // Hard locks: one row per seated player.
+    const box = $("control-locks"); box.replaceChildren();
+    const roleLocks = intentControl.role_locks || {}, champLocks = intentControl.champion_locks || {};
+    for (const seat of state.our_team || []) {
+      if (!seat.role) continue;
+      const row = D.el("div", "control-lock");
+      const name = D.el("b", "", seat.display_name || seat.role);
+      const roleLabel = D.el("span", "mm-meta", (D.ROLE_SHORT[seat.role] || seat.role));
+      const lockRole = D.el("label", "control-check");
+      const cb = D.el("input"); cb.type = "checkbox"; cb.checked = Number(roleLocks[seat.role] || 0) === Number(seat.user_id || -1) && !!seat.user_id;
+      cb.disabled = !seat.user_id;
+      cb.onchange = () => { const next = { ...roleLocks }; if (cb.checked) next[seat.role] = seat.user_id; else delete next[seat.role]; postControl({ role_locks: next }); };
+      lockRole.append(cb, document.createTextNode(" keep " + (D.ROLE_SHORT[seat.role] || seat.role).toLowerCase()));
+      const champ = D.el("input", "control-champ"); champ.placeholder = "lock champion"; champ.setAttribute("list", "champion-names");
+      champ.value = champLocks[seat.role] || "";
+      champ.onchange = () => { const next = { ...champLocks }; if (champ.value.trim()) next[seat.role] = champ.value.trim(); else delete next[seat.role]; postControl({ champion_locks: next }); };
+      row.append(roleLabel, name, lockRole, champ);
+      if (seat.locked) row.append(D.el("span", "mm-meta", "locked " + seat.locked));
+      box.append(row);
+    }
+    if (!document.getElementById("champion-names")) {
+      const dl = D.el("datalist"); dl.id = "champion-names";
+      for (const n of names) dl.append(new Option(n));
+      document.body.append(dl);
+    }
+    // This seat's action: the bridge's pick for the local player, through this machine's client.
+    const local = snapshot.local, actions = $("intent-actions");
+    const me = (state.our_team || []).find((r) => r.is_local);
+    const pick = g && me && me.user_id ? (g.picks || []).find((pk) => Number(pk.player_id) === Number(me.user_id)) : null;
+    if (!pick || !local || !local.client || !local.can_act || me.locked) { actions.hidden = true; return; }
+    actions.hidden = false;
+    $("intent-actions-label").textContent = "YOUR " + (local.kind === "ban" ? "BAN" : "PICK") + " \u00b7 " + pick.champion + (pick.team_plan ? " \u00b7 " + String(pick.team_plan).toUpperCase() : "");
+    $("intent-hover").onclick = () => clientAct("hover", { champion: pick.champion });
+    $("intent-lock").onclick = () => clientAct("lock", { champion: pick.champion });
+  }
   let captainRanks = new Map();
   async function setCaptainPreference(signature) {
     try {
@@ -784,6 +883,7 @@
     const canPick = ourPick && !locked && draft.current && draft.current.kind === "pick", canBan = ourBan && !locked && draft.current && draft.current.kind === "ban";
     const showBan = !!ourBan;
     renderCaptain(g, state);
+    renderDraftControl(snapshot);
     renderPickOrder(g);
     renderPlans(g, state);
     $("pick-section").hidden = showBan || !state || oursLocked === 5; $("ban-section").hidden = !showBan;

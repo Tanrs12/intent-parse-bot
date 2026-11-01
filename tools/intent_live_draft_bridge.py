@@ -25,7 +25,7 @@ if str(REPO) not in sys.path:
 import league_comp_engine
 import league_multi_source
 import league_aggregate_sources
-from league_draft_backend import _pick_group_meta, recommend_live_drafts
+from league_draft_backend import IDENTITIES, _pick_group_meta, recommend_live_drafts
 from league_flex_core import role_option_limit
 from league_pro_data import refresh_recent_pro_data
 
@@ -94,8 +94,8 @@ def _cloud_get() -> dict:
     return data
 
 
-def _cloud_preference(signature: str | None) -> dict:
-    payload = json.dumps({"signature": signature}).encode("utf-8")
+def _cloud_preference(signature: str | None, control: dict | None = None) -> dict:
+    payload = json.dumps({"signature": signature, "control": control}).encode("utf-8")
     req = urllib.request.Request(_cloud_url("/preference"), data=payload,
                                  headers={"Content-Type": "application/json"}, method="POST")
     with urllib.request.urlopen(req, timeout=6.0) as response:
@@ -109,6 +109,7 @@ def cloud_publish_loop() -> None:
             payload = build_response()
             payload = dict(payload)
             payload["sync"] = {"mode": "cloud-host", "source": _cloud_base}
+            payload["control"] = _get_control()
             control = _cloud_publish(payload)
             _apply_cloud_control(control)
         except Exception:
@@ -242,7 +243,11 @@ def _apply_cloud_control(control: dict) -> None:
     version = int((control or {}).get("preference_version") or 0)
     if version > _cloud_pref_version:
         _cloud_pref_version = version
-        _set_preference((control or {}).get("preference"))
+        shared = (control or {}).get("control")
+        if isinstance(shared, dict):
+            _set_control({**shared, "signature": (control or {}).get("preference")}, replace=True)
+        else:
+            _set_preference((control or {}).get("preference"))
 
 
 def cloud_auto_loop() -> None:
@@ -297,10 +302,10 @@ def _upstream_get() -> dict:
     return data
 
 
-def _upstream_preference(signature: str | None) -> dict:
+def _upstream_preference(signature: str | None, control: dict | None = None) -> dict:
     if not _upstream_base:
         raise RuntimeError("not in follower mode")
-    payload = json.dumps({"signature": signature}).encode("utf-8")
+    payload = json.dumps({"signature": signature, "control": control}).encode("utf-8")
     req = urllib.request.Request(_upstream_base + "/api/intent-preference", data=payload,
                                  headers={"Content-Type": "application/json"}, method="POST")
     with urllib.request.urlopen(req, timeout=6.0) as response:
@@ -342,6 +347,66 @@ _auto_participant_count = 0
 _preference_lock = threading.Lock()
 _preferred_signature: str | None = None
 PREFERENCE_MAX_GAP = 2.5
+# Shared draft control (captain-set, synced to the whole party through the relay):
+#   identity        team identity to keep (see league_draft_backend.IDENTITIES) or None for auto
+#   role_locks      role -> Discord user id: that player must play that role
+#   champion_locks  role -> champion: every draft must contain it (a lock we have not revealed yet)
+#   shake           counter; each increment reshuffles and retires the drafts already shown this game
+_control: dict = {"identity": None, "role_locks": {}, "champion_locks": {}, "shake": 0}
+_shaken_signatures: dict[str, list[str]] = {}       # game id -> signatures retired by shakes
+
+
+def _normalise_control(raw: dict | None) -> dict:
+    raw = raw or {}
+    identity = str(raw.get("identity") or "").strip().casefold() or None
+    if identity not in IDENTITIES:
+        identity = None
+    role_locks = {}
+    for role, uid in (raw.get("role_locks") or {}).items():
+        if role in ROLES and str(uid).lstrip("-").isdigit() and int(uid) > 0:
+            role_locks[role] = int(uid)
+    champion_locks = {role: str(champ)[:40] for role, champ in (raw.get("champion_locks") or {}).items()
+                      if role in ROLES and champ}
+    try:
+        shake = max(0, int(raw.get("shake") or 0))
+    except (TypeError, ValueError):
+        shake = 0
+    return {"identity": identity, "role_locks": role_locks, "champion_locks": champion_locks, "shake": shake}
+
+
+def _get_control() -> dict:
+    with _preference_lock:
+        return {"signature": _preferred_signature, **json.loads(json.dumps(_control))}
+
+
+def _set_control(update: dict | None, *, replace: bool = False) -> dict:
+    """Merge (or replace) the shared control; a changed shake retires the current best draft."""
+    global _control, _preferred_signature, _response_cache_key
+    update = dict(update or {})
+    signature_given = "signature" in update
+    signature = str(update.pop("signature", None) or "").strip() or None
+    with _preference_lock:
+        base = {} if replace else dict(_control)
+        for key in ("identity", "role_locks", "champion_locks", "shake"):
+            if key in update:
+                base[key] = update[key]
+        new = _normalise_control(base)
+        if new["shake"] > int(_control.get("shake") or 0):
+            best = _last_best_signature
+            game = _last_game_id or "live-no-game-id"
+            if best:
+                retired = _shaken_signatures.setdefault(game, [])
+                if best not in retired:
+                    retired.append(best)
+        _control = new
+        if signature_given:
+            _preferred_signature = signature
+    _response_cache_key = None
+    return _get_control()
+
+
+_last_best_signature: str | None = None
+_last_game_id: str | None = None
 _response_cache_key = None
 _response_cache_value = None
 _response_cache_at = 0.0
@@ -590,8 +655,27 @@ def _signup_export_script() -> str:
     return '''import os,asyncio,asyncpg,json\nasync def main():\n c=await asyncpg.connect(os.environ["DATABASE_URL"])\n rows=await c.fetch("select discord_user_id,display_name,roles_json,role_priority_json,champions_json from league_flex_signups order by display_name")\n out=[]\n for r in rows:\n  out.append({"user_id":int(r["discord_user_id"]),"display_name":r["display_name"],"roles":json.loads(r["roles_json"] or "[]"),"role_priority":json.loads(r["role_priority_json"] or "{}"),"champions":json.loads(r["champions_json"] or "{}")})\n print("SIGNUPS_JSON="+json.dumps(out,ensure_ascii=False))\n await c.close()\nasyncio.run(main())\n'''
 
 
+_signup_cache_stamp: float | None = None
+
+
+def _reload_signup_cache_if_changed() -> bool:
+    """Pick up a cache rewritten by Draft Coach (roster seed, /league coach export) or by Northflank."""
+    global _signup_cache_stamp, _response_cache_key
+    try:
+        stamp = SIGNUP_CACHE.stat().st_mtime
+    except OSError:
+        return False
+    if stamp == _signup_cache_stamp:
+        return False
+    _signup_cache_stamp = stamp
+    _load_cached_signups()
+    _response_cache_key = None
+    return True
+
+
 def refresh_signups(force: bool = False):
     global _signups, _last_signup_refresh, _response_cache_key
+    _reload_signup_cache_if_changed()
     now = time.time()
     if not force and now - _last_signup_refresh < SIGNUP_REFRESH_SECONDS:
         return
@@ -1386,7 +1470,8 @@ def build_response():
         return {"active": False, "disabled": True, "reason": f"Disabled in {merged_gate['queue_name'] or 'ARAM'}", **merged_gate}
 
     party = _party_gate()
-    testing = bool(merged_gate.get("is_custom") or merged_gate.get("is_bot"))
+    # A scripted simulation (python run.py --simulate) is a test lobby too: no party gate.
+    testing = bool(merged_gate.get("is_custom") or merged_gate.get("is_bot") or state.get("source") == "simulation")
     known_profiles = _known_live_profile_count(state)
     party_inferred = party.get("party_size") is None and known_profiles >= 3
     # Custom and versus-AI lobbies are allowed for solo visual testing. Normal PvP supports
@@ -1431,7 +1516,16 @@ def build_response():
             (int(row["user_id"]), row.get("champions") or {}) for row in five if row.get("_uncontrolled")
         ],
         "preferred_signature": _get_preference(),
+        "control": _get_control(),
     }, sort_keys=True)
+    control = _get_control()
+    five_ids = {int(row["user_id"]) for row in five if row.get("user_id")}
+    for role, uid in control["role_locks"].items():
+        if uid in five_ids:
+            role_players = {**role_players, role: uid}
+    game_key = str(state.get("game_id") or "live-no-game-id")
+    global _last_game_id
+    _last_game_id = game_key
     global _response_cache_key, _response_cache_value, _response_cache_at
     with _compute_lock:
         now = time.time()
@@ -1456,13 +1550,26 @@ def build_response():
             enemy_roles=_locked_enemy_roles(effective_state),
             side=state.get("side") or "blue",
             limit=10,
-            # Stable through picks/bans, different for a new champ-select ID.
-            rotation_token=str(state.get("game_id") or "live-no-game-id"),
+            # Stable through picks/bans, different for a new champ-select ID; a shake reshuffles it.
+            rotation_token=game_key + (f"#shake{control['shake']}" if control["shake"] else ""),
             preferred_champions=selected_plan,
+            required_champions={role: champ for role, champ in control["champion_locks"].items()
+                                if role not in locked and champ not in unavailable},
+            identity=control["identity"],
+            exclude_signatures=_shaken_signatures.get(game_key, []),
         )
+        guidance = _guidance_from_result(result, effective_state)
+        global _last_best_signature
+        lead = (guidance.get("comps") or [{}])[0]
+        _last_best_signature = lead.get("signature") or (_comp_signature(lead.get("champions")) if lead.get("champions") else None)
+        guidance["control"] = control
+        guidance["identities"] = [{"key": key, "label": spec["label"], "description": spec["description"],
+                                   "count": int((result.get("identities") or {}).get(key, 0))}
+                                  for key, spec in IDENTITIES.items()]
+        guidance["identity"] = result.get("identity")
         response = {"active": True, "disabled": False, "reason": "Intent backend active", "testing": testing,
                     "known_profiles": known_profiles, "party_inferred": party_inferred,
-                    "guidance": _guidance_from_result(result, effective_state), **merged_gate, **party}
+                    "guidance": guidance, "control": control, **merged_gate, **party}
         _response_cache_key = cache_key
         _response_cache_value = response
         _response_cache_at = now
@@ -1542,6 +1649,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/preference":
             self._reply({"signature": _get_preference(), "max_gap": PREFERENCE_MAX_GAP})
             return
+        if path == "/api/control":
+            self._reply({"ok": True, "control": _get_control(),
+                         "identities": [{"key": k, "label": v["label"], "description": v["description"]} for k, v in IDENTITIES.items()]})
+            return
         if path == "/api/test":
             with _test_lock:
                 current = {"bans": list(_test_overrides["bans"]), "enemy": dict(_test_overrides["enemy"]), "ours": dict(_test_overrides["ours"])}
@@ -1559,16 +1670,28 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:
             self._reply({"error": str(exc)}, 400)
             return
-        if path == "/api/preference":
-            signature = payload.get("signature")
+        if path in ("/api/preference", "/api/control"):
+            # One shared control object: the signature plus identity / locks / shake. A preference
+            # post only changes the signature; a control post merges the fields it carries. In a
+            # synced room the relay owns the authoritative copy and every client applies its version.
+            current = _get_control()
+            if path == "/api/control":
+                merged = {**current, **{k: v for k, v in payload.items() if k in ("identity", "role_locks", "champion_locks", "shake", "signature")}}
+                if payload.get("shake") == "+1" or payload.get("shake_it_up"):
+                    merged["shake"] = int(current.get("shake") or 0) + 1
+                control = _normalise_control(merged)
+                signature = merged.get("signature") if "signature" in merged else current.get("signature")
+            else:
+                signature = payload.get("signature")
+                control = _normalise_control(current)
             try:
                 if _cloud_mode in ("follow", "auto"):
-                    self._reply(_cloud_preference(signature))
+                    self._reply(_cloud_preference(signature, control))
                 elif _upstream_base:
-                    self._reply(_upstream_preference(signature))
+                    self._reply(_upstream_preference(signature, control))
                 else:
-                    current = _set_preference(signature)
-                    self._reply({"ok": True, "signature": current, "max_gap": PREFERENCE_MAX_GAP})
+                    _set_control({**control, "signature": signature}, replace=True)
+                    self._reply({"ok": True, "signature": _get_preference(), "control": _get_control(), "max_gap": PREFERENCE_MAX_GAP})
             except Exception as exc:
                 self._reply({"error": str(exc)}, 503)
             return

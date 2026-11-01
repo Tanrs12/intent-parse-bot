@@ -122,6 +122,9 @@ def _pick_group_meta(side: str, position: int) -> dict:
     return {"pick_group": group, "pick_group_label": label, "pick_group_slots": slots}
 
 
+IDENTITY_MAX_GAP = 6.0   # how far an identity-matching draft may trail the best before the engine overrides
+
+
 def _counterpick_window(side: str, ally_locks: Mapping[str, str],
                         enemy_roles: Mapping[str, str]) -> dict[str, float]:
     """Increase lane weight only during a genuine late solo-lane response.
@@ -140,6 +143,44 @@ def _counterpick_window(side: str, ally_locks: Mapping[str, str],
     return {}
 
 
+# Team identities a captain can commit the draft to. Each maps the engine's team_plan labels and
+# archetype tags onto one family, so "keep our identity" is a filter the whole party shares.
+IDENTITIES: dict[str, dict] = {
+    "dive": {"label": "Dive / all-in", "plans": ("dive / all-in",), "archetypes": ("dive",),
+             "description": "Mobile engage that collapses on a target; wins by committing first."},
+    "poke": {"label": "Poke / siege", "plans": ("poke / siege", "poke + side-lane"), "archetypes": ("poke",),
+             "description": "Range and zone control; whittle, then take objectives safely."},
+    "front-to-back": {"label": "Front-to-back", "plans": ("scaling front-to-back",), "archetypes": ("front-to-back engage",),
+                      "description": "Frontline plus a scaling carry; fight in formation."},
+    "protect": {"label": "Protect the carry", "plans": (), "archetypes": ("protect-the-carry",),
+                "description": "Peel and shields around one hypercarry."},
+    "pick": {"label": "Pick / catch", "plans": (), "archetypes": ("pick",),
+             "description": "Control and burst; win by catching one target."},
+    "tempo": {"label": "Tempo skirmish", "plans": ("tempo skirmish",), "archetypes": (),
+              "description": "Early-game skirmishing with a strong mid-jungle."},
+    "split": {"label": "Side-lane / 1-3-1", "plans": (), "archetypes": ("1-3-1 / split-pressure option",),
+              "description": "A split-push threat with a team that can hold four-versus-four."},
+}
+
+
+def draft_identity(rec: Mapping) -> str:
+    """The identity family a scored composition belongs to (``balanced`` when none fits)."""
+    plan = str(rec.get("team_plan") or "")
+    archetypes = set(rec.get("archetypes") or [])
+    for key, spec in IDENTITIES.items():
+        if plan in spec["plans"]:
+            return key
+    for key, spec in IDENTITIES.items():
+        if archetypes & set(spec["archetypes"]):
+            return key
+    return "balanced"
+
+
+def _signature(champions: Mapping[str, str] | None) -> str:
+    champions = champions or {}
+    return "|".join(str(champions.get(role) or "?") for role in ROLES)
+
+
 def recommend_live_drafts(
     signups: list[dict],
     *,
@@ -153,6 +194,9 @@ def recommend_live_drafts(
     limit: int = 10,
     rotation_token: str | None = None,
     preferred_champions: Mapping[str, str] | None = None,
+    required_champions: Mapping[str, str] | None = None,
+    identity: str | None = None,
+    exclude_signatures: Iterable[str] | None = None,
 ) -> dict:
     """Return live draft recommendations using the same brain as ``/league game``.
 
@@ -171,7 +215,16 @@ def recommend_live_drafts(
 
     locked_champions = dict(locked_champions or {})
     hovered_champions = dict(hovered_champions or {})
+    # A captain's hard champion lock (role -> champion) behaves like a lock we have not revealed yet:
+    # every composition must contain it, and it stays available to the search.
+    required_champions = {role: champ for role, champ in dict(required_champions or {}).items()
+                          if role in ROLES and champ and role not in locked_champions}
+    identity = str(identity or "").strip().casefold() or None
+    if identity not in IDENTITIES:
+        identity = None
+    excluded = {str(sig) for sig in (exclude_signatures or ()) if sig}
     unavailable_set = {str(champion) for champion in (unavailable or set())}
+    unavailable_set -= set(required_champions.values())
     # A stale/illegal hover must never override a real ban or lock. Our own hard locks remain
     # available to the constrained scorer because they are already part of our team.
     hovered_champions = {role: champion for role, champion in hovered_champions.items() if champion and champion not in unavailable_set}
@@ -181,12 +234,12 @@ def recommend_live_drafts(
     assignments = generate_team_options(filtered, limit=8)
     assignments = _constrain_assignments(
         assignments,
-        locked_champions=locked_champions,
+        locked_champions={**required_champions, **locked_champions},
         hovered_champions=hovered_champions,
         role_players=role_players,
     )
     if not assignments:
-        return {"recommendations": [], "missing": [], "side": side_key}
+        return {"recommendations": [], "missing": [], "side": side_key, "identity": identity}
 
     counter_leverage = _counterpick_window(side_key, locked_champions, dict(enemy_roles or {}))
     candidates, missing = recommend_comps(
@@ -198,6 +251,22 @@ def recommend_live_drafts(
         full_counter_roles=frozenset(counter_leverage),
         lane_leverage=counter_leverage,
     )
+    for rec in candidates:
+        rec["identity"] = draft_identity(rec)
+    if identity:
+        # Keep the team's identity: compositions of that family lead while any of them is within a
+        # bounded gap of the objectively best draft; a much better off-identity draft still wins.
+        best = float(candidates[0].get("score", 0.0) or 0.0) if candidates else 0.0
+        matching = [rec for rec in candidates if rec["identity"] == identity]
+        if matching and float(matching[0].get("score", 0.0) or 0.0) >= best - IDENTITY_MAX_GAP:
+            others = [rec for rec in candidates if rec["identity"] != identity]
+            candidates = matching + others
+    if excluded:
+        # Shake it up: drafts the party has already seen this game fall behind everything unseen.
+        fresh = [rec for rec in candidates if _signature(rec.get("champions")) not in excluded]
+        stale = [rec for rec in candidates if _signature(rec.get("champions")) in excluded]
+        if fresh:
+            candidates = fresh + stale
     if side_key == "red" and len(locked_champions) == 4 and counter_leverage:
         # R5 is a single decisive pick, not a new /league-game variety gallery.
         # Show the objectively highest-scoring answers first, including lane
@@ -258,4 +327,6 @@ def recommend_live_drafts(
         "missing": missing,
         "side": side_key,
         "hovered_champions": hovered_champions,
+        "identity": identity,
+        "identities": {key: sum(1 for rec in recommendations if rec.get("identity") == key) for key in IDENTITIES},
     }
