@@ -28,7 +28,7 @@ KEY = "#010203"
 GWL_EXSTYLE = -20
 WS_EX_TRANSPARENT, WS_EX_TOOLWINDOW, WS_EX_NOACTIVATE = 0x20, 0x80, 0x08000000
 ROLES = ["Top", "Jungle", "Mid", "ADC", "Support"]
-ROLE_SHORT = {"Top": "TOP", "Jungle": "JGL", "Mid": "MID", "ADC": "ADC", "Support": "SUP"}
+ROLE_SHORT = {"Top": "TOP", "Jungle": "JG", "Mid": "MID", "ADC": "BOT", "Support": "SUP"}
 SM_XVIRTUALSCREEN = 76
 DEAD_HOLD_SECONDS = 20.0
 LIVE_GRACE_SECONDS = 4.0
@@ -351,8 +351,8 @@ class CompOverlay:
         self.font_title.configure(size=-px(13))
         self.font_order.configure(size=-px(17))
         self.font_role.configure(size=-px(12))
-        self.font_player.configure(size=-px(8))
-        self.font_tiny.configure(size=-px(8))
+        self.font_player.configure(size=-px(11))
+        self.font_tiny.configure(size=-px(10))
         c = self.canvas
         c.delete("all")
 
@@ -395,11 +395,12 @@ class CompOverlay:
             side = str(g.get("side") or "blue").upper()
             pug_count = len(comp.get("uncontrolled_roles") or [])
             if dead:
-                head = f"OUT · WAS #{int(comp.get('_was_rank', i + 1))} · {score:.1f} · {side}"
+                head = f"Unavailable · was #{int(comp.get('_was_rank', i + 1))}"
             else:
-                head = f"#{live_rank or first + i + 1} {'BEST' if is_best else 'LIVE'} · {score:.1f} · {side}"
-                if lane:
-                    head += f" · {lane:+.1f}"
+                rank = live_rank or first + i + 1
+                label = "Leading" if is_best else "Alternative"
+                identity = str(comp.get("team_plan") or "Team draft")
+                head = f"#{rank} {label} · {identity}"
             if pug_count:
                 head += f" · {pug_count} PUG" + ("S" if pug_count != 1 else "")
             c.create_text(px(7), y0 + px(4), text=self._fit(head, self.font_title, w - px(14)), anchor="nw", font=self.font_title, fill=accent)
@@ -474,8 +475,7 @@ class CompOverlay:
                 player = str(players.get(role) or role)
                 if role in uncontrolled:
                     player = "PUG · " + player
-                elif len(player) > 10:
-                    player = player[:10]
+
                 c.create_text(cx, player_y, text=self._fit(player, self.font_player, cell_w - px(4)), anchor="n", font=self.font_player, fill=secondary)
 
             # Show only OUR side's ban plan for this exact composition. Portraits are much easier to
@@ -554,10 +554,10 @@ class CompOverlay:
         page_down = bool(self.u.GetAsyncKeyState(0x22) & 0x8000)
         page_up = bool(self.u.GetAsyncKeyState(0x21) & 0x8000)
         max_page = max(0, (len(self.cards) - 1) // VISIBLE_DRAFT_CARDS)
-        if show and page_down and not self._last_page_down and self.page_index < max_page:
+        if show and self.u.GetForegroundWindow() == self.client and page_down and not self._last_page_down and self.page_index < max_page:
             self.page_index += 1
             self._dirty = True
-        if show and page_up and not self._last_page_up and self.page_index > 0:
+        if show and self.u.GetForegroundWindow() == self.client and page_up and not self._last_page_up and self.page_index > 0:
             self.page_index -= 1
             self._dirty = True
         self._last_page_down = page_down
@@ -568,10 +568,12 @@ class CompOverlay:
             available = max(0, cx - virtual_left - 4)
             # Five role columns need real horizontal room. On Cian's layout there is ample space
             # beside League, so use a 420px card strip rather than collapsing to the 150px fallback.
+            if available < 360:
+                self.root.withdraw()
+                self.root.after(33, self._tick)
+                return
             panel_w = min(420, available)
-            if panel_w < 300:
-                panel_w = min(300, max(220, cx - virtual_left))
-            panel_x = max(virtual_left, cx - panel_w - 4)
+            panel_x = cx - panel_w - 4
             rect = (panel_x, cy, panel_w, ch)
             if rect != self.rect:
                 old_size = self.rect[2:]

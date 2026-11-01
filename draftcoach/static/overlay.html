@@ -26,25 +26,60 @@
     </header>
 
     <div class="ov-controls">
-      <label class="ov-format">
-        <span class="mm-meta">Draft</span>
-        <select id="type" aria-describedby="format-help"></select>
-      </label>
-      <span id="format-help" class="sr-only">Choose the draft format before the draft begins.</span>
-      <label class="ov-format">
-        <span class="mm-meta">Identity</span>
-        <select id="identity" aria-label="Team identity to keep"><option value="">Auto</option></select>
-      </label>
-      <button class="fd-text-button" id="shake" type="button" title="Retire the drafts already shown this game and reshuffle">Shake</button>
-      <label class="ov-format">
-        <span class="mm-meta">Plan</span>
-        <select id="plan" aria-label="Composition the team is drafting towards"><option value="">Any plan</option></select>
-      </label>
+      <button class="fd-button" id="settings-open" type="button"
+              aria-haspopup="dialog" aria-controls="draft-settings">
+        Draft settings
+      </button>
+      <span class="ov-settings-state" id="settings-label">Auto identity</span>
       <div class="ov-clock" id="clock-wrap" hidden>
         <span class="mm-icon" data-icon="clock" aria-hidden="true"></span>
-        <span role="timer" aria-live="off" aria-label="Time remaining" id="timer">&mdash;</span>
+        <span role="timer" aria-live="off"
+              aria-label="Time remaining" id="timer">&mdash;</span>
       </div>
     </div>
+
+    <dialog class="ov-settings" id="draft-settings"
+            aria-labelledby="settings-title">
+      <form method="dialog" class="ov-settings-head">
+        <h2 id="settings-title">Draft settings</h2>
+        <button class="fd-button" value="close" autofocus>Done</button>
+      </form>
+
+      <p class="fd-note">Identity and Shake change the shared draft for everyone.</p>
+
+      <div class="ov-settings-fields">
+        <label class="ov-format">
+          <span class="mm-meta">Draft format</span>
+          <select id="type" aria-describedby="format-help"></select>
+        </label>
+        <span id="format-help" class="sr-only">
+          Choose the format before picks or bans begin.
+        </span>
+
+        <label class="ov-format">
+          <span class="mm-meta">Team identity</span>
+          <select id="identity" aria-label="Preferred team identity">
+            <option value="">Auto</option>
+          </select>
+        </label>
+
+        <label class="ov-format ov-settings-wide">
+          <span class="mm-meta">Playbook plan</span>
+          <select id="plan" aria-label="Playbook plan">
+            <option value="">Any plan</option>
+          </select>
+        </label>
+
+        <button class="fd-button ov-settings-wide" id="shake" type="button">
+          Find different drafts
+        </button>
+      </div>
+
+      <p class="fd-note">
+        A preferred identity can be overridden by a substantially stronger draft.
+      </p>
+      <p id="settings-feedback" role="status" aria-live="polite"></p>
+    </dialog>
 
     <main class="ov-body">
       <div class="ov-art" aria-hidden="true">
@@ -80,8 +115,10 @@
         aria-atomic="true"
       ></p>
 
+      <section id="post-draft-summary" class="draft-summary"
+               aria-label="Final team and game plan" hidden></section>
       <div id="order" hidden>
-        <p class="ov-list-label mm-meta" id="order-label">Pick order</p>
+        <p class="ov-list-label mm-meta" id="order-label">Next reveal</p>
         <ol class="ov-order" id="order-list" aria-labelledby="order-label"></ol>
       </div>
       <div id="alternatives" hidden>
@@ -109,6 +146,7 @@
   </section>
 
 <script src="/static/common.js"></script>
+<script src="/static/draft-review.js"></script>
 <script>
 (function () {
   const D = window.Draft;
@@ -138,7 +176,7 @@
     } catch {}
   }
 
-  let graphite = hosted;
+  let graphite = true;
   let savedTheme = null;
 
   try {
@@ -159,6 +197,7 @@
   if (!hosted) { $("minimize").hidden = true; $("close").hidden = true; }
   $("open-coach").addEventListener("click", (event) => { const api = window.pywebview && window.pywebview.api; if (!api || !api.open_coach) return; event.preventDefault(); api.open_coach(); });
   D.hydrateIcons(document);
+  $("settings-open").onclick = () => $("draft-settings").showModal();
   fetch("/api/champions").then((r) => r.json()).then((d) => D.learnIds(d.champions)).catch(() => {});
 
   // ---- draft format -----------------------------------------------------------
@@ -166,44 +205,118 @@
     const wanted = $("type").value;
     typePending = true; $("type").disabled = true;
     try { await D.api("POST", "/api/draft/type", { draft_type: wanted }); }
-    catch (e) { $("detail").textContent = "Couldn’t change draft format. Try again."; if (lastSnapshot) $("type").value = lastSnapshot.draft_type; }
+    catch (e) { $("settings-feedback").textContent = "Couldn’t change draft format. Try again."; if (lastSnapshot) $("type").value = lastSnapshot.draft_type; }
     finally { typePending = false; $("type").disabled = false; }
   };
 
-  // ---- shared draft control (identity, shake) through the INTent bridge ---------
+    // ---- shared draft control and authoritative panel guidance -------------------
   const BRIDGE = "http://127.0.0.1:8766";
   let identityPending = false, identityFilled = false;
+  let panelBridge = null, panelControl = null, controlPolling = false;
+
   async function pollControl() {
+    if (controlPolling || identityPending) return;
+    controlPolling = true;
+
+    const abort = new AbortController();
+    const timeout = setTimeout(() => abort.abort(), 4000);
+
     try {
-      const r = await fetch(BRIDGE + "/api/control", { cache: "no-store" });
-      if (!r.ok) throw new Error(String(r.status));
-      const d = await r.json();
+      const [controlResponse, guidanceResponse] = await Promise.all([
+        fetch(BRIDGE + "/api/control", {
+          cache: "no-store", signal: abort.signal
+        }),
+        fetch(BRIDGE + "/api/guidance", {
+          cache: "no-store", signal: abort.signal
+        })
+      ]);
+
+      if (!controlResponse.ok) {
+        throw new Error("control " + controlResponse.status);
+      }
+
+      const data = await controlResponse.json();
+      panelControl = data.control;
+      panelBridge = guidanceResponse.ok
+        ? await guidanceResponse.json()
+        : { active: false };
+
       const sel = $("identity");
-      if (!identityFilled && d.identities && d.identities.length) { for (const it of d.identities) sel.append(new Option(it.label, it.key)); identityFilled = true; }
-      if (!identityPending && document.activeElement !== sel) sel.value = (d.control && d.control.identity) || "";
-      sel.parentElement.hidden = false; $("shake").hidden = false;
-    } catch (e) { $("identity").parentElement.hidden = true; $("shake").hidden = true; }
+      if (!identityFilled && data.identities?.length) {
+        for (const item of data.identities) {
+          sel.append(new Option(item.label, item.key));
+        }
+        identityFilled = true;
+      }
+
+      if (document.activeElement !== sel) {
+        sel.value = panelControl?.identity || "";
+      }
+      sel.parentElement.hidden = false;
+      $("shake").hidden = false;
+
+      $("settings-label").textContent =
+        sel.selectedOptions[0]?.textContent || "Auto identity";
+      if (!panelBridge.active) {
+        $("settings-label").textContent = "Shared guidance unavailable";
+      }
+    } catch (e) {
+      panelBridge = null;
+      panelControl = null;
+      $("identity").parentElement.hidden = true;
+      $("shake").hidden = true;
+      $("settings-label").textContent = "Shared draft unavailable";
+    } finally {
+      clearTimeout(timeout);
+      controlPolling = false;
+      if (lastSnapshot) render(lastSnapshot);
+    }
   }
-  setInterval(pollControl, 2000); pollControl();
-  $("identity").onchange = async () => {
-    identityPending = true; $("identity").disabled = true;
-    try { await fetch(BRIDGE + "/api/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identity: $("identity").value || null }) }); }
-    catch (e) { $("detail").textContent = "Couldn\u2019t change the team identity."; }
-    finally { identityPending = false; $("identity").disabled = false; }
-  };
-  $("shake").onclick = async () => {
-    $("shake").disabled = true;
-    try { await fetch(BRIDGE + "/api/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ shake_it_up: true }) }); }
-    catch (e) { $("detail").textContent = "Couldn\u2019t shake the drafts."; }
-    finally { $("shake").disabled = false; }
-  };
+
+  async function updatePanelControl(update) {
+    if (identityPending) return;
+    identityPending = true;
+    $("identity").disabled = $("shake").disabled = true;
+    $("settings-feedback").textContent = "Updating shared draft…";
+
+    try {
+      const response = await fetch(BRIDGE + "/api/control", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(update)
+      });
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      const data = await response.json();
+      panelControl = data.control || panelControl;
+      $("settings-feedback").textContent = update.shake_it_up
+        ? "Finding different drafts…"
+        : "Shared identity updated.";
+    } catch (e) {
+      $("identity").value = panelControl?.identity || "";
+      $("settings-feedback").textContent =
+        "Could not update the shared draft. Try again.";
+    } finally {
+      identityPending = false;
+      $("identity").disabled = $("shake").disabled = false;
+      await pollControl();
+    }
+  }
+
+  $("identity").onchange = () =>
+    updatePanelControl({ identity: $("identity").value || null });
+
+  $("shake").onclick = () =>
+    updatePanelControl({ shake_it_up: true });
+
+  setInterval(pollControl, 2000);
+  pollControl();
 
   // ---- plan the team is going with --------------------------------------------
   $("plan").onchange = async () => {
     const wanted = $("plan").value;
     planPending = true; $("plan").disabled = true;
     try { await D.api("POST", "/api/plan/commit", { id: wanted || null }); }
-    catch (e) { $("detail").textContent = "Couldn’t change the plan. Try again."; }
+    catch (e) { $("settings-feedback").textContent = "Couldn’t change the playbook plan. Try again."; }
     finally { planPending = false; $("plan").disabled = false; }
   };
   function renderPlanSelect(g) {
@@ -222,7 +335,7 @@
 
   let orderKey = "";
   function renderOrder(g) {
-    const rows = (g && g.pick_order) || [];
+    const rows = ((g && g.pick_order) || []).filter(r => r.status === "next").slice(0, 2);
     const box = $("order"), list = $("order-list");
     box.hidden = !rows.length;
     const key = rows.map((r) => r.slot + r.champion + r.status).join("|");
@@ -266,7 +379,7 @@
   function setReason(text, warning) { const r = $("detail"); r.textContent = text || ""; r.dataset.warning = String(!!warning); }
   function renderAlternatives(rows) {
     const list = $("alts"); list.replaceChildren();
-    for (const row of rows) {
+    for (const row of rows.slice(0, 1)) {
       const li = D.el("li");
       li.append(D.portrait(row.champion, "", row.champion_id));
       const identity = D.el("span");
@@ -555,11 +668,17 @@
   // ---- render --------------------------------------------------------------------
   function render(snap) {
     lastSnapshot = snap;
+    snap = D.Review.liveSnapshot(snap, panelBridge);
     const st = snap.status || {}, s = snap.state, g = snap.guidance;
     D.learnFromGuidance(g);
     if (!typesFilled && snap.draft_types) { for (const [k, v] of Object.entries(snap.draft_types)) $("type").appendChild(new Option(v.label.replace(/ draft| \(series\)/gi, ""), k)); typesFilled = true; }
     if (!typePending && snap.draft_type && $("type").value !== snap.draft_type) $("type").value = snap.draft_type;
-    const populated = s && s.source === "manual" && (snap.draft && snap.draft.actions || []).length > 0;
+    const populated = !!(
+      snap.draft?.actions?.length ||
+      s?.our_bans?.length || s?.enemy_bans?.length ||
+      s?.our_team?.some(p => p.locked) ||
+      s?.enemy_team?.some(p => p.locked)
+    );
     $("type").disabled = typePending || !!populated;        // live client too: fearless / ranked rules apply to any source
     renderPlanSelect(snap.guidance);
     renderOrder(snap.guidance);
@@ -621,6 +740,28 @@
     renderAlternatives(alts);
     renderChange(snap.last_change, changeAllowed);
     renderActions(snap);
+
+    panel.dataset.started = String(populated);
+    const summary = !st.stale && st.connection !== "error"
+      ? D.Review.summaryModel(snap, g) : null;
+    D.Review.summary($("post-draft-summary"), summary, true);
+
+    $("identity").disabled = identityPending || !!summary;
+    $("shake").disabled = identityPending || !!summary;
+    $("plan").disabled = planPending || !!summary;
+
+    if (summary) {
+      $("order").hidden = true;
+      $("alternatives").hidden = true;
+      $("change").hidden = true;
+      if (panel.dataset.kind !== "swap") {
+        $("statekey").textContent = summary.phase;
+        setLead("summary:" + summary.title, summary.title);
+        setReason("Check champion trades before loading in.");
+      }
+    } else if (!$("actions").hidden) {
+      $("alternatives").hidden = true;
+    }
   }
 
   // ---- clocks -----------------------------------------------------------------
@@ -643,6 +784,8 @@
       $("panel").dataset.mode = "unavailable"; $("panel").dataset.turn = "";
       $("statekey").textContent = "CONNECTION LOST"; setLead("lost", "Reconnecting to Draft Coach"); setReason("Live recommendations are unavailable.");
       renderAlternatives([]); $("change").hidden = true;
+      $("order").hidden = true;
+      D.Review.summary($("post-draft-summary"), null, true);
     }
   });
 })();

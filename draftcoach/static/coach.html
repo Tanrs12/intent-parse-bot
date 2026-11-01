@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/mm/draft-ui.css">
 <link rel="stylesheet" href="/static/mm/draft-coach.css">
 </head>
-<body class="coach-page">
+<body class="coach-page graphite">
 <header class="coach-mast">
   <div class="coach-brand">
     <svg class="ov-mark" viewBox="0 0 36 30" aria-hidden="true"><path fill="currentColor" d="M4 28V2h26v6H11v5h16v6H11v9z"/></svg>
@@ -25,11 +25,11 @@
 </header>
 
 <main class="coach-main">
-  <section class="mm-card coach-lobby" id="lobby-card" aria-labelledby="lobby-title">
-    <header class="fd-card-head"><h2 id="lobby-title">Lobby</h2><span class="mm-meta" id="lobby-sub">Waiting for players</span></header>
+  <details class="mm-card coach-lobby" id="lobby-card" aria-labelledby="lobby-title">
+    <summary class="fd-card-head"><span id="lobby-title">Player links &amp; pools</span><span class="mm-meta" id="lobby-sub">Waiting for players</span></summary>
     <div class="coach-seats" id="lobby"></div>
     <p class="fd-note">Link an account to use that player&rsquo;s champion pools. Default pools remain available for unlinked players.</p>
-  </section>
+  </details>
 
   <div class="coach-workspace">
     <section class="mm-card coach-board" id="board" aria-labelledby="board-title">
@@ -75,7 +75,7 @@
         </div>
       </details>
 
-      <details class="fd-details"><summary>Draft order</summary><p class="fd-note" id="order-sub"></p><div class="seq" id="seq"></div></details>
+      <details class="fd-details"><summary>Draft order</summary><p class="fd-note" id="board-order-description"></p><div class="seq" id="seq"></div></details>
 
       <details class="fd-details" id="series-tools" hidden>
         <summary>Fearless series</summary>
@@ -104,13 +104,14 @@
         </div>
 
         <section id="control-section" hidden>
-          <header class="coach-section-head"><h3>Draft control</h3><span class="mm-meta" id="control-sync"></span></header>
+          <header class="coach-section-head"><h3>Team sheet</h3><span class="mm-meta" id="control-sync"></span></header>
           <div class="control-row">
             <label class="control-field"><span class="mm-meta">Team identity</span>
               <select id="control-identity"><option value="">Auto (best draft)</option></select></label>
             <button class="fd-button" id="control-shake" type="button" title="Retire the drafts already shown this game and reshuffle">Shake it up</button>
           </div>
           <p class="plan-note" id="control-identity-note"></p>
+          <p class="fd-note">Requirements shape every suggested draft. “Lock in” confirms a champion in League.</p>
           <div class="control-locks" id="control-locks"></div>
           <div class="control-actions" id="intent-actions" hidden>
             <span class="mm-meta" id="intent-actions-label"></span>
@@ -120,7 +121,7 @@
         </section>
 
         <section id="captain-section" hidden>
-          <header class="coach-section-head"><h3>Draft captain</h3><span class="mm-meta" id="captain-side"></span></header>
+          <header class="coach-section-head"><h3>Ranked team drafts</h3><span class="mm-meta" id="captain-side"></span></header>
           <div class="captain-phase" id="captain-phase"></div>
           <p class="plan-note" id="captain-locks"></p>
           <p class="captain-preference-note" id="captain-preference"></p>
@@ -146,7 +147,7 @@
         </section>
         <details class="fd-details" id="other-section"><summary id="other-summary">Ban targets</summary><div class="list" id="other"></div></details>
 
-        <details class="fd-details"><summary>Draft analysis</summary>
+        <details class="fd-details" id="analysis-section"><summary>Draft analysis</summary>
           <h3 class="coach-analysis-title">Likely enemy picks</h3><div class="chips" id="likely"></div>
           <h3 class="coach-analysis-title">Available flex picks</h3><div class="chips" id="flex"></div>
           <h3 class="coach-analysis-title">Answers to enemy picks</h3><div class="list" id="counters"></div>
@@ -197,6 +198,7 @@
 <div class="sr-only" id="app-announcement" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <script src="/static/common.js"></script>
+<script src="/static/draft-review.js"></script>
 <script>
 (function () {
   const D = window.Draft;
@@ -211,6 +213,8 @@
   async function act(path, body) { try { return await D.api("POST", path, body); } catch (e) { toast(e.message, true); return null; } }
   function editingText(target) { return target instanceof Element && Boolean(target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')); }
   D.hydrateIcons(document);
+  D.Review.mountCoach();
+  let coachStreamOpen = false;
 
   // ---- drawer ---------------------------------------------------------------------
   function openRoster() { if (drawer.open) return; drawerInvoker = document.activeElement; drawer.showModal(); loadRoster(); }
@@ -567,22 +571,29 @@
     } catch (e) { intentGuidance = null; }
     try {
       const r = await fetch(BRIDGE + "/api/control", { cache: "no-store" });
-      if (r.ok) { const d = await r.json(); intentControl = d.control; identityList = d.identities || identityList; }
+      if (!r.ok) throw new Error("control " + r.status);
+      const d = await r.json();
+      intentControl = d.control;
+      identityList = d.identities || identityList;
     } catch (e) { intentControl = null; }
-    if (latest) renderDraftControl(latest);
+    if (latest) render(latest);
   }
   setInterval(pollDraftControl, 1000);
   pollDraftControl();
   async function postControl(update) {
-    if (controlBusy) return;
+    if (controlBusy) return false;
     controlBusy = true;
     try {
       const r = await fetch(BRIDGE + "/api/control", { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify(update) });
       if (!r.ok) throw new Error("control " + r.status);
       const d = await r.json(); if (d.control) intentControl = d.control;
-      toast(update.shake_it_up ? "Shaken: new drafts coming" : "Draft control updated");
-    } catch (e) { toast("Could not update draft control: " + e.message, true); }
-    finally { controlBusy = false; if (latest) renderDraftControl(latest); }
+      toast(update.shake_it_up ? "Finding different drafts…" : "Shared draft updated.");
+      return true;
+    } catch (e) {
+      toast("Could not update the shared draft: " + e.message, true);
+      return false;
+    }
+    finally { controlBusy = false; if (latest) render(latest); }
   }
   $("control-identity").onchange = () => postControl({ identity: $("control-identity").value || null });
   $("control-shake").onclick = () => postControl({ shake_it_up: true });
@@ -604,26 +615,10 @@
     $("control-identity-note").textContent = intentControl.identity
       ? ((chosen && chosen.description) || "") + (chosen ? " \u00b7 " + chosen.count + " of the current drafts fit." : "")
       : "Auto: the engine picks the strongest draft for the five. Choose an identity to keep it while a matching draft stays close to the best.";
-    // Hard locks: one row per seated player.
-    const box = $("control-locks"); box.replaceChildren();
-    const roleLocks = intentControl.role_locks || {}, champLocks = intentControl.champion_locks || {};
-    for (const seat of state.our_team || []) {
-      if (!seat.role) continue;
-      const row = D.el("div", "control-lock");
-      const name = D.el("b", "", seat.display_name || seat.role);
-      const roleLabel = D.el("span", "mm-meta", (D.ROLE_SHORT[seat.role] || seat.role));
-      const lockRole = D.el("label", "control-check");
-      const cb = D.el("input"); cb.type = "checkbox"; cb.checked = Number(roleLocks[seat.role] || 0) === Number(seat.user_id || -1) && !!seat.user_id;
-      cb.disabled = !seat.user_id;
-      cb.onchange = () => { const next = { ...roleLocks }; if (cb.checked) next[seat.role] = seat.user_id; else delete next[seat.role]; postControl({ role_locks: next }); };
-      lockRole.append(cb, document.createTextNode(" keep " + (D.ROLE_SHORT[seat.role] || seat.role).toLowerCase()));
-      const champ = D.el("input", "control-champ"); champ.placeholder = "lock champion"; champ.setAttribute("list", "champion-names");
-      champ.value = champLocks[seat.role] || "";
-      champ.onchange = () => { const next = { ...champLocks }; if (champ.value.trim()) next[seat.role] = champ.value.trim(); else delete next[seat.role]; postControl({ champion_locks: next }); };
-      row.append(roleLabel, name, lockRole, champ);
-      if (seat.locked) row.append(D.el("span", "mm-meta", "locked " + seat.locked));
-      box.append(row);
-    }
+    D.Review.teamSheet(
+      $("control-locks"), snapshot, g, intentControl,
+      postControl, () => intentControl, names, controlBusy
+    );
     if (!document.getElementById("champion-names")) {
       const dl = D.el("datalist"); dl.id = "champion-names";
       for (const n of names) dl.append(new Option(n));
@@ -640,7 +635,16 @@
     $("intent-lock").onclick = () => clientAct("lock", { champion: pick.champion });
   }
   let captainRanks = new Map();
+  let captainRenderKey = "";
   async function setCaptainPreference(signature) {
+    const current = typeof intentBridge !== "undefined"
+      ? intentBridge.guidance : intentGuidance?.guidance || latest?.guidance;
+    if (signature && !(current?.comps || []).some(comp =>
+      D.ROLES.map(role => comp.champions?.[role] || "?").join("|") === signature
+    )) {
+      toast("That draft is no longer available. Choose a current draft.", true);
+      return;
+    }
     try {
       const r = await fetch("http://127.0.0.1:8766/api/preference", {
         method: "POST", cache: "no-store", headers: { "Content-Type": "text/plain" },
@@ -654,7 +658,26 @@
   function renderCaptain(g, state) {
     const section = $("captain-section"), phase = $("captain-phase"), box = $("captain-comps"), locks = $("captain-locks");
     const comps = (g && g.comps) || [];
-    if (!state || !comps.length) { section.hidden = true; captainRanks = new Map(); return; }
+    if (!state || !comps.length) {
+      section.hidden = true;
+      captainRanks = new Map();
+      captainRenderKey = "";
+      return;
+    }
+    const renderKey = JSON.stringify([g, state.our_team]);
+    if (renderKey === captainRenderKey) return;
+    if (box.matches(":hover, :focus-within")) {
+      section.dataset.waiting = "true";
+      return;
+    }
+    section.dataset.waiting = "false";
+    captainRenderKey = renderKey;
+    const expandedCards = new Set(
+      [...box.querySelectorAll(".captain-comp")]
+        .filter(row => row.querySelector(".captain-detail")?.open)
+        .map(row => row.dataset.signature)
+    );
+    const moreWasOpen = !!box.querySelector(".captain-more")?.open;
     section.hidden = false;
     const syncMode = (typeof intentBridge !== "undefined" && intentBridge.sync && intentBridge.sync.mode) || "local";
     const syncLabel = (syncMode === "cloud-host" || syncMode === "auto-host") ? "HOST" : (syncMode === "follower" || syncMode === "cloud-follower" || syncMode === "auto-follower") ? "SYNCED" : "LOCAL";
@@ -691,7 +714,7 @@
       prefNote.textContent = "No preferred plan · INTent follows the highest live score.";
       prefNote.className = "captain-preference-note";
     } else if (!pref.active) {
-      prefNote.textContent = "Preferred plan is no longer available in the current top six · INTent is drafting normally.";
+      prefNote.textContent = "Your preferred draft is unavailable. Following the leading draft.";
       prefNote.className = "captain-preference-note warn";
     } else if (pref.promoted) {
       prefNote.textContent = "Preferred plan promoted · within " + Number(pref.gap || 0).toFixed(1) + " pts of the best live draft.";
@@ -702,28 +725,44 @@
     }
 
     box.replaceChildren();
+    const more = D.el("details", "fd-details captain-more");
+    more.open = moreWasOpen;
+    more.append(D.el("summary", "", "Show " + Math.max(0, Math.min(10, comps.length) - 3) + " more drafts"));
     const nextRanks = new Map();
-    comps.slice(0, 6).forEach((comp, index) => {
+    comps.slice(0, 10).forEach((comp, index) => {
       const signature = D.ROLES.map((role) => (comp.champions || {})[role] || "?").join("|");
       nextRanks.set(signature, index + 1);
       const previous = captainRanks.get(signature);
       const movement = previous ? previous - (index + 1) : 0;
       const isPreferred = !!comp.preferred || (pref.signature && signature === pref.signature);
       const row = D.el("div", "captain-comp" + (index === 0 ? " lead" : "") + (isPreferred ? " preferred" : ""));
+      row.dataset.signature = signature;
       const head = D.el("div", "captain-comp-head");
       const movementText = previous == null ? (captainRanks.size ? "NEW" : "") : movement > 0 ? "↑" + movement : movement < 0 ? "↓" + Math.abs(movement) : "";
-      head.append(D.el("b", "", "#" + (index + 1) + (index === 0 ? " BEST" : "")), D.el("span", "captain-move " + (movement > 0 ? "up" : movement < 0 ? "down" : ""), movementText));
+      head.append(
+        D.el("b", "", comp.team_plan || "Team draft"),
+        D.el("span", "captain-rank", index === 0 ? "#1 · Leading" : "#" + (index + 1))
+      );
       const prefer = D.el("button", "captain-prefer" + (isPreferred ? " on" : ""), isPreferred ? "Preferred" : "Prefer");
       prefer.type = "button"; prefer.title = "Soft preference: INTent only follows this plan while it remains close to the best score.";
       prefer.onclick = () => setCaptainPreference(isPreferred ? null : signature);
-      head.append(prefer, D.el("span", "captain-score", Number(comp.live_score ?? comp.score ?? 0).toFixed(1)));
+      prefer.setAttribute("aria-pressed", String(isPreferred));
+      head.append(prefer);
       row.append(head);
       const steps = D.el("div", "captain-role-row");
       for (const role of D.ROLES) {
         const champion = (comp.champions || {})[role];
         if (!champion) continue;
         const chip = D.el("span", "chip");
-        chip.append(D.portrait(champion, "tiny", (comp.champion_ids || {})[role]), D.el("b", "", champion), D.el("small", "", D.ROLE_SHORT[role] || role));
+        const owner = comp.players?.[role];
+        const playerName = typeof owner === "string" ? owner : owner?.display_name || "";
+        chip.append(
+          D.el("small", "", D.ROLE_SHORT[role] || role),
+          D.portrait(champion, "", (comp.champion_ids || {})[role]),
+          D.el("b", "", champion),
+          D.el("small", "captain-player", playerName)
+        );
+        chip.title = [role, champion, playerName].filter(Boolean).join(" · ");
         steps.append(chip);
       }
       row.append(steps);
@@ -735,7 +774,10 @@
       if (edge && edge.enemy) notes.push((D.ROLE_SHORT[edge.role] || edge.role) + " into " + edge.enemy);
       if (notes.length) row.append(D.el("div", "plan-note", notes.join(" · ")));
 
-      const detailsBits = [];
+      const detailsBits = [
+        "Model estimate: " + Number(comp.live_score ?? comp.score ?? 0).toFixed(1) +
+        ". For comparing drafts; not a win probability."
+      ];
       const strengths = (comp.strengths || []).slice(0, 3);
       const gaps = (comp.gaps || []).slice(0, 2);
       if (strengths.length) detailsBits.push("Strengths: " + strengths.join(", "));
@@ -747,12 +789,14 @@
       if ((comp.player_fit_notes || []).length) detailsBits.push("Player fit: " + comp.player_fit_notes.slice(0, 2).join(", "));
       if (detailsBits.length) {
         const detail = D.el("details", "captain-detail");
+        detail.open = expandedCards.has(signature);
         detail.append(D.el("summary", "", "Why this plan"));
         for (const bit of detailsBits) detail.append(D.el("div", "captain-detail-line", bit));
         row.append(detail);
       }
-      box.append(row);
+      (index < 3 ? box : more).append(row);
     });
+    if (more.childElementCount > 1) box.append(more);
     captainRanks = nextRanks;
   }
   function banRows(bans, limit, onClick) { return bans.slice(0, limit).map((b, i) => cardRow({ champion: b.champion, champion_id: b.champion_id, why: D.shortBanReason(b), score: b.score.toFixed(1), sub: "estimate", action: "Ban", tags: (b.tags || []).map((t) => ({ text: t, cls: t === "hover" ? "warn" : "blue" })) }, onClick, i === 0)); }
@@ -812,6 +856,11 @@
 
   function render(snapshot) {
     latest = snapshot;
+    snapshot = D.Review.liveSnapshot(snapshot, intentGuidance);
+    if (!coachStreamOpen) snapshot = {
+      ...snapshot,
+      status: { ...snapshot.status, stale: true }
+    };
     const st = snapshot.status || {}, state = snapshot.state, g = snapshot.guidance, draft = snapshot.draft || {};
     D.learnFromGuidance(g);
     const status = $("status");
@@ -845,7 +894,7 @@
     const doneCount = live ? (state.step_index === null || state.step_index === undefined ? (draft.sequence || []).length : state.step_index) : (draft.actions || []).length;
     const currentIndex = live ? state.step_index : stepIndex;
     for (const s of draft.sequence || []) { const span = D.el("span", (s.index < doneCount ? "done" : "") + (currentIndex !== null && s.index === currentIndex ? " current" : ""), s.label); const a = (draft.actions || [])[s.index]; if (a) span.title = a.champion + (a.role ? " (" + a.role + ")" : ""); seq.append(span); }
-    $("order-sub").textContent = (snapshot.draft_types && snapshot.draft_types[snapshot.draft_type] || {}).description || "";
+    $("board-order-description").textContent = (snapshot.draft_types && snapshot.draft_types[snapshot.draft_type] || {}).description || "";
     const ev = $("events"); ev.replaceChildren();
     for (const e of snapshot.events || []) { const row = D.el("div", "ev-" + (e.kind || "info")); row.append(D.el("time", "", new Date(e.t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })), document.createTextNode(e.text)); ev.append(row); }
 
@@ -871,7 +920,7 @@
     else if (ourBan) { const b = bans[0]; key = "Our ban"; if (b) { head.append(D.portrait(b.champion, "", b.champion_id), document.createTextNode("Ban " + b.champion)); reason.textContent = D.shortBanReason(b); } else { head.textContent = "No ban recommendation"; reason.textContent = "Review scouting and ban policy in the roster drawer."; } }
     else { const top = picks[0]; key = ourPick ? "Our pick · " + rolesNow : state.active.kind === "ban" ? "Enemy ban · preparing our pick" : state.active.kind === "pick" ? "Enemy pick · preparing our pick" : "Planning"; if (top) { head.append(D.portrait(top.champion, "", top.champion_id), document.createTextNode(ourPick ? "Pick " + top.champion : top.champion + " leads"), D.el("small", "", (ROLE_LONG[top.role] || top.role) + (top.player && top.player !== top.role ? " · " + top.player : ""))); reason.textContent = D.shortPickReason(top); } else { head.textContent = "No recommendation available"; reason.textContent = "Check player links and pools."; } }
     $("statekey").textContent = key;
-    setHero((head.querySelector(".portrait") || {}).title || "");
+    setHero("");
     const ch = $("change");
     if (snapshot.last_change && Date.now() / 1000 - snapshot.last_change.at < 40 && state && oursLocked < 5) { const k = snapshot.last_change.at + "|" + snapshot.last_change.event; if (k !== changeKey) { changeKey = k; ch.replaceChildren(D.el("b", "", snapshot.last_change.event)); if (snapshot.last_change.effect) ch.append(document.createTextNode(" → "), D.el("span", "effect", snapshot.last_change.effect)); } ch.hidden = false; } else ch.hidden = true;
     const alerts = $("alerts"); alerts.replaceChildren();
@@ -904,12 +953,27 @@
     $("ours-score").textContent = g && g.team ? g.team.score.toFixed(0) : "—"; $("enemy-score").textContent = g && g.enemy_team_score ? g.enemy_team_score.score.toFixed(0) : "—";
     refreshGrid();
     renderClientActions(snapshot);
+    D.Review.coachEnd(
+      snapshot, g,
+      typeof intentBridge !== "undefined" ? intentBridge : intentGuidance,
+      clientAct, acting
+    );
     D.hydrateIcons($("headline"));
   }
 
   setInterval(() => { const t = $("timer"); if (!deadline) { t.textContent = ""; return; } const left = Math.max(0, deadline - Date.now()); t.textContent = String(Math.ceil(left / 1000)).padStart(2, "0") + "s"; t.dataset.urgent = String(left > 0 && left < 8000); }, 250);
   fetch("/api/config").then((r) => r.json()).then((c) => { if (c.watch_dir) $("watch-dir").textContent = c.watch_dir; }).catch(() => {});
-  D.connect(render, (s) => { if (s === "closed") { $("status").textContent = "Server unreachable"; $("status").dataset.mode = "error"; deadline = 0; } });
+  D.connect((snapshot) => {
+    coachStreamOpen = true;
+    render(snapshot);
+  }, (s) => {
+    if (s !== "closed") return;
+    coachStreamOpen = false;
+    deadline = 0;
+    if (latest) render(latest);
+    $("status").textContent = "Server unreachable";
+    $("status").dataset.mode = "error";
+  });
 })();
 </script>
 </body>
