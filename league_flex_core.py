@@ -44,7 +44,7 @@ _CURATED_ROLE_CHAMPIONS = {
         "Kayle", "Kennen", "Kled", "Malphite", "Mordekaiser", "Nasus", "Olaf", "Ornn",
         "Pantheon", "Poppy", "Quinn", "Renekton", "Riven", "Sett", "Shen", "Singed", "Sion",
         "Tahm Kench", "Teemo", "Trundle", "Tryndamere", "Urgot", "Vayne", "Volibear",
-        "Warwick", "Yone", "Yorick", "Zac",
+        "Warwick", "Yone", "Yorick", "Zaahen", "Zac",
     ),
     "Jungle": (
         "Amumu", "Bel'Veth", "Briar", "Diana", "Ekko", "Elise", "Evelynn", "Fiddlesticks",
@@ -52,7 +52,7 @@ _CURATED_ROLE_CHAMPIONS = {
         "Kindred", "Lee Sin", "Lillia", "Maokai", "Master Yi", "Nidalee", "Nocturne",
         "Nunu & Willump", "Olaf", "Poppy", "Rammus", "Rek'Sai", "Rengar", "Sejuani",
         "Shaco", "Shyvana", "Skarner", "Taliyah", "Talon", "Trundle", "Udyr", "Vi",
-        "Viego", "Volibear", "Warwick", "Wukong", "Xin Zhao", "Zac", "Zyra",
+        "Viego", "Volibear", "Warwick", "Wukong", "Xin Zhao", "Zaahen", "Zac", "Zyra",
     ),
     "Mid": (
         "Ahri", "Akali", "Anivia", "Annie", "Aurelion Sol", "Aurora", "Azir", "Cassiopeia",
