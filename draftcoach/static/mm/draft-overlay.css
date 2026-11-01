@@ -5,11 +5,11 @@ html:has(body.fd-overlay) {
 body.fd-overlay {
   --mm-sans: "Segoe UI", sans-serif;
   --mm-mono: Consolas, monospace;
-  --ov-local: #087f77;
-  --ov-team: #84612d;
-  --ov-ban: #a73d4a;
-  --ov-action-ink: #fff;
-  --ov-raised: #e8edef;
+  --ov-local: var(--mm-blue);
+  --ov-team: var(--mm-secondary);
+  --ov-ban: var(--fd-error);
+  --ov-action-ink: var(--fd-action-ink);
+  --ov-raised: var(--fd-raised);
 
   height: 100%;
   margin: 0;
@@ -20,21 +20,6 @@ body.fd-overlay {
 /* Scoped after draft-ui.css: the hosted dark palette matches the HUD. */
 body.fd-overlay.graphite {
   color-scheme: dark;
-  --mm-paper: #0a1219;
-  --mm-surface: #0a1219;
-  --mm-ink: #f0e6d2;
-  --mm-secondary: #b2ada1;
-  --mm-line: #28353e;
-  --mm-blue: #0ac8b9;
-  --mm-pale: #14212b;
-  --mm-warn: #e8b35a;
-  --fd-border: #35434a;
-  --fd-error: #ee7d87;
-  --ov-local: #0ac8b9;
-  --ov-team: #c8aa6e;
-  --ov-ban: #ee7d87;
-  --ov-action-ink: #04100f;
-  --ov-raised: #14212b;
 }
 
 .fd-overlay [hidden] {
@@ -651,4 +636,228 @@ body.fd-overlay.embedded {
 
 .ov-art {
   display: none;
+}
+
+/* A fixed-size panel may scroll secondary content; it never clips actions. */
+.ov-head {
+  flex-basis: 44px;
+  min-height: 44px;
+  padding-inline: 12px;
+}
+.ov-wordmark {
+  font-size: 11px;
+  letter-spacing: .8px;
+}
+.ov-brand .mm-meta {
+  font-size: 11px;
+  line-height: 14px;
+}
+.ov-controls {
+  flex-basis: auto;
+  min-height: 48px;
+  gap: 10px;
+  padding: 4px 14px 10px;
+}
+.ov-controls > .fd-button {
+  flex: none;
+  min-height: 36px;
+  font-size: 13px;
+}
+.ov-settings-state {
+  min-width: 0;
+  flex: 1;
+  color: var(--mm-secondary);
+  font-size: 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ov-clock [role="timer"] {
+  font-size: 22px;
+}
+.ov-body {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  padding: 14px;
+  border-left-width: 3px;
+}
+.ov-phase {
+  font: 12px/16px var(--mm-mono);
+  margin-bottom: 10px;
+}
+.ov-hero {
+  align-items: flex-start;
+}
+.ov-hero .portrait {
+  width: 48px;
+  height: 48px;
+}
+.ov-hero h1 {
+  display: block;
+  overflow: visible;
+  font-size: 26px;
+  line-height: 1.15;
+  letter-spacing: -.4px;
+}
+.ov-recipient {
+  font-size: 12px;
+  line-height: 16px;
+}
+.ov-reason {
+  font-size: 14px;
+  line-height: 20px;
+}
+.ov-actions {
+  margin-top: 14px;
+}
+.fd-overlay .ov-actions .fd-button {
+  min-height: 42px;
+  height: auto;
+  font-size: 15px;
+  line-height: 20px;
+  padding: 9px 10px;
+  white-space: normal;
+  overflow: visible;
+}
+.ov-actions #hover-btn {
+  flex-basis: 88px;
+}
+.ov-action-note {
+  font-size: 12px;
+  line-height: 16px;
+}
+.ov-action-note:empty {
+  display: none;
+}
+.ov-list-label {
+  font-size: 11px;
+  line-height: 15px;
+}
+.ov-order-item {
+  font-size: 13px;
+  line-height: 18px;
+}
+.ov-order-item small {
+  font-size: 11px;
+}
+.ov-alternatives li {
+  grid-template-columns: 28px minmax(0, 1fr) minmax(0, 145px);
+  min-height: 40px;
+}
+.ov-alternatives .portrait {
+  width: 28px;
+  height: 28px;
+}
+.ov-alt-name {
+  font-size: 14px;
+}
+.ov-alt-role, .ov-alt-reason {
+  font-size: 12px;
+}
+.ov-change-slot {
+  min-height: 0;
+  margin-top: 10px;
+  padding-top: 0;
+}
+.ov-change-slot:has([hidden]) {
+  display: none;
+}
+.ov-change {
+  font-size: 12px;
+  line-height: 16px;
+}
+.ov-foot {
+  padding: 9px 14px;
+}
+.ov-foot-meta .mm-meta {
+  font-size: 10px;
+  line-height: 14px;
+}
+.ov-open-coach {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 18px;
+}
+.draft-overlay[data-started="true"] .ov-seats,
+.draft-overlay[data-started="true"] #lobby-count {
+  display: none;
+}
+.draft-overlay[data-started="true"] .ov-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.draft-overlay[data-started="true"] .ov-open-coach {
+  margin-top: 0;
+}
+.ov-settings {
+  width: min(400px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  margin: auto;
+  padding: 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--fd-border);
+  border-radius: 6px;
+  background: var(--mm-surface);
+  color: var(--mm-ink);
+}
+.ov-settings::backdrop {
+  background: #0009;
+}
+.ov-settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ov-settings-head h2 {
+  font-size: 22px;
+  font-weight: 600;
+}
+.ov-settings-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 12px;
+  margin-top: 20px;
+}
+.ov-settings .ov-format {
+  display: grid;
+  gap: 6px;
+}
+.ov-settings .ov-format > .mm-meta {
+  font-size: 12px;
+}
+.ov-settings .ov-format select {
+  width: 100%;
+  max-width: none;
+  min-height: 42px;
+  height: auto;
+  padding: 8px;
+  font-size: 14px;
+}
+.ov-settings-wide {
+  grid-column: 1 / -1;
+}
+#settings-feedback {
+  min-height: 20px;
+  color: var(--mm-warn);
+  font-size: 13px;
+}
+.fd-overlay .summary-five {
+  gap: 8px;
+}
+.fd-overlay .summary-five strong {
+  font-size: 13px;
+}
+.fd-overlay .summary-player {
+  font-size: 11px;
+}
+.fd-overlay .summary-carry {
+  font-size: 14px;
+}
+.fd-overlay .summary-detail > summary {
+  font-size: 13px;
 }

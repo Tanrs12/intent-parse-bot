@@ -235,3 +235,347 @@ button.card:hover:not(:disabled) .champ { color: var(--mm-blue); }
 .control-champ { padding: 4px 6px; font-size: 12px; }
 .control-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--mm-line); }
 .control-actions .mm-meta { flex: 1; }
+
+/* Decision-first coach layout. */
+.coach-main {
+  max-width: 1480px;
+  padding: 24px;
+}
+.coach-workspace {
+  grid-template-columns: minmax(0, 1.12fr) minmax(480px, 1fr);
+  gap: 24px;
+  margin-top: 0;
+}
+.coach-context, .coach-guidance, .coach-support {
+  min-width: 0;
+}
+.coach-context {
+  display: grid;
+  gap: 20px;
+}
+.coach-guidance {
+  position: static;
+}
+.coach-guidance .mm-card {
+  overflow: visible;
+}
+.coach-decision {
+  border-top: 3px solid var(--mm-blue);
+  padding: 24px;
+}
+.coach-hero {
+  display: none;
+}
+.coach-guidance-head,
+.coach-headline,
+.coach-reason {
+  text-shadow: none;
+}
+.coach-guidance-head {
+  align-items: center;
+}
+.coach-guidance-head [role="timer"] {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--mm-ink);
+}
+.coach-headline {
+  flex-wrap: wrap;
+  margin: 14px 0 12px;
+  font-size: 32px;
+  line-height: 1.15;
+  font-weight: 650;
+  letter-spacing: -.65px;
+  overflow-wrap: anywhere;
+}
+.coach-headline .portrait {
+  width: 52px;
+  height: 52px;
+}
+.coach-headline small {
+  flex-basis: 100%;
+  font-size: 12px;
+}
+.coach-reason {
+  font-size: 16px;
+  line-height: 1.5;
+}
+.coach-support {
+  padding: 0 8px;
+}
+.coach-section-head {
+  flex-wrap: wrap;
+}
+.coach-section-head h3 {
+  font-size: 17px;
+  font-weight: 600;
+}
+.coach-lobby {
+  margin-top: 24px;
+}
+.coach-lobby > summary,
+.team-sheet > summary {
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+}
+.coach-lobby > summary {
+  margin-bottom: 0;
+}
+.coach-lobby[open] > summary {
+  margin-bottom: 20px;
+}
+
+.coach-teams {
+  gap: 20px;
+}
+.slot {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  min-height: 72px;
+}
+.slot .portrait {
+  width: 40px;
+  height: 40px;
+}
+.slot .name {
+  font-size: 16px;
+  font-weight: 600;
+}
+.slot .sub {
+  font-size: 13px;
+}
+.slot .role, .slot .state {
+  font-size: 11px;
+}
+.slot.locked-art {
+  background: none;
+}
+.coach-board-controls {
+  gap: 10px;
+}
+
+.control-row {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.control-field {
+  min-width: min(240px, 100%);
+}
+.control-field select {
+  min-height: 40px;
+}
+#control-sync {
+  flex-basis: 100%;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.control-locks {
+  gap: 0;
+}
+.team-sheet-row {
+  display: grid;
+  grid-template-columns:
+    minmax(110px, 1fr) auto minmax(145px, 1.2fr) auto;
+  align-items: end;
+  gap: 8px 12px;
+  padding: 16px 0;
+  border-top: 1px solid var(--mm-line);
+}
+.team-sheet-row[data-local="true"] {
+  border-top-color: var(--mm-blue);
+}
+.sheet-who, .sheet-champion {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.sheet-who strong {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.sheet-role {
+  white-space: nowrap;
+  padding-inline: 10px;
+}
+.sheet-champion input {
+  width: 100%;
+  min-height: 40px;
+}
+.sheet-status {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  color: var(--mm-secondary);
+}
+.control-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  border-top: 0;
+  margin-top: 16px;
+  padding-top: 0;
+}
+.control-actions .mm-meta {
+  flex: 1 0 100%;
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.control-actions .fd-button {
+  min-height: 44px;
+  font-size: 16px;
+}
+.control-actions .primary {
+  flex: 1;
+}
+#intent-hover {
+  min-width: 100px;
+}
+
+.card {
+  grid-template-columns: 40px minmax(0, 1fr);
+}
+.card .portrait {
+  width: 40px;
+  height: 40px;
+}
+.card .champ {
+  font-size: 17px;
+  font-weight: 600;
+}
+.card .role, .card .why {
+  font-size: 13px;
+}
+.card .score, .card .tags {
+  display: none;
+}
+.change, .alert, .plan-note {
+  font-size: 14px;
+}
+#captain-locks {
+  display: none;
+}
+#captain-section[data-waiting="true"]::before {
+  content: "Live changes waiting · move away to refresh";
+  display: block;
+  margin-top: 12px;
+  color: var(--mm-warn);
+  font-size: 12px;
+}
+.captain-phase {
+  padding: 12px;
+}
+.captain-comp {
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid var(--mm-line);
+  border-radius: 4px;
+  background: var(--mm-surface);
+}
+.captain-comp.lead {
+  border-color: var(--mm-blue);
+}
+.captain-comp.preferred {
+  box-shadow: inset 3px 0 var(--mm-blue);
+  padding-left: 16px;
+}
+.captain-comp-head {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.captain-comp-head > b {
+  flex: 1 1 170px;
+  font: 600 18px/1.3 var(--mm-sans);
+  letter-spacing: 0;
+}
+.captain-rank {
+  font: 12px/1.4 var(--mm-mono);
+  color: var(--mm-secondary);
+}
+.captain-prefer {
+  min-height: 36px;
+  margin-left: 0;
+  padding: 7px 12px;
+  font: 600 13px/1.2 var(--mm-sans);
+  text-transform: none;
+}
+.captain-role-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+.captain-role-row .chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  font-size: 14px;
+}
+.captain-role-row .portrait {
+  width: 36px;
+  height: 36px;
+}
+.captain-role-row .chip b {
+  overflow-wrap: anywhere;
+}
+.captain-role-row .chip small {
+  font-size: 11px;
+}
+.captain-role-row .captain-player {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-transform: none;
+  font-family: var(--mm-sans);
+}
+.captain-preference-note,
+.captain-detail,
+.captain-detail-line {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.captain-detail summary {
+  font: 13px/1.5 var(--mm-sans);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.captain-detail-line {
+  margin-top: 8px;
+}
+
+@media (max-width: 1100px) {
+  .coach-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .coach-guidance {
+    grid-row: 1;
+  }
+}
+@media (max-width: 640px) {
+  .coach-main {
+    padding: 14px;
+  }
+  .coach-decision {
+    padding: 20px;
+  }
+  .coach-headline {
+    font-size: 28px;
+  }
+  .team-sheet-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .sheet-champion {
+    grid-column: 1;
+  }
+  .captain-role-row {
+    gap: 6px;
+  }
+  .captain-role-row .chip {
+    font-size: 12px;
+  }
+}

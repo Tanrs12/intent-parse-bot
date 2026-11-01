@@ -6,27 +6,9 @@
 
 :root {
   --fd-fast: 120ms;
-  --fd-control: 180ms;
-  --fd-panel: 240ms;
+  --fd-control: 160ms;
+  --fd-panel: 180ms;
   --fd-ease: cubic-bezier(.22, 1, .36, 1);
-  --fd-border: #c6cdd6;
-  --fd-error: #9b3e48;
-  --fd-error-bg: #f9ecee;
-}
-body.graphite {
-  color-scheme: dark;
-  --mm-paper: #191d23;
-  --mm-surface: #20252d;
-  --mm-ink: #f2f5fa;
-  --mm-secondary: #b0bbc9;
-  --mm-line: #39424f;
-  --mm-blue: #9cb6ff;
-  --mm-pale: #273753;
-  --mm-warn: #f0cf8b;
-  --mm-warn-bg: #443820;
-  --fd-border: #4a5563;
-  --fd-error: #f0a3a8;
-  --fd-error-bg: #44272a;
 }
 
 * { box-sizing: border-box; }
@@ -105,3 +87,88 @@ select:hover, input:hover { border-color: #b8c2d0; }
 @keyframes fd-arrive { from { opacity: .65; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 .fd-arrive { animation: fd-arrive var(--fd-control) var(--fd-ease); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+/* Shared readable scale and portrait treatment. */
+.mm-meta, .mono {
+  font-size: 12px;
+  line-height: 1.4;
+  letter-spacing: .025em;
+}
+.fd-button {
+  min-height: 40px;
+  font-size: 14px;
+}
+.fd-button,
+.fd-icon-button,
+.fd-text-button,
+input[type="search"],
+input[type="text"],
+select,
+textarea {
+  border-radius: var(--mm-radius);
+}
+.fd-button.primary,
+body.graphite .fd-button.primary {
+  color: var(--fd-action-ink);
+}
+.fd-button.primary:hover:not(:disabled) {
+  color: var(--fd-action-ink);
+}
+.fd-note {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.fd-field > span {
+  font-size: 12px;
+}
+.fd-details > summary {
+  min-height: 36px;
+  font-size: 14px;
+}
+.portrait {
+  border-radius: 4px;
+}
+.portrait img {
+  filter: none;
+}
+:where(button, a, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--mm-blue);
+  outline-offset: 3px;
+}
+::selection {
+  background: var(--mm-blue);
+  color: var(--fd-action-ink);
+}
+.summary-five {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  list-style: none;
+  margin: 20px 0 16px;
+  padding: 0;
+}
+.summary-five li {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.summary-five strong {
+  font-size: 16px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.summary-player {
+  color: var(--mm-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.summary-carry {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.summary-detail {
+  margin-top: 12px;
+}

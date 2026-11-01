@@ -41,14 +41,36 @@ WS_EX_TRANSPARENT, WS_EX_TOOLWINDOW, WS_EX_NOACTIVATE = 0x20, 0x80, 0x08000000
 KEY = "#010203"
 ROLE_LONG = {"Top": "Top", "Jungle": "Jungle", "Mid": "Mid", "ADC": "Bot", "Support": "Support"}
 
+LIGHT_THEME = {
+    "surface": "#ffffff",
+    "raised": "#e9eef3",
+    "border": "#8795a6",
+    "ink": "#17212e",
+    "secondary": "#526172",
+    "action": "#08756d",
+    "action_ink": "#ffffff",
+    "team": "#526172",
+    "warn": "#805913",
+    "ban": "#a42d45",
+}
+
+DARK_THEME = {
+    "surface": "#18212c",
+    "raised": "#22303f",
+    "border": "#64758a",
+    "ink": "#f3f5f8",
+    "secondary": "#b4bfcc",
+    "action": "#65d7c7",
+    "action_ink": "#10201e",
+    "team": "#b4bfcc",
+    "warn": "#e6bd79",
+    "ban": "#ff9aab",
+}
+
 THEMES = {
-    "porcelain": {"surface": "#f6f7f8", "border": "#c6cdd6", "ink": "#14171b", "secondary": "#505a66", "action": "#1749ee",
-                  "action_ink": "#ffffff", "warn": "#855b16", "ban": "#9b3e48"},
-    "graphite": {"surface": "#191d23", "border": "#4a5563", "ink": "#f2f5fa", "secondary": "#bdc6d2", "action": "#9cb6ff",
-                 "action_ink": "#14171b", "warn": "#f0cf8b", "ban": "#f0a3a8"},
-    # Sits inside the League client: its own near-black panels, gold hairlines and parchment text.
-    "client": {"surface": "#0a1219", "raised": "#14212b", "border": "#35434a", "ink": "#f0e6d2", "secondary": "#b2ada1",
-               "action": "#0ac8b9", "action_ink": "#04100f", "team": "#c8aa6e", "warn": "#e8b35a", "ban": "#ee7d87"},
+    "porcelain": dict(LIGHT_THEME),
+    "graphite": dict(DARK_THEME),
+    "client": dict(DARK_THEME),
 }
 
 # Where the card sits, as fractions of the client window. The client leaves these corners empty in
@@ -161,7 +183,7 @@ def decide(snapshot: dict) -> tuple[dict | None, dict | None]:
             "key": f"human-hover:{human_hover.get('role')}:{human_hover.get('champion')}:{hover_actionable}",
             "turn": "local" if hover_actionable else "", "kind": "pick",
             "title": str(human_hover.get("champion") or "Hovered champion"),
-            "reason": "All six plans re-ranked around your hover",
+            "reason": "Plans updated for your hover",
             "meta": "YOUR HOVER · " + role(human_hover.get("role")),
             "champion": human_hover.get("champion"),
             "champion_id": human_hover.get("champion_id"),
@@ -176,7 +198,7 @@ def decide(snapshot: dict) -> tuple[dict | None, dict | None]:
             "turn": "local" if preview_actionable else "team", "kind": "pick",
             "title": str(preview.get("champion") or "No recommendation yet"),
             "reason": "Next planned team pick",
-            "meta": "TEAM PICK ? " + role(preview.get("role")),
+            "meta": "TEAM PICK · " + role(preview.get("role")),
             "champion": preview.get("champion"),
             "champion_id": preview.get("champion_id"),
             "warning": False,
@@ -560,16 +582,16 @@ class NativeHud:
         # advisor output, so smaller type preserves the clean in-client feel instead of looking like
         # a floating settings panel.
         self.fonts["title"].configure(
-            family="Segoe UI", size=-px(13), weight="bold"
+            family="Segoe UI", size=-px(16), weight="bold"
         )
         self.fonts["reason"].configure(
-            family="Segoe UI", size=-px(9), weight="normal"
+            family="Segoe UI", size=-px(12), weight="normal"
         )
         self.fonts["meta"].configure(
-            family="Consolas", size=-px(7), weight="normal"
+            family="Consolas", size=-px(10), weight="normal"
         )
         self.fonts["button"].configure(
-            family="Segoe UI", size=-px(11), weight="bold"
+            family="Segoe UI", size=-px(12), weight="bold"
         )
 
         def fit(value: str, font: tkfont.Font, width: int) -> str:
@@ -776,7 +798,7 @@ class NativeHud:
                         "hover", False, left, first_width,
                     ),
                     (
-                        "Lock ban" if kind == "ban" else "Lock in",
+                        "Ban" if kind == "ban" else "Lock in",
                         "lock", True,
                         left + first_width + gap,
                         right - left - first_width - gap,
