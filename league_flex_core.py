@@ -903,6 +903,32 @@ def _select_diverse_recommendations(
     seen_lineups = {champion_signature(first)}
     remaining = [rec for rec in recommendations if champion_signature(rec) not in seen_lineups]
 
+    # Pre-game gallery only: Rat and Ste are both P1 Mid players. The old
+    # one-time Rat exception could show him just once (or not at all) while
+    # ten cards repeatedly assigned weaker secondary roles. Aim for three
+    # strong, legal Mid drafts each, and leave the other slots open to flex.
+    # Live/locked drafts must never be affected by portfolio quotas.
+    balance_mid_gallery = limit >= 8 and core_limit >= 4 and role_mix_slots >= 4
+    preferred_mid_ids = (270517092703272960, 286592835850076162)
+    mid_targets = {}
+    if balance_mid_gallery:
+        for uid in preferred_mid_ids:
+            eligible = {
+                champion_signature(rec)
+                for rec in recommendations
+                if int(rec["players"]["Mid"]["user_id"]) == uid
+                and _role_priority_level(rec["players"]["Mid"], "Mid") == 1
+                and float(rec.get("score", 0)) >= top_score - 16.0
+                and float(rec.get("team_plan_score", 0) or 0) >= 6.0
+                and float(rec.get("bot_lane_score", 0) or 0) >= 7.0
+                and float(rec.get("mid_jungle_score", 0) or 0) >= 7.0
+            }
+            if eligible:
+                mid_targets[uid] = min(3, len(eligible))
+
+    def mid_usage(uid: int) -> int:
+        return sum(int(rec["players"]["Mid"]["user_id"]) == uid for rec in chosen)
+
     def min_champion_difference(rec: dict) -> int:
         sig = champion_signature(rec)
         return min(
@@ -945,6 +971,80 @@ def _select_diverse_recommendations(
             quality_pool = strong_before_rotation
 
         if tail_role_rotation:
+            # Fill outstanding P1 Mid coverage using distinct, fully-scored
+            # champion lineups. Do not require a never-seen role assignment:
+            # a good Rat-Mid setup with a different five is still a new draft.
+            # Prefer new layouts when possible, then stronger compositions.
+            due_mid = [
+                rec for rec in remaining
+                if int(rec["players"]["Mid"]["user_id"]) in mid_targets
+                and mid_usage(int(rec["players"]["Mid"]["user_id"]))
+                    < mid_targets[int(rec["players"]["Mid"]["user_id"])]
+                and _role_priority_level(rec["players"]["Mid"], "Mid") == 1
+                and float(rec.get("score", 0)) >= top_score - 16.0
+                and float(rec.get("team_plan_score", 0) or 0) >= 6.0
+                and float(rec.get("bot_lane_score", 0) or 0) >= 7.0
+                and float(rec.get("mid_jungle_score", 0) or 0) >= 7.0
+            ]
+            if due_mid:
+                # Help the most underrepresented Mid player first.
+                target_uid = min(
+                    {int(rec["players"]["Mid"]["user_id"]) for rec in due_mid},
+                    key=lambda uid: (mid_usage(uid), -mid_targets[uid], uid),
+                )
+                due_mid = [
+                    rec for rec in due_mid
+                    if int(rec["players"]["Mid"]["user_id"]) == target_uid
+                ]
+                used_assignments = {player_signature(prev) for prev in chosen}
+                winner = max(
+                    due_mid,
+                    key=lambda rec: (
+                        int(player_signature(rec) not in used_assignments),
+                        min_champion_difference(rec),
+                        float(rec.get("score", 0)),
+                    ),
+                )
+                chosen.append(winner)
+                seen_lineups.add(champion_signature(winner))
+                remaining = [
+                    rec for rec in remaining
+                    if champion_signature(rec) not in seen_lineups
+                ]
+                continue
+
+            # Four Mid games is enough for either P1 specialist when other
+            # strong, legal Mid owners can take the remaining flex cards.
+            # This is a soft ceiling: never replace a solid plan with a weak
+            # bot lane or an invented secondary-role champion just to hit it.
+            saturated = {uid for uid in mid_targets if mid_usage(uid) >= 4}
+            if saturated:
+                alternate_mids = [
+                    rec for rec in remaining
+                    if int(rec["players"]["Mid"]["user_id"]) not in saturated
+                    and float(rec.get("score", 0)) >= top_score - 16.0
+                    and float(rec.get("team_plan_score", 0) or 0) >= 6.0
+                    and float(rec.get("bot_lane_score", 0) or 0) >= 7.0
+                    and float(rec.get("mid_jungle_score", 0) or 0) >= 7.0
+                ]
+                if alternate_mids:
+                    used_assignments = {player_signature(prev) for prev in chosen}
+                    winner = max(
+                        alternate_mids,
+                        key=lambda rec: (
+                            int(player_signature(rec) not in used_assignments),
+                            min_champion_difference(rec),
+                            float(rec.get("score", 0)),
+                        ),
+                    )
+                    chosen.append(winner)
+                    seen_lineups.add(champion_signature(winner))
+                    remaining = [
+                        rec for rec in remaining
+                        if champion_signature(rec) not in seen_lineups
+                    ]
+                    continue
+
             # Make the *role layout* the first-class unit for drafts 5–10.
             # Previous code promoted Ste-Mid / ADC champion novelty before
             # evaluating swaps, often erasing the flex options entirely.

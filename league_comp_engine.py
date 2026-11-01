@@ -3099,7 +3099,7 @@ def recommend_comps(
     # This is candidate coverage, not a score boost: only already-selected,
     # fully scored, structurally credible compositions qualify.
     rat_mid_coverage = []
-    rat_mids_seen = set()
+    rat_mid_lineups_seen = set()
     for row in recommendations:
         if float(row["score"]) < best_score - 16.0:
             break
@@ -3109,11 +3109,13 @@ def recommend_comps(
             or float(row.get("bot_lane_score", 0)) < 7.0
             or float(row.get("mid_jungle_score", 0)) < 7.0):
             continue
-        champion = row["champions"]["Mid"]
-        if champion not in rat_mids_seen:
+        # Three Mid appearances do not require three different Mid champions.
+        # Keep distinct scored full-team shells even when Rat has a narrow pool.
+        lineup = tuple(row["champions"][role] for role in ROLES)
+        if lineup not in rat_mid_lineups_seen:
             rat_mid_coverage.append(row)
-            rat_mids_seen.add(champion)
-        if len(rat_mid_coverage) >= 4:
+            rat_mid_lineups_seen.add(lineup)
+        if len(rat_mid_coverage) >= 8:
             break
     # Reserve one viable representative per legal player-role assignment.
     # Without this, a top-300 full of different champions for the *same*
