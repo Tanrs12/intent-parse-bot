@@ -7,6 +7,8 @@ and the desktop app import this module without needing discord.py, asyncpg or Pi
 """
 from __future__ import annotations
 
+from league_player_identity import RAT_HISTORY_DISCORD_ID, canonical_player_id, is_rat
+
 import hashlib
 import json
 import logging
@@ -113,6 +115,10 @@ def _role_priority_level(player: dict, role: str) -> int | None:
     """Return a role's 1/2/3 preference, including the legacy primary/secondary/fill shape."""
     if role not in (player.get("roles") or []):
         return None
+    # Rat changed Discord accounts. His confirmed P1 is Mid; do not make
+    # his secondary/flex roles equivalent to Mid due to stale signup data.
+    if is_rat(player.get("user_id") or 0) and role == "Mid":
+        return 1
     preference = player.get("role_priority") or {}
 
     # New format: {"Top": 2, "Jungle": 1, ...}
@@ -122,7 +128,7 @@ def _role_priority_level(player: dict, role: str) -> int | None:
     except (TypeError, ValueError):
         level = None
     if level in {1, 2, 3}:
-        return level
+        return max(2, level) if is_rat(player.get("user_id") or 0) else level
 
     # Backward compatibility for the old Primary / Secondary / Fill format.
     if role == preference.get("primary"):
@@ -909,14 +915,14 @@ def _select_diverse_recommendations(
     # strong, legal Mid drafts each, and leave the other slots open to flex.
     # Live/locked drafts must never be affected by portfolio quotas.
     balance_mid_gallery = limit >= 8 and core_limit >= 4 and role_mix_slots >= 4
-    preferred_mid_ids = (270517092703272960, 286592835850076162)
+    preferred_mid_ids = (RAT_HISTORY_DISCORD_ID, 286592835850076162)
     mid_targets = {}
     if balance_mid_gallery:
         for uid in preferred_mid_ids:
             eligible = {
                 champion_signature(rec)
                 for rec in recommendations
-                if int(rec["players"]["Mid"]["user_id"]) == uid
+                if canonical_player_id(rec["players"]["Mid"]["user_id"]) == uid
                 and _role_priority_level(rec["players"]["Mid"], "Mid") == 1
                 and float(rec.get("score", 0)) >= top_score - 16.0
                 and float(rec.get("team_plan_score", 0) or 0) >= 6.0
@@ -925,9 +931,42 @@ def _select_diverse_recommendations(
             }
             if eligible:
                 mid_targets[uid] = min(3, len(eligible))
+        # If Rat is the only P1 mid on this actual five, he should play Mid
+        # on most prepared drafts, not just three cards as if Ste were present.
+        if RAT_HISTORY_DISCORD_ID in mid_targets and 286592835850076162 not in mid_targets:
+            uid = RAT_HISTORY_DISCORD_ID
+            mid_targets[uid] = min(7, limit - 2, len({
+                champion_signature(rec) for rec in recommendations
+                if is_rat(rec["players"]["Mid"]["user_id"])
+                and float(rec.get("score", 0)) >= top_score - 16.0
+                and float(rec.get("team_plan_score", 0) or 0) >= 6.0
+                and float(rec.get("bot_lane_score", 0) or 0) >= 7.0
+                and float(rec.get("mid_jungle_score", 0) or 0) >= 7.0
+            }))
 
     def mid_usage(uid: int) -> int:
-        return sum(int(rec["players"]["Mid"]["user_id"]) == uid for rec in chosen)
+        return sum(canonical_player_id(rec["players"]["Mid"]["user_id"]) == uid for rec in chosen)
+
+    # The first draft is still quality-first, but when Rat is the roster's
+    # only true Mid main, don't lead with a secondary-role Mid if a Rat-Mid
+    # full-team plan is already within a small quality window.
+    if mid_targets.get(RAT_HISTORY_DISCORD_ID, 0) > 3 and not mid_usage(RAT_HISTORY_DISCORD_ID):
+        opener = [
+            rec for rec in recommendations
+            if is_rat(rec["players"]["Mid"]["user_id"])
+            and float(rec.get("score", 0)) >= top_score - 6.0
+            and float(rec.get("team_plan_score", 0) or 0) >= 6.0
+            and float(rec.get("bot_lane_score", 0) or 0) >= 7.0
+            and float(rec.get("mid_jungle_score", 0) or 0) >= 7.0
+        ]
+        if opener:
+            first = max(opener, key=lambda rec: float(rec.get("score", 0)))
+            chosen = [first]
+            seen_lineups = {champion_signature(first)}
+            remaining = [
+                rec for rec in recommendations
+                if champion_signature(rec) not in seen_lineups
+            ]
 
     def min_champion_difference(rec: dict) -> int:
         sig = champion_signature(rec)
@@ -977,9 +1016,9 @@ def _select_diverse_recommendations(
             # Prefer new layouts when possible, then stronger compositions.
             due_mid = [
                 rec for rec in remaining
-                if int(rec["players"]["Mid"]["user_id"]) in mid_targets
-                and mid_usage(int(rec["players"]["Mid"]["user_id"]))
-                    < mid_targets[int(rec["players"]["Mid"]["user_id"])]
+                if canonical_player_id(rec["players"]["Mid"]["user_id"]) in mid_targets
+                and mid_usage(canonical_player_id(rec["players"]["Mid"]["user_id"]))
+                    < mid_targets[canonical_player_id(rec["players"]["Mid"]["user_id"])]
                 and _role_priority_level(rec["players"]["Mid"], "Mid") == 1
                 and float(rec.get("score", 0)) >= top_score - 16.0
                 and float(rec.get("team_plan_score", 0) or 0) >= 6.0
@@ -989,12 +1028,12 @@ def _select_diverse_recommendations(
             if due_mid:
                 # Help the most underrepresented Mid player first.
                 target_uid = min(
-                    {int(rec["players"]["Mid"]["user_id"]) for rec in due_mid},
+                    {canonical_player_id(rec["players"]["Mid"]["user_id"]) for rec in due_mid},
                     key=lambda uid: (mid_usage(uid), -mid_targets[uid], uid),
                 )
                 due_mid = [
                     rec for rec in due_mid
-                    if int(rec["players"]["Mid"]["user_id"]) == target_uid
+                    if canonical_player_id(rec["players"]["Mid"]["user_id"]) == target_uid
                 ]
                 used_assignments = {player_signature(prev) for prev in chosen}
                 winner = max(
@@ -1017,11 +1056,11 @@ def _select_diverse_recommendations(
             # strong, legal Mid owners can take the remaining flex cards.
             # This is a soft ceiling: never replace a solid plan with a weak
             # bot lane or an invented secondary-role champion just to hit it.
-            saturated = {uid for uid in mid_targets if mid_usage(uid) >= 4}
+            saturated = {uid for uid in mid_targets if mid_usage(uid) >= (4 if len(mid_targets) >= 2 else mid_targets[uid])}
             if saturated:
                 alternate_mids = [
                     rec for rec in remaining
-                    if int(rec["players"]["Mid"]["user_id"]) not in saturated
+                    if canonical_player_id(rec["players"]["Mid"]["user_id"]) not in saturated
                     and float(rec.get("score", 0)) >= top_score - 16.0
                     and float(rec.get("team_plan_score", 0) or 0) >= 6.0
                     and float(rec.get("bot_lane_score", 0) or 0) >= 7.0
@@ -1067,15 +1106,15 @@ def _select_diverse_recommendations(
                 # layout should get one trial in cards 5-10 rather than being
                 # crowded out by unrelated role/champion novelty.
                 # Do not bypass submitted roles/pools or quality thresholds.
-                rat_id = 270517092703272960
+                rat_id = RAT_HISTORY_DISCORD_ID
                 rat_mid_already_shown = any(
-                    int(prev["players"]["Mid"]["user_id"]) == rat_id
+                    canonical_player_id(prev["players"]["Mid"]["user_id"]) == rat_id
                     for prev in chosen
                 )
                 if not rat_mid_already_shown:
                     rat_mid_rotations = [
                         rec for rec in viable_rotations
-                        if int(rec["players"]["Mid"]["user_id"]) == rat_id
+                        if canonical_player_id(rec["players"]["Mid"]["user_id"]) == rat_id
                         and _role_priority_level(rec["players"]["Mid"], "Mid") == 1
                         and float(rec.get("score", 0)) >= top_score - 16.0
                         and float(rec.get("team_plan_score", 0) or 0) >= 6.0
@@ -1258,11 +1297,11 @@ def _select_diverse_recommendations(
         used_mj = {mid_jungle_package(rec) for rec in chosen}
         used_carry_roles = {(rec.get("carry_plan") or {}).get("role") for rec in chosen}
         used_champions = {champ for prev in chosen for champ in champion_signature(prev)}
-        rat_id = 270517092703272960
+        rat_id = RAT_HISTORY_DISCORD_ID
         rat_used_picks = {
             (role, prev["champions"][role])
             for prev in chosen for role in ROLES
-            if int(prev["players"][role]["user_id"]) == rat_id
+            if is_rat(prev["players"][role]["user_id"])
         }
 
         def diversity_key(rec: dict):
@@ -1300,7 +1339,7 @@ def _select_diverse_recommendations(
             new_jungle = int((int(rec["players"]["Jungle"]["user_id"]), rec["champions"]["Jungle"]) not in used_jungles)
             new_mid = int((int(rec["players"]["Mid"]["user_id"]), rec["champions"]["Mid"]) not in used_mids)
             rat_new_pick = int(any(
-                int(rec["players"][role]["user_id"]) == rat_id
+                is_rat(rec["players"][role]["user_id"])
                 and (role, rec["champions"][role]) not in rat_used_picks
                 for role in ("Mid", "Top", "Jungle")
             ))

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from league_source_stats import source_mtime_ns, source_stat_scope
+from league_player_identity import RAT_CURRENT_DISCORD_ID, RAT_HISTORY_DISCORD_ID, canonical_player_id, is_rat
 from league_patch_live import (
     LIVE_PATCH, live_patch_active, live_patch_role_adjustment,
     live_patch_draft_adjustment,
@@ -59,7 +60,7 @@ def _read_explicit_champion_confirmations() -> dict:
 
 
 def _explicitly_confirmed_player_pick(uid: int, role: str, champion: str) -> bool:
-    per_role = _read_explicit_champion_confirmations().get(str(uid), {})
+    per_role = _read_explicit_champion_confirmations().get(str(canonical_player_id(uid)), {})
     return champion in (per_role.get(role) or [])
 
 # Temporary bridge from Demacia Cup 26.18 evidence to the Worlds 26.20 patch.
@@ -316,6 +317,8 @@ def load_recent_match_index() -> dict[int, dict]:
             },
             "queue_counts": queue_counts,
         }
+    if RAT_HISTORY_DISCORD_ID in output:
+        output[RAT_CURRENT_DISCORD_ID] = output[RAT_HISTORY_DISCORD_ID]
     return output
 
 
@@ -608,11 +611,13 @@ def load_player_score_index() -> dict[int, dict]:
             "recent_blend": round(float(summary.get("_recent_blend", 0) or 0), 3),
             "recent_effective_games": round(float(summary.get("_recent_effective_games", 0) or 0), 2),
         }
+    if RAT_HISTORY_DISCORD_ID in output:
+        output[RAT_CURRENT_DISCORD_ID] = output[RAT_HISTORY_DISCORD_ID]
     return output
 
 
 def _profile_for(user_id: int) -> dict:
-    return load_player_profiles().get("players", {}).get(str(user_id), {})
+    return load_player_profiles().get("players", {}).get(str(canonical_player_id(user_id)), {})
 
 
 @lru_cache(maxsize=None)
@@ -2738,7 +2743,7 @@ def _role_search_pool_limit(player: dict, role: str, default: int) -> int:
         return max(int(default), 16)
     if uid == 139837324438536193:
         return max(int(default), 18 if role in {"Jungle", "Mid", "ADC"} else 14)
-    if uid == 270517092703272960 and role in {"Mid", "Top", "Jungle"}:
+    if is_rat(uid) and role in {"Mid", "Top", "Jungle"}:
         # Rat's selected flexible-role pool should not disappear under generic
         # ten-champion pruning; this does not add unsubmitted picks.
         return max(int(default), 16)
@@ -3103,7 +3108,7 @@ def recommend_comps(
     for row in recommendations:
         if float(row["score"]) < best_score - 16.0:
             break
-        if int(row["players"]["Mid"]["user_id"]) != 270517092703272960:
+        if not is_rat(row["players"]["Mid"]["user_id"]):
             continue
         if (float(row.get("team_plan_score", 0)) < 6.0
             or float(row.get("bot_lane_score", 0)) < 7.0
@@ -3222,7 +3227,7 @@ def attach_learn_suggestions(recommendations: list[dict], meta: dict | None = No
             # Rat asked for broader choices across his flex roles. Keep extra
             # learn ideas clearly advisory, never primary picks unless he adds
             # them to the live Discord signup himself.
-            rat_flex = uid == 270517092703272960 and role in {"Mid", "Top", "Jungle"}
+            rat_flex = is_rat(uid) and role in {"Mid", "Top", "Jungle"}
             if len(submitted.get(role, [])) > 3:
                 continue
             base = base_champions[role]
