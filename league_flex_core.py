@@ -975,6 +975,35 @@ def _select_diverse_recommendations(
             for prev in chosen
         )
 
+    def _prefer_underused_plans(candidates: list[dict], *, score_loss: float = 5.0) -> list[dict]:
+        """Avoid three copies of the same strategic plan when comparable
+        completed team plans are available. Preserve the current role/comfort
+        restrictions: filter only the already viable candidate pool.
+        """
+        if len(candidates) < 2 or not chosen:
+            return candidates
+        best = max(float(rec.get("score", 0)) for rec in candidates)
+        competitive = [
+            rec for rec in candidates
+            if float(rec.get("score", 0)) >= best - score_loss
+            and float(rec.get("team_plan_score", 0) or 0) >= 6.0
+            and float(rec.get("bot_lane_score", 0) or 0) >= 7.0
+            and (float(rec.get("mid_jungle_score", 0) or 0) >= 7.0
+                 or float(rec.get("team_plan_score", 0) or 0) >= 7.5)
+        ]
+        if len(competitive) < 2:
+            return candidates
+        counts = {}
+        for prev in chosen:
+            plan = str(prev.get("team_plan", "balanced"))
+            counts[plan] = counts.get(plan, 0) + 1
+        minimum = min(counts.get(str(rec.get("team_plan", "balanced")), 0) for rec in competitive)
+        preferred = [
+            rec for rec in competitive
+            if counts.get(str(rec.get("team_plan", "balanced")), 0) == minimum
+        ]
+        return preferred if preferred else candidates
+
     # Roles may change across plans, but the actual five champions must never
     # be a duplicate of another displayed draft, even with different pilots.
     while remaining and len(chosen) < limit:
@@ -1035,6 +1064,7 @@ def _select_diverse_recommendations(
                     rec for rec in due_mid
                     if canonical_player_id(rec["players"]["Mid"]["user_id"]) == target_uid
                 ]
+                due_mid = _prefer_underused_plans(due_mid, score_loss=6.0)
                 used_assignments = {player_signature(prev) for prev in chosen}
                 winner = max(
                     due_mid,
@@ -1067,6 +1097,7 @@ def _select_diverse_recommendations(
                     and float(rec.get("mid_jungle_score", 0) or 0) >= 7.0
                 ]
                 if alternate_mids:
+                    alternate_mids = _prefer_underused_plans(alternate_mids, score_loss=6.0)
                     used_assignments = {player_signature(prev) for prev in chosen}
                     winner = max(
                         alternate_mids,
@@ -1124,6 +1155,7 @@ def _select_diverse_recommendations(
                     if rat_mid_rotations:
                         viable_rotations = rat_mid_rotations
 
+                viable_rotations = _prefer_underused_plans(viable_rotations, score_loss=6.0)
                 def role_rotation_key(rec):
                     signature = player_signature(rec)
                     novel_pairs = sum(
@@ -1390,6 +1422,9 @@ def _select_diverse_recommendations(
                 float(rec.get("score", 0)),
             )
 
+        quality_pool = _prefer_underused_plans(
+            quality_pool, score_loss=4.0 if len(chosen) < core_limit else 6.0
+        )
         best = max(quality_pool, key=diversity_key)
         chosen.append(best)
         seen_lineups.add(champion_signature(best))

@@ -184,7 +184,8 @@ BOT_DUO_PRIORS = {
     ("Yunara", "Lulu"): 1.00, ("Yunara", "Milio"): 0.88,
     ("Kalista", "Renata Glasc"): 0.96, ("Kalista", "Nautilus"): 0.90, ("Kalista", "Rell"): 0.88,
     ("Zeri", "Lulu"): 0.94, ("Zeri", "Yuumi"): 0.90, ("Zeri", "Milio"): 0.88,
-    ("Ashe", "Seraphine"): 0.94,
+    # Ashe/Seraphine can work in SoloQ, but it is not an automatic pro-play
+    # cornerstone or the preferred INTent bot package. No free legacy bonus.
     ("Jhin", "Nautilus"): 0.88, ("Jhin", "Xerath"): 0.86, ("Jhin", "Bard"): 0.82, ("Jhin", "Leona"): 0.80,
     ("Sivir", "Yuumi"): 0.86,
 }
@@ -196,6 +197,10 @@ EXPLICIT_BOT_PAIR_COVERAGE = (
     ("Yunara", "Lulu"),
     ("Kalista", "Renata Glasc"),
 )
+
+# Avoid this particular low-agency lane in INTent prepared galleries when
+# playable alternatives exist. Real locked live picks remain unrestricted.
+AVOID_PREPARED_BOT_DUOS = {("Ashe", "Seraphine")}
 
 # High-value organised-play two-man packages outside bot lane. These are priors,
 # then current pair_stats can move them up/down.
@@ -2856,6 +2861,10 @@ def recommend_comps(
             if len(set(picks)) != len(picks):
                 continue
             champions = dict(zip(ROLES, picks))
+            if (prepared_flex_gallery
+                and (champions["ADC"], champions["Support"]) in AVOID_PREPARED_BOT_DUOS
+                and (len(pools["ADC"]) > 1 or len(pools["Support"]) > 1)):
+                continue
             if any((role, champions[role]) in BLOCKED_ROLE_PICKS for role in ROLES):
                 continue
             scored = score_comp(champions, meta)
