@@ -31,6 +31,7 @@ from league_comp_engine import (
     _coordinated_duo_score,
     _explicitly_confirmed_player_pick,
     EXPLICIT_BOT_PAIR_COVERAGE,
+    CIAN_JUNGLE_AGENCY_FLOORS,
     load_meta,
     score_comp,
 )
@@ -52,7 +53,7 @@ _CURATED_ROLE_CHAMPIONS = {
         "Amumu", "Bel'Veth", "Briar", "Diana", "Ekko", "Elise", "Evelynn", "Fiddlesticks",
         "Graves", "Hecarim", "Ivern", "Jarvan IV", "Jax", "Karthus", "Kayn", "Kha'Zix",
         "Kindred", "Lee Sin", "Lillia", "Maokai", "Master Yi", "Nidalee", "Nocturne",
-        "Nunu & Willump", "Olaf", "Poppy", "Rammus", "Rek'Sai", "Rengar", "Sejuani",
+        "Nunu & Willump", "Olaf", "Poppy", "Qiyana", "Rammus", "Rek'Sai", "Rengar", "Sejuani",
         "Shaco", "Shyvana", "Skarner", "Taliyah", "Talon", "Trundle", "Udyr", "Vi",
         "Viego", "Volibear", "Warwick", "Wukong", "Xin Zhao", "Zaahen", "Zac", "Zyra",
     ),
@@ -1004,6 +1005,44 @@ def _select_diverse_recommendations(
         ]
         return preferred if preferred else candidates
 
+    def _prefer_cian_jungle_playmakers(candidates: list[dict], *, score_loss: float = 5.0) -> list[dict]:
+        """Give a strong Cian Jungle player agency in some prepared drafts.
+        This is a *portfolio* preference only, not a hard lock, free proficiency
+        proof, or permission to play unsubmitted champions. Two good games out
+        of ten is a target when structurally strong choices actually exist.
+        """
+        if limit < 8 or len(chosen) < 2:
+            return candidates
+        used = {
+            prev["champions"]["Jungle"]
+            for prev in chosen
+            if int(prev["players"]["Jungle"]["user_id"]) == 139837324438536193
+            and prev["champions"]["Jungle"] in CIAN_JUNGLE_AGENCY_FLOORS
+        }
+        appearances = sum(
+            int(prev["players"]["Jungle"]["user_id"]) == 139837324438536193
+            and prev["champions"]["Jungle"] in CIAN_JUNGLE_AGENCY_FLOORS
+            for prev in chosen
+        )
+        if appearances >= 2 or len(candidates) < 2:
+            return candidates
+        strongest = max(float(rec.get("score", 0)) for rec in candidates)
+        eligible = [
+            rec for rec in candidates
+            if int(rec["players"]["Jungle"]["user_id"]) == 139837324438536193
+            and rec["champions"]["Jungle"] in CIAN_JUNGLE_AGENCY_FLOORS
+            and float(rec.get("score", 0)) >= strongest - score_loss
+            and float(rec.get("team_plan_score", 0) or 0) >= 6.0
+            and float(rec.get("bot_lane_score", 0) or 0) >= 7.0
+            and float(rec.get("mid_jungle_score", 0) or 0) >= 7.0
+        ]
+        if not eligible:
+            return candidates
+        distinct = [
+            rec for rec in eligible if rec["champions"]["Jungle"] not in used
+        ]
+        return distinct or eligible
+
     # Roles may change across plans, but the actual five champions must never
     # be a duplicate of another displayed draft, even with different pilots.
     while remaining and len(chosen) < limit:
@@ -1064,6 +1103,7 @@ def _select_diverse_recommendations(
                     rec for rec in due_mid
                     if canonical_player_id(rec["players"]["Mid"]["user_id"]) == target_uid
                 ]
+                due_mid = _prefer_cian_jungle_playmakers(due_mid, score_loss=5.0)
                 due_mid = _prefer_underused_plans(due_mid, score_loss=6.0)
                 used_assignments = {player_signature(prev) for prev in chosen}
                 winner = max(
@@ -1097,6 +1137,7 @@ def _select_diverse_recommendations(
                     and float(rec.get("mid_jungle_score", 0) or 0) >= 7.0
                 ]
                 if alternate_mids:
+                    alternate_mids = _prefer_cian_jungle_playmakers(alternate_mids, score_loss=5.0)
                     alternate_mids = _prefer_underused_plans(alternate_mids, score_loss=6.0)
                     used_assignments = {player_signature(prev) for prev in chosen}
                     winner = max(
@@ -1155,6 +1196,7 @@ def _select_diverse_recommendations(
                     if rat_mid_rotations:
                         viable_rotations = rat_mid_rotations
 
+                viable_rotations = _prefer_cian_jungle_playmakers(viable_rotations, score_loss=6.0)
                 viable_rotations = _prefer_underused_plans(viable_rotations, score_loss=6.0)
                 def role_rotation_key(rec):
                     signature = player_signature(rec)
@@ -1422,6 +1464,9 @@ def _select_diverse_recommendations(
                 float(rec.get("score", 0)),
             )
 
+        quality_pool = _prefer_cian_jungle_playmakers(
+            quality_pool, score_loss=4.0 if len(chosen) < core_limit else 6.0
+        )
         quality_pool = _prefer_underused_plans(
             quality_pool, score_loss=4.0 if len(chosen) < core_limit else 6.0
         )

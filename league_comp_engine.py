@@ -147,7 +147,7 @@ ROAMING_SUPPORT_THREATS = {
 }
 JUNGLE_NEEDS_LANE_ACCESS = {
     "Vi", "Lee Sin", "Nidalee", "Kindred", "Xin Zhao", "Viego",
-    "Elise", "Rek'Sai", "Jarvan IV", "Graves",
+    "Elise", "Rek'Sai", "Jarvan IV", "Graves", "Qiyana",
 }
 
 # Draft-specific counters that are important across lanes rather than ordinary
@@ -1795,7 +1795,7 @@ def _champion_carry_demand(role: str, champion: str, meta: dict) -> float:
 # playmaker/carry rather than being relegated to low-economy setup. This is
 # separate from champion meta strength, comfort, counterpicks, and composition.
 CIAN_JUNGLE_AGENCY_FLOORS = {
-    "Diana": 0.72, "Gragas": 0.70, "Lee Sin": 0.70,
+    "Diana": 0.72, "Gragas": 0.70, "Lee Sin": 0.76, "Qiyana": 0.79,
     "Elise": 0.70, "Kindred": 0.76, "Lillia": 0.70,
     "Taliyah": 0.67, "Sylas": 0.73, "Xin Zhao": 0.65,
     "Wukong": 0.63, "Nocturne": 0.67, "Graves": 0.70,
@@ -3088,6 +3088,27 @@ def recommend_comps(
             seen_adc.add(key)
             seen_other_roles.update(other)
             coverage.append(row)
+    # Preserve scored Cian jungle carry options in the globally bounded candidate set.
+    # Never invent an unsubmitted champion or rescue a weak mid/jungle/bot plan.
+    cian_jungle_coverage = []
+    seen_cian_junglers = set()
+    for row in recommendations:
+        if float(row["score"]) < best_score - 14.0:
+            break
+        if int(row["players"]["Jungle"]["user_id"]) != 139837324438536193:
+            continue
+        jungle = row["champions"]["Jungle"]
+        if jungle not in CIAN_JUNGLE_AGENCY_FLOORS or jungle in seen_cian_junglers:
+            continue
+        if (float(row.get("team_plan_score", 0)) < 6.0
+            or float(row.get("bot_lane_score", 0)) < 7.0
+            or float(row.get("mid_jungle_score", 0)) < 7.0):
+            continue
+        seen_cian_junglers.add(jungle)
+        cian_jungle_coverage.append(row)
+        if len(cian_jungle_coverage) >= 8:
+            break
+
     # Guarantee that scored, credible Ste Mid options reach the final selector.
     # Role coverage used to be dominated by ADC/other-role variations, and the
     # fixed top-300 could discard Akali before the ten-plan diversity pass.
@@ -3153,8 +3174,10 @@ def recommend_comps(
     mid_reserved = min(len(ste_mid_coverage), max(0, limit // 12))
     role_reserved = len(role_coverage)
     rat_mid_reserved = min(len(rat_mid_coverage), max(0, limit // 75))
-    candidates = (recommendations[:max(0, limit - reserved - mid_reserved - role_reserved - rat_mid_reserved)]
+    cian_jungle_reserved = min(len(cian_jungle_coverage), max(0, limit // 30))
+    candidates = (recommendations[:max(0, limit - reserved - mid_reserved - role_reserved - rat_mid_reserved - cian_jungle_reserved)]
                   + rat_mid_coverage[:rat_mid_reserved]
+                  + cian_jungle_coverage[:cian_jungle_reserved]
                   + role_coverage + ste_mid_coverage[:mid_reserved] + coverage[:reserved])
     candidates += [row for row in recommendations if id(row) not in coverage_ids]
     unique: list[dict] = []
