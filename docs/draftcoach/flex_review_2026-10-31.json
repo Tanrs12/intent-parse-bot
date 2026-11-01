@@ -1,0 +1,207 @@
+{
+  "snapshot": "2026-10-31",
+  "window": "12 Sep-31 Oct 2026",
+  "source": "OP.GG snapshot 31 Oct 2026. Ranked Flex only; remakes excluded. 29 shared matches alongside RISE OF PETE#PING; alts combined. KDA = (K+A)/max(D,1).",
+  "players": {
+    "Dyl": {
+      "record": "1-2",
+      "win_rate": 33.3,
+      "games": 3,
+      "headline": "No established pick yet: survival and farm come first.",
+      "champions": [
+        {"champion": "Aatrox", "role": "Top", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "TEST MORE", "kda": 0.00, "deaths_per_game": 3.0, "cs_per_min": 7.5, "dmg_per_min": 624, "kill_participation": 0, "note": "0/3/0: better farming, but no kill involvement. One game cannot establish superiority."},
+        {"champion": "Sett", "role": "Top", "games": 2, "wins": 1, "losses": 1, "win_rate": 50.0, "verdict": "REVIEW", "kda": 0.26, "deaths_per_game": 9.5, "cs_per_min": 3.6, "dmg_per_min": 535, "kill_participation": 14, "note": "One win disguises 9.5 deaths/game and weak farming. Review lane fundamentals."}
+      ],
+      "roles": {
+        "Top": {"games": 3, "record": "1-2", "win_rate": 33}
+      },
+      "wins_vs_losses": {
+        "n": {"win": 1, "loss": 2},
+        "deaths_per_game": {"win": 8.0, "loss": 7.0},
+        "cs_per_min": {"win": 4.3, "loss": 5.2},
+        "vision_per_min": {"win": 0.96, "loss": 0.49},
+        "kill_participation": {"win": 7.1, "loss": 10.0}
+      }
+    },
+    "Reform": {
+      "record": "10-7",
+      "win_rate": 58.8,
+      "games": 17,
+      "headline": "Urgot wins; the individual performance needs context.",
+      "champions": [
+        {"champion": "Urgot", "role": "Top", "games": 4, "wins": 4, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 1.12, "deaths_per_game": 6.2, "cs_per_min": 6.2, "dmg_per_min": 506, "kill_participation": 14, "note": "4-0, but low KDA and participation. About 4,190 turret damage/game adds side-lane context."},
+        {"champion": "Morgana", "role": "Support", "games": 2, "wins": 1, "losses": 1, "win_rate": 50.0, "verdict": "TEST MORE", "kda": 2.38, "deaths_per_game": 4.0, "cs_per_min": 1.1, "dmg_per_min": 352, "kill_participation": 53, "note": "Fewer deaths than Lulu with similar participation. Worth further support trials."},
+        {"champion": "Nautilus", "role": "Support", "games": 1, "wins": 1, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 2.33, "deaths_per_game": 6.0, "cs_per_min": 1.1, "dmg_per_min": 212, "kill_participation": 33, "note": "4/6/10: serviceable first result. Engage quality is not visible in these totals."},
+        {"champion": "Warwick", "role": "Jungle", "games": 1, "wins": 1, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 1.50, "deaths_per_game": 10.0, "cs_per_min": 4.6, "dmg_per_min": 500, "kill_participation": 33, "note": "7/10/8 in a win. The result is stronger than the survival performance."},
+        {"champion": "Yuumi", "role": "Support", "games": 1, "wins": 1, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 3.00, "deaths_per_game": 8.0, "cs_per_min": 0.7, "dmg_per_min": 235, "kill_participation": 73, "note": "23 assists and 73% participation, but eight deaths. Mixed evidence within a win."},
+        {"champion": "Lulu", "role": "Support", "games": 5, "wins": 2, "losses": 3, "win_rate": 40.0, "verdict": "REVIEW", "kda": 1.97, "deaths_per_game": 7.0, "cs_per_min": 0.9, "dmg_per_min": 223, "kill_participation": 53, "note": "Seven deaths per game. Review survival before calling this a reliable comfort pick."},
+        {"champion": "Malphite", "role": "Top", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "REVIEW", "kda": 1.27, "deaths_per_game": 11.0, "cs_per_min": 4.0, "dmg_per_min": 486, "kill_participation": 26, "note": "2/11/12: poor survival and farming. Weak top-lane evidence."},
+        {"champion": "Nami", "role": "Support", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "REVIEW", "kda": 1.14, "deaths_per_game": 7.0, "cs_per_min": 1.0, "dmg_per_min": 241, "kill_participation": 40, "note": "1/7/7: weak scoreline. Only one game; not a definitive rejection."},
+        {"champion": "Poppy", "role": "Top", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "REVIEW", "kda": 0.14, "deaths_per_game": 7.0, "cs_per_min": 4.7, "dmg_per_min": 468, "kill_participation": 7, "note": "0/7/1 with very low participation. No positive evidence in this appearance."}
+      ],
+      "roles": {
+        "Top": {"games": 6, "record": "4-2", "win_rate": 67},
+        "Jungle": {"games": 1, "record": "1-0", "win_rate": 100},
+        "Support": {"games": 10, "record": "5-5", "win_rate": 50}
+      },
+      "wins_vs_losses": {
+        "n": {"win": 10, "loss": 7},
+        "deaths_per_game": {"win": 5.8, "loss": 8.4},
+        "cs_per_min": {"win": 3.4, "loss": 1.9},
+        "vision_per_min": {"win": 1.66, "loss": 1.87},
+        "kill_participation": {"win": 35.0, "loss": 41.3}
+      }
+    },
+    "SneakyFerret": {
+      "record": "3-3",
+      "win_rate": 50.0,
+      "games": 6,
+      "headline": "Heimerdinger and Nami warrant repeat trials.",
+      "champions": [
+        {"champion": "Heimerdinger", "role": "Top", "games": 1, "wins": 1, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 4.00, "deaths_per_game": 3.0, "cs_per_min": 7.7, "dmg_per_min": 792, "kill_participation": 29, "note": "8/3/4 with strong farming. Best individual performance in this small cohort."},
+        {"champion": "Nami", "role": "Support", "games": 1, "wins": 1, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 3.50, "deaths_per_game": 6.0, "cs_per_min": 1.4, "dmg_per_min": 386, "kill_participation": 58, "note": "3/6/18 with 58% participation. Strongest support involvement here."},
+        {"champion": "Zyra", "role": "Support", "games": 1, "wins": 1, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 1.88, "deaths_per_game": 8.0, "cs_per_min": 1.8, "dmg_per_min": 531, "kill_participation": 31, "note": "4/8/11 with useful support damage. Review eight deaths."},
+        {"champion": "Hecarim", "role": "Jungle", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "REVIEW", "kda": 0.86, "deaths_per_game": 7.0, "cs_per_min": 5.4, "dmg_per_min": 245, "kill_participation": 30, "note": "0/7/6 with limited farming and damage. Weak jungle output in this game."},
+        {"champion": "Lulu", "role": "Support", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "REVIEW", "kda": 0.29, "deaths_per_game": 7.0, "cs_per_min": 1.5, "dmg_per_min": 104, "kill_participation": 50, "note": "0/7/2: poor first result. Insufficient evidence to rule the champion out."},
+        {"champion": "Warwick", "role": "Jungle", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "REVIEW", "kda": 0.67, "deaths_per_game": 9.0, "cs_per_min": 4.8, "dmg_per_min": 406, "kill_participation": 33, "note": "4/9/2 with modest farming. Historical comfort is not validated by this one match."}
+      ],
+      "roles": {
+        "Top": {"games": 1, "record": "1-0", "win_rate": 100},
+        "Jungle": {"games": 2, "record": "0-2", "win_rate": 0},
+        "Support": {"games": 3, "record": "2-1", "win_rate": 67}
+      },
+      "wins_vs_losses": {
+        "n": {"win": 3, "loss": 3},
+        "deaths_per_game": {"win": 5.7, "loss": 7.7},
+        "cs_per_min": {"win": 3.6, "loss": 3.9},
+        "vision_per_min": {"win": 1.78, "loss": 1.15},
+        "kill_participation": {"win": 39.6, "loss": 37.8}
+      }
+    },
+    "Ste": {
+      "record": "4-7",
+      "win_rate": 36.4,
+      "games": 11,
+      "headline": "Test Lux mid and Ahri; keep Xerath in consideration.",
+      "champions": [
+        {"champion": "Lux", "role": "Support / Mid", "games": 3, "wins": 2, "losses": 1, "win_rate": 66.7, "verdict": "TEST MORE", "kda": 3.15, "deaths_per_game": 6.7, "cs_per_min": 3.7, "dmg_per_min": 896, "kill_participation": 55, "note": "Mixed roles: mid 1-0 (7/1/7); support 1-1. Do not read the combined rate as mid-only evidence."},
+        {"champion": "Ahri", "role": "Mid", "games": 1, "wins": 1, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 5.00, "deaths_per_game": 3.0, "cs_per_min": 7.2, "dmg_per_min": 634, "kill_participation": 41, "note": "7/3/8 with good farming. Strong all-round first result."},
+        {"champion": "Akali", "role": "Mid", "games": 1, "wins": 1, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 1.75, "deaths_per_game": 4.0, "cs_per_min": 6.9, "dmg_per_min": 476, "kill_participation": 18, "note": "6/4/1 with just 17.5% participation. Winning is not proof of high team impact."},
+        {"champion": "Syndra", "role": "Mid", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "TEST MORE", "kda": 1.14, "deaths_per_game": 7.0, "cs_per_min": 8.0, "dmg_per_min": 787, "kill_participation": 50, "note": "Good farming, but 7/7/1. Review survival and contribution beyond lane."},
+        {"champion": "Xerath", "role": "Mid", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "TEST MORE", "kda": 2.00, "deaths_per_game": 5.0, "cs_per_min": 7.4, "dmg_per_min": 924, "kill_participation": 56, "note": "6/5/4 with solid farm and damage. Respectable individual output in a loss."},
+        {"champion": "Annie", "role": "Mid", "games": 2, "wins": 0, "losses": 2, "win_rate": 0.0, "verdict": "REVIEW", "kda": 1.20, "deaths_per_game": 7.5, "cs_per_min": 5.8, "dmg_per_min": 911, "kill_participation": 56, "note": "Damage is present, but repeated deaths and weak KDA undermine the safe-pick case."},
+        {"champion": "Caitlyn", "role": "ADC", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "REVIEW", "kda": 0.14, "deaths_per_game": 7.0, "cs_per_min": 5.9, "dmg_per_min": 360, "kill_participation": 25, "note": "1/7/0 with low damage. Weak evidence for switching him to ADC."},
+        {"champion": "Orianna", "role": "Mid", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "REVIEW", "kda": 0.80, "deaths_per_game": 5.0, "cs_per_min": 7.0, "dmg_per_min": 668, "kill_participation": 100, "note": "2/5/2; the team had only four kills. 100% participation is misleading alone."}
+      ],
+      "roles": {
+        "Mid": {"games": 8, "record": "3-5", "win_rate": 38},
+        "ADC": {"games": 1, "record": "0-1", "win_rate": 0},
+        "Support": {"games": 2, "record": "1-1", "win_rate": 50}
+      },
+      "wins_vs_losses": {
+        "n": {"win": 4, "loss": 7},
+        "deaths_per_game": {"win": 4.0, "loss": 7.1},
+        "cs_per_min": {"win": 5.8, "loss": 6.0},
+        "vision_per_min": {"win": 1.27, "loss": 1.09},
+        "kill_participation": {"win": 40.5, "loss": 57.7}
+      }
+    },
+    "Adittive": {
+      "record": "14-6",
+      "win_rate": 70.0,
+      "games": 20,
+      "headline": "Amumu has the depth; Galio fits the mid role.",
+      "champions": [
+        {"champion": "Amumu", "role": "Jungle", "games": 6, "wins": 4, "losses": 2, "win_rate": 66.7, "verdict": "PRIORITISE", "kda": 3.04, "deaths_per_game": 4.2, "cs_per_min": 6.1, "dmg_per_min": 434, "kill_participation": 45, "note": "Largest sample: six games. Best repeated jungle evidence for this player."},
+        {"champion": "Galio", "role": "Mid", "games": 3, "wins": 3, "losses": 0, "win_rate": 100.0, "verdict": "PRIORITISE", "kda": 3.83, "deaths_per_game": 4.0, "cs_per_min": 5.4, "dmg_per_min": 517, "kill_participation": 43, "note": "Three wins, 12 assists per game and manageable deaths. Promising mid fit."},
+        {"champion": "Zac", "role": "Jungle", "games": 4, "wins": 2, "losses": 2, "win_rate": 50.0, "verdict": "TEST MORE", "kda": 2.48, "deaths_per_game": 6.2, "cs_per_min": 5.2, "dmg_per_min": 424, "kill_participation": 48, "note": "12.8 assists per game, but more deaths and less farm than Amumu."},
+        {"champion": "Malzahar", "role": "Mid", "games": 2, "wins": 2, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 2.09, "deaths_per_game": 5.5, "cs_per_min": 8.1, "dmg_per_min": 592, "kill_participation": 21, "note": "Strong farming; only 21% participation. Wins do not establish strong fight involvement."},
+        {"champion": "Malphite", "role": "Top", "games": 1, "wins": 1, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 11.00, "deaths_per_game": 0.0, "cs_per_min": 7.6, "dmg_per_min": 552, "kill_participation": 37, "note": "2/0/9: clean first result. Displayed KDA uses max(deaths, 1)."},
+        {"champion": "Veigar", "role": "Mid", "games": 1, "wins": 1, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 3.33, "deaths_per_game": 6.0, "cs_per_min": 6.6, "dmg_per_min": 898, "kill_participation": 42, "note": "10/6/10 with strong damage. Carry potential from one game."},
+        {"champion": "Ahri", "role": "Mid", "games": 2, "wins": 1, "losses": 1, "win_rate": 50.0, "verdict": "REVIEW", "kda": 1.58, "deaths_per_game": 6.0, "cs_per_min": 6.1, "dmg_per_min": 459, "kill_participation": 40, "note": "Less convincing damage and scorelines than the Galio games."},
+        {"champion": "Nasus", "role": "Top", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "REVIEW", "kda": 1.60, "deaths_per_game": 10.0, "cs_per_min": 5.7, "dmg_per_min": 599, "kill_participation": 50, "note": "5/10/11 with modest farming. Weak evidence for expanding this top pick."}
+      ],
+      "roles": {
+        "Top": {"games": 2, "record": "1-1", "win_rate": 50},
+        "Jungle": {"games": 10, "record": "6-4", "win_rate": 60},
+        "Mid": {"games": 8, "record": "7-1", "win_rate": 88}
+      },
+      "wins_vs_losses": {
+        "n": {"win": 14, "loss": 6},
+        "deaths_per_game": {"win": 4.0, "loss": 7.5},
+        "cs_per_min": {"win": 6.5, "loss": 5.1},
+        "vision_per_min": {"win": 0.69, "loss": 0.64},
+        "kill_participation": {"win": 37.7, "loss": 52.7}
+      }
+    },
+    "Jack": {
+      "record": "14-7",
+      "win_rate": 66.7,
+      "games": 21,
+      "headline": "Thresh stands out; Kog'Maw beats the headline record.",
+      "champions": [
+        {"champion": "Thresh", "role": "Support", "games": 3, "wins": 3, "losses": 0, "win_rate": 100.0, "verdict": "PRIORITISE", "kda": 6.38, "deaths_per_game": 4.3, "cs_per_min": 1.0, "dmg_per_min": 292, "kill_participation": 64, "note": "Three wins with 26 assists per game. Strongest repeated support evidence."},
+        {"champion": "Ashe", "role": "ADC", "games": 2, "wins": 2, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 2.23, "deaths_per_game": 13.0, "cs_per_min": 6.5, "dmg_per_min": 1258, "kill_participation": 56, "note": "High kills and damage, but 13 deaths per game. Productive and volatile."},
+        {"champion": "Kog'Maw", "role": "ADC", "games": 2, "wins": 1, "losses": 1, "win_rate": 50.0, "verdict": "TEST MORE", "kda": 2.50, "deaths_per_game": 6.0, "cs_per_min": 8.3, "dmg_per_min": 1326, "kill_participation": 46, "note": "Strong farming and damage. The split result should not obscure carry output."},
+        {"champion": "Lulu", "role": "Support", "games": 2, "wins": 1, "losses": 1, "win_rate": 50.0, "verdict": "TEST MORE", "kda": 9.33, "deaths_per_game": 1.5, "cs_per_min": 1.2, "dmg_per_min": 242, "kill_participation": 50, "note": "Only 1.5 deaths per game. Controlled support performances behind the 50% record."},
+        {"champion": "Neeko", "role": "Support", "games": 2, "wins": 1, "losses": 1, "win_rate": 50.0, "verdict": "TEST MORE", "kda": 1.91, "deaths_per_game": 5.5, "cs_per_min": 1.3, "dmg_per_min": 463, "kill_participation": 50, "note": "Some useful support damage; less compelling evidence than Thresh or Lulu."},
+        {"champion": "Caitlyn", "role": "ADC", "games": 1, "wins": 1, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 2.00, "deaths_per_game": 9.0, "cs_per_min": 7.6, "dmg_per_min": 1062, "kill_participation": 64, "note": "9/9/9 with good damage. Useful output; review survival."},
+        {"champion": "Jinx", "role": "ADC", "games": 1, "wins": 1, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 4.00, "deaths_per_game": 5.0, "cs_per_min": 8.9, "dmg_per_min": 1101, "kill_participation": 61, "note": "13/5/7 with strong farm. Positive ADC trial worth repeating."},
+        {"champion": "Kai'Sa", "role": "ADC", "games": 1, "wins": 1, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 28.00, "deaths_per_game": 1.0, "cs_per_min": 7.8, "dmg_per_min": 1272, "kill_participation": 67, "note": "14/1/14: excellent first performance. One game cannot establish consistency."},
+        {"champion": "Seraphine", "role": "Support", "games": 1, "wins": 1, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 10.50, "deaths_per_game": 2.0, "cs_per_min": 1.0, "dmg_per_min": 557, "kill_participation": 57, "note": "11/2/10 from support. Excellent scoreline in a single appearance."},
+        {"champion": "Shen", "role": "Top", "games": 1, "wins": 1, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 4.00, "deaths_per_game": 4.0, "cs_per_min": 7.7, "dmg_per_min": 687, "kill_participation": 33, "note": "5/4/11: a positive top result. Needs more games."},
+        {"champion": "Sivir", "role": "ADC", "games": 1, "wins": 1, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 2.00, "deaths_per_game": 7.0, "cs_per_min": 9.1, "dmg_per_min": 973, "kill_participation": 42, "note": "Strong farming, but 2/7/12. Team win is not proof of a dominant performance."},
+        {"champion": "Lucian", "role": "ADC", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "REVIEW", "kda": 1.50, "deaths_per_game": 6.0, "cs_per_min": 8.2, "dmg_per_min": 661, "kill_participation": 45, "note": "2/6/7 despite good farming. Weak carry output in this appearance."},
+        {"champion": "Ornn", "role": "Top", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "REVIEW", "kda": 0.89, "deaths_per_game": 9.0, "cs_per_min": 7.0, "dmg_per_min": 932, "kill_participation": 38, "note": "4/9/4: high deaths in the loss. Tank utility needs replay context."},
+        {"champion": "Sion", "role": "Top", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "REVIEW", "kda": 0.67, "deaths_per_game": 6.0, "cs_per_min": 7.4, "dmg_per_min": 533, "kill_participation": 20, "note": "1/6/3 with low participation. Limited positive evidence in this loss."},
+        {"champion": "Urgot", "role": "Top", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "REVIEW", "kda": 0.25, "deaths_per_game": 4.0, "cs_per_min": 7.9, "dmg_per_min": 519, "kill_participation": 25, "note": "1/4/0: farming did not translate into much kill involvement in this loss."}
+      ],
+      "roles": {
+        "Top": {"games": 4, "record": "1-3", "win_rate": 25},
+        "ADC": {"games": 9, "record": "7-2", "win_rate": 78},
+        "Support": {"games": 8, "record": "6-2", "win_rate": 75}
+      },
+      "wins_vs_losses": {
+        "n": {"win": 14, "loss": 7},
+        "deaths_per_game": {"win": 5.4, "loss": 6.0},
+        "cs_per_min": {"win": 4.9, "loss": 6.0},
+        "vision_per_min": {"win": 1.75, "loss": 1.08},
+        "kill_participation": {"win": 54.3, "loss": 41.1}
+      }
+    },
+    "Pete": {
+      "record": "18-11",
+      "win_rate": 62.1,
+      "games": 29,
+      "headline": "Yasuo leads; Graves deserves a bigger sample.",
+      "champions": [
+        {"champion": "Yasuo", "role": "Mid / ADC", "games": 5, "wins": 4, "losses": 1, "win_rate": 80.0, "verdict": "PRIORITISE", "kda": 2.09, "deaths_per_game": 6.8, "cs_per_min": 8.3, "dmg_per_min": 862, "kill_participation": 47, "note": "Strong farm, damage and turret output. Review the 6.8 deaths per game."},
+        {"champion": "Wukong", "role": "Jungle", "games": 5, "wins": 3, "losses": 2, "win_rate": 60.0, "verdict": "PRIORITISE", "kda": 3.41, "deaths_per_game": 3.4, "cs_per_min": 6.8, "dmg_per_min": 484, "kill_participation": 42, "note": "Best repeated jungle evidence for controlled scorelines. Lower deaths than most of your pool."},
+        {"champion": "Ahri", "role": "Mid", "games": 4, "wins": 2, "losses": 2, "win_rate": 50.0, "verdict": "TEST MORE", "kda": 2.16, "deaths_per_game": 4.8, "cs_per_min": 6.8, "dmg_per_min": 755, "kill_participation": 33, "note": "Damage is present, but 33% kill participation limits the team-impact case."},
+        {"champion": "Ashe", "role": "ADC", "games": 2, "wins": 2, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 2.75, "deaths_per_game": 8.0, "cs_per_min": 7.3, "dmg_per_min": 737, "kill_participation": 52, "note": "Productive wins, but eight deaths per game. Results are cleaner than the scorelines."},
+        {"champion": "Graves", "role": "Jungle", "games": 2, "wins": 2, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 5.14, "deaths_per_game": 3.5, "cs_per_min": 8.3, "dmg_per_min": 831, "kill_participation": 46, "note": "Excellent farm, damage and survival together. Two wins: expand the sample."},
+        {"champion": "Jax", "role": "Top", "games": 1, "wins": 1, "losses": 0, "win_rate": 100.0, "verdict": "TEST MORE", "kda": 2.80, "deaths_per_game": 5.0, "cs_per_min": 5.8, "dmg_per_min": 904, "kill_participation": 35, "note": "8/5/6 with good damage. Positive first result; repeat before promoting."},
+        {"champion": "Gnar", "role": "Top", "games": 2, "wins": 1, "losses": 1, "win_rate": 50.0, "verdict": "REVIEW", "kda": 1.18, "deaths_per_game": 5.5, "cs_per_min": 6.6, "dmg_per_min": 685, "kill_participation": 27, "note": "Reasonable farm; limited measured involvement. Review lane-to-team contribution."},
+        {"champion": "Ornn", "role": "Top", "games": 2, "wins": 1, "losses": 1, "win_rate": 50.0, "verdict": "REVIEW", "kda": 1.20, "deaths_per_game": 7.5, "cs_per_min": 5.3, "dmg_per_min": 593, "kill_participation": 32, "note": "High deaths and low KDA. Engage and peel quality need replay review."},
+        {"champion": "Seraphine", "role": "Support", "games": 2, "wins": 1, "losses": 1, "win_rate": 50.0, "verdict": "REVIEW", "kda": 1.83, "deaths_per_game": 12.0, "cs_per_min": 1.3, "dmg_per_min": 409, "kill_participation": 57, "note": "18.5 assists per game, but 12 deaths. Survival is the review priority."},
+        {"champion": "Xin Zhao", "role": "Jungle", "games": 2, "wins": 1, "losses": 1, "win_rate": 50.0, "verdict": "REVIEW", "kda": 0.80, "deaths_per_game": 5.0, "cs_per_min": 6.5, "dmg_per_min": 360, "kill_participation": 23, "note": "Lower participation and damage than your other jungle options."},
+        {"champion": "Caitlyn", "role": "ADC", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "REVIEW", "kda": 1.81, "deaths_per_game": 16.0, "cs_per_min": 6.9, "dmg_per_min": 1237, "kill_participation": 54, "note": "13/16/16: huge damage, extreme deaths. One loss does not settle viability."},
+        {"champion": "Sylas", "role": "Mid", "games": 1, "wins": 0, "losses": 1, "win_rate": 0.0, "verdict": "REVIEW", "kda": 0.55, "deaths_per_game": 11.0, "cs_per_min": 4.5, "dmg_per_min": 419, "kill_participation": 40, "note": "2/11/4 with weak farming. No positive evidence in this appearance."}
+      ],
+      "roles": {
+        "Top": {"games": 5, "record": "3-2", "win_rate": 60},
+        "Jungle": {"games": 9, "record": "6-3", "win_rate": 67},
+        "Mid": {"games": 9, "record": "5-4", "win_rate": 56},
+        "ADC": {"games": 4, "record": "3-1", "win_rate": 75},
+        "Support": {"games": 2, "record": "1-1", "win_rate": 50}
+      },
+      "wins_vs_losses": {
+        "n": {"win": 18, "loss": 11},
+        "deaths_per_game": {"win": 5.2, "loss": 8.3},
+        "cs_per_min": {"win": 7.1, "loss": 5.7},
+        "vision_per_min": {"win": 0.92, "loss": 0.89},
+        "kill_participation": {"win": 40.3, "loss": 41.3}
+      }
+    }
+  }
+}

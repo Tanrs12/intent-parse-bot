@@ -254,13 +254,29 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(503, f"INTent bridge unavailable: {exc}")
 
+    @app.post("/api/intent-control")
+    async def set_intent_control(request: Request) -> JSONResponse:
+        """Relay shared draft control (identity, hard locks, shake) to this PC's INTent bridge."""
+        import urllib.request
+        payload = await _json(request)
+        def send() -> dict:
+            data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request("http://127.0.0.1:8766/api/control", data=data,
+                                         headers={"Content-Type": "application/json"}, method="POST")
+            with urllib.request.urlopen(req, timeout=8) as response:
+                return json.loads(response.read())
+        try:
+            return JSONResponse(await asyncio.to_thread(send))
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(503, f"INTent control unavailable: {exc}")
+
     @app.post("/api/intent-preference")
     async def set_intent_preference(request: Request) -> JSONResponse:
         """Relay captain soft-preference changes to this coach PC's INTent bridge."""
         import urllib.request
         payload = await _json(request)
         def send() -> dict:
-            data = json.dumps({"signature": payload.get("signature")}).encode("utf-8")
+            data = json.dumps({"signature": payload.get("signature"), "control": payload.get("control")}).encode("utf-8")
             req = urllib.request.Request("http://127.0.0.1:8766/api/preference", data=data,
                                          headers={"Content-Type": "application/json"}, method="POST")
             with urllib.request.urlopen(req, timeout=8) as response:

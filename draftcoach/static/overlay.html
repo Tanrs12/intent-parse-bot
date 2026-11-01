@@ -32,6 +32,11 @@
       </label>
       <span id="format-help" class="sr-only">Choose the draft format before the draft begins.</span>
       <label class="ov-format">
+        <span class="mm-meta">Identity</span>
+        <select id="identity" aria-label="Team identity to keep"><option value="">Auto</option></select>
+      </label>
+      <button class="fd-text-button" id="shake" type="button" title="Retire the drafts already shown this game and reshuffle">Shake</button>
+      <label class="ov-format">
         <span class="mm-meta">Plan</span>
         <select id="plan" aria-label="Composition the team is drafting towards"><option value="">Any plan</option></select>
       </label>
@@ -163,6 +168,34 @@
     try { await D.api("POST", "/api/draft/type", { draft_type: wanted }); }
     catch (e) { $("detail").textContent = "Couldn’t change draft format. Try again."; if (lastSnapshot) $("type").value = lastSnapshot.draft_type; }
     finally { typePending = false; $("type").disabled = false; }
+  };
+
+  // ---- shared draft control (identity, shake) through the INTent bridge ---------
+  const BRIDGE = "http://127.0.0.1:8766";
+  let identityPending = false, identityFilled = false;
+  async function pollControl() {
+    try {
+      const r = await fetch(BRIDGE + "/api/control", { cache: "no-store" });
+      if (!r.ok) throw new Error(String(r.status));
+      const d = await r.json();
+      const sel = $("identity");
+      if (!identityFilled && d.identities && d.identities.length) { for (const it of d.identities) sel.append(new Option(it.label, it.key)); identityFilled = true; }
+      if (!identityPending && document.activeElement !== sel) sel.value = (d.control && d.control.identity) || "";
+      sel.parentElement.hidden = false; $("shake").hidden = false;
+    } catch (e) { $("identity").parentElement.hidden = true; $("shake").hidden = true; }
+  }
+  setInterval(pollControl, 2000); pollControl();
+  $("identity").onchange = async () => {
+    identityPending = true; $("identity").disabled = true;
+    try { await fetch(BRIDGE + "/api/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identity: $("identity").value || null }) }); }
+    catch (e) { $("detail").textContent = "Couldn\u2019t change the team identity."; }
+    finally { identityPending = false; $("identity").disabled = false; }
+  };
+  $("shake").onclick = async () => {
+    $("shake").disabled = true;
+    try { await fetch(BRIDGE + "/api/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ shake_it_up: true }) }); }
+    catch (e) { $("detail").textContent = "Couldn\u2019t shake the drafts."; }
+    finally { $("shake").disabled = false; }
   };
 
   // ---- plan the team is going with --------------------------------------------
