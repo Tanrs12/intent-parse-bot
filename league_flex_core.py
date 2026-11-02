@@ -116,6 +116,15 @@ def _role_priority_level(player: dict, role: str) -> int | None:
     """Return a role's 1/2/3 preference, including the legacy primary/secondary/fill shape."""
     if role not in (player.get("roles") or []):
         return None
+    # The captain's Ranked win-condition order is not an even Mid/Top/Jungle
+    # split. Explicit role selection is still required, but stale signups must
+    # not put ADC above Jungle or make all three solo/jungle roles P1.
+    if int(player.get("user_id") or 0) == 139837324438536193:
+        return {"Jungle": 1, "Top": 2, "Mid": 3, "ADC": 3}.get(role)
+    # Jack's historic P1 is ADC; a blank signup priority is not an instruction
+    # to put him on Support ahead of his established bot-lane main role.
+    if int(player.get("user_id") or 0) == 332490596004659201:
+        return {"ADC": 1, "Support": 2, "Top": 3}.get(role)
     # Rat changed Discord accounts. His confirmed P1 is Mid; do not make
     # his secondary/flex roles equivalent to Mid due to stale signup data.
     if is_rat(player.get("user_id") or 0) and role == "Mid":
@@ -153,6 +162,10 @@ def _normalised_role_priorities(player: dict) -> dict[str, int]:
 
 def _role_preference_penalty(player: dict, role: str) -> float:
     level = _role_priority_level(player, role)
+    # For this captain, Jungle has much more proven solo agency than Top/Mid.
+    # Preserve legal fallbacks, but do not move him merely to add gallery variety.
+    if int(player.get("user_id") or 0) == 139837324438536193 and level is not None:
+        return {"Jungle": 0.0, "Top": 3.0, "Mid": 5.5, "ADC": 8.0}.get(role, 50.0)
     if level == 1:
         return 0.0
     if level == 2:
@@ -849,6 +862,41 @@ def _select_diverse_recommendations(
             recommendations = credible_gallery
 
     limit = max(1, int(limit))
+    # The captain's ADC is an emergency fallback, not a gallery novelty slot.
+    # If ten comparably good submitted-pool alternatives exist, do not showcase
+    # his ADC just to demonstrate another role layout. A real shortage of
+    # viable role assignments still permits the fallback.
+    if limit >= 8:
+        captain_id = 139837324438536193
+        has_captain = any(
+            any(int(rec["players"][role]["user_id"]) == captain_id for role in ROLES)
+            for rec in recommendations
+        )
+        if has_captain:
+            benchmark = max(float(rec.get("score", 0)) for rec in recommendations)
+            non_emergency = [
+                rec for rec in recommendations
+                if int(rec["players"]["ADC"]["user_id"]) != captain_id
+                and float(rec.get("score", 0)) >= benchmark - 16.0
+                and float(rec.get("team_plan_score", 0) or 0) >= 6.0
+                and float(rec.get("bot_lane_score", 0) or 0) >= 6.8
+            ]
+            if len({tuple(rec["champions"][role] for role in ROLES) for rec in non_emergency}) >= limit:
+                # Keep other off-role trials intact for drafts 5-10; only the
+                # captain's ADC fallback is unnecessary when quality is plentiful.
+                recommendations = [
+                    rec for rec in recommendations
+                    if int(rec["players"]["ADC"]["user_id"]) != captain_id
+                ]
+            # Do not spend Ranked cards on an eighteen-point-worse role swap
+            # merely because it is novel. Plenty of near-top distinct lineups
+            # exist for this five; require quality before gallery variety.
+            strong = [
+                rec for rec in recommendations
+                if float(rec.get("score", 0)) >= benchmark - 14.0
+            ]
+            if len({tuple(rec["champions"][role] for role in ROLES) for rec in strong}) >= limit:
+                recommendations = strong
     mixed = [rec for rec in recommendations if rec.get("credible_mixed_damage", True)]
     if len(mixed) >= min(4, limit):
         recommendations = mixed
