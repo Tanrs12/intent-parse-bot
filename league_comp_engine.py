@@ -97,9 +97,9 @@ BLOCKED_ROLE_PICKS = {("Top", "Varus")}
 # Team-specific Ranked coaching constraints, not universal champion tier claims.
 # Keep explicitly locked picks legal; these are exclusions from our own suggestions.
 RANKED_PLAYER_AVOID = {
-    # Yasuo Mid is a deliberate opt-in for the captain, not a repeated default
-    # when he has stronger Jungle options and other submitted Mid champions.
-    (139837324438536193, "Mid"): {"Yasuo"},
+    # Yasuo and Annie Mid are deliberate opt-ins, not default captain plans.
+    # Leave stronger personally preferred Mid alternatives available.
+    (139837324438536193, "Mid"): {"Yasuo", "Annie"},
     (286592835850076162, "ADC"): {"Caitlyn"},  # Ste: needs lane dominance to pay off
     (400745307467415553, "Support"): {"Morgana"},  # Cheeky: unreliable when behind
 }

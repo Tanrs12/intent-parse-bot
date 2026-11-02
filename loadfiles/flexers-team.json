@@ -30,8 +30,8 @@
       "roles": [
         "Jungle",
         "Top",
-        "ADC",
-        "Mid"
+        "Mid",
+        "ADC"
       ],
       "pools": {
         "Jungle": [
