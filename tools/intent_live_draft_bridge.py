@@ -26,7 +26,7 @@ import league_comp_engine
 import league_multi_source
 import league_aggregate_sources
 from league_draft_backend import IDENTITIES, _pick_group_meta, recommend_live_drafts
-from league_flex_core import role_option_limit
+from league_flex_core import normalise_team_role_update, role_option_limit
 from league_pro_data import refresh_recent_pro_data
 from team_sync import chosen_status, clean_chosen
 
@@ -745,7 +745,7 @@ def _load_cached_signups():
     try:
         raw = json.loads(SIGNUP_CACHE.read_text(encoding="utf-8"))
         if isinstance(raw, list):
-            _signups = raw
+            _signups = [normalise_team_role_update(p) for p in raw if isinstance(p, dict)]
     except Exception:
         pass
 
@@ -794,6 +794,7 @@ def refresh_signups(force: bool = False):
             return
         parsed = json.loads(line[len(marker):])
         if isinstance(parsed, list) and parsed:
+            parsed = [normalise_team_role_update(p) for p in parsed if isinstance(p, dict)]
             with _cache_lock:
                 changed = parsed != _signups
                 _signups = parsed
@@ -1257,13 +1258,18 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         )
         recs.append(rec)
     recs.sort(key=lambda rec: float(rec.get("live_rank_score", 0.0)), reverse=True)
+    # The selected Discord composition stays #1 until a tested counter replaces
+    # an unpicked slot; do not let a generic global sort erase that decision.
+    adaptive = next((i for i, rec in enumerate(recs) if rec.get("adaptive_selected")), None)
+    if adaptive is not None:
+        recs.insert(0, recs.pop(adaptive))
 
     # A captain may softly prefer one complete plan.  It only becomes #1 while it remains close
     # to the objectively best live score; once the gap grows, the engine wins automatically.
     preferred = _get_preference()
     preference_info = {"signature": preferred, "active": False, "promoted": False,
                        "gap": None, "max_gap": PREFERENCE_MAX_GAP}
-    if preferred and recs:
+    if preferred and recs and adaptive is None:
         pref_index = next((i for i, rec in enumerate(recs) if _comp_signature(rec.get("champions")) == preferred), None)
         if pref_index is not None:
             preference_info["active"] = True
@@ -1685,6 +1691,19 @@ def build_response():
             values = signature.split("|")
             if len(values) == len(ROLES) and all(value and value != "?" for value in values):
                 selected_plan = dict(zip(ROLES, values))
+        chosen_plan = control.get("chosen") or {}
+        known_enemy_lanes = _locked_enemy_roles(effective_state)
+        adaptive_plan = (chosen_plan.get("champions") or {}) if chosen_plan.get("mode") == "adaptive" else {}
+        # Keep the team-selected picks in every UNCHALLENGED lane. Only a
+        # revealed enemy lane is allowed a researched counter, and the scorer
+        # still applies the player's actual submitted pool/comp requirements.
+        preserve_plan = {
+            role: champ for role, champ in adaptive_plan.items()
+            if role in ROLES and role not in known_enemy_lanes
+            and role not in locked and champ not in unavailable
+        }
+        # FLEXERS: if the pinned roles or the preserved plan leave nothing playable for this lobby,
+        # the fallback relaxes them rather than emptying every screen.
         result = _drafts_with_fallback(
             live_role_players,
             signups=five,
@@ -1702,8 +1721,14 @@ def build_response():
             # Stable through picks/bans, different for a new champ-select ID; a shake reshuffles it.
             rotation_token=game_key + (f"#shake{control['shake']}" if control["shake"] else ""),
             preferred_champions=selected_plan,
-            required_champions={role: champ for role, champ in control["champion_locks"].items()
-                                if role not in locked and champ not in unavailable},
+            chosen_champions=(control["chosen"]["champions"]
+                              if control.get("chosen", {}).get("mode") == "adaptive"
+                              else None) if control.get("chosen") else None,
+            required_champions={
+                **{role: champ for role, champ in control["champion_locks"].items()
+                   if role not in locked and champ not in unavailable},
+                **preserve_plan,
+            },
             identity=control["identity"],
             exclude_signatures=_shaken_signatures.get(game_key, []),
         )

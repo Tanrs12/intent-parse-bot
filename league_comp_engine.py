@@ -2952,10 +2952,24 @@ def recommend_comps(
         # even when it would otherwise miss the bounded heuristic candidate set.
         # It is never forced: ranked fitness/counters still determine viability.
         preferred = preferred_champions or {}
-        if all(preferred.get(role) in pools[role] for role in ROLES):
-            pick_tuple = tuple(preferred[role] for role in ROLES)
-            if pick_tuple not in candidate_products:
-                candidate_products.append(pick_tuple)
+        # If one chosen pick is banned, build closest legal completions:
+        # preserve the other four instead of starting an unrelated five.
+        seed = None
+        if preferred and all(preferred.get(role) for role in ROLES):
+            missing_roles = [r for r in ROLES if preferred[r] not in pools[r]]
+            if len(missing_roles) <= 2:
+                seed = tuple(preferred[r] if preferred[r] in pools[r] else pools[r][0]
+                             for r in ROLES)
+                if seed not in candidate_products:
+                    candidate_products.append(seed)
+                for role in ROLES:
+                    for champ in pools[role]:
+                        if champ == seed[ROLES.index(role)]:
+                            continue
+                        trial = tuple(champ if r == role else seed[ROLES.index(r)]
+                                      for r in ROLES)
+                        if trial not in candidate_products:
+                            candidate_products.append(trial)
         for picks in candidate_products:
             if len(set(picks)) != len(picks):
                 continue
@@ -3159,6 +3173,13 @@ def recommend_comps(
                 shortlist.append(row)
                 covered.update(keys)
                 added += 1
+        # Keep the already-scored selected five and its single-seat responses
+        # available to the live adaptive selector, without granting score.
+        if seed is not None:
+            for row in best_for_assignment:
+                if (sum(row["champions"][role] != seed[ROLES.index(role)] for role in ROLES) <= 1
+                        and row not in shortlist):
+                    shortlist.append(row)
         recommendations.extend(shortlist)
 
     recommendations.sort(
@@ -3279,6 +3300,19 @@ def recommend_comps(
                   + cian_jungle_coverage[:cian_jungle_reserved]
                   + role_coverage + ste_mid_coverage[:mid_reserved] + coverage[:reserved])
     candidates += [row for row in recommendations if id(row) not in coverage_ids]
+    # Adaptive selected draft: protect its scored baseline and the best
+    # counter for each lane against the global top-N portfolio cutoff.
+    if preferred_champions and len(preferred_champions) == len(ROLES) and recommendations:
+        gaps = [(sum(row["champions"][r] != preferred_champions[r] for r in ROLES), row)
+                for row in recommendations]
+        fewest = min(n for n, _ in gaps)
+        baseline = [row for n, row in gaps if n == fewest]
+        reserved = []
+        for role in ROLES:
+            near = [row for n, row in gaps
+                    if n == fewest + 1 and row["champions"][role] != preferred_champions[role]]
+            reserved.extend(near[:3])
+        candidates = baseline[:4] + reserved + candidates
     unique: list[dict] = []
     seen = set()
     for item in candidates:

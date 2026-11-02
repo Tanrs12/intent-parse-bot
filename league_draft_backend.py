@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from adaptive_draft import select_adaptive_comp
+
 import copy
 from typing import Iterable, Mapping
 
@@ -194,6 +196,7 @@ def recommend_live_drafts(
     limit: int = 10,
     rotation_token: str | None = None,
     preferred_champions: Mapping[str, str] | None = None,
+    chosen_champions: Mapping[str, str] | None = None,
     required_champions: Mapping[str, str] | None = None,
     identity: str | None = None,
     exclude_signatures: Iterable[str] | None = None,
@@ -305,10 +308,20 @@ def recommend_live_drafts(
                 or locked_champions or required_champions
             ),
         )
+    # A chosen Discord comp is a stable starting plan, not five unearned
+    # champion locks. A proven enemy-lane counter can update one unpicked seat
+    # if the player actually submitted the counter and team fit remains sound.
+    if chosen_champions and len(chosen_champions) == len(ROLES):
+        selected = select_adaptive_comp(
+            candidates, chosen_champions, enemy_roles=dict(enemy_roles or {}),
+            unavailable=unavailable_set, actual_locks=locked_champions,
+            identity=identity, limit=limit,
+        )
+        candidates = selected + [r for r in candidates if r not in selected]
     # Preserve the captain's planned five if still legal and objectively close
     # to the strongest current option; never force it when the enemy draft makes
     # the plan significantly worse. It may naturally appear in selected already.
-    if preferred_champions and len(preferred_champions) == 5 and candidates:
+    if not chosen_champions and preferred_champions and len(preferred_champions) == 5 and candidates:
         exact = next(
             (rec for rec in candidates if all(rec["champions"].get(role) == champ
                                               for role, champ in preferred_champions.items())),

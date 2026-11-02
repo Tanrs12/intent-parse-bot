@@ -83,6 +83,27 @@ _CURATED_ROLE_CHAMPIONS = {
 CURRENT_ROLE_SAMPLE_MIN = 2000
 
 
+def normalise_team_role_update(player: dict) -> dict:
+    """Apply a confirmed role change to stale signup snapshots, without inventing picks.
+
+    The Discord Postgres signup and the desktop cache refresh separately. Until
+    the player saves the new selections in Discord, both must still agree that
+    Kayla is Top P1, Jungle P2, and not a Mid candidate. Preserve other roles
+    only when the player explicitly submitted a champion pool for that role.
+    """
+    if int(player.get("user_id") or 0) != 548212317515677697:
+        return player
+    original = [r for r in (player.get("roles") or []) if r in ROLES and r != "Mid"]
+    roles = ["Top", *[r for r in ("Jungle", "Support", "ADC") if r in original]]
+    pools = dict(player.get("champions") or {})
+    return {
+        **player,
+        "roles": roles,
+        "role_priority": {r: {"Top": 1, "Jungle": 2, "Support": 3, "ADC": 3}[r] for r in roles},
+        "champions": {r: list(pools[r]) for r in roles if r in pools},
+    }
+
+
 def _build_role_champions() -> dict[str, tuple[str, ...]]:
     pools = {role: set(champions) for role, champions in _CURATED_ROLE_CHAMPIONS.items()}
 
@@ -125,6 +146,11 @@ def _role_priority_level(player: dict, role: str) -> int | None:
     # to put him on Support ahead of his established bot-lane main role.
     if int(player.get("user_id") or 0) == 332490596004659201:
         return {"ADC": 1, "Support": 2, "Top": 3}.get(role)
+    # Kayla has moved to Top main and explicitly no longer wants Mid.
+    # The cloud signup may lag the saved team preference, so make this apply
+    # consistently to Discord draft generation as well as the desktop model.
+    if int(player.get("user_id") or 0) == 548212317515677697:
+        return {"Top": 1, "Jungle": 2, "Support": 3, "ADC": 3}.get(role)
     # Rat changed Discord accounts. His confirmed P1 is Mid; do not make
     # his secondary/flex roles equivalent to Mid due to stale signup data.
     if is_rat(player.get("user_id") or 0) and role == "Mid":
@@ -200,7 +226,7 @@ def generate_team_options(
     up front, avoiding an assignment shortlist full of unscorable P1 slots.
     The standalone Team Options feature still allows role-only signups.
     """
-    eligible = [s for s in signups if s.get("roles")]
+    eligible = [normalise_team_role_update(s) for s in signups if s.get("roles")]
     if len(eligible) < 5:
         return []
     ordered = sorted(eligible, key=lambda s: (len(s["roles"]), s["display_name"].lower()))
@@ -219,6 +245,7 @@ def generate_team_options(
         candidates = [
             p for p in ordered
             if role in p["roles"] and p["user_id"] not in used
+            and _role_priority_level(p, role) is not None
             and (not require_pools or bool(p.get("champions", {}).get(role)))
         ]
         candidates.sort(
@@ -242,6 +269,29 @@ def generate_team_options(
     walk(0, set(), {})
     if not results:
         return []
+
+    # Never create the nonsensical reverse of our two established mains merely
+    # to fill out a role-variety gallery. Cian Jungle + Rat Mid is already a
+    # legal assignment for that exact five, so Cian Mid + Rat Jungle is NOT a
+    # useful alternative. Keep all other legal flex roles and only fall back
+    # when the correct pairing really is impossible for those five players.
+    def team_key(assignment: dict[str, dict]) -> frozenset[int]:
+        return frozenset(int(assignment[role]["user_id"]) for role in ROLES)
+
+    main_pair_available = {
+        team_key(row) for row in results
+        if int(row["Jungle"]["user_id"]) == 139837324438536193
+        and is_rat(row["Mid"]["user_id"])
+    }
+    if main_pair_available:
+        results = [
+            row for row in results
+            if not (
+                int(row["Mid"]["user_id"]) == 139837324438536193
+                and is_rat(row["Jungle"]["user_id"])
+                and team_key(row) in main_pair_available
+            )
+        ]
 
     results.sort(
         key=lambda result: (

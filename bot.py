@@ -187,6 +187,7 @@ async def _relay_preference(request: web.Request) -> web.Response:
             champions = {str(k)[:12]: str(v)[:40] for k, v in (chosen.get("champions") or {}).items() if v}
             if champions:
                 clean["chosen"] = {
+                    "mode": "adaptive" if chosen.get("mode") == "adaptive" else "locked",
                     "label": str(chosen.get("label") or "Team draft")[:40],
                     "source": str(chosen.get("source") or "")[:12],
                     "plan": str(chosen.get("plan") or "")[:40],

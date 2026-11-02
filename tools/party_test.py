@@ -650,8 +650,10 @@ class Party:
         self.report.check("chosen draft: the surviving champions are the ones we locked in",
                           bool(locked) and all(all(lk.get(role) == chosen["champions"][role] for role in kept) for lk in locked),
                           str(locked[0]) if locked else "no guidance")
-        untouched = [len((s.get("replaced") or {})) <= len(doomed) for s in statuses]
-        self.report.check("chosen draft: no seat changed without a ban or an enemy pick forcing it", all(untouched), str([s.get("replaced") for s in statuses[:1]]))
+        # a seat may also change for a stated counter reason once the enemy lane is revealed (adaptive mode);
+        # what must never happen is a silent "swapped" with nothing forcing it
+        untouched = [all(sw.get("why") and sw.get("why") != "swapped" for sw in (s.get("replaced") or {}).values()) for s in statuses]
+        self.report.check("chosen draft: every changed seat names what forced it (ban, enemy pick or a counter reason)", all(untouched), str([s.get("replaced") for s in statuses[:1]]))
 
     # ---- run ------------------------------------------------------------------------------------
     def run(self) -> dict:

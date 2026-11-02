@@ -81,7 +81,7 @@ def test_rat_submitted_mid_top_jungle_pools_get_wider_search():
     assert eng._role_search_pool_limit(rat, "ADC", 10) == 10
 
 
-def test_cian_mid_rat_jungle_jack_top_ste_adc_legal_rotation_survives():
+def test_cian_jungle_rat_mid_jack_top_ste_adc_legal_rotation_survives():
     # All five roles must be selected by the person. Never manufacture an
     # eligible role or champion based on this example.
     roster = [
@@ -110,11 +110,15 @@ def test_cian_mid_rat_jungle_jack_top_ste_adc_legal_rotation_survives():
         for option in options
     }
     target = (
-        332490596004659201, 270517092703272960,
-        139837324438536193, 286592835850076162,
+        332490596004659201, 139837324438536193,
+        270517092703272960, 286592835850076162,
         400745307467415553,
     )
     assert target in signatures
+    # Experimental rotations cannot reverse the two specialists when the
+    # main-role pairing is legal for the same five.
+    assert not any(row["Mid"]["user_id"] == 139837324438536193
+                   and row["Jungle"]["user_id"] == 270517092703272960 for row in options)
     assert all(role in option[role]["roles"] for option in options for role in ROLES)
 
 
@@ -248,7 +252,7 @@ def test_role_gallery_eligibility_preserves_ste_adc_when_confirmed():
         for uid, roles in roster
     ]
     layouts = generate_team_options(signups, limit=24, require_pools=True)
-    target = (332490596004659201, 270517092703272960, 139837324438536193,
+    target = (332490596004659201, 139837324438536193, 270517092703272960,
               286592835850076162, 400745307467415553)
     assert target in {
         tuple(row[role]["user_id"] for role in ROLES) for row in layouts

@@ -58,6 +58,7 @@ from league_flex_core import (  # noqa: F401  shared drafting brain
     _roster_real_flex_value,
     _select_diverse_recommendations,
     generate_team_options,
+    normalise_team_role_update,
     role_option_limit,
 )
 from league_shared_data import sync_shared_league_data
@@ -794,8 +795,8 @@ def live_draft_text(payload: dict | None, label: str) -> str:
 class DraftChoiceSelect(discord.ui.Select):
     def __init__(self, parent: "DraftControlsView", recommendations: list[dict]):
         self.parent_view = parent
-        options = [discord.SelectOption(label=f"Lock Draft {i}", value=str(i - 1)) for i in range(1, len(recommendations) + 1)]
-        super().__init__(placeholder="Lock the draft you're playing…", min_values=1, max_values=1, options=options)
+        options = [discord.SelectOption(label=f"Select Comp {i}", value=str(i - 1)) for i in range(1, len(recommendations) + 1)]
+        super().__init__(placeholder="Choose a comp for Draft Coach to adapt…", min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
         index = int(self.values[0])
@@ -807,15 +808,15 @@ class DraftChoiceSelect(discord.ui.Select):
             }
             for role in ROLES
         }
-        # The choice drives the five Draft Coach apps through the shared relay room: roles pinned,
-        # the five champions locked, the draft's style kept. A ban re-solves only that seat.
+        # Selecting a Discord comp pins roles and sets the live adaptive plan.
+        # Player slots are fixed; unpicked champions may be counter-adjusted.
         label = f"Draft {index + 1}"
         sent = await self.parent_view.cog.push_draft_to_apps(draft_control_payload(rec, label=label, source="discord"))
         lineup = " · ".join(f"{rec['players'][role]['display_name']} {rec['champions'][role]}" for role in ROLES)
         if sent:
-            note = (f"🔒 **{label} sent to everyone's Draft Coach.** {lineup}\n"
-                    "Roles are pinned. If a champion gets banned or taken, only that seat is re-solved in the same style, "
-                    "and the apps say what changed. Use **Release draft** to go back to automatic drafts.")
+            note = (f"🎯 **{label} selected in everyone's Draft Coach.** {lineup}\n"
+                     "Roles are pinned. The app can propose proven lane counters from submitted pools, "
+                    "while preserving the comp and respecting locked picks. Use **Release draft** to return to automatic drafts.")
         else:
             note = (f"🔒 **{label} roles locked here**, but the Draft Coach relay could not be reached, so the apps "
                     "are still on automatic drafts. Try the dropdown again in a moment.")
@@ -857,7 +858,7 @@ class DraftControlsView(discord.ui.View):
     async def unavailable_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.locked_assignment is None:
             await interaction.response.send_message(
-                "Pick **one of the drafts to lock** first so I know which role assignment you're actually playing. Then bans/picks will never reshuffle roles.",
+                "Pick **one of the comps** first so I know which role assignment you're actually playing. Then bans/picks will never reshuffle roles.",
                 ephemeral=True,
             )
             return
@@ -1339,13 +1340,13 @@ class LeagueFlexCog(commands.Cog):
             await db.close()
         if not row:
             return None
-        return {
+        return normalise_team_role_update({
             "user_id": int(row["discord_user_id"]),
             "display_name": row["display_name"],
             "roles": _loads(row["roles_json"], []),
             "role_priority": _loads(row["role_priority_json"], {}),
             "champions": _loads(row["champions_json"], {}),
-        }
+        })
 
     async def list_signups(self, guild_id: int) -> list[dict]:
         db = await database.connect()
@@ -1358,13 +1359,13 @@ class LeagueFlexCog(commands.Cog):
         finally:
             await db.close()
         return [
-            {
+            normalise_team_role_update({
                 "user_id": int(row["discord_user_id"]),
                 "display_name": row["display_name"],
                 "roles": _loads(row["roles_json"], []),
                 "role_priority": _loads(row["role_priority_json"], {}),
                 "champions": _loads(row["champions_json"], {}),
-            }
+            })
             for row in rows
         ]
 

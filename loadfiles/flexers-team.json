@@ -378,12 +378,20 @@
         "Adittive#EUW"
       ],
       "roles": [
+        "Top",
         "Jungle",
-        "Support",
-        "Mid",
-        "ADC"
+        "Support"
       ],
       "pools": {
+        "Top": [
+          {"champion": "Cho'Gath"},
+          {"champion": "Darius"},
+          {"champion": "Garen"},
+          {"champion": "Mordekaiser"},
+          {"champion": "Nasus"},
+          {"champion": "Volibear"},
+          {"champion": "Yorick"}
+        ],
         "Jungle": [
           {
             "champion": "Karthus",
@@ -407,7 +415,7 @@
           }
         ]
       },
-      "notes": "Improve farming-versus-helping decisions; 74 champions across 296 solo games in 2025, needs a narrower pool."
+      "notes": "Top is now primary; Jungle is the main flex fallback and Support is available if required. No Mid assignments. Top pool reflects seven previously submitted Top champions."
     },
     {
       "user_id": 400745307467415553,
