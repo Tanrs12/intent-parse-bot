@@ -22,6 +22,9 @@ from types import SimpleNamespace
 from pathlib import Path
 
 from aiohttp import web
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from team_sync import clean_chosen
 
 REPO = Path(__file__).resolve().parents[1]
 log = logging.getLogger("local-relay")
@@ -31,7 +34,7 @@ def load_relay_namespace() -> dict:
     source = (REPO / "bot.py").read_text(encoding="utf-8")
     start = source.index("_SYNC_SESSIONS: dict[str, dict] = {}")
     end = source.index("async def start_draft_sync_relay")
-    namespace = {"web": web, "time": time, "re": re, "os": os, "log": log, "asyncio": asyncio, "__name__": "bot_relay"}
+    namespace = {"web": web, "time": time, "re": re, "os": os, "log": log, "asyncio": asyncio, "clean_chosen": clean_chosen, "__name__": "bot_relay"}
     exec(compile(source[start:end], "bot.py[relay]", "exec"), namespace)  # noqa: S102 - our own source
     return namespace
 

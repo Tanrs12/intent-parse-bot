@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="/static/mm/tokens.css">
 <link rel="stylesheet" href="/static/mm/draft-ui.css">
 <link rel="stylesheet" href="/static/mm/draft-coach.css">
+<link rel="stylesheet" href="/static/mm/selected-comp.css">
 </head>
 <body class="coach-page">
 <header class="coach-mast">
@@ -216,6 +217,7 @@
 <div class="sr-only" id="app-announcement" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <script src="/static/common.js"></script>
+<script src="/static/selected-comp.js"></script>
 <script src="/static/draft-review.js"></script>
 <script src="/static/player-review.js"></script>
 <script>
@@ -586,34 +588,30 @@
   let intentGuidance = null, intentControl = null, identityList = [], controlBusy = false;
   const BRIDGE = "http://127.0.0.1:" + (Number(location.port || 8765) + 1);  // FLEXERS: the bridge runs on app port + 1
   function renderSelectedTeamComp() {
-    // Available even while waiting for champion select: the relay owns the
-    // Discord selection, not the manual draft board.
     const box = $("team-choice-status");
     const chosen = intentControl && intentControl.chosen;
     const key = JSON.stringify([chosen, !!intentControl]);
-    if (box.dataset.key === key) return;
-    box.dataset.key = key;
-    box.dataset.selected = String(!!chosen);
-    box.replaceChildren();
-    const title = D.el("b", "", chosen
-      ? (chosen.source === "discord" ? "Discord comp selected: " : "Team comp selected: ") + (chosen.label || "Team draft")
-      : "No Discord comp synced");
-    box.append(title);
-    if (chosen) {
-      const roles = D.ROLES.map((role) => {
-        const player = (chosen.players || {})[role] || "";
-        const champ = (chosen.champions || {})[role] || "?";
-        return (ROLE_LONG[role] || role) + ": " + champ + (player ? " (" + player.split("#")[0] + ")" : "");
-      });
-      box.append(D.el("small", "", roles.join(" · ")));
-      box.append(D.el("small", "", chosen.mode === "adaptive"
-        ? "Adaptive plan: player roles fixed; unpicked champions may change for a proven counter."
-        : "Selected five: League lock-ins remain fixed."));
-    } else {
-      box.append(D.el("small", "", intentControl
+    if (box.dataset.key !== key) {
+      box.dataset.key = key;
+      box.dataset.selected = String(!!chosen);
+      box.replaceChildren();
+      box.append(D.el("b", "", chosen
+        ? (chosen.source === "discord" ? "Discord comp selected: " : "Team comp selected: ") + (chosen.label || "Team draft")
+        : "No Discord comp synced"));
+      if (!chosen) box.append(D.el("small", "", intentControl
         ? "Choose a comp in Discord again. This app has not received a selected plan."
         : "Shared control connection unavailable. Recheck Draft Coach sync."));
+      if (chosen) {
+        box.append(D.el("small", "", chosen.mode === "adaptive"
+          ? "Adaptive plan: player roles fixed; unpicked champions may change for a proven counter."
+          : "Selected five: League lock-ins remain fixed."));
+      }
+      const preview = D.el("div", "");
+      preview.id = "selected-comp-board";
+      box.append(preview);
     }
+    D.SelectedComp.render($("selected-comp-board"), chosen,
+      latest?.state, intentGuidance?.guidance, true);
   }
   async function pollDraftControl() {
     try {
@@ -1045,6 +1043,7 @@
         && idleState && idleState.source === "manual" && boardUntouched) snapshot = { ...snapshot, state: null, guidance: null, draft: {} };
     const st = snapshot.status || {}, state = snapshot.state, g = snapshot.guidance, draft = snapshot.draft || {};
     D.learnFromGuidance(g);
+    renderSelectedTeamComp();
     const status = $("status");
     status.textContent = ({ connected: "Following League", simulation: "Simulation", manual: "Manual board", waiting: "Client not detected", error: "Client error" }[st.connection] || st.connection || "");
     status.dataset.mode = st.connection || "connecting";

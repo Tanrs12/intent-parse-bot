@@ -1,0 +1,47 @@
+/* Selected Discord composition - shared by compact overlay and wide Coach. */
+.fd-selected-comp { width: 100%; min-width: 0; }
+.fd-sc-header { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin: 0 0 3px; }
+.fd-sc-header b { font: 700 11px/15px var(--mm-mono); letter-spacing: .035em; color: var(--mm-ink); }
+.fd-sc-mode { font: 700 9px/15px var(--mm-mono); color: var(--mm-blue); letter-spacing: .04em; }
+.fd-sc-plan { margin: 0 0 8px; font-size: 11px; line-height: 14px; color: var(--mm-secondary); }
+.fd-sc-roles { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; }
+.fd-sc-role { min-width: 0; padding: 7px 9px 6px; border: 1px solid var(--mm-line); border-radius: 7px; background: var(--mm-paper); }
+.fd-sc-role-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; margin-bottom: 5px; min-width: 0; }
+.fd-sc-role-head strong { font: 700 9px/13px var(--mm-mono); color: var(--mm-blue); }
+.fd-sc-player { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 76%; color: var(--mm-secondary); font: 10px/14px var(--mm-sans); }
+.fd-sc-picks { display: flex; align-items: flex-start; gap: 5px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; min-height: 53px; }
+.fd-sc-option { position: relative; min-width: 0; flex: 0 1 76px; display: flex; align-items: center; flex-direction: column; gap: 3px; text-align: center; color: var(--mm-ink); }
+.fd-sc-option .portrait { height: 34px; width: 34px; border-radius: 5px; background: var(--mm-surface); }
+.fd-sc-option.primary .portrait { border: 2px solid var(--mm-blue); }
+.fd-sc-option.counter .portrait { border: 2px solid var(--mm-warn); }
+.fd-sc-option.learn .portrait { border-style: dashed; opacity: .7; }
+.fd-sc-option.unavailable { opacity: .35; filter: grayscale(1); }
+.fd-sc-option.unavailable::after { content: ""; position: absolute; top: 17px; left: calc(50% - 20px); width: 40px; border-top: 2px solid var(--mm-ink); transform: rotate(-40deg); }
+.fd-sc-option .fd-sc-name { width: 100%; font: 10px/12px var(--mm-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fd-sc-lock { position: absolute; top: 0; right: calc(50% - 24px); width: 12px; line-height: 12px; border-radius: 50%; background: var(--mm-blue); color: var(--mm-surface); font-size: 9px; }
+.fd-sc-reason { margin: 4px 0 0; color: var(--mm-secondary); font: 10px/13px var(--mm-sans); overflow-wrap: anywhere; }
+.fd-sc-footnote { margin: 8px 0 0; color: var(--mm-secondary); font: 10px/14px var(--mm-sans); }
+.fd-selected-comp.wide .fd-sc-roles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.fd-selected-comp.wide .fd-sc-role { padding: 10px; min-height: 116px; }
+.fd-selected-comp.wide .fd-sc-role-head { display: block; }
+.fd-selected-comp.wide .fd-sc-player { display: block; max-width: 100%; margin: 3px 0 8px; }
+.fd-selected-comp.wide .fd-sc-picks { flex-wrap: wrap; overflow: visible; }
+.fd-selected-comp.wide .fd-sc-option { flex: 0 1 51px; }
+.fd-selected-comp.wide .fd-sc-option .portrait { width: 42px; height: 42px; }
+@media (max-width: 850px) {
+ .fd-selected-comp.wide .fd-sc-roles { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+}
+
+.fd-overlay .team-choice-status { margin: 2px 0 6px; padding: 3px 0; border: 0; border-radius: 0; background: transparent; font-size: 11px; line-height: 14px; }
+.fd-overlay .team-choice-status b { color: var(--mm-blue); font-size: 11px; }
+.fd-overlay .team-choice-status small { display: none; }
+.fd-overlay #selected-comp-board { margin: 0 0 10px; }
+.coach-page #team-choice-status { min-height: 30px; }
+.coach-page #selected-comp-board { margin-top: 10px; }
+
+/* In standby the selected comp is the main event, not a huge "Waiting" headline. */
+.draft-overlay[data-mode="idle"]:has(#selected-comp-board:not([hidden])) .ov-hero { min-height: 24px; }
+.draft-overlay[data-mode="idle"]:has(#selected-comp-board:not([hidden])) .ov-hero h1 { font-size: 17px; letter-spacing: -.2px; line-height: 1.2; }
+.draft-overlay[data-mode="idle"]:has(#selected-comp-board:not([hidden])) .ov-reason { display: none; }
+.draft-overlay[data-mode="idle"]:has(#selected-comp-board:not([hidden])) .ov-focus { padding-top: 7px; padding-bottom: 7px; }
+.fd-selected-comp.narrow .fd-sc-option { flex-basis: 66px; }

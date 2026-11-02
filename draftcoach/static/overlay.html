@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="/static/mm/tokens.css">
 <link rel="stylesheet" href="/static/mm/draft-ui.css">
 <link rel="stylesheet" href="/static/mm/draft-overlay.css">
+<link rel="stylesheet" href="/static/mm/selected-comp.css">
 </head>
 <body class="fd-overlay">
   <section class="draft-overlay" id="panel" aria-label="Flexers Draft Coach" data-mode="idle" data-turn="">
@@ -114,6 +115,7 @@
 
       </section>
       <div class="ov-context">
+      <div id="selected-comp-board" hidden aria-label="Selected Discord five-role composition"></div>
       <section id="post-draft-summary" class="draft-summary"
                aria-label="Final team and game plan" hidden></section>
       <div id="order" hidden>
@@ -146,6 +148,7 @@
   </section>
 
 <script src="/static/common.js"></script>
+<script src="/static/selected-comp.js"></script>
 <script src="/static/draft-review.js"></script>
 <script>
 (function () {
@@ -187,27 +190,23 @@
     const box = $("team-choice-status");
     const chosen = panelControl && panelControl.chosen;
     const key = JSON.stringify([chosen, !!panelControl]);
-    if (box.dataset.key === key) return;
-    box.dataset.key = key;
-    box.dataset.selected = String(!!chosen);
-    box.replaceChildren();
-    box.append(D.el("b", "", chosen
-      ? (chosen.source === "discord" ? "Discord comp: " : "Team comp: ") + (chosen.label || "Team draft")
-      : "No Discord comp synced"));
-    if (chosen) {
-      box.append(D.el("small", "", D.ROLES.map((role) =>
-        (ROLE_LONG[role] || role) + " " + ((chosen.champions || {})[role] || "?")
-      ).join(" · ")));
-      box.append(D.el("small", "", chosen.mode === "adaptive"
-        ? "Adaptive: roles fixed; unpicked champions may counter."
-        : "Chosen five: League lock-ins stay fixed."));
-    } else {
-      box.append(D.el("small", "", panelControl
+    if (box.dataset.key !== key) {
+      box.dataset.key = key;
+      box.dataset.selected = String(!!chosen);
+      box.replaceChildren();
+      box.append(D.el("b", "", chosen
+        ? (chosen.source === "discord" ? "Discord comp: " : "Team comp: ") + (chosen.label || "Team draft")
+        : "No Discord comp synced"));
+      if (!chosen) box.append(D.el("small", "", panelControl
         ? "Select a comp in Discord to load the team plan."
         : "Shared control connection unavailable."));
+      else box.append(D.el("small", "", chosen.mode === "adaptive"
+        ? "Adaptive: roles fixed; unpicked champions may counter."
+        : "Selected: League lock-ins stay fixed."));
     }
+    D.SelectedComp.render($("selected-comp-board"), chosen,
+      lastSnapshot?.state, panelBridge?.guidance || lastSnapshot?.guidance);
   }
-
   async function pollControl() {
     if (controlPolling || identityPending) return;
     controlPolling = true;
@@ -235,6 +234,7 @@
       panelBridge = guidanceResponse.ok
         ? await guidanceResponse.json()
         : { active: false };
+      renderSelectedTeamComp();
 
       const sel = $("identity");
       if (!identityFilled && data.identities?.length) {
@@ -800,6 +800,7 @@
       }
     }
     renderAlternatives(alts);
+    renderSelectedTeamComp();
     renderChange(snap.last_change, changeAllowed);
     renderActions(snap);
 
