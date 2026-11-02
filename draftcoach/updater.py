@@ -250,6 +250,41 @@ def _recent_failed_update(root: Path, release: ReleaseInfo,
         return False
 
 
+def failed_update_notice(root: Path, *, now: dt.datetime | None = None) -> str | None:
+    """A one-line explanation of the last failed update, once, so a player is never left guessing.
+
+    The replacer writes var/update-failed.json and silently restarts the old build; without this the
+    player only sees "nothing happened". Returns None when there is nothing new to tell.
+    """
+    path = root / "var" / "update-failed.json"
+    try:
+        record = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(record, dict) or record.get("notified"):
+        return None
+    failed_at = _parse_time(record.get("failed_at"))
+    now = now or dt.datetime.now(dt.timezone.utc)
+    if failed_at is None or not (dt.timedelta(0) <= now - failed_at < dt.timedelta(hours=4)):
+        return None
+    try:
+        path.write_text(json.dumps({**record, "notified": True}), encoding="utf-8")
+    except OSError:
+        pass
+    reason = str(record.get("message") or "unknown error").strip()
+    return (f"The last Draft Coach update did not apply ({reason}).\n\n"
+            "You are still on the previous build, so shared team sync may be off. Close every Draft Coach window, "
+            "then run 'Repair Draft Coach Update.bat' from the app folder. If the folder is on OneDrive or another "
+            "synced drive, move it somewhere plain like C:\\Games first.\n\nDetails: var\\updater.log")
+
+
+def _show_failed_update_notice(root: Path) -> None:
+    text = failed_update_notice(root)
+    if text and sys.platform == "win32":
+        # MB_OK | MB_ICONWARNING | MB_SETFOREGROUND
+        ctypes.windll.user32.MessageBoxW(0, text, "Flexers Draft Coach update", 0x00000000 | 0x00000030 | 0x00010000)
+
+
 def maybe_update(root: Path) -> bool:
     """Return True when an updater has been launched and this process should exit with code 42."""
     if sys.platform != "win32" or not getattr(sys, "frozen", False) or "--no-update" in sys.argv:
@@ -261,6 +296,10 @@ def maybe_update(root: Path) -> bool:
             return False
         if _recent_failed_update(root, release):
             print("The last update failed. Skipping repeat prompt; see var/updater.log.")
+            try:
+                _show_failed_update_notice(root)
+            except Exception:  # noqa: BLE001
+                pass
             return False
         if not _ask_update(release):
             os.environ["INTENT_UPDATE_SKIPPED"] = "1"

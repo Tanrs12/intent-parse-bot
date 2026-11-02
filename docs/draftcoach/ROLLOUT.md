@@ -5,7 +5,9 @@ Written for the five players. Five minutes per PC.
 ## 1. Install
 
 1. Download: https://github.com/Tanrs12/intent-parse-bot/releases/latest/download/FlexersDraftCoach.zip
-2. Extract the zip anywhere (Desktop is fine). Do not run it from inside the zip.
+2. Extract the zip to a plain folder such as `C:\Games\FlexersDraftCoach`. Do not run it from inside the
+   zip, and avoid OneDrive-synced folders (on many Windows 11 PCs that includes Desktop and Documents):
+   the sync client holds files open and the self-updater cannot replace them.
 3. Double-click `FlexersDraftCoach.exe`. Windows SmartScreen may ask once: "More info" then "Run anyway".
    The app removes the "downloaded from the internet" mark from its own files on first start.
 4. Two things open: the floating panel (small window, always on top) and, in your browser, the coach page.
