@@ -94,7 +94,49 @@ DISPLAY_EXCLUDED_CHAMPIONS = {"Teemo"}
 # Role-specific niche picks can still exist in account history, but should not be
 # forced into normal prepared drafts unless we deliberately reopen them later.
 BLOCKED_ROLE_PICKS = {("Top", "Varus")}
+# Team-specific Ranked coaching constraints, not universal champion tier claims.
+# Keep explicitly locked picks legal; these are exclusions from our own suggestions.
+RANKED_PLAYER_AVOID = {
+    (286592835850076162, "ADC"): {"Caitlyn"},  # Ste: needs lane dominance to pay off
+    (400745307467415553, "Support"): {"Morgana"},  # Cheeky: unreliable when behind
+}
+RANKED_LOW_BURDEN_ADCS = {"Ashe", "Jhin", "Miss Fortune", "Sivir"}
+RANKED_RELIABLE_SUPPORTS = {
+    "Alistar", "Braum", "Leona", "Lulu", "Janna", "Poppy", "Taric", "Nautilus",
+}
 CREDIBLE_DAMAGE_MIN = 1.75
+
+
+def _ranked_player_pick_allowed(player: dict, role: str, champion: str, preferred: str | None = None) -> bool:
+    """Avoid repeated low-fit picks without invalidating an intentional live lock."""
+    bad = RANKED_PLAYER_AVOID.get((int(player.get("user_id") or 0), role), set())
+    return (champion not in bad or bool(player.get("_forced_live_lock"))
+            or bool(player.get("_forced_live_champion") == champion)
+            or preferred == champion)
+
+
+def _ranked_utility_adjustment(uid: int, role: str, champion: str, carry: float, reliability: float) -> float:
+    """Modest individual fit: a weaker laner must still have a job when behind.
+
+    Not a universal tier list or champion eligibility override. These bonuses
+    only distinguish already-submitted choices on otherwise workable teams.
+    """
+    if role == "ADC":
+        if uid == 286592835850076162:  # Ste's fallback ADC needs utility, not a lane stomp.
+            if champion in RANKED_LOW_BURDEN_ADCS:
+                return 1.7
+            if champion in {"Ezreal", "Corki", "Caitlyn"}:
+                return -1.0
+        if uid == 270517092703272960 and champion in {"Ashe", "Jhin"}:
+            return 1.2
+        if carry < 43 and champion in RANKED_LOW_BURDEN_ADCS:
+            return 0.7
+    if role == "Support":
+        if uid == 400745307467415553:  # Cheeky: peel or reliable engage/roam.
+            return 1.25 if champion in RANKED_RELIABLE_SUPPORTS else -0.5
+        if reliability < 42 and champion in RANKED_RELIABLE_SUPPORTS:
+            return 0.5
+    return 0.0
 
 # Ranged/carry Top consumes a team resource slot. These champions are useful signals
 # that Jungle can supply low-economy frontline while Mid supplies dependable waveclear.
@@ -1995,6 +2037,10 @@ def _player_fit_adjustment(
             adjustment += (reliability - 50.0) / 50.0 * 0.8
             adjustment += (float(metrics.get("kp", 50.0)) - 50.0) / 50.0 * 0.4
 
+        # Our less consistent laners should still provide picks, CC or peel after
+        # a lost lane. Do not waste the team's best carry on their resource job.
+        adjustment += _ranked_utility_adjustment(uid, role, champion, carry, reliability)
+
         # A higher-competence carry player on a low-agency Jungle setup pick
         # should be a conscious composition tradeoff, not the default outcome.
         # This never grants eligibility or overrides bad draft structure.
@@ -2799,6 +2845,15 @@ def recommend_comps(
                 if champ not in DISPLAY_EXCLUDED_CHAMPIONS
                 and (prepared_flex_gallery or _verified_secondary_role_pick(player, role, champ, meta))
             ]
+            safer_selected = [
+                champ for champ in selected
+                if _ranked_player_pick_allowed(player, role, champ, (preferred_champions or {}).get(role))
+            ]
+            # Don't turn a one-pick live draft into 'no recommendations': the
+            # player can still choose their submitted fallback if nothing else
+            # is available, even when it would not be our preferred suggestion.
+            if safer_selected:
+                selected = safer_selected
             inferred = [champ for champ in inferred if champ not in DISPLAY_EXCLUDED_CHAMPIONS]
             role_limit = _role_search_pool_limit(player, role, pool_limit)
             # In a true late counterpick window, every selected solo laner is eligible.

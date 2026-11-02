@@ -37,6 +37,21 @@ jobs:
       - name: Build the desktop app
         run: python build_exe.py
 
+      # Smoke-test the FROZEN executable, not just the source test suite.
+      # This catches missing engine modules before publishing an unusable update.
+      - name: Verify packaged application starts
+        shell: pwsh
+        run: |
+          & .\dist\FlexersDraftCoach\FlexersDraftCoach.exe --no-update --help *> draftcoach-smoke.log
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content draftcoach-smoke.log
+            throw "Packaged Draft Coach failed startup verification."
+          }
+          if (-not (Select-String -Path draftcoach-smoke.log -Pattern 'usage: FlexersDraftCoach.exe' -Quiet)) {
+            Get-Content draftcoach-smoke.log
+            throw "Packaged Draft Coach produced no CLI startup output."
+          }
+
       - uses: actions/upload-artifact@v4
         with:
           name: FlexersDraftCoach

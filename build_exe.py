@@ -150,6 +150,9 @@ def main() -> int:
         "--add-data", f"{ROOT / 'draftcoach' / 'champion_ids.json'}{sep}draftcoach",
         "--add-data", f"{ROOT / 'draftcoach' / 'flexers_draft.ico'}{sep}draftcoach",
         "--add-data", f"{ROOT / 'league_comp_engine.py'}{sep}engine",
+        # The engine imports this at module load time; omitting it makes the
+        # packaged EXE close immediately before logging can start.
+        "--add-data", f"{ROOT / 'league_player_identity.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_patch_live.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_flex_core.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_draft_backend.py'}{sep}engine",
