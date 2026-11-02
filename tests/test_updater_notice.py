@@ -24,10 +24,28 @@ def test_recent_failure_is_explained_once(tmp_path):
     assert json.loads((tmp_path / "var" / "update-failed.json").read_text(encoding="utf-8"))["notified"] is True
 
 
-def test_old_or_missing_failures_stay_quiet(tmp_path):
+def test_missing_notified_or_broken_markers_stay_quiet_but_old_ones_still_tell_once(tmp_path):
     assert failed_update_notice(tmp_path) is None
+    _marker(tmp_path, notified=True)
+    assert failed_update_notice(tmp_path) is None
+    # a day-old failure the player never saw (they closed the app) is still told once
     _marker(tmp_path)
-    later = dt.datetime(2026, 11, 3, 6, 0, tzinfo=dt.timezone.utc)
+    later = dt.datetime(2026, 11, 3, 19, 0, tzinfo=dt.timezone.utc)
+    assert failed_update_notice(tmp_path, now=later)
     assert failed_update_notice(tmp_path, now=later) is None
     (tmp_path / "var" / "update-failed.json").write_text("not json", encoding="utf-8")
     assert failed_update_notice(tmp_path) is None
+
+
+def test_notice_fires_on_the_no_update_relaunch_the_replacer_uses(tmp_path, monkeypatch):
+    import sys
+    from draftcoach import updater
+    _marker(tmp_path)
+    shown = []
+    monkeypatch.setattr(updater, "_show_failed_update_notice", lambda root: shown.append(root))
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "argv", ["FlexersDraftCoach.exe", "--no-update"])
+    monkeypatch.setattr(updater, "_fetch_release", lambda: (_ for _ in ()).throw(AssertionError("must not reach the network")))
+    assert updater.maybe_update(tmp_path) is False
+    assert shown == [tmp_path]

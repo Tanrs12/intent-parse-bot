@@ -305,7 +305,14 @@
   function renderOrder(g, s) {
     // The full five of the draft the lead pick belongs to, in role order: locked seats, the seat that
     // picks next, the seats still to come, and which one is us.
-    const rows = (g && g.pick_order) || [];
+    let rows = (g && g.pick_order) || [];
+    // During bans (no pick order yet) still show the five we intend to play, from the leading draft,
+    // so a chosen team draft is visible from the first second of champion select.
+    const leadComp = (g && g.comps && g.comps[0]) || null;
+    if (rows.length !== 5 && leadComp && leadComp.champions && D.ROLES.every((role) => leadComp.champions[role])) {
+      rows = D.ROLES.map((role) => ({ role, slot: role, champion: leadComp.champions[role],
+        champion_id: (leadComp.champion_ids || {})[role], status: "later", tags: [] }));
+    }
     const box = $("order"), list = $("order-list");
     box.hidden = rows.length !== 5;
     if (rows.length !== 5) { orderKey = ""; return; }
@@ -352,6 +359,11 @@
     const s = snap.state, g = snap.guidance, st = snap.status || {};
     if (st.connection === "error" || st.stale) return "unavailable";
     if (!s) return st.connection === "manual" ? "manual-idle" : st.connection === "waiting" ? "no-client" : "idle";
+    // League is open but nobody is in champion select: the blank practice board must not read as
+    // "our turn to ban". Wait for the real lobby instead.
+    const untouched = !(s.our_bans || []).length && !(s.enemy_bans || []).length
+      && !(s.our_team || []).some((p) => p.locked) && !(s.enemy_team || []).some((p) => p.locked);
+    if (st.connection === "connected" && !st.lcu_in_champ_select && (s.source === "manual" || st.source === "manual") && untouched) return "idle";
     const ours = (s.our_team || []).filter((p) => p.locked).length, theirs = (s.enemy_team || []).filter((p) => p.locked).length;
     if (ours === 5 && theirs === 5) return "complete";
     if (ours === 5) return "ours-locked";
@@ -698,10 +710,10 @@
     const conn = $("conn");
     const connLabel = { connected: "LIVE", simulation: "SIMULATION", manual: "MANUAL BOARD", waiting: "CLIENT NOT DETECTED", error: "CLIENT ERROR" }[st.connection] || (st.connection || "").toUpperCase();
     conn.textContent = connLabel; conn.dataset.mode = st.connection || "connecting";
-    $("head-sub").textContent = s ? "OUR TEAM · " + (s.side === "red" ? "RED SIDE" : "BLUE SIDE") : "WAITING FOR LOBBY";
-    renderLobby(snap);
-
     const mode = overlayMode(snap);
+    $("head-sub").textContent = s && mode !== "idle" ? "OUR TEAM · " + (s.side === "red" ? "RED SIDE" : "BLUE SIDE") : "WAITING FOR LOBBY";
+    renderLobby(mode === "idle" ? { ...snap, state: null } : snap);
+
     const panel = $("panel"); panel.dataset.mode = mode;
     const ourTurn = mode === "our-ban" || mode === "our-pick";
     panel.dataset.turn = ourTurn ? "ours" : (mode === "enemy-ban" || mode === "enemy-pick") ? "enemy" : "";
@@ -742,7 +754,8 @@
         break;
       }
       case "our-pick": case "enemy-ban": case "enemy-pick": case "plan": {
-        const eyebrow = mode === "our-pick" ? "OUR TURN TO PICK · " + rolesNow.replace(" / ", " AND ") : mode === "enemy-ban" ? "ENEMY BANNING · GET READY" : mode === "enemy-pick" ? "ENEMY PICKING · GET READY" : "PLANNING PHASE";
+        const rolesText = rolesNow.split(" / ").length >= 4 ? "ANY SEAT" : rolesNow.replace(" / ", " AND ");
+        const eyebrow = mode === "our-pick" ? "OUR TURN TO PICK · " + rolesText : mode === "enemy-ban" ? "ENEMY BANNING · GET READY" : mode === "enemy-pick" ? "ENEMY PICKING · GET READY" : "PLANNING PHASE";
         $("statekey").textContent = eyebrow;
         if (top) {
           const mine = snap.local && snap.local.can_act && snap.local.suggestion && snap.local.suggestion.champion === top.champion;

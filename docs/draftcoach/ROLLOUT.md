@@ -37,6 +37,12 @@ Written for the five players. Five minutes per PC.
   panel's team list says "was Sylas · banned" next to the replacement. The bot also keeps a **Live draft**
   message in the channel that follows champ select (bans, enemy picks, our five, who picks next).
   **Release draft** puts the apps back on automatic drafts.
+- **The captain can do the same from the app.** On the coach page every ranked draft has **Send to team**;
+  the chosen one shows a **Team draft** editor where any seat's champion can be changed live and
+  everyone follows within half a second. **Release** goes back to automatic.
+- **Sync check** (coach page, Draft settings & requirements, "Who's here") lists everyone who has the
+  app open, whether they are in champion select, who the captain is, and the role each wants. Set
+  **My role tonight** so the others see it; press **Sync check** to refresh and get a one-line summary.
 - The **Draft settings** button (panel) or **Team sheet** (coach page) does the same by hand: team style
   (dive, poke, front-to-back, ...), pin a player to a role, lock a champion for a role, or ask for
   different drafts ("Find different drafts"). A change by any one of you reaches everyone within half

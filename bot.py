@@ -58,6 +58,7 @@ def _session_row(key: str) -> dict:
         "publisher_id": None,
         "preference": None,
         "preference_version": 0,
+        "epoch": now,          # changes whenever the room is recreated (relay restart, idle eviction)
         "participants": {},
         "last_seen": now,
     }
@@ -110,17 +111,28 @@ async def _relay_heartbeat(request: web.Request) -> web.Response:
         "player_name": str(payload.get("player_name") or "Unknown")[:80],
         "priority": int(payload.get("priority") if payload.get("priority") is not None else 9999),
         "in_champ_select": bool(payload.get("in_champ_select")),
+        "role": (str(payload.get("role") or "").strip()[:12] or None),   # the role this player wants tonight
         "updated": time.time(),
     }
     leader = _elect_leader(row)
+    active = _active_participants(row)
+    now = time.time()
     return web.json_response({
         "ok": True,
         "leader_id": (leader or {}).get("client_id"),
         "leader_name": (leader or {}).get("player_name"),
-        "participant_count": len(_active_participants(row)),
+        "participant_count": len(active),
+        # The sync check: who has the app open right now, whether they are in champ select, and the
+        # role they want. Names and ids only; client ids stay private to each app.
+        "participants": [{"player_id": item.get("player_id"), "player_name": item.get("player_name"),
+                          "in_champ_select": bool(item.get("in_champ_select")), "role": item.get("role"),
+                          "captain": bool(leader and leader.get("client_id") == cid),
+                          "seen_seconds_ago": round(now - float(item.get("updated") or now), 1)}
+                         for cid, item in sorted(active.items(), key=lambda kv: (int(kv[1].get("priority") if kv[1].get("priority") is not None else 9999), kv[0]))],
         "preference": row.get("preference"),
         "control": row.get("control"),
         "preference_version": int(row.get("preference_version") or 0),
+        "room_epoch": row.get("epoch"),
     })
 
 
@@ -140,7 +152,7 @@ async def _relay_put(request: web.Request) -> web.Response:
     row["updated"] = time.time()
     row["publisher_id"] = publisher_id
     return web.json_response({"ok": True, "preference": row.get("preference"), "control": row.get("control"),
-                              "preference_version": int(row.get("preference_version") or 0)})
+                              "preference_version": int(row.get("preference_version") or 0), "room_epoch": row.get("epoch")})
 
 
 async def _relay_get(request: web.Request) -> web.Response:
@@ -186,7 +198,7 @@ async def _relay_preference(request: web.Request) -> web.Response:
         row["control"] = None
     row["preference_version"] = int(row.get("preference_version") or 0) + 1
     return web.json_response({"ok": True, "signature": signature, "control": row.get("control"),
-                              "preference_version": row["preference_version"]})
+                              "preference_version": row["preference_version"], "room_epoch": row.get("epoch")})
 
 
 async def start_draft_sync_relay() -> web.AppRunner:

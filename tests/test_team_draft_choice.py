@@ -30,8 +30,9 @@ def _player(uid, name, roles, champions):
 
 
 FIVE = [
-    _player(1, "Cian", ["Top"], {"Top": ["Camille", "Ambessa", "Gnar", "Ornn"]}),
-    _player(2, "Kayla", ["Jungle"], {"Jungle": ["Zac", "Amumu", "Vi", "Sejuani"]}),
+    # Cian and Kayla can both play Top and Jungle, so without the role lock the engine may swap them.
+    _player(1, "Cian", ["Top", "Jungle"], {"Top": ["Camille", "Ambessa", "Gnar", "Ornn"], "Jungle": ["Zac", "Vi"]}),
+    _player(2, "Kayla", ["Jungle", "Top"], {"Jungle": ["Zac", "Amumu", "Vi", "Sejuani"], "Top": ["Camille", "Ornn"]}),
     _player(3, "Pete", ["Mid"], {"Mid": ["Ahri", "Yasuo", "Galio", "Orianna"]}),
     _player(4, "Jack", ["ADC"], {"ADC": ["Ashe", "Jinx", "Kai'Sa", "Caitlyn"]}),
     _player(5, "Reform", ["Support"], {"Support": ["Lulu", "Nautilus", "Thresh", "Leona"]}),
@@ -129,10 +130,62 @@ def test_discord_live_mirror_text_follows_the_published_guidance():
         "chosen": {"label": "Draft 3", "plan": "dive / all-in", "players": {r: REC["players"][r]["display_name"] for r in REC["players"]},
                    "replaced": {"Jungle": {"was": "Zac", "now": "Amumu", "why": "banned"}}},
         "our_locked": {"Top": "Camille"}, "our_bans": ["Yone"], "enemy_bans": ["Zac"], "enemy_locked": ["Syndra"],
-        "picking_now": "Kayla picks now",
+        "picking_now": True, "headline": "Pick Amumu",
     }}
     text = live_draft_text(payload, "Draft 3")
     assert "Live draft · Draft 3" in text and "Enemy bans: Zac" in text and "Enemy picks: Syndra" in text
     assert "🔒 **Top** Cian · Camille" in text and "Kayla · Amumu  (was Zac, banned)" in text
-    assert text.endswith("Kayla picks now")
+    assert text.endswith("➡️ Pick Amumu")
+    payload["guidance"]["picking_now"] = False
+    assert live_draft_text(payload, "Draft 3").endswith("• Pick Amumu")
     assert live_draft_text({"active": False}, "Draft 3") == ""
+
+
+def test_relay_restart_resets_the_control_version_instead_of_freezing_the_apps():
+    bridge._cloud_pref_version = 0
+    bridge._set_control({"identity": None, "role_locks": {}, "champion_locks": {}, "shake": 0, "chosen": None, "signature": None}, replace=True)
+    bridge._apply_cloud_control({"preference_version": 7, "preference": None, "control": {"identity": "poke", "role_locks": {}, "champion_locks": {}, "shake": 0}})
+    assert bridge._get_control()["identity"] == "poke"
+    # an older version from the same room never overrides (the existing rule)
+    bridge._apply_cloud_control({"preference_version": 2, "preference": None, "control": {"identity": "dive"}})
+    assert bridge._get_control()["identity"] == "poke"
+    # the bot redeployed: a fresh room (new epoch) starts again at version 1 with a new Discord choice
+    payload = draft_control_payload(REC, label="Draft 5")
+    bridge._apply_cloud_control({"preference_version": 1, "room_epoch": 1793650000.5, "preference": payload["signature"], "control": payload["control"]})
+    assert bridge._get_control()["chosen"]["label"] == "Draft 5" and bridge._cloud_pref_version == 1
+    # a brand-new empty room (version 0) clears what the old room had chosen
+    bridge._apply_cloud_control({"preference_version": 0, "room_epoch": 1793650999.0, "preference": None, "control": None})
+    assert bridge._get_control()["chosen"] is None and bridge._get_control()["champion_locks"] == {}
+
+
+PUG_FIVE = [
+    _player(6, "PUG", ["Top"], {"Top": ["Garen", "Malphite"]}),
+    _player(2, "Kayla", ["Jungle"], {"Jungle": ["Zac", "Amumu"]}),
+    _player(4, "Jack", ["Mid", "Top"], {"Mid": ["Ahri", "Galio"], "Top": ["Camille"]}),
+    _player(1, "Cian", ["ADC"], {"ADC": ["Ashe", "Jinx"]}),
+    _player(5, "Reform", ["Support"], {"Support": ["Lulu", "Thresh"]}),
+]
+LIVE = {"Top": 6, "Jungle": 2, "Mid": 4, "ADC": 1, "Support": 5}
+
+
+def test_role_locks_apply_as_swaps_and_never_pin_one_player_twice():
+    five_ids = {6, 2, 4, 1, 5}
+    # the Discord draft had Jack top and a sub mid; the sub is not in the lobby -> Jack and the PUG swap
+    assert bridge._apply_role_locks(LIVE, {"Top": 4, "Mid": 9}, five_ids) == {"Top": 4, "Jungle": 2, "Mid": 6, "ADC": 1, "Support": 5}
+    # a lock that matches the live seat changes nothing
+    assert bridge._apply_role_locks(LIVE, {"Mid": 4}, five_ids) == LIVE
+    # two players swapped in champ select after the draft was sent: both locks apply, still five distinct
+    swapped = {**LIVE, "Top": 4, "Mid": 6}
+    assert bridge._apply_role_locks(swapped, {"Top": 6, "Mid": 4}, five_ids) == LIVE
+    for out in (bridge._apply_role_locks(LIVE, {"Top": 4, "Mid": 9}, five_ids), bridge._apply_role_locks(LIVE, {"Top": 4, "Jungle": 4}, five_ids)):
+        assert len(set(out.values())) == len(out) == 5
+
+
+def test_locks_that_leave_nothing_playable_fall_back_to_the_live_layout():
+    pinned = bridge._apply_role_locks(LIVE, {"Top": 4, "Mid": 9}, {6, 2, 4, 1, 5})   # the PUG has no mid pool
+    assert recommend_live_drafts(PUG_FIVE, side="blue", limit=3, role_players=pinned)["recommendations"] == []
+    result = bridge._drafts_with_fallback(LIVE, signups=PUG_FIVE, side="blue", limit=3, role_players=pinned, required_champions={})
+    assert result["recommendations"] and result["locks_relaxed"] is True
+    assert result["recommendations"][0]["players"]["Top"]["user_id"] == 6
+    plain = bridge._drafts_with_fallback(LIVE, signups=PUG_FIVE, side="blue", limit=3, role_players=LIVE, required_champions={})
+    assert plain["recommendations"] and not plain.get("locks_relaxed")

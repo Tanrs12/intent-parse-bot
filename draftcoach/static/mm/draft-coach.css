@@ -395,3 +395,23 @@ button.card:hover:not(:disabled) .champ { color: var(--mm-blue); }
 .pr-tilt { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .pr-tilt-card { padding: 10px 12px; border: 1px solid var(--mm-line); border-radius: 4px; display: grid; gap: 4px; font-size: 13px; }
 .pr-notes { margin: 8px 0 0; padding-left: 18px; color: var(--mm-secondary); font-size: 12px; }
+
+/* FLEXERS: sync check (who has the app open) and the team draft editor */
+.sync-check { margin: 10px 0 6px; padding: 8px 10px; border: 1px solid var(--mm-line); border-radius: 4px; }
+.sync-list { display: flex; flex-direction: column; gap: 3px; margin: 4px 0 8px; }
+.sync-row { display: grid; grid-template-columns: minmax(90px, 1.2fr) 1fr 1fr auto; gap: 8px; align-items: center; font-size: 12px; padding: 3px 6px; border-radius: 3px; }
+.sync-row.in-select { background: var(--mm-pale); }
+.sync-row.captain b::after { content: ' ★'; color: var(--mm-blue); }
+.sync-role, .sync-state, .sync-captain { color: var(--mm-secondary); font: 10px var(--mm-mono); letter-spacing: .04em; text-transform: uppercase; }
+.captain-prefer.send { margin-left: auto; }
+.captain-prefer.send + .captain-prefer { margin-left: 6px; }
+.captain-prefer.send.on { border-color: var(--mm-blue); background: var(--mm-blue); color: #fff; }
+.team-draft-edit { margin: 8px 0; padding: 8px 10px; border: 1px solid var(--mm-blue); border-radius: 4px; }
+.team-draft-seats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 6px; }
+.team-draft-seats .control-field.swapped select { border-color: var(--mm-accent, #c8962e); }
+.team-draft-seats small { display: block; color: var(--mm-secondary); font-size: 10px; margin-top: 2px; }
+@media (max-width: 720px) { .team-draft-seats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.team-draft-seats .control-field { display: flex; flex-direction: column; justify-content: flex-end; min-width: 0; }
+.team-draft-seats .control-field > .mm-meta { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+.team-draft-seats select { width: 100%; min-width: 0; }

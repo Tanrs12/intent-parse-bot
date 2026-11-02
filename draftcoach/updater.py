@@ -263,10 +263,9 @@ def failed_update_notice(root: Path, *, now: dt.datetime | None = None) -> str |
         return None
     if not isinstance(record, dict) or record.get("notified"):
         return None
-    failed_at = _parse_time(record.get("failed_at"))
-    now = now or dt.datetime.now(dt.timezone.utc)
-    if failed_at is None or not (dt.timedelta(0) <= now - failed_at < dt.timedelta(hours=4)):
-        return None
+    # The marker is removed by the next successful update, so any un-notified marker is worth one
+    # dialog, however old: the replacer restarts the old build with --no-update, and the player may
+    # not open the app again for a day.
     try:
         path.write_text(json.dumps({**record, "notified": True}), encoding="utf-8")
     except OSError:
@@ -287,7 +286,16 @@ def _show_failed_update_notice(root: Path) -> None:
 
 def maybe_update(root: Path) -> bool:
     """Return True when an updater has been launched and this process should exit with code 42."""
-    if sys.platform != "win32" or not getattr(sys, "frozen", False) or "--no-update" in sys.argv:
+    if sys.platform != "win32" or not getattr(sys, "frozen", False):
+        return False
+    # Before anything that can be skipped (--no-update relaunch, offline, same build): tell the player
+    # once if the previous update failed. The replacer restarts with --no-update, so this is the path
+    # a failed update actually takes.
+    try:
+        _show_failed_update_notice(root)
+    except Exception:  # noqa: BLE001
+        pass
+    if "--no-update" in sys.argv:
         return False
     try:
         build = _load_build_info(root)
@@ -296,10 +304,6 @@ def maybe_update(root: Path) -> bool:
             return False
         if _recent_failed_update(root, release):
             print("The last update failed. Skipping repeat prompt; see var/updater.log.")
-            try:
-                _show_failed_update_notice(root)
-            except Exception:  # noqa: BLE001
-                pass
             return False
         if not _ask_update(release):
             os.environ["INTENT_UPDATE_SKIPPED"] = "1"

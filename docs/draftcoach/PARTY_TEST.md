@@ -24,6 +24,14 @@ deterministic per player). The app connects to it exactly as it connects to Leag
 - the queue is recognised as Ranked Flex
 - one captain is elected through the relay and all five show the same drafts
 - shared controls (team style, role lock, champion lock, shake) posted on one app reach all five, timed
+- sync check (`sync check:`): a wanted role set on one app shows for that player on all five, one
+  captain everywhere, all five in champion select (each app has its own role file, `INTENT_ROLE_FILE`)
+- the captain's own choice (`app choice:`): a draft sent from one app's coach page is followed by all
+  five (pinned roles, locked five), a live seat edit reaches all five, release returns everyone to automatic
+- a draft chosen in Discord (`discord choice:`): the relay post the bot makes reaches all five and leads
+  on every app; after the draft (`chosen draft:`) the seat whose champion the scripted enemy banned was
+  re-solved and nothing else moved. The harness prefers a draft containing a champion the enemy will
+  ban and reports it when no such draft exists, so the ban check is never skipped silently
 - every one of our bans and picks: the seat's app offers the button, hovers and locks through its own
   client, the lobby shows it, and all five apps see it, timed
 - quirks: a client websocket drop (reconnect), the relay blocked like a firewall for 8 s (nobody loses

@@ -240,7 +240,45 @@ def _auto_identity() -> dict:
         "priority": int(_HOST_PRIORITIES.get(player_id, 9999)),
         "in_champ_select": bool(status.get("lcu_in_champ_select")) and not status.get("stale"),
         "game_id": state.get("game_id"),
+        # The role this player wants tonight (set in the app), else the live seat's role.
+        "role": _get_wanted_role() or (local.get("role") if local.get("role") in ROLES else None),
     }
+
+
+def _role_file() -> Path:
+    override = os.environ.get("INTENT_ROLE_FILE")      # the party harness gives each app its own file
+    if override:
+        return Path(override)
+    base = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else REPO
+    return base / "var" / "my-role.json"
+
+
+def _load_wanted_role() -> str | None:
+    try:
+        role = json.loads(_role_file().read_text(encoding="utf-8")).get("role")
+        return role if role in ROLES else None
+    except Exception:
+        return None
+
+
+def _get_wanted_role() -> str | None:
+    with _auto_lock:
+        return _wanted_role
+
+
+def _set_wanted_role(role: str | None) -> str | None:
+    """Remember the role this player wants; it travels with every heartbeat so the sync check shows it."""
+    global _wanted_role
+    clean = role if role in ROLES else None
+    with _auto_lock:
+        _wanted_role = clean
+    try:
+        path = _role_file()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"role": clean}), encoding="utf-8")
+    except OSError:
+        pass
+    return clean
 
 
 def _auto_sync_meta(mode: str) -> dict:
@@ -251,6 +289,9 @@ def _auto_sync_meta(mode: str) -> dict:
             "room": _room_label(),
             "leader": _auto_leader_name,
             "participants": _auto_participant_count,
+            "players": list(_auto_participants),
+            "my_role": _wanted_role,
+            "me": _auto_client_id,
         }
 
 
@@ -274,7 +315,14 @@ def _cloud_publish(payload: dict, client_id: str | None = None) -> dict:
 
 def _apply_cloud_control(control: dict) -> None:
     global _cloud_pref_version
+    global _cloud_room_epoch
     version = int((control or {}).get("preference_version") or 0)
+    epoch = (control or {}).get("room_epoch")
+    if epoch is not None and epoch != _cloud_room_epoch:
+        # The room was recreated (the bot redeploys on every push and keeps rooms in memory, idle rooms
+        # are evicted): forget the old version so the fresh room's state is taken, even version 0.
+        _cloud_room_epoch = epoch
+        _cloud_pref_version = -1
     if version > _cloud_pref_version:
         _cloud_pref_version = version
         shared = (control or {}).get("control")
@@ -288,7 +336,7 @@ def _apply_cloud_control(control: dict) -> None:
 
 
 def cloud_auto_loop() -> None:
-    global _auto_is_host, _auto_leader_id, _auto_leader_name, _auto_participant_count
+    global _auto_is_host, _auto_leader_id, _auto_leader_name, _auto_participant_count, _auto_participants
     while _cloud_mode == "auto":
         try:
             identity = _auto_identity()
@@ -298,6 +346,7 @@ def cloud_auto_loop() -> None:
                 _auto_leader_id = str(leader_id) if leader_id else None
                 _auto_leader_name = str(control.get("leader_name") or "") or None
                 _auto_participant_count = int(control.get("participant_count") or 0)
+                _auto_participants = [p for p in (control.get("participants") or []) if isinstance(p, dict)]
                 _auto_is_host = bool(leader_id and leader_id == _auto_client_id)
             _apply_cloud_control(control)
             if leader_id == _auto_client_id:
@@ -388,6 +437,9 @@ _auto_is_host = False
 _auto_leader_id: str | None = None
 _auto_leader_name: str | None = None
 _auto_participant_count = 0
+_auto_participants: list[dict] = []          # the relay's view of who has the app open (sync check)
+_cloud_room_epoch = None                     # the relay room's creation stamp; a change means a fresh room
+_wanted_role: str | None = _load_wanted_role()
 _preference_lock = threading.Lock()
 _preferred_signature: str | None = None
 PREFERENCE_MAX_GAP = 2.5
@@ -939,6 +991,49 @@ def _current_five(state: dict, *, fill_for_test: bool = False) -> list[dict]:
 
     return resolved[:5] if len(resolved) == 5 else []
 
+def _apply_role_locks(live: dict[str, int], role_locks: dict[str, int], five_ids: set[int]) -> dict[str, int]:
+    """Pin players to roles as the chosen draft says, as SWAPS over the live layout.
+
+    A lock whose player is not in the lobby is ignored. A lock that moves a player into a seat someone
+    else holds gives the displaced player the vacated seat, so all five stay pinned and distinct. If
+    the result still has one player in two roles, the live layout wins: a contradictory choice must
+    degrade to "ignore the lock", never to "no drafts".
+    """
+    out = dict(live)
+    for role, uid in (role_locks or {}).items():
+        if role not in ROLES or uid not in five_ids:
+            continue
+        prev_role = next((r for r, u in out.items() if u == uid), None)
+        displaced = out.get(role)
+        if prev_role == role:
+            continue
+        if prev_role is not None:
+            del out[prev_role]
+            if displaced is not None and displaced != uid:
+                out[prev_role] = displaced
+        out[role] = uid
+    if len(set(out.values())) != len(out):
+        return dict(live)
+    return out
+
+
+def _drafts_with_fallback(live_role_players: dict[str, int], **kwargs) -> dict:
+    """The engine call, retried without the team's locks when they leave nothing playable.
+
+    Pinned seats a player has no pool for (a PUG swapped into mid by a Discord draft) or a required
+    champion the lobby cannot field would otherwise empty every screen until someone presses Release.
+    """
+    result = recommend_live_drafts(**kwargs)
+    if result.get("recommendations"):
+        return result
+    relaxed = {**kwargs, "role_players": live_role_players, "required_champions": {}}
+    if relaxed["role_players"] == kwargs.get("role_players") and not kwargs.get("required_champions"):
+        return result
+    result = recommend_live_drafts(**relaxed)
+    result["locks_relaxed"] = True
+    return result
+
+
 def _locked_by_role(state: dict) -> dict[str, str]:
     return {row["role"]: row["locked"] for row in state.get("our_team", []) if row.get("role") in ROLES and row.get("locked")}
 
@@ -1371,6 +1466,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
             "carry_plan": dict(rec.get("carry_plan") or {}),
             "player_fit_notes": list(rec.get("player_fit_notes") or []),
             "signature": _comp_signature(rec.get("champions")),
+            "identity": rec.get("identity"),
             "preferred": bool(rec.get("_preferred")),
             "pick_order": annotated_order,
             # Counter bans are calculated against this exact composition/pick order by the same
@@ -1569,9 +1665,12 @@ def build_response():
     }, sort_keys=True)
     control = _get_control()
     five_ids = {int(row["user_id"]) for row in five if row.get("user_id")}
-    for role, uid in control["role_locks"].items():
-        if uid in five_ids:
-            role_players = {**role_players, role: uid}
+    # FLEXERS: a chosen draft pins roles, but a lock that contradicts the live lobby (a sub replaced by a
+    # PUG, two players swapped) must degrade to "ignore the lock", never to "no drafts": evict the live
+    # seat that already holds the locked player, and fall back to the live map if a player would end
+    # up in two roles.
+    live_role_players = dict(role_players)
+    role_players = _apply_role_locks(role_players, control["role_locks"], five_ids)
     game_key = str(state.get("game_id") or "live-no-game-id")
     global _last_game_id
     _last_game_id = game_key
@@ -1586,8 +1685,9 @@ def build_response():
             values = signature.split("|")
             if len(values) == len(ROLES) and all(value and value != "?" for value in values):
                 selected_plan = dict(zip(ROLES, values))
-        result = recommend_live_drafts(
-            five,
+        result = _drafts_with_fallback(
+            live_role_players,
+            signups=five,
             unavailable=unavailable,
             locked_champions=locked,
             hovered_champions=hovered,
@@ -1621,6 +1721,9 @@ def build_response():
             enemy_bans=list(effective_state.get("enemy_bans") or []),
             enemy_locked=[row.get("locked") for row in effective_state.get("enemy_team", []) if row.get("locked")],
         )
+        if guidance["chosen"] is not None:
+            guidance["chosen"]["locks_relaxed"] = bool(result.get("locks_relaxed"))
+        guidance["locks_relaxed"] = bool(result.get("locks_relaxed"))
         guidance["identities"] = [{"key": key, "label": spec["label"], "description": spec["description"],
                                    "count": int((result.get("identities") or {}).get(key, 0))}
                                   for key, spec in IDENTITIES.items()]
@@ -1725,8 +1828,11 @@ class Handler(BaseHTTPRequestHandler):
             self._reply({"signature": _get_preference(), "max_gap": PREFERENCE_MAX_GAP})
             return
         if path == "/api/control":
+            mode = "auto-host" if _auto_is_host else "auto-idle"
             self._reply({"ok": True, "control": _get_control(),
-                         "identities": [{"key": k, "label": v["label"], "description": v["description"]} for k, v in IDENTITIES.items()]})
+                         "identities": [{"key": k, "label": v["label"], "description": v["description"]} for k, v in IDENTITIES.items()],
+                         "sync": _auto_sync_meta(mode) if _cloud_mode == "auto" else None,
+                         "is_captain": bool(_auto_is_host)})
             return
         if path == "/api/test":
             with _test_lock:
@@ -1744,6 +1850,11 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("expected object")
         except Exception as exc:
             self._reply({"error": str(exc)}, 400)
+            return
+        if path == "/api/control" and "my_role" in payload and len(payload) == 1:
+            # This player's wanted role: part of the heartbeat identity, not of the shared control.
+            role = _set_wanted_role(payload.get("my_role"))
+            self._reply({"ok": True, "my_role": role})
             return
         if path in ("/api/preference", "/api/control"):
             # One shared control object: the signature plus identity / locks / shake. A preference

@@ -117,6 +117,16 @@
             <button class="fd-button" id="control-shake" type="button" title="Retire the drafts already shown this game and reshuffle">Find different drafts</button>
           </div>
           <p class="plan-note" id="control-identity-note"></p>
+          <div class="sync-check" id="sync-check">
+            <header class="coach-section-head"><h3>Who's here</h3>
+              <button class="fd-button" id="sync-check-btn" type="button" title="Refresh who has the app open and the role each wants">Sync check</button></header>
+            <div class="sync-list" id="sync-list"></div>
+            <div class="control-row">
+              <label class="control-field"><span class="mm-meta">My role tonight</span>
+                <select id="my-role"><option value="">Any</option><option value="Top">Top</option><option value="Jungle">Jungle</option><option value="Mid">Mid</option><option value="ADC">ADC</option><option value="Support">Support</option></select></label>
+              <span class="mm-meta" id="sync-note"></span>
+            </div>
+          </div>
           <p class="fd-note">Requirements shape every suggested draft. “Lock in” confirms a champion in League.</p>
           <div class="control-locks" id="control-locks"></div>
           <div class="control-actions" id="intent-actions" hidden>
@@ -131,6 +141,7 @@
           <div class="captain-phase" id="captain-phase"></div>
           <p class="plan-note" id="captain-locks"></p>
           <p class="captain-preference-note" id="captain-preference"></p>
+          <div class="team-draft-edit" id="team-draft-edit" hidden></div>
           <div class="captain-comps" id="captain-comps"></div>
         </section>
 
@@ -584,10 +595,131 @@
       const d = await r.json();
       intentControl = d.control;
       identityList = d.identities || identityList;
-    } catch (e) { intentControl = null; }
+      intentSync = d.sync || null; isCaptain = !!d.is_captain;
+    } catch (e) { intentControl = null; intentSync = null; }
+    renderSync();
     if (latest) render(latest);
   }
   setInterval(pollDraftControl, 500);
+
+  // ---- sync check: who has the app open, whether they are in champ select, the role they want ----
+  let intentSync = null, isCaptain = false;
+  function renderSync() {
+    const box = $("sync-list"), note = $("sync-note"), sel = $("my-role");
+    if (!box) return;
+    const players = (intentSync && intentSync.players) || [];
+    box.replaceChildren();
+    if (!intentSync) { note.textContent = "Not connected to the team room."; }
+    else if (!players.length) { note.textContent = "Nobody else has the app open right now."; }
+    else {
+      for (const p of players) {
+        const row = D.el("div", "sync-row" + (p.captain ? " captain" : "") + (p.in_champ_select ? " in-select" : ""));
+        row.append(
+          D.el("b", "", p.player_name || "Unknown"),
+          D.el("span", "sync-role", p.role ? (ROLE_LONG[p.role] || p.role) : "any role"),
+          D.el("span", "sync-state", p.in_champ_select ? "in champ select" : "app open"),
+          D.el("span", "sync-captain", p.captain ? "captain" : "")
+        );
+        box.append(row);
+      }
+      note.textContent = players.length + " of 5 here" + (intentSync.leader ? " · captain " + intentSync.leader : "");
+    }
+    if (document.activeElement !== sel) sel.value = (intentSync && intentSync.my_role) || "";
+  }
+  $("sync-check-btn").onclick = async () => {
+    await pollDraftControl();
+    const players = (intentSync && intentSync.players) || [];
+    toast(players.length ? players.length + " app" + (players.length === 1 ? "" : "s") + " open: " + players.map((p) => p.player_name + (p.role ? " (" + p.role + ")" : "")).join(", ") : "Nobody is in the team room.");
+  };
+  $("my-role").onchange = async () => {
+    try {
+      const r = await fetch(BRIDGE + "/api/control", { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ my_role: $("my-role").value || null }) });
+      if (!r.ok) throw new Error("role " + r.status);
+      toast($("my-role").value ? "Role set: everyone's sync check shows " + $("my-role").value + "." : "Role cleared.");
+    } catch (e) { toast("Couldn't set your role. Try again.", true); }
+  };
+
+  // ---- the captain's draft choice and live edits, shared with everyone -----------------------------
+  function teamDraftPayload(comp, label) {
+    const champions = Object.fromEntries(D.ROLES.map((role) => [role, (comp.champions || {})[role] || ""]));
+    const roleLocks = {}, names = {};
+    for (const role of D.ROLES) {
+      const uid = (comp.player_ids || {})[role];
+      if (uid) roleLocks[role] = uid;
+      const name = (comp.players || {})[role];
+      if (name && typeof name === "string") names[role] = name;
+    }
+    return {
+      signature: D.ROLES.map((role) => champions[role] || "?").join("|"),
+      identity: comp.identity && comp.identity !== "balanced" ? comp.identity : null,
+      role_locks: roleLocks,
+      champion_locks: Object.fromEntries(Object.entries(champions).filter(([, c]) => c)),
+      chosen: { label, source: "app", plan: comp.team_plan || "", champions, players: names },
+    };
+  }
+  async function sendDraftToTeam(comp, index) {
+    const who = (intentSync && intentSync.leader) || "";
+    const ok = await postControl(teamDraftPayload(comp, "Draft " + (index + 1) + (who ? " · " + who : "")));
+    if (ok) toast("Draft " + (index + 1) + " sent to everyone's Draft Coach.");
+  }
+  async function releaseTeamDraft() {
+    const ok = await postControl({ signature: null, identity: null, role_locks: {}, champion_locks: {}, chosen: null });
+    if (ok) toast("Team draft released. Back to automatic drafts.");
+  }
+  async function editTeamDraftSeat(chosen, role, champion) {
+    const champions = { ...(chosen.champions || {}), [role]: champion };
+    const locks = { ...((intentControl && intentControl.champion_locks) || {}), [role]: champion };
+    const ok = await postControl({
+      signature: D.ROLES.map((r) => champions[r] || "?").join("|"),
+      champion_locks: locks,
+      chosen: { ...chosen, champions, replaced: undefined, intact: undefined, lead_matches: undefined },
+    });
+    if (ok) toast(role + " changed to " + champion + " for the whole team.");
+    return ok;
+  }
+  function renderTeamDraftEdit(g) {
+    const box = $("team-draft-edit");
+    const chosen = g && g.chosen;
+    if (!box) return;
+    if (!chosen) { box.hidden = true; box.replaceChildren(); return; }
+    const lead = ((g.comps || [])[0]) || {};
+    const key = JSON.stringify([chosen.champions, chosen.label,
+      Object.entries(chosen.replaced || {}).map(([r, s]) => [r, s.now, s.why]), lead.role_options || null]);
+    box.querySelectorAll("select,button").forEach((e) => { e.disabled = controlBusy; });
+    if (box.dataset.key === key && !box.hidden) return;
+    box.dataset.key = key; box.hidden = false;
+    box.replaceChildren();
+    const head = D.el("div", "coach-section-head");
+    head.append(D.el("h3", "", "Team draft · " + (chosen.label || "chosen")), D.el("span", "mm-meta", "Change a seat here and everyone follows"));
+    const release = D.el("button", "captain-prefer", "Release");
+    release.type = "button"; release.title = "Back to automatic drafts for the whole team"; release.onclick = releaseTeamDraft;
+    head.append(release);
+    box.append(head);
+    const row = D.el("div", "team-draft-seats");
+    for (const role of D.ROLES) {
+      const current = (chosen.champions || {})[role] || "";
+      const swap = (chosen.replaced || {})[role];
+      const live = swap ? swap.now : current;
+      const options = [...new Set([live, current, ...(((lead.role_options || {})[role]) || [])].filter(Boolean))];
+      const field = D.el("label", "control-field" + (swap ? " swapped" : ""));
+      const who = (chosen.players || {})[role] || "";
+      const label = D.el("span", "mm-meta", (ROLE_LONG[role] || role) + (who ? " · " + who.split("#")[0].slice(0, 14) : ""));
+      if (who) label.title = who;
+      field.append(label);
+      const sel = document.createElement("select");
+      for (const champ of options) sel.append(new Option(champ + (champ === current && swap ? " (" + swap.why + ")" : ""), champ));
+      sel.value = live;
+      sel.onchange = async () => {
+        const wanted = sel.value;
+        const ok = await editTeamDraftSeat(chosen, role, wanted);
+        if (!ok) { sel.value = live; toast("Still sending the previous change. Try again in a second.", true); }
+      };
+      field.append(sel);
+      if (swap) field.append(D.el("small", "", "was " + swap.was + " · " + swap.why));
+      row.append(field);
+    }
+    box.append(row);
+  }
   pollDraftControl();
   async function postControl(update) {
     if (controlBusy) return false;
@@ -725,8 +857,9 @@
       const swaps = Object.entries(chosen.replaced || {}).map(([role, r]) => role + ": " + r.was + " " + r.why + " → " + r.now);
       prefNote.textContent = chosen.label + (chosen.source === "discord" ? " chosen in Discord" : " chosen") +
         (chosen.plan ? " · " + chosen.plan : "") +
-        (swaps.length ? " · " + swaps.join(" · ") : " · all five still available");
-      prefNote.className = "captain-preference-note " + (swaps.length ? "warn" : "on");
+        (swaps.length ? " · " + swaps.join(" · ") : " · all five still available") +
+        (chosen.locks_relaxed ? " · this lobby cannot field that layout, so the pinned roles were relaxed" : "");
+      prefNote.className = "captain-preference-note " + (swaps.length || chosen.locks_relaxed ? "warn" : "on");
     } else if (!pref.signature) {
       prefNote.textContent = "Prefer a draft to keep it while it remains competitive.";
       prefNote.className = "captain-preference-note";
@@ -741,6 +874,7 @@
       prefNote.className = "captain-preference-note warn";
     }
 
+    renderTeamDraftEdit(g);
     box.replaceChildren();
     const more = D.el("details", "fd-details captain-more");
     more.open = moreWasOpen;
@@ -764,7 +898,11 @@
       prefer.type = "button"; prefer.title = "Soft preference: INTent only follows this plan while it remains close to the best score.";
       prefer.onclick = () => setCaptainPreference(isPreferred ? null : signature);
       prefer.setAttribute("aria-pressed", String(isPreferred));
-      head.append(prefer);
+      const isChosen = !!(g.chosen && g.chosen.champions && D.ROLES.every((role) => (comp.champions || {})[role] === g.chosen.champions[role]));
+      const send = D.el("button", "captain-prefer send" + (isChosen ? " on" : ""), isChosen ? "Team draft" : "Send to team");
+      send.type = "button"; send.title = "Everyone's Draft Coach follows this draft: roles pinned, champions locked, one seat re-solved on a ban.";
+      send.onclick = () => (isChosen ? releaseTeamDraft() : sendDraftToTeam(comp, index));
+      head.append(send, prefer);
       row.append(head);
       const steps = D.el("div", "captain-role-row");
       for (const role of D.ROLES) {
@@ -864,6 +1002,15 @@
       ...snapshot,
       status: { ...snapshot.status, stale: true }
     };
+    // League open, nobody in champion select: the blank practice board must not read as "our turn
+    // to ban". Show the standby headline until the real lobby arrives.
+    // Only an UNTOUCHED board is hidden: a captain planning on the manual board with League open keeps it.
+    const idleState = snapshot.state, idleStatus = snapshot.status || {};
+    const boardUntouched = idleState && !((snapshot.draft || {}).actions || []).length
+      && !(idleState.our_bans || []).length && !(idleState.enemy_bans || []).length
+      && !(idleState.our_team || []).some((p) => p.locked) && !(idleState.enemy_team || []).some((p) => p.locked);
+    if (idleStatus.connection === "connected" && !idleStatus.lcu_in_champ_select
+        && idleState && idleState.source === "manual" && boardUntouched) snapshot = { ...snapshot, state: null, guidance: null, draft: {} };
     const st = snapshot.status || {}, state = snapshot.state, g = snapshot.guidance, draft = snapshot.draft || {};
     D.learnFromGuidance(g);
     const status = $("status");

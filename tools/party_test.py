@@ -106,7 +106,8 @@ class Instance:
                "--cloud-sync-mode", "auto", "--cloud-sync-url", "http://127.0.0.1:8795", "--cloud-sync-key", ROOM_KEY,
                "--load", str(REPO / "loadfiles" / "flexers-team.json"), "--roster", str(self.var / f"roster{self.index}.json"),
                "--reset-roster", "--watch", "", "--no-update", "--log-level", "info", *self.extra]
-        env = {**os.environ, "INTENT_LIVE": "1", "PYTHONUNBUFFERED": "1"}
+        env = {**os.environ, "INTENT_LIVE": "1", "PYTHONUNBUFFERED": "1",
+               "INTENT_ROLE_FILE": str(self.var / f"my-role{self.index}.json")}   # one wanted-role file per app, like one PC each
         self.proc = subprocess.Popen(cmd, cwd=str(REPO), stdout=open(self.log, "a", encoding="utf-8"), stderr=subprocess.STDOUT,
                                      env=env, creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
 
@@ -508,6 +509,83 @@ class Party:
         finally:
             duplicate.stop()
 
+    # ---- sync check: who is here and what role they want ----------------------------------------
+    def step_sync_check(self) -> None:
+        inst = self.instances[1]
+        seat = next((p for p in ((inst.state() or {}).get("state") or {}).get("our_team") or [] if p.get("is_local")), {})
+        name, seat_role = seat.get("display_name"), seat.get("role")
+        wanted = "Support" if seat_role != "Support" else "Top"     # a role that differs from the live seat
+        try:
+            http("POST", inst.bridge + "/api/control", {"my_role": wanted})
+        except Exception as exc:  # noqa: BLE001
+            self.report.check("sync check: a player can set the role they want", False, str(exc))
+            return
+        def role_of(view, who):
+            return next((p.get("role") for p in view if p.get("player_name") == who), None)
+        try:
+            def everyone_sees_it():
+                views = [((i.control() or {}).get("sync") or {}).get("players") or [] for i in self.instances]
+                ok = all(len(v) == 5 and role_of(v, name) == wanted for v in views)
+                return views if ok else None
+            t0 = time.time()
+            views = wait_for(everyone_sees_it, 12, every=0.2)
+            lag = round((time.time() - t0) * 1000)
+            self.report.check(f"sync check: every app shows {name} wanting {wanted} (seat is {seat_role})", bool(views),
+                              f"{lag} ms; " + ", ".join(f"{p.get('player_name')}:{p.get('role') or '-'}" for p in (views or [[]])[0]) if views
+                              else str([((i.control() or {}).get("sync") or {}).get("players") for i in self.instances][:1]))
+            if views:
+                captains = [[p.get("player_name") for p in v if p.get("captain")] for v in views]
+                self.report.check("sync check: one captain, the same on every app", all(len(c) == 1 for c in captains) and len({tuple(c) for c in captains}) == 1, str(captains[0]))
+                selects = [sum(1 for p in v if p.get("in_champ_select")) for v in views]
+                self.report.check("sync check: all five show as in champion select", all(n == 5 for n in selects), str(selects))
+        finally:
+            http("POST", inst.bridge + "/api/control", {"my_role": None})
+        def back_to_seat():
+            views = [((i.control() or {}).get("sync") or {}).get("players") or [] for i in self.instances]
+            return views if all(role_of(v, name) == seat_role for v in views) else None
+        self.report.check(f"sync check: clearing the wanted role falls back to the live seat ({seat_role}) everywhere", bool(wait_for(back_to_seat, 12, every=0.2)))
+
+    # ---- the captain chooses a draft in the app (coach page "Send to team") ------------------------
+    def step_app_choice(self) -> None:
+        inst = self.instances[2]
+        g = wait_for(lambda: (lambda g: g if g and g.get("comps") else None)(inst.guidance()), 15) or {}
+        comp = ((g.get("comps") or []) + [None])[0]
+        if not comp:
+            self.report.check("app choice: a draft to send", False, "no comps published")
+            return
+        champions = {role: comp["champions"].get(role) for role in ROLES}
+        payload = {"signature": "|".join(champions[r] or "?" for r in ROLES), "identity": None,
+                   "role_locks": {r: uid for r, uid in (comp.get("player_ids") or {}).items() if uid},
+                   "champion_locks": champions,
+                   "chosen": {"label": "Draft 1 · app test", "source": "app", "plan": comp.get("team_plan") or "", "champions": champions, "players": comp.get("players") or {}}}
+        try:
+            http("POST", inst.bridge + "/api/control", payload)
+        except Exception as exc:  # noqa: BLE001
+            self.report.check("app choice: the bridge accepts the captain's choice", False, str(exc))
+            return
+        def all_follow():
+            cs = [((i.control() or {}).get("control") or {}) for i in self.instances]
+            return cs if all((c.get("chosen") or {}).get("label") == "Draft 1 · app test" and c.get("champion_locks") == champions for c in cs) else None
+        t0 = time.time()
+        cs = wait_for(all_follow, 12, every=0.1)
+        self.report.check("app choice: all five apps follow the draft sent from app 2", bool(cs), f"{round((time.time() - t0) * 1000)} ms" if cs else str([(i.control() or {}).get("control") for i in self.instances][:1]))
+        # live edit one seat from the app: the lock and the chosen five change together, everywhere
+        role = next((r for r in ROLES if (comp.get("role_options") or {}).get(r)), None)
+        alt = next((c for c in ((comp.get("role_options") or {}).get(role) or []) if c != champions.get(role)), None) if role else None
+        if role and alt:
+            edited = {**champions, role: alt}
+            http("POST", inst.bridge + "/api/control", {"signature": "|".join(edited[r] or "?" for r in ROLES), "champion_locks": edited,
+                                                         "chosen": {**payload["chosen"], "champions": edited}})
+            def all_edited():
+                cs = [((i.control() or {}).get("control") or {}) for i in self.instances]
+                return cs if all((c.get("champion_locks") or {}).get(role) == alt and ((c.get("chosen") or {}).get("champions") or {}).get(role) == alt for c in cs) else None
+            self.report.check(f"app choice: live edit of {role} -> {alt} reaches all five", bool(wait_for(all_edited, 12, every=0.1)))
+        http("POST", inst.bridge + "/api/control", {"signature": None, "identity": None, "role_locks": {}, "champion_locks": {}, "chosen": None})
+        def all_released():
+            cs = [((i.control() or {}).get("control") or {}) for i in self.instances]
+            return cs if all(not c.get("chosen") and not c.get("champion_locks") for c in cs) else None
+        self.report.check("app choice: release puts all five back on automatic drafts", bool(wait_for(all_released, 12, every=0.1)))
+
     # ---- a draft chosen in Discord ---------------------------------------------------------------
     def step_discord_choice(self) -> None:
         """What the bot does when someone picks "Lock Draft N": one relay post, five apps follow it.
@@ -531,6 +609,8 @@ class Party:
         payload = draft_control_payload(rec, label="Draft 1 (test)", source="discord")
         self.chosen = payload["control"]["chosen"]
         self.chosen_doomed = {role: champ for role, champ in rec["champions"].items() if str(champ).casefold() in enemy_bans}
+        self.report.check("discord choice: the chosen draft contains a champion the scripted enemy will ban (so the re-solve check is real)",
+                          bool(self.chosen_doomed), str(self.chosen_doomed or "none of the published drafts used a scripted ban"))
         try:
             http("POST", f"{self.relay}/draft-sync/{ROOM_KEY}/preference", payload)
         except Exception as exc:  # noqa: BLE001
@@ -596,6 +676,9 @@ class Party:
                                    lambda c: (c.get("champion_locks") or {}).get("Support") == "Thresh")
             before = ((self.instances[0].control() or {}).get("control") or {}).get("shake", 0)
             self.step_control_sync("shake it up on app 2", {"shake_it_up": True}, lambda c, b=before: int(c.get("shake") or 0) > int(b))
+            print("== sync check and the captain's own choice", flush=True)
+            self.step_sync_check()
+            self.step_app_choice()
             print("== draft chosen in Discord", flush=True)
             self.step_discord_choice()
         print("== the draft", flush=True)

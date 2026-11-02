@@ -785,9 +785,9 @@ def live_draft_text(payload: dict | None, label: str) -> str:
         swap = replaced.get(role)
         tail = f"  (was {swap['was']}, {swap['why']})" if swap else ""
         lines.append(f"{marker} **{role}** {who + ' · ' if who else ''}{champ}{tail}")
-    picking = g.get("picking_now") or g.get("headline")
-    if picking:
-        lines.append("➡️ " + str(picking))
+    headline = g.get("headline")
+    if headline:   # picking_now is a flag in the published guidance, the headline carries the words
+        lines.append(("➡️ " if g.get("picking_now") else "• ") + str(headline))
     return "\n".join(lines)[:1900]
 
 
