@@ -370,32 +370,32 @@
 window.Draft.overlayPickReason = function (p) {
   if (!p) return "";
 
-  if (p.source === "exhausted") return "No prepared pick remains";
+  if (p.source === "exhausted") return "Nothing prepared is left for this role";
 
   const risk = p.counter_risk_by?.[0]?.enemy;
   if (p.counter_risk >= 0.5 && risk) {
-    return "Can still be answered by " + risk;
+    return "They can still counter it with " + risk;
   }
 
   const edge = p.lane?.[0];
   const value = edge && (edge.adjusted ?? edge.advantage);
 
   if (edge && Number.isFinite(value)) {
-    const label = value > 0.2 ? "Favourable"
-      : value < -0.2 ? "Unfavourable" : "Even";
-    return `${label} into ${edge.locked ? "locked" : "hovered"} ${edge.enemy}`;
+    const label = value > 0.2 ? "Good matchup into "
+      : value < -0.2 ? "Hard matchup into " : "Even matchup into ";
+    return label + edge.enemy + (edge.locked ? "" : " (hovered)");
   }
 
-  if (p.familiarity === "developing") return "Practice pick";
-  if (p.familiarity === "comfort") return "Confirmed comfort";
-  if (p.priority === 1) return "Preferred pick";
-  if (p.blind_safe) return "Blind-safe option";
-  if (p.risk_known === false) return "Blind safety unknown";
+  if (p.familiarity === "developing") return "Still learning this one";
+  if (p.familiarity === "comfort") return "Comfort pick";
+  if (p.priority === 1) return "Player's first choice";
+  if (p.blind_safe) return "Safe to show before their lane picks";
+  if (p.risk_known === false) return "Little matchup data";
 
   if (p.flex_roles?.length) {
-    return "Can flex to " + p.flex_roles
+    return "Could also go " + p.flex_roles
       .map(r => ({ ADC: "Bot" }[r] || r))
-      .join(" / ");
+      .join(" or ");
   }
 
   if (["history", "history-fallback"].includes(p.source)) {

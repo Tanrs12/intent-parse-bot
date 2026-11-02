@@ -179,6 +179,35 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
     art_dir = find_art_dir(config.get("art_dir"))
     app.state.art_dir = art_dir
     art_cache: dict[str, bytes] = {}
+    # FLEXERS: artwork fetched once from the client or CommunityDragon is kept on disk, so portraits
+    # load instantly and offline afterwards instead of depending on a CDN redirect every time.
+    art_disk = VAR_DIR / "art-cache"
+
+    def _disk_get(name: str) -> bytes | None:
+        try:
+            file = art_disk / name
+            return file.read_bytes() if file.is_file() else None
+        except OSError:
+            return None
+
+    def _disk_put(name: str, data: bytes) -> None:
+        try:
+            art_disk.mkdir(parents=True, exist_ok=True)
+            (art_disk / name).write_bytes(data)
+        except OSError:
+            pass
+
+    async def _cdn_fetch(url: str) -> bytes | None:
+        import urllib.request
+
+        def fetch() -> bytes | None:
+            try:
+                with urllib.request.urlopen(url, timeout=8) as response:
+                    return response.read() if response.status == 200 else None
+            except Exception:  # noqa: BLE001
+                return None
+
+        return await asyncio.to_thread(fetch)
     splash_paths: dict[int, dict] = {}
     app.state.hub = hub
     app.state.roster = roster
@@ -569,6 +598,10 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
         key = f"{kind}:{champion_id}"
         if key in art_cache:
             return Response(art_cache[key], media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
+        cached = _disk_get(f"{kind}-{int(champion_id)}.jpg")
+        if cached:
+            art_cache[key] = cached
+            return Response(cached, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
         rest = watcher.rest if watcher and watcher.connected else None
         if rest is not None:
             try:
@@ -583,25 +616,40 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
                         if len(art_cache) > 80:
                             art_cache.pop(next(iter(art_cache)))
                         art_cache[key] = data
+                        _disk_put(f"{kind}-{int(champion_id)}.jpg", data)
                         return Response(data, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
             except Exception:  # noqa: BLE001 - fall through to the CDN
                 pass
+        data = await _cdn_fetch(CDRAGON_ART[kind].format(id=int(champion_id)))
+        if data:
+            if len(art_cache) > 80:
+                art_cache.pop(next(iter(art_cache)))
+            art_cache[key] = data
+            _disk_put(f"{kind}-{int(champion_id)}.jpg", data)
+            return Response(data, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
         return RedirectResponse(CDRAGON_ART[kind].format(id=int(champion_id)), status_code=302)
 
     @app.get("/api/champion-icon/{champion_id}")
     async def champion_icon(champion_id: int) -> Response:
         if champion_id in icon_cache:
             return Response(icon_cache[champion_id], media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+        cached = _disk_get(f"icon-{int(champion_id)}.png")
+        if cached:
+            icon_cache[champion_id] = cached
+            return Response(cached, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
         rest = watcher.rest if watcher and watcher.connected else None
-        if rest is None:
-            return RedirectResponse(CDRAGON.format(id=int(champion_id)), status_code=302)
-        try:
-            data = await asyncio.to_thread(rest.champion_icon, champion_id)
-        except Exception:  # noqa: BLE001
-            return RedirectResponse(CDRAGON.format(id=int(champion_id)), status_code=302)
+        data = None
+        if rest is not None:
+            try:
+                data = await asyncio.to_thread(rest.champion_icon, champion_id)
+            except Exception:  # noqa: BLE001
+                data = None
+        if not data:
+            data = await _cdn_fetch(CDRAGON.format(id=int(champion_id)))
         if not data:
             return RedirectResponse(CDRAGON.format(id=int(champion_id)), status_code=302)
         icon_cache[champion_id] = data
+        _disk_put(f"icon-{int(champion_id)}.png", data)
         return Response(data, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
     return app

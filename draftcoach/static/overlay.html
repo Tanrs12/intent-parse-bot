@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/mm/draft-ui.css">
 <link rel="stylesheet" href="/static/mm/draft-overlay.css">
 </head>
-<body class="fd-overlay graphite">
+<body class="fd-overlay">
   <section class="draft-overlay" id="panel" aria-label="Flexers Draft Coach" data-mode="idle" data-turn="">
     <header class="ov-head">
       <!-- Only this area drags. Controls are siblings, never descendants. -->
@@ -20,7 +20,7 @@
           <div class="mm-meta" id="head-sub">WAITING FOR LOBBY</div>
         </div>
       </div>
-      <button class="fd-text-button" id="theme" type="button" aria-pressed="false" aria-label="Use graphite theme">Graphite</button>
+      <button class="fd-text-button" id="theme" type="button" aria-pressed="false" aria-label="Use dark theme">Dark</button>
       <button class="fd-icon-button" id="minimize" type="button" aria-label="Minimize overlay"><span aria-hidden="true">&minus;</span></button>
       <button class="fd-icon-button" id="close" type="button" aria-label="Close overlay"><span class="mm-icon" data-icon="close" aria-hidden="true"></span></button>
     </header>
@@ -30,7 +30,7 @@
               aria-haspopup="dialog" aria-controls="draft-settings">
         Draft settings
       </button>
-      <span class="ov-settings-state" id="settings-label">Auto identity</span>
+        <span class="ov-settings-state" id="settings-label">Team style: Auto</span>
       <div class="ov-clock" id="clock-wrap" hidden>
         <span class="mm-icon" data-icon="clock" aria-hidden="true"></span>
         <span role="timer" aria-live="off"
@@ -45,7 +45,7 @@
         <button class="fd-button" value="close" autofocus>Done</button>
       </form>
 
-      <p class="fd-note">Identity and Shake change the shared draft for everyone.</p>
+      <p class="fd-note">Team style and "Find different drafts" change the draft for the whole team.</p>
 
       <div class="ov-settings-fields">
         <label class="ov-format">
@@ -57,7 +57,7 @@
         </span>
 
         <label class="ov-format">
-          <span class="mm-meta">Team identity</span>
+          <span class="mm-meta">Team style</span>
           <select id="identity" aria-label="Preferred team identity">
             <option value="">Auto</option>
           </select>
@@ -76,7 +76,7 @@
       </div>
 
       <p class="fd-note">
-        A preferred identity can be overridden by a substantially stronger draft.
+        A clearly stronger draft can still override the chosen style.
       </p>
       <p id="settings-feedback" role="status" aria-live="polite"></p>
     </dialog>
@@ -106,6 +106,7 @@
         <button class="fd-button" id="hover-btn" type="button">Hover</button>
         <button class="fd-button primary" id="accept" type="button"></button>
       </div>
+      <p class="ov-turn" id="turn-note" hidden></p>
 
       <p
         id="action-note"
@@ -122,7 +123,7 @@
         <ol class="ov-comp" id="order-list" aria-labelledby="order-label"></ol>
       </div>
       <div id="alternatives" hidden>
-        <p class="ov-list-label mm-meta" id="alternatives-label">Alternatives</p>
+        <p class="ov-list-label mm-meta" id="alternatives-label">Also good</p>
         <ol class="ov-alternatives" id="alts" aria-labelledby="alternatives-label"></ol>
       </div>
 
@@ -176,7 +177,7 @@
     } catch {}
   }
 
-  let graphite = true;
+  let graphite = false;
   let savedTheme = null;
 
   try {
@@ -256,7 +257,7 @@
       $("shake").hidden = false;
 
       $("settings-label").textContent =
-        sel.selectedOptions[0]?.textContent || "Auto identity";
+        "Team style: " + (sel.selectedOptions[0]?.textContent || "Auto");
       if (!panelBridge.active) {
         $("settings-label").textContent = "Shared guidance unavailable";
       }
@@ -345,7 +346,7 @@
     const byRole = Object.fromEntries(seats.map((p) => [p.role, p]));
     const ordered = D.ROLES.map((r) => rows.find((x) => x.role === r)).filter(Boolean);
     const src = (g && g.pick_order_source) || "";
-    const label = src.startsWith("plan:") ? "Team comp · " + src.slice(5) : "Team comp · leading draft";
+    const label = src.startsWith("plan:") ? "Our planned five · " + src.slice(5) : "Our planned five";
     const key = label + "|" + ordered.map((r) => r.slot + r.champion + r.status + ((byRole[r.role] || {}).is_local ? "L" : "") + ((byRole[r.role] || {}).display_name || "")).join("|");
     if (key === orderKey) return;
     orderKey = key;
@@ -358,7 +359,7 @@
       li.dataset.local = String(!!seat.is_local);
       const who = D.el("span", "ov-comp-who");
       who.append(D.el("b", "", ROLE_LONG[r.role] || r.role), D.el("span", "", seat.display_name ? seat.display_name + (seat.is_local ? " · you" : "") : ""));
-      const tag = r.status === "locked" ? "Locked" : r.status === "next" ? (seat.is_local ? "You pick now" : "Picks next") : r.slot;
+      const tag = r.status === "locked" ? "Locked" : r.status === "next" ? (seat.is_local ? "You pick now" : "Picks next") : "Later";
       li.append(D.portrait(r.champion, "", r.champion_id), who, D.el("b", "ov-comp-champ", r.champion), D.el("span", "ov-comp-tag", tag));
       li.title = (r.tags || []).join(", ");
       list.append(li);
@@ -380,15 +381,29 @@
     return "plan";
   }
   let artFor = "";
-  function setArt() {
-    // The compact panel uses the champion portrait only.
+  function setArt(name, id) {
+    // Centered splash of the champion in the decision, behind a paper scrim; fades in once loaded.
+    const wrap = document.querySelector(".ov-art"), img = $("art");
+    const cid = id || (name ? D.idFor(name) : null);
+    const key = cid ? String(cid) : "";
+    if (key === artFor) return;
+    artFor = key;
+    wrap.classList.remove("on");
+    if (!cid) { img.removeAttribute("src"); return; }
+    img.onload = () => { if (artFor === key) wrap.classList.add("on"); };
+    img.onerror = () => { if (artFor === key) wrap.classList.remove("on"); };
+    img.src = "/api/art/centered/" + cid;
   }
   function setLead(key, title, portraitName, portraitId, recipient) {
-    setArt(portraitName);
+    setArt(portraitName, portraitId);
     const h = $("lead");
     if (key !== leadKey) { leadKey = key; h.textContent = title; h.classList.remove("fd-arrive"); void h.offsetWidth; h.classList.add("fd-arrive"); }
     const slot = $("hero-portrait");
-    if (portraitName) { slot.replaceChildren(D.portrait(portraitName, "", portraitId)); slot.hidden = false; } else { slot.replaceChildren(); slot.hidden = true; }
+    const portraitKey = portraitName ? portraitName + "#" + (portraitId || "") : "";
+    if (slot.dataset.key !== portraitKey) {
+      slot.dataset.key = portraitKey;
+      if (portraitName) { slot.replaceChildren(D.portrait(portraitName, "", portraitId)); slot.hidden = false; } else { slot.replaceChildren(); slot.hidden = true; }
+    }
     $("recipient").textContent = recipient || ""; $("recipient").hidden = !recipient;
   }
   function setReason(text, warning) { const r = $("detail"); r.textContent = text || ""; r.dataset.warning = String(!!warning); }
@@ -513,6 +528,9 @@
     const unavailable = !snap || [
       "unavailable", "idle", "manual-idle", "no-client", "updating"
     ].includes(mode);
+    const turn = $("turn-note");
+    turn.hidden = true;
+    turn.textContent = "";
 
     if (unavailable) {
       actionFeedback = null;
@@ -520,7 +538,22 @@
       return;
     }
 
-    if (!local?.client) {
+    if (!local) {
+      // No seat of ours in this lobby (spectating, or the client has not told us which seat is ours).
+      if (ourTurn) { turn.textContent = "Our team is " + (mode === "our-ban" ? "banning" : "picking") + ". Hover and lock in the League client."; turn.hidden = false; }
+      renderActionNote();
+      return;
+    }
+
+    if (!local.client) {
+      if (ourTurn && local.suggestion && local.can_act !== undefined && local.kind) {
+        const sg = local.suggestion;
+        accept.textContent = (sg.kind === "ban" ? "Ban " : "Lock in ") + sg.champion;
+        hover.textContent = sg.kind === "ban" ? "Select" : "Hover";
+        hover.hidden = false; box.hidden = false;
+        accept.disabled = true; hover.disabled = true;
+        actionHint = "No League client on this machine: hover and lock in the client.";
+      }
       renderActionNote();
       return;
     }
@@ -539,7 +572,7 @@
         "Receive " + (incoming.champion || "their champion"),
         incoming.champion,
         D.idFor(incoming.champion),
-        "GIVE " + (local.locked || "YOUR CHAMPION").toUpperCase()
+        "Give " + (local.locked || "your champion") + " to " + incoming.from_player
       );
       setReason(
         incoming.expected
@@ -561,16 +594,16 @@
     } else if (swap) {
       panel.dataset.owner = "local";
       panel.dataset.kind = "swap";
-      $("statekey").textContent = "PLANNED SWAP";
+      $("statekey").textContent = "SWAP CHAMPIONS";
 
       setLead(
         "local-swap:" + swap.give + ":" + swap.receive,
-        "Receive " + (swap.receive || "their champion"),
+        "Swap for " + (swap.receive || "their champion"),
         swap.receive,
         D.idFor(swap.receive),
-        "GIVE " + String(swap.give || "YOUR CHAMPION").toUpperCase()
+        "Give " + String(swap.give || "your champion") + " to " + swap.with_player
       );
-      setReason("Swap with " + swap.with_player, false);
+      setReason(swap.with_player + " picked " + (swap.receive || "it") + " for you. Trade in the client.", false);
       renderAlternatives([]);
 
       if (String(swap.trade_state || "").toUpperCase() === "SENT") {
@@ -605,8 +638,8 @@
       panel.dataset.kind = ban ? "ban" : "pick";
 
       $("statekey").textContent = ban
-        ? "YOUR BAN"
-        : "YOUR PICK · " +
+        ? "YOUR TURN TO BAN"
+        : "YOUR TURN TO PICK · " +
           (ROLE_LONG[sg.role || local.role] || sg.role || local.role || "")
             .toUpperCase();
 
@@ -615,9 +648,8 @@
         (ban ? "Ban " : "Pick ") + sg.champion,
         sg.champion,
         sg.champion_id || entry.champion_id,
-        entry.plan
-          ? entry.plan.name.toUpperCase() + " " + entry.plan.progress + "/5"
-          : ""
+        (ban ? "Your ban" : "Your pick · " + (ROLE_LONG[sg.role || local.role] || sg.role || local.role || "")) +
+          (entry.plan ? " · plan " + entry.plan.name + " " + entry.plan.progress + "/5" : "")
       );
 
       setReason(
@@ -657,6 +689,7 @@
         `${ban ? "Banning" : "Locking"} ${sg.champion}…`,
         `${sg.champion} ${ban ? "banned" : "locked in"}`
       );
+      if (!actionFeedback) actionHint = local.simulated ? "Demo: the buttons act on the simulated draft." : "Acts through your League client.";
 
       actionHint = ban
         ? "Select previews in League. Ban confirms."
@@ -675,6 +708,26 @@
           swap_request: "Requesting…"
         }[actionFeedback.what] || "Working…";
       }
+    }
+
+    if (box.hidden && ourTurn) {
+      const picks = snap.guidance?.picks || [];
+      const seats = (snap.state?.our_team || []);
+      const active = snap.state?.active || {};
+      const actors = seats.filter((p) => (active.cell_ids || []).includes(p.cell_id) && !p.is_local);
+      const names = actors.map((p) => p.display_name).filter(Boolean);
+      if (mode === "our-ban") {
+        turn.textContent = (names.length ? names.join(" and ") + " ban" + (names.length === 1 ? "s" : "") : "A teammate bans") + " now.";
+      } else if (names.length) {
+        const parts = actors.map((p) => p.locked ? p.display_name + " locked " + p.locked : p.display_name + " is picking now");
+        turn.textContent = parts.join(". ") + ".";
+      } else if (local.locked) {
+        turn.textContent = "You locked " + local.locked + ". Waiting for the team.";
+      }
+      turn.hidden = !turn.textContent;
+    } else if (box.hidden && (mode === "enemy-pick" || mode === "enemy-ban")) {
+      turn.textContent = local.locked ? "You locked " + local.locked + "." : "Enemy " + (mode === "enemy-ban" ? "bans" : "picks") + ". Your " + (local.role ? ROLE_LONG[local.role] || local.role : "") + " pick comes later.";
+      turn.hidden = false;
     }
 
     renderActionNote();
@@ -720,7 +773,7 @@
       case "unavailable": $("statekey").textContent = st.connection === "error" ? "CLIENT ERROR" : "CONNECTION LOST"; setLead("lost", "Reconnecting to Draft Coach"); setReason("Live recommendations are unavailable."); changeAllowed = false; break;
       case "no-client": $("statekey").textContent = "CLIENT NOT DETECTED"; setLead("noclient", "Open League to begin"); setReason("Enter champion select to receive live guidance."); changeAllowed = false; break;
       case "manual-idle": $("statekey").textContent = "MANUAL BOARD"; setLead("manual", "Start a draft in Coach"); setReason("Choose your lineup and draft format in the coach app."); changeAllowed = false; break;
-      case "idle": $("statekey").textContent = "STANDBY"; setLead("idle", "Waiting for champion select"); setReason((st.detail && /^Standing by/.test(st.detail)) ? st.detail : "Your lobby and champion pools appear here automatically."); changeAllowed = false; break;
+      case "idle": $("statekey").textContent = "WAITING FOR A GAME"; setLead("idle", "Waiting for champion select"); setReason((st.detail && /^Standing by/.test(st.detail)) ? st.detail : "Your lobby and champion pools appear here automatically."); changeAllowed = false; break;
       case "updating": $("statekey").textContent = "UPDATING"; setLead("updating", "Updating recommendations"); setReason(""); break;
       case "complete": {
         const t = (g && g.team) || {};
@@ -728,22 +781,22 @@
         setReason([t.team_plan ? "Plan: " + t.team_plan + "." : "", (t.strengths || [])[0] ? "Strength: " + t.strengths[0] + "." : "", (t.gaps || [])[0] ? "Gap: " + t.gaps[0] + "." : ""].filter(Boolean).join(" ") || "Both teams are locked.");
         break;
       }
-      case "ours-locked": { const t = (g && g.team) || {}; $("statekey").textContent = "OUR TEAM LOCKED"; setLead("ourslocked", "Waiting for enemy picks"); setReason(t.team_plan ? "Plan: " + t.team_plan + "." : "Our five champions are locked."); break; }
+      case "ours-locked": { const t = (g && g.team) || {}; $("statekey").textContent = "OUR FIVE ARE LOCKED"; setLead("ourslocked", "Waiting for the enemy to finish"); setReason(t.team_plan ? "Plan: " + t.team_plan + "." : "Our five champions are locked."); break; }
       case "our-ban": {
         const b = bans[0];
-        $("statekey").textContent = "OUR BAN";
+        $("statekey").textContent = "OUR TURN TO BAN";
         if (b) { setLead("ban:" + b.champion, "Ban " + b.champion, b.champion, b.champion_id); setReason(D.overlayBanReason(b)); alts = bans.slice(1, 3).map((x) => ({ champion: x.champion, champion_id: x.champion_id, reason: D.overlayBanReason(x).replace(/\.$/, "") })); announce("Our ban. Ban " + b.champion + "."); }
         else { setLead("ban:none", "No ban recommendation"); setReason("Review scouting and ban policy in Coach."); }
         break;
       }
       case "our-pick": case "enemy-ban": case "enemy-pick": case "plan": {
-        const eyebrow = mode === "our-pick" ? "OUR PICK · " + rolesNow : mode === "enemy-ban" ? "ENEMY BAN · PREPARING OUR PICK" : mode === "enemy-pick" ? "ENEMY PICK · PREPARING OUR PICK" : "PLANNING";
+        const eyebrow = mode === "our-pick" ? "OUR TURN TO PICK · " + rolesNow.replace(" / ", " AND ") : mode === "enemy-ban" ? "ENEMY BANNING · GET READY" : mode === "enemy-pick" ? "ENEMY PICKING · GET READY" : "PLANNING PHASE";
         $("statekey").textContent = eyebrow;
         if (top) {
           const mine = snap.local && snap.local.can_act && snap.local.suggestion && snap.local.suggestion.champion === top.champion;
           const who = mine ? snap.local.name : (top.player && top.player !== top.role ? top.player : "");
-          const recipient = (ROLE_LONG[top.role] || top.role).toUpperCase() + (who ? " · " + String(who).toUpperCase() : "") + (mine ? " · YOU" : "") + (top.plan ? " · PLAN " + top.plan.name.toUpperCase() : "");
-          setLead("pick:" + top.champion + ":" + mode, mode === "our-pick" ? "Pick " + top.champion : top.champion + " leads", top.champion, top.champion_id, recipient);
+          const recipient = (mine ? "Your pick" : who ? who + " plays it" : "Our pick") + " · " + (ROLE_LONG[top.role] || top.role) + (top.plan ? " · " + top.plan.name + " plan" : "");
+          setLead("pick:" + top.champion + ":" + mode, mode === "our-pick" ? "Pick " + top.champion : "Next up: " + top.champion, top.champion, top.champion_id, recipient);
           const warn = top.counter_risk >= 0.5 && top.counter_risk_by && top.counter_risk_by.length;
           setReason(D.overlayPickReason(top), warn);
           alts = picks.slice(1, mode === "our-pick" ? 3 : 2).map((p) => ({ champion: p.champion, champion_id: p.champion_id, role: p.role, reason: D.overlayPickReason(p).replace(/\.$/, "") }));

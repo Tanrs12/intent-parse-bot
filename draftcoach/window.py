@@ -21,7 +21,7 @@ import time
 import urllib.request
 import webbrowser
 
-WIDTH, HEIGHT = 430, 480
+WIDTH, HEIGHT = 430, 620
 
 
 class Api:

@@ -420,13 +420,13 @@ class Hub:
         effect = ""
         if prev_top and prev_top != new_top:
             if prev_top in after.unavailable():
-                effect = f"{prev_top} is gone, {new_top} leads now" if new_top else f"{prev_top} is gone"
+                effect = f"{prev_top} is gone, {new_top} is the pick now" if new_top else f"{prev_top} is gone"
             elif new_top:
-                effect = f"{new_top} now leads over {prev_top}"
+                effect = f"{new_top} is the pick now, ahead of {prev_top}"
         elif removed:
-            effect = f"{', '.join(removed)} dropped, {new_top} still leads"
+            effect = f"{', '.join(removed)} gone, {new_top} is still the pick"
         elif new_top and prev_top == new_top:
-            effect = f"{new_top} still leads"
+            effect = f"{new_top} is still the pick"
         return {"event": text, "effect": effect, "at": time.time()}
 
     # ---- lobby view --------------------------------------------------------------------
@@ -480,14 +480,18 @@ class Hub:
     def local_view(self) -> dict | None:
         """What this machine's player should do, and whether the client can do it for them."""
         state, g = self.state, self.guidance
-        if state is None or state.source != "lcu" or state.local_cell_id is None or g is None:
+        if state is None or state.source not in ("lcu", "simulation") or state.local_cell_id is None or g is None:
             return None
         slot = next((p for p in state.our_team if p.cell_id == state.local_cell_id), None)
         if slot is None:
             return None
+        # FLEXERS: the scripted simulation stands in for the League client, so the panel's Hover / Lock
+        # buttons can be tried in demo mode; the action lands on the simulated session (see client_act).
+        simulated = state.source == "simulation"
         view: dict = {"cell_id": slot.cell_id, "name": slot.display_name, "role": slot.role, "locked": slot.locked,
                       "hover": slot.hover, "kind": None, "can_act": False, "suggestion": None, "swap": None,
-                      "incoming_swap": None, "client": self.client_rest() is not None}
+                      "incoming_swap": None, "client": simulated or self.client_rest() is not None,
+                      "simulated": simulated}
         session = self.last_session or {}
         action = client_actions.active_action(session, slot.cell_id)
         if action is not None and state.active.ours:
@@ -534,10 +538,12 @@ class Hub:
 
     async def client_act(self, what: str, champion: str | None = None, trade_id: int | None = None) -> dict:
         """hover | lock | swap_request | swap_accept | swap_decline through the local client."""
+        session = self.last_session
+        if session and self.state is not None and self.state.source == "simulation":
+            return await self._simulated_client_act(what, champion)
         rest = self.client_rest()
         if rest is None:
             raise RuntimeError("no League client connected on this machine")
-        session = self.last_session
         if not session or self.state is None or self.state.source != "lcu":
             raise RuntimeError("this machine is not in champion select")
         view = self.local_view() or {}
@@ -563,6 +569,43 @@ class Hub:
         else:
             raise RuntimeError(f"unknown client action: {what}")
         return result
+
+    async def _simulated_client_act(self, what: str, champion: str | None) -> dict:
+        """FLEXERS: demo-mode stand-in for the League client. Hover / lock land on the simulated session
+        for this machine's seat; the scripted draft then carries on from its own next step."""
+        import copy
+
+        if what not in ("hover", "lock"):
+            raise RuntimeError("champion swaps are not simulated")
+        session = copy.deepcopy(self.last_session)
+        cell = client_actions.local_cell(session)
+        action = client_actions.active_action(session, cell) if cell is not None else None
+        if action is None:
+            raise RuntimeError("it is not this seat's turn")
+        view = self.local_view() or {}
+        champion = champion or ((view.get("suggestion") or {}).get("champion"))
+        if not champion:
+            raise RuntimeError("nothing to accept: no suggestion for this seat")
+        from . import champions as champ_map
+
+        cid = champ_map.id_for(champion)
+        if not cid:
+            raise RuntimeError(f"unknown champion: {champion}")
+        action["championId"] = cid
+        if action.get("type") == "pick":
+            for member in session.get("myTeam") or []:
+                if int(member.get("cellId", -1)) == cell:
+                    member["championId"] = cid
+        if what == "lock":
+            action["completed"] = True
+            action["isInProgress"] = False
+            if action.get("type") == "ban":
+                session.setdefault("bans", {}).setdefault("myTeamBans", []).append(cid)
+        self.log_event(f"simulated client: {what} {champion}", "board")
+        await self.ingest_lcu_session(session, "ChampSelect", self.status.get("queue"), source="simulation")
+        await self.settle()
+        return {"action_id": int(action["id"]), "kind": action.get("type"), "champion": champion,
+                "completed": what == "lock", "simulated": True}
 
     # ---- outputs ----------------------------------------------------------------------
     def snapshot(self) -> dict:
