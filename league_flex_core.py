@@ -243,6 +243,29 @@ def generate_team_options(
     if not results:
         return []
 
+    # Never create the nonsensical reverse of our two established mains merely
+    # to fill out a role-variety gallery. Cian Jungle + Rat Mid is already a
+    # legal assignment for that exact five, so Cian Mid + Rat Jungle is NOT a
+    # useful alternative. Keep all other legal flex roles and only fall back
+    # when the correct pairing really is impossible for those five players.
+    def team_key(assignment: dict[str, dict]) -> frozenset[int]:
+        return frozenset(int(assignment[role]["user_id"]) for role in ROLES)
+
+    main_pair_available = {
+        team_key(row) for row in results
+        if int(row["Jungle"]["user_id"]) == 139837324438536193
+        and is_rat(row["Mid"]["user_id"])
+    }
+    if main_pair_available:
+        results = [
+            row for row in results
+            if not (
+                int(row["Mid"]["user_id"]) == 139837324438536193
+                and is_rat(row["Jungle"]["user_id"])
+                and team_key(row) in main_pair_available
+            )
+        ]
+
     results.sort(
         key=lambda result: (
             _assignment_preference_cost(result),
