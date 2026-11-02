@@ -52,6 +52,13 @@ def _pool_for(slot: PlayerSlot, role: str, unavailable: set[str], meta: dict, li
     if submitted:
         priorities = slot.priorities.get(role, {})
         submitted.sort(key=lambda c: (priorities.get(c, 0) == 0, priorities.get(c, 0)))
+        # The shared engine knows how to prune broad submitted pools to a
+        # bounded search. Cutting the captain's Jungle pool to the first eight
+        # here discarded Lee Sin/Qiyana/Taliyah/Talon BEFORE their fit was scored.
+        # Keep all explicitly submitted choices for that one high-agency role;
+        # the backend performs its own bounded, player-aware selection.
+        if int(slot.user_id or 0) == 139837324438536193 and role == "Jungle":
+            return submitted, slot.pool_source if slot.pool_source in ("player", "default", "payload", "history") else "submitted"
         return submitted[:limit], slot.pool_source if slot.pool_source in ("player", "default", "payload", "history") else "submitted"
     exhausted = bool(slot.pool.get(role)) and slot.pool_source == "player"
     history: list[str] = []

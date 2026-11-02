@@ -231,7 +231,26 @@ def recommend_live_drafts(
     unavailable_for_search = unavailable_set - set(locked_champions.values())
 
     filtered = _filter_unavailable(signups, unavailable_for_search)
-    assignments = generate_team_options(filtered, limit=8)
+    # A live League role assignment is authoritative.  The normal eight
+    # "best" pre-game layouts can omit the real five even though every player
+    # has a legal pool for their assigned role. Do not return zero suggestions
+    # (or silently swap teammates) just because the layout ranks ninth.
+    pinned = {role: int(uid) for role, uid in (role_players or {}).items()
+              if role in ROLES and uid is not None}
+    if len(pinned) == len(ROLES) and len(set(pinned.values())) == len(ROLES):
+        signup_by_id = {int(p["user_id"]): p for p in filtered}
+        if all(uid in signup_by_id for uid in pinned.values()):
+            assignments = [{role: copy.deepcopy(signup_by_id[pinned[role]]) for role in ROLES}]
+        else:
+            assignments = []
+    else:
+        # A few known live roles can still push the legal layout past eighth.
+        # Generating the cheap role permutations is fine; only score a bounded
+        # shortlist of layouts that actually match the known live seats.
+        options = generate_team_options(filtered, limit=120 if pinned else 8)
+        assignments = [row for row in options if all(
+            int(row[role]["user_id"]) == uid for role, uid in pinned.items()
+        )][:8]
     assignments = _constrain_assignments(
         assignments,
         locked_champions={**required_champions, **locked_champions},
@@ -279,6 +298,12 @@ def recommend_live_drafts(
             core_limit=min(4, limit),
             role_mix_slots=min(2, max(0, limit - min(4, limit))),
             rotation_token=rotation_token,
+            # Enemy counterpicks, real locks and a captain-selected identity
+            # outrank pregame champion-variety preferences.
+            prefer_captain_jungle=not bool(
+                identity or enemy_champions or enemy_roles
+                or locked_champions or required_champions
+            ),
         )
     # Preserve the captain's planned five if still legal and objectively close
     # to the strongest current option; never force it when the enemy draft makes
