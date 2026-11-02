@@ -99,6 +99,7 @@
       <section class="mm-card">
         <div class="coach-hero" aria-hidden="true"><img id="hero-art" alt="" decoding="async"></div>
         <div class="coach-guidance-head"><p class="mm-meta" id="statekey">Current decision</p><span id="timer" role="timer" aria-live="off"></span></div>
+        <div class="team-choice-status" id="team-choice-status" role="status" aria-live="polite"></div>
         <h2 class="coach-headline" id="headline">Waiting for champion select</h2>
         <p class="coach-reason" id="reason"></p>
         <div class="change" id="change" hidden></div>
@@ -584,6 +585,36 @@
   // Independent of the INTent UI patch: polls the bridge itself so it works patched or unpatched.
   let intentGuidance = null, intentControl = null, identityList = [], controlBusy = false;
   const BRIDGE = "http://127.0.0.1:" + (Number(location.port || 8765) + 1);  // FLEXERS: the bridge runs on app port + 1
+  function renderSelectedTeamComp() {
+    // Available even while waiting for champion select: the relay owns the
+    // Discord selection, not the manual draft board.
+    const box = $("team-choice-status");
+    const chosen = intentControl && intentControl.chosen;
+    const key = JSON.stringify([chosen, !!intentControl]);
+    if (box.dataset.key === key) return;
+    box.dataset.key = key;
+    box.dataset.selected = String(!!chosen);
+    box.replaceChildren();
+    const title = D.el("b", "", chosen
+      ? (chosen.source === "discord" ? "Discord comp selected: " : "Team comp selected: ") + (chosen.label || "Team draft")
+      : "No Discord comp synced");
+    box.append(title);
+    if (chosen) {
+      const roles = D.ROLES.map((role) => {
+        const player = (chosen.players || {})[role] || "";
+        const champ = (chosen.champions || {})[role] || "?";
+        return (ROLE_LONG[role] || role) + ": " + champ + (player ? " (" + player.split("#")[0] + ")" : "");
+      });
+      box.append(D.el("small", "", roles.join(" · ")));
+      box.append(D.el("small", "", chosen.mode === "adaptive"
+        ? "Adaptive plan: player roles fixed; unpicked champions may change for a proven counter."
+        : "Selected five: League lock-ins remain fixed."));
+    } else {
+      box.append(D.el("small", "", intentControl
+        ? "Choose a comp in Discord again. This app has not received a selected plan."
+        : "Shared control connection unavailable. Recheck Draft Coach sync."));
+    }
+  }
   async function pollDraftControl() {
     try {
       const r = await fetch(BRIDGE + "/api/guidance", { cache: "no-store" });
@@ -598,6 +629,7 @@
       intentSync = d.sync || null; isCaptain = !!d.is_captain;
     } catch (e) { intentControl = null; intentSync = null; }
     renderSync();
+    renderSelectedTeamComp();
     if (latest) render(latest);
   }
   setInterval(pollDraftControl, 500);

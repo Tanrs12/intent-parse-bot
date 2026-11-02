@@ -84,6 +84,7 @@
         </div>
       </div>
 
+      <div class="team-choice-status" id="team-choice-status" role="status" aria-live="polite"></div>
       <section class="ov-decision" aria-labelledby="lead">
         <div class="ov-hero">
           <div id="hero-portrait" hidden></div>
@@ -182,6 +183,31 @@
   let identityPending = false, identityFilled = false;
   let panelBridge = null, panelControl = null, controlPolling = false;
 
+  function renderSelectedTeamComp() {
+    const box = $("team-choice-status");
+    const chosen = panelControl && panelControl.chosen;
+    const key = JSON.stringify([chosen, !!panelControl]);
+    if (box.dataset.key === key) return;
+    box.dataset.key = key;
+    box.dataset.selected = String(!!chosen);
+    box.replaceChildren();
+    box.append(D.el("b", "", chosen
+      ? (chosen.source === "discord" ? "Discord comp: " : "Team comp: ") + (chosen.label || "Team draft")
+      : "No Discord comp synced"));
+    if (chosen) {
+      box.append(D.el("small", "", D.ROLES.map((role) =>
+        (ROLE_LONG[role] || role) + " " + ((chosen.champions || {})[role] || "?")
+      ).join(" · ")));
+      box.append(D.el("small", "", chosen.mode === "adaptive"
+        ? "Adaptive: roles fixed; unpicked champions may counter."
+        : "Chosen five: League lock-ins stay fixed."));
+    } else {
+      box.append(D.el("small", "", panelControl
+        ? "Select a comp in Discord to load the team plan."
+        : "Shared control connection unavailable."));
+    }
+  }
+
   async function pollControl() {
     if (controlPolling || identityPending) return;
     controlPolling = true;
@@ -205,6 +231,7 @@
 
       const data = await controlResponse.json();
       panelControl = data.control;
+      renderSelectedTeamComp();
       panelBridge = guidanceResponse.ok
         ? await guidanceResponse.json()
         : { active: false };
@@ -231,6 +258,7 @@
     } catch (e) {
       panelBridge = null;
       panelControl = null;
+      renderSelectedTeamComp();
       $("identity").parentElement.hidden = true;
       $("shake").hidden = true;
       $("settings-label").textContent = "Shared draft unavailable";
