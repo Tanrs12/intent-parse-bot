@@ -58,6 +58,7 @@ from league_flex_core import (  # noqa: F401  shared drafting brain
     _roster_real_flex_value,
     _select_diverse_recommendations,
     generate_team_options,
+    normalise_team_role_update,
     role_option_limit,
 )
 from league_shared_data import sync_shared_league_data
@@ -1339,13 +1340,13 @@ class LeagueFlexCog(commands.Cog):
             await db.close()
         if not row:
             return None
-        return {
+        return normalise_team_role_update({
             "user_id": int(row["discord_user_id"]),
             "display_name": row["display_name"],
             "roles": _loads(row["roles_json"], []),
             "role_priority": _loads(row["role_priority_json"], {}),
             "champions": _loads(row["champions_json"], {}),
-        }
+        })
 
     async def list_signups(self, guild_id: int) -> list[dict]:
         db = await database.connect()
@@ -1358,13 +1359,13 @@ class LeagueFlexCog(commands.Cog):
         finally:
             await db.close()
         return [
-            {
+            normalise_team_role_update({
                 "user_id": int(row["discord_user_id"]),
                 "display_name": row["display_name"],
                 "roles": _loads(row["roles_json"], []),
                 "role_priority": _loads(row["role_priority_json"], {}),
                 "champions": _loads(row["champions_json"], {}),
-            }
+            })
             for row in rows
         ]
 

@@ -26,7 +26,7 @@ import league_comp_engine
 import league_multi_source
 import league_aggregate_sources
 from league_draft_backend import IDENTITIES, _pick_group_meta, recommend_live_drafts
-from league_flex_core import role_option_limit
+from league_flex_core import normalise_team_role_update, role_option_limit
 from league_pro_data import refresh_recent_pro_data
 from team_sync import chosen_status, clean_chosen
 
@@ -693,7 +693,7 @@ def _load_cached_signups():
     try:
         raw = json.loads(SIGNUP_CACHE.read_text(encoding="utf-8"))
         if isinstance(raw, list):
-            _signups = raw
+            _signups = [normalise_team_role_update(p) for p in raw if isinstance(p, dict)]
     except Exception:
         pass
 
@@ -742,6 +742,7 @@ def refresh_signups(force: bool = False):
             return
         parsed = json.loads(line[len(marker):])
         if isinstance(parsed, list) and parsed:
+            parsed = [normalise_team_role_update(p) for p in parsed if isinstance(p, dict)]
             with _cache_lock:
                 changed = parsed != _signups
                 _signups = parsed
