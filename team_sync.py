@@ -54,8 +54,8 @@ def comp_signature(champions: dict | None) -> str:
 def draft_control_payload(rec: dict, *, label: str, source: str = "discord") -> dict[str, Any]:
     """The relay /preference body that makes every Draft Coach follow one Discord draft.
 
-    Roles are pinned to the players in that draft, every champion becomes a hard lock (so the plan
-    survives bans: a banned champion drops out of the locks and only that seat is re-solved), and
+    Roles are pinned to the players, but unpicked champions are soft preferences.
+    Counter swaps are permitted from submitted pools when the revealed enemy lane justifies them.
     the draft's identity keeps the replacement in the same style. ``chosen`` carries the label and
     the original five so the apps can say what changed and why.
     """
@@ -76,9 +76,10 @@ def draft_control_payload(rec: dict, *, label: str, source: str = "discord") -> 
         "control": {
             "identity": identity,
             "role_locks": role_locks,
-            "champion_locks": {role: champ for role, champ in champions.items() if champ},
+            "champion_locks": {},  # real in-client locks are applied by the live backend
             "shake": 0,
             "chosen": {
+                "mode": "adaptive",
                 "label": str(label)[:40],
                 "source": str(source)[:12],
                 "plan": str(rec.get("team_plan") or "")[:40],
@@ -103,6 +104,7 @@ def clean_chosen(raw: Any) -> dict | None:
         return None
     players = {role: str(v)[:32] for role, v in (raw.get("players") or {}).items() if role in ROLES and v}
     return {
+        "mode": "adaptive" if raw.get("mode") == "adaptive" else "locked",
         "label": str(raw.get("label") or "Team draft")[:40],
         "source": str(raw.get("source") or "")[:12],
         "plan": str(raw.get("plan") or "")[:40],
@@ -126,6 +128,8 @@ def chosen_status(chosen: dict | None, lead: dict | None, *, our_bans: list[str]
         if not was or not now or was == now:
             continue
         key = was.casefold()
-        why = "banned" if key in gone else "taken by the enemy" if key in taken else "swapped"
+        adaptive_reason = (lead or {}).get("adaptive_reasons", {}).get(role)
+        why = ("banned" if key in gone else "taken by the enemy" if key in taken
+               else adaptive_reason or "swapped")
         replaced[role] = {"was": was, "now": now, "why": why}
     return {**chosen, "replaced": replaced, "intact": not replaced, "lead_matches": bool(lead_champs)}

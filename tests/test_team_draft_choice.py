@@ -38,12 +38,13 @@ FIVE = [
 ]
 
 
-def test_discord_choice_becomes_pinned_roles_locked_five_and_a_style():
+def test_discord_choice_becomes_pinned_roles_soft_five_and_a_style():
     payload = draft_control_payload(REC, label="Draft 3")
     assert payload["signature"] == "Camille|Zac|Ahri|Ashe|Lulu"
     control = payload["control"]
     assert control["role_locks"] == {"Top": 1, "Jungle": 2, "Mid": 3, "ADC": 4, "Support": 5}
-    assert control["champion_locks"] == REC["champions"]
+    assert control["champion_locks"] == {}
+    assert control["chosen"]["mode"] == "adaptive"
     assert control["identity"] == "dive"
     assert control["chosen"]["label"] == "Draft 3" and control["chosen"]["source"] == "discord"
     assert control["chosen"]["players"]["Mid"] == "Pete"
@@ -69,12 +70,12 @@ def test_chosen_status_names_the_replaced_seat_and_why():
     assert clean_chosen({"label": "x"}) is None
 
 
-def test_engine_keeps_four_and_re_solves_only_the_banned_seat():
+def test_engine_preserves_four_when_fifth_is_banned():
     payload = draft_control_payload(REC, label="Draft 1")
     control = payload["control"]
     unavailable = {"Zac"}
-    required = {role: champ for role, champ in control["champion_locks"].items() if champ not in unavailable}
-    result = recommend_live_drafts(FIVE, side="blue", limit=5, unavailable=unavailable, required_champions=required,
+    result = recommend_live_drafts(FIVE, side="blue", limit=5, unavailable=unavailable,
+                                   preferred_champions=REC["champions"], chosen_champions=REC["champions"],
                                    role_players=control["role_locks"], identity=control["identity"])
     lead = result["recommendations"][0]
     assert lead["champions"]["Top"] == "Camille" and lead["champions"]["Mid"] == "Ahri"
@@ -89,7 +90,8 @@ def test_bridge_control_carries_the_chosen_draft_through_the_relay():
     payload = draft_control_payload(REC, label="Draft 2")
     bridge._apply_cloud_control({"preference_version": 9, "preference": payload["signature"], "control": payload["control"]})
     control = bridge._get_control()
-    assert control["chosen"]["label"] == "Draft 2" and control["champion_locks"]["Top"] == "Camille"
+    assert control["chosen"]["label"] == "Draft 2" and control["champion_locks"] == {}
+    assert control["chosen"]["mode"] == "adaptive"
     assert control["signature"] == payload["signature"]
     bridge._apply_cloud_control({"preference_version": 10, "preference": None, "control": None})
     assert bridge._get_control()["chosen"] is None and bridge._get_control()["signature"] is None
@@ -110,6 +112,8 @@ def test_relay_stores_the_chosen_block_and_release_clears_it():
             r = await client.post(f"/draft-sync/{key}/preference", json=draft_control_payload(REC, label="Draft 4"))
             body = await r.json()
             assert body["control"]["chosen"]["label"] == "Draft 4"
+            assert body["control"]["chosen"]["mode"] == "adaptive"
+            assert body["control"]["champion_locks"] == {}
             assert body["control"]["chosen"]["champions"]["Support"] == "Lulu"
             assert body["control"]["role_locks"]["ADC"] == 4
             r = await client.post(f"/draft-sync/{key}/heartbeat",

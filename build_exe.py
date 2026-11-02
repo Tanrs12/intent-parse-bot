@@ -156,6 +156,7 @@ def main() -> int:
         "--add-data", f"{ROOT / 'league_patch_live.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_flex_core.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_draft_backend.py'}{sep}engine",
+        "--add-data", f"{ROOT / 'adaptive_draft.py'}{sep}engine",
         "--add-data", f"{ROOT / 'team_sync.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_player_data.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_pro_data.py'}{sep}engine",
