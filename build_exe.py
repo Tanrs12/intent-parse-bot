@@ -63,7 +63,7 @@ pause
     "Draft Coach (any queue).bat": r'''@echo off
 cd /d "%~dp0"
 echo Coaching every champion select (normals too). Default launchers: Ranked Flex and custom games only.
-FlexersDraftCoach.exe --load "loadfileslexers-team.json" --window --hud --any-queue
+FlexersDraftCoach.exe --load "loadfiles\flexers-team.json" --window --hud --any-queue
 pause
 ''',
     "Player (sync from coach PC).bat": r'''@echo off
