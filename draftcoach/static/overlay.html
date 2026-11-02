@@ -20,23 +20,11 @@
           <div class="mm-meta" id="head-sub">WAITING FOR LOBBY</div>
         </div>
       </div>
-      <button class="fd-text-button" id="theme" type="button" aria-pressed="false" aria-label="Use dark theme">Dark</button>
+      <button class="fd-text-button" id="settings-open" type="button" aria-label="Draft settings" aria-haspopup="dialog" aria-controls="draft-settings">Settings</button>
+      <button class="fd-text-button" id="theme" type="button" aria-pressed="false" aria-label="Use graphite theme">Graphite</button>
       <button class="fd-icon-button" id="minimize" type="button" aria-label="Minimize overlay"><span aria-hidden="true">&minus;</span></button>
       <button class="fd-icon-button" id="close" type="button" aria-label="Close overlay"><span class="mm-icon" data-icon="close" aria-hidden="true"></span></button>
     </header>
-
-    <div class="ov-controls">
-      <button class="fd-button" id="settings-open" type="button"
-              aria-haspopup="dialog" aria-controls="draft-settings">
-        Draft settings
-      </button>
-        <span class="ov-settings-state" id="settings-label">Team style: Auto</span>
-      <div class="ov-clock" id="clock-wrap" hidden>
-        <span class="mm-icon" data-icon="clock" aria-hidden="true"></span>
-        <span role="timer" aria-live="off"
-              aria-label="Time remaining" id="timer">&mdash;</span>
-      </div>
-    </div>
 
     <dialog class="ov-settings" id="draft-settings"
             aria-labelledby="settings-title">
@@ -45,7 +33,8 @@
         <button class="fd-button" value="close" autofocus>Done</button>
       </form>
 
-      <p class="fd-note">Team style and "Find different drafts" change the draft for the whole team.</p>
+      <p class="ov-settings-state" id="settings-label">Team style: Auto</p>
+      <p class="fd-note">These settings change the shared draft for everyone.</p>
 
       <div class="ov-settings-fields">
         <label class="ov-format">
@@ -82,11 +71,18 @@
     </dialog>
 
     <main class="ov-body">
+      <section class="ov-focus" aria-label="Current decision">
       <div class="ov-art" aria-hidden="true">
         <img id="art" alt="" decoding="async">
       </div>
 
-      <p class="ov-phase mm-meta" id="statekey">STANDBY</p>
+      <div class="ov-phase-line">
+        <p class="ov-phase mm-meta" id="statekey">STANDBY</p>
+        <div class="ov-clock" id="clock-wrap" hidden>
+          <span class="mm-icon" data-icon="clock" aria-hidden="true"></span>
+          <span role="timer" aria-live="off" aria-label="Time remaining" id="timer">—</span>
+        </div>
+      </div>
 
       <section class="ov-decision" aria-labelledby="lead">
         <div class="ov-hero">
@@ -103,10 +99,9 @@
       </section>
 
       <div class="ov-actions" id="actions" hidden>
-        <button class="fd-button" id="hover-btn" type="button">Hover</button>
         <button class="fd-button primary" id="accept" type="button"></button>
+        <button class="fd-button" id="hover-btn" type="button">Hover</button>
       </div>
-      <p class="ov-turn" id="turn-note" hidden></p>
 
       <p
         id="action-note"
@@ -116,6 +111,8 @@
         aria-atomic="true"
       ></p>
 
+      </section>
+      <div class="ov-context">
       <section id="post-draft-summary" class="draft-summary"
                aria-label="Final team and game plan" hidden></section>
       <div id="order" hidden>
@@ -132,6 +129,7 @@
           <span class="mm-icon" data-icon="arrow-right" aria-hidden="true"></span>
           <span id="change-copy"></span>
         </p>
+      </div>
       </div>
     </main>
 
@@ -160,39 +158,8 @@
   let typesFilled = false, deadline = 0, changeExpiry = 0, changeKey = "", leadKey = "", announced = "", typePending = false, planPending = false, plansKey = "", lastSnapshot = null;
 
   // ---- theme ----------------------------------------------------------------
-  function setTheme(graphite) {
-    document.body.classList.toggle("graphite", graphite);
-    $("theme").setAttribute("aria-pressed", String(graphite));
-    $("theme").textContent = graphite ? "Light" : "Dark";
-    $("theme").setAttribute(
-      "aria-label",
-      graphite ? "Use light theme" : "Use dark theme"
-    );
-
-    try {
-      localStorage.setItem(
-        "fd-overlay-theme",
-        graphite ? "graphite" : "porcelain"
-      );
-    } catch {}
-  }
-
-  let graphite = false;
-  let savedTheme = null;
-
-  try {
-    savedTheme = localStorage.getItem("fd-overlay-theme");
-  } catch {}
-
-  const requestedTheme = params.get("theme") || savedTheme;
-  if (requestedTheme === "graphite" || requestedTheme === "client") {
-    graphite = true;
-  } else if (requestedTheme === "porcelain") {
-    graphite = false;
-  }
-
-  setTheme(graphite);
-  $("theme").onclick = () => setTheme(!document.body.classList.contains("graphite"));
+  // v1 wrote the old dark default on every load; v2 stores only explicit choices.
+  D.themeControl($("theme"), "fd-overlay-theme-v2");
   $("minimize").onclick = () => { const api = window.pywebview && window.pywebview.api; if (api && api.minimize) api.minimize(); };
   $("close").onclick = () => { const api = window.pywebview && window.pywebview.api; if (api && api.close) api.close(); else window.close(); };
   if (!hosted) { $("minimize").hidden = true; $("close").hidden = true; }
@@ -344,10 +311,15 @@
     if (rows.length !== 5) { orderKey = ""; return; }
     const seats = ((s && s.our_team) || []).filter((p) => p.role);
     const byRole = Object.fromEntries(seats.map((p) => [p.role, p]));
-    const ordered = D.ROLES.map((r) => rows.find((x) => x.role === r)).filter(Boolean);
+    const ordered = D.ROLES.map((role) => {
+      const row = rows.find(x => x.role === role);
+      const seat = byRole[role];
+      return row && seat?.locked ? { ...row, champion: seat.locked,
+        champion_id: D.idFor(seat.locked), status: "locked" } : row;
+    }).filter(Boolean);
     const src = (g && g.pick_order_source) || "";
     const label = src.startsWith("plan:") ? "Our planned five · " + src.slice(5) : "Our planned five";
-    const key = label + "|" + ordered.map((r) => r.slot + r.champion + r.status + ((byRole[r.role] || {}).is_local ? "L" : "") + ((byRole[r.role] || {}).display_name || "")).join("|");
+    const key = label + "|" + ordered.map((r) => r.slot + r.champion + (r.champion_id || D.idFor(r.champion) || "") + r.status + ((byRole[r.role] || {}).is_local ? "L" : "") + ((byRole[r.role] || {}).display_name || "")).join("|");
     if (key === orderKey) return;
     orderKey = key;
     $("order-label").textContent = label;
@@ -361,7 +333,7 @@
       who.append(D.el("b", "", ROLE_LONG[r.role] || r.role), D.el("span", "", seat.display_name ? seat.display_name + (seat.is_local ? " · you" : "") : ""));
       const tag = r.status === "locked" ? "Locked" : r.status === "next" ? (seat.is_local ? "You pick now" : "Picks next") : "Later";
       li.append(D.portrait(r.champion, "", r.champion_id), who, D.el("b", "ov-comp-champ", r.champion), D.el("span", "ov-comp-tag", tag));
-      li.title = (r.tags || []).join(", ");
+      li.title = [r.champion, seat.display_name, seat.is_local ? "Your seat" : "", r.status === "next" ? "Picks next" : r.status, ...(r.tags || [])].filter(Boolean).join(" \u00b7 ");
       list.append(li);
     }
   }
@@ -380,30 +352,23 @@
     if (a.kind === "pick") return a.ours ? "our-pick" : "enemy-pick";
     return "plan";
   }
-  let artFor = "";
   function setArt(name, id) {
-    // Centered splash of the champion in the decision, behind a paper scrim; fades in once loaded.
-    const wrap = document.querySelector(".ov-art"), img = $("art");
-    const cid = id || (name ? D.idFor(name) : null);
-    const key = cid ? String(cid) : "";
-    if (key === artFor) return;
-    artFor = key;
-    wrap.classList.remove("on");
-    if (!cid) { img.removeAttribute("src"); return; }
-    img.onload = () => { if (artFor === key) wrap.classList.add("on"); };
-    img.onerror = () => { if (artFor === key) wrap.classList.remove("on"); };
-    img.src = "/api/art/centered/" + cid;
+    D.championArt($("art"), name, id);
   }
   function setLead(key, title, portraitName, portraitId, recipient) {
     setArt(portraitName, portraitId);
     const h = $("lead");
-    if (key !== leadKey) { leadKey = key; h.textContent = title; h.classList.remove("fd-arrive"); void h.offsetWidth; h.classList.add("fd-arrive"); }
-    const slot = $("hero-portrait");
-    const portraitKey = portraitName ? portraitName + "#" + (portraitId || "") : "";
-    if (slot.dataset.key !== portraitKey) {
-      slot.dataset.key = portraitKey;
-      if (portraitName) { slot.replaceChildren(D.portrait(portraitName, "", portraitId)); slot.hidden = false; } else { slot.replaceChildren(); slot.hidden = true; }
+    if (h.textContent !== title) {
+      leadKey = key; h.textContent = title;
+      h.classList.remove("fd-arrive"); void h.offsetWidth; h.classList.add("fd-arrive");
     }
+    const slot = $("hero-portrait");
+    const imageKey = (portraitId || D.idFor(portraitName) || "") + ":" + (portraitName || "");
+    if (slot.dataset.key !== imageKey) {
+      slot.dataset.key = imageKey;
+      slot.replaceChildren(...(portraitName ? [D.portrait(portraitName, "", portraitId)] : []));
+    }
+    slot.hidden = !portraitName;
     $("recipient").textContent = recipient || ""; $("recipient").hidden = !recipient;
   }
   function setReason(text, warning) { const r = $("detail"); r.textContent = text || ""; r.dataset.warning = String(!!warning); }
@@ -481,7 +446,7 @@
       state: "pending",
       until: Infinity
     };
-    renderActions(lastSnapshot);
+    renderActions(D.Review.liveSnapshot(lastSnapshot, panelBridge));
 
     try {
       await D.api("POST", "/api/client/" + what, body || {});
@@ -500,7 +465,7 @@
       };
     } finally {
       acting = false;
-      renderActions(lastSnapshot);
+      renderActions(D.Review.liveSnapshot(lastSnapshot, panelBridge));
     }
   }
 
@@ -509,7 +474,8 @@
     const box = $("actions");
     const accept = $("accept");
     const hover = $("hover-btn");
-    const local = snap?.local;
+    const local = snap?.local || {};
+    const decision = D.Review.actionState(snap);
     const mode = snap ? overlayMode(snap) : "unavailable";
     const ourTurn = mode === "our-ban" || mode === "our-pick";
 
@@ -525,35 +491,26 @@
     hover.disabled = acting;
     actionHint = "";
 
-    const unavailable = !snap || [
-      "unavailable", "idle", "manual-idle", "no-client", "updating"
-    ].includes(mode);
-    const turn = $("turn-note");
-    turn.hidden = true;
-    turn.textContent = "";
+    if (!snap || snap.status?.stale || snap.status?.connection === "error") {
+      box.hidden = false; hover.hidden = false;
+      hover.disabled = accept.disabled = true;
+      accept.textContent = "Lock in"; hover.textContent = "Hover";
+      actionFeedback = null; actionHint = "Connection lost · waiting for a fresh draft.";
+      renderActionNote(); return;
+    }
 
-    if (unavailable) {
-      actionFeedback = null;
+    if (!decision.show && !local.incoming_swap && !local.swap) {
       renderActionNote();
       return;
     }
-
-    if (!local) {
-      // No seat of ours in this lobby (spectating, or the client has not told us which seat is ours).
-      if (ourTurn) { turn.textContent = "Our team is " + (mode === "our-ban" ? "banning" : "picking") + ". Hover and lock in the League client."; turn.hidden = false; }
-      renderActionNote();
-      return;
-    }
-
-    if (!local.client) {
-      if (ourTurn && local.suggestion && local.can_act !== undefined && local.kind) {
-        const sg = local.suggestion;
-        accept.textContent = (sg.kind === "ban" ? "Ban " : "Lock in ") + sg.champion;
-        hover.textContent = sg.kind === "ban" ? "Select" : "Hover";
-        hover.hidden = false; box.hidden = false;
-        accept.disabled = true; hover.disabled = true;
-        actionHint = "No League client on this machine: hover and lock in the client.";
-      }
+    if (!decision.enabled && decision.show && !local.incoming_swap && !local.swap) {
+      const sg = decision.suggestion;
+      const ban = sg?.kind === "ban";
+      box.hidden = false; hover.hidden = false;
+      hover.disabled = accept.disabled = true;
+      hover.textContent = ban ? "Select" : "Hover";
+      accept.textContent = (ban ? "Ban" : "Lock in") + (sg ? " " + sg.champion : "");
+      actionHint = decision.reason;
       renderActionNote();
       return;
     }
@@ -622,8 +579,8 @@
         actionHint = swap.with_player + " confirms in League.";
         box.hidden = false;
       }
-    } else if (local.can_act && local.suggestion && ourTurn) {
-      const sg = local.suggestion;
+    } else if (decision.enabled && decision.suggestion && ourTurn) {
+      const sg = decision.suggestion;
       const ban = sg.kind === "ban";
       const rows = ban
         ? (snap.guidance?.bans || [])
@@ -649,7 +606,7 @@
         sg.champion,
         sg.champion_id || entry.champion_id,
         (ban ? "Your ban" : "Your pick · " + (ROLE_LONG[sg.role || local.role] || sg.role || local.role || "")) +
-          (entry.plan ? " · plan " + entry.plan.name + " " + entry.plan.progress + "/5" : "")
+          (entry.plan ? " · " + entry.plan.name + " plan " + entry.plan.progress + "/5" : "")
       );
 
       setReason(
@@ -689,11 +646,8 @@
         `${ban ? "Banning" : "Locking"} ${sg.champion}…`,
         `${sg.champion} ${ban ? "banned" : "locked in"}`
       );
-      if (!actionFeedback) actionHint = local.simulated ? "Demo: the buttons act on the simulated draft." : "Acts through your League client.";
 
-      actionHint = ban
-        ? "Select previews in League. Ban confirms."
-        : "Hover previews in League. Lock in confirms.";
+      actionHint = "";
       box.hidden = false;
     }
 
@@ -708,26 +662,6 @@
           swap_request: "Requesting…"
         }[actionFeedback.what] || "Working…";
       }
-    }
-
-    if (box.hidden && ourTurn) {
-      const picks = snap.guidance?.picks || [];
-      const seats = (snap.state?.our_team || []);
-      const active = snap.state?.active || {};
-      const actors = seats.filter((p) => (active.cell_ids || []).includes(p.cell_id) && !p.is_local);
-      const names = actors.map((p) => p.display_name).filter(Boolean);
-      if (mode === "our-ban") {
-        turn.textContent = (names.length ? names.join(" and ") + " ban" + (names.length === 1 ? "s" : "") : "A teammate bans") + " now.";
-      } else if (names.length) {
-        const parts = actors.map((p) => p.locked ? p.display_name + " locked " + p.locked : p.display_name + " is picking now");
-        turn.textContent = parts.join(". ") + ".";
-      } else if (local.locked) {
-        turn.textContent = "You locked " + local.locked + ". Waiting for the team.";
-      }
-      turn.hidden = !turn.textContent;
-    } else if (box.hidden && (mode === "enemy-pick" || mode === "enemy-ban")) {
-      turn.textContent = local.locked ? "You locked " + local.locked + "." : "Enemy " + (mode === "enemy-ban" ? "bans" : "picks") + ". Your " + (local.role ? ROLE_LONG[local.role] || local.role : "") + " pick comes later.";
-      turn.hidden = false;
     }
 
     renderActionNote();
@@ -766,7 +700,10 @@
     $("clock-wrap").hidden = !deadline;
     const picks = (g && g.picks) || [], bans = (g && g.bans) || [];
     const rolesNow = (g && g.roles_now || []).map((r) => (ROLE_LONG[r] || r).toUpperCase()).join(" / ");
-    const top = picks[0];
+    const action = D.Review.actionState(snap);
+    const top = action.enabled && action.suggestion?.kind === "pick"
+      ? picks.find(p => p.champion === action.suggestion.champion && p.role === action.suggestion.role) || action.suggestion
+      : picks[0];
     let alts = [];
     let changeAllowed = true;
     switch (mode) {
@@ -785,7 +722,13 @@
       case "our-ban": {
         const b = bans[0];
         $("statekey").textContent = "OUR TURN TO BAN";
-        if (b) { setLead("ban:" + b.champion, "Ban " + b.champion, b.champion, b.champion_id); setReason(D.overlayBanReason(b)); alts = bans.slice(1, 3).map((x) => ({ champion: x.champion, champion_id: x.champion_id, reason: D.overlayBanReason(x).replace(/\.$/, "") })); announce("Our ban. Ban " + b.champion + "."); }
+        if (b) {
+          const player = (s.our_team || []).find(p => s.active.cell_ids?.includes(p.cell_id))?.display_name || "Teammate";
+          setLead("ban:" + b.champion, action.teammate ? b.champion : "Ban " + b.champion, b.champion, b.champion_id, action.teammate ? player + " bans now" : "Our ban");
+          setReason(D.overlayBanReason(b));
+          alts = bans.slice(1, 3).map(x => ({ champion: x.champion, champion_id: x.champion_id, reason: D.overlayBanReason(x).replace(/\.$/, "") }));
+          announce("Our ban. Ban " + b.champion + ".");
+        }
         else { setLead("ban:none", "No ban recommendation"); setReason("Review scouting and ban policy in Coach."); }
         break;
       }
@@ -794,9 +737,10 @@
         $("statekey").textContent = eyebrow;
         if (top) {
           const mine = snap.local && snap.local.can_act && snap.local.suggestion && snap.local.suggestion.champion === top.champion;
-          const who = mine ? snap.local.name : (top.player && top.player !== top.role ? top.player : "");
-          const recipient = (mine ? "Your pick" : who ? who + " plays it" : "Our pick") + " · " + (ROLE_LONG[top.role] || top.role) + (top.plan ? " · " + top.plan.name + " plan" : "");
-          setLead("pick:" + top.champion + ":" + mode, mode === "our-pick" ? "Pick " + top.champion : "Next up: " + top.champion, top.champion, top.champion_id, recipient);
+          const who = mine ? snap.local.name : (s.our_team || []).find(p => p.role === top.role)?.display_name || (top.player && top.player !== top.role ? top.player : "");
+          const teammateTurn = mode === "our-pick" && D.Review.actionState(snap).teammate;
+          const recipient = (teammateTurn ? (who || "A teammate") + " picks now" : mine ? "Your pick" : who ? who + " plays it" : "Our pick") + " · " + (ROLE_LONG[top.role] || top.role) + (top.plan ? " · " + top.plan.name + " plan" : "");
+          setLead("pick:" + top.champion + ":" + mode, teammateTurn ? top.champion : mode === "our-pick" ? "Pick " + top.champion : "Next up: " + top.champion, top.champion, top.champion_id, recipient);
           const warn = top.counter_risk >= 0.5 && top.counter_risk_by && top.counter_risk_by.length;
           setReason(D.overlayPickReason(top), warn);
           alts = picks.slice(1, mode === "our-pick" ? 3 : 2).map((p) => ({ champion: p.champion, champion_id: p.champion_id, role: p.role, reason: D.overlayPickReason(p).replace(/\.$/, "") }));

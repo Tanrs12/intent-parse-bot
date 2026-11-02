@@ -24,6 +24,15 @@
 
   function learnFromGuidance(g) {
     if (!g) return;
+    for (const p of [...(g.pick_order || []), ...(g.current_pick_group?.members || [])]) {
+      if (p.champion_id) idCache[p.champion] = p.champion_id;
+    }
+    for (const c of g.comps || []) {
+      for (const role of ROLES) {
+        if (c.champions?.[role] && c.champion_ids?.[role]) idCache[c.champions[role]] = c.champion_ids[role];
+      }
+      for (const p of c.pick_order || []) if (p.champion_id) idCache[p.champion] = p.champion_id;
+    }
     for (const p of g.picks || []) if (p.champion_id) idCache[p.champion] = p.champion_id;
     for (const b of g.bans || []) if (b.champion_id) idCache[b.champion] = b.champion_id;
     for (const c of g.counters || []) {
@@ -38,19 +47,72 @@
 
   function portrait(name, cls, id) {
     const wrap = el("div", "portrait " + (cls || ""));
-    wrap.textContent = initials(name);
     wrap.title = name || "";
     wrap.setAttribute("aria-hidden", "true");
     const cid = id || idFor(name);
     if (cid) {
       const img = document.createElement("img");
-      img.alt = name || "";
-      img.loading = "lazy";
-      img.src = "/api/champion-icon/" + cid;
-      img.onerror = () => img.remove();
-      img.onload = () => { wrap.textContent = ""; wrap.appendChild(img); };
-    }
+      img.alt = ""; // The adjacent champion name already supplies the label.
+      img.width = img.height = 48;
+      img.decoding = "async";
+      // Insert before requesting. Detached lazy images may never begin loading.
+      wrap.appendChild(img);
+      loadImage(img, ["/api/champion-icon/" + cid, "/api/art/tile/" + cid]);
+    } else wrap.textContent = name ? initials(name) : "—";
     return wrap;
+  }
+
+  const seenImages = new Set();
+  function loadImage(img, urls) {
+    const key = urls.join("|");
+    if (img.dataset.source === key) return;
+    img.dataset.source = key;
+    img.classList.remove("on");
+    img.dataset.loaded = "false";
+    let index = 0;
+    img.onload = () => {
+      img.dataset.repeat = String(seenImages.has(img.src));
+      seenImages.add(img.src);
+      img.dataset.kind = img.src.includes("/champion-icon/") ? "icon" : "art";
+      img.dataset.loaded = "true"; img.classList.add("on");
+    };
+    img.onerror = () => {
+      if (++index < urls.length) img.src = urls[index];
+      else { img.dataset.loaded = "error"; img.removeAttribute("src"); }
+    };
+    if (urls.length) img.src = urls[0];
+    else { img.onload = img.onerror = null; img.removeAttribute("src"); }
+  }
+
+  function championArt(img, name, id) {
+    const cid = id || idFor(name);
+    const key = String(cid || "");
+    if (img.dataset.champion === key) return;
+    img.dataset.champion = key;
+    if (!cid) { loadImage(img, []); return; }
+    artReady.then(() => {
+      if (img.dataset.champion !== key) return;
+      const urls = ["/api/art/centered/" + cid];
+      if (hasArt("porcelain", name)) urls.push("/api/art/porcelain/" + cid);
+      else if (hasArt("gesture", name)) urls.push("/api/art/gesture/" + cid);
+      urls.push("/api/art/portrait/" + cid, "/api/champion-icon/" + cid);
+      loadImage(img, urls);
+    });
+  }
+
+  function themeControl(button, storageKey) {
+    let saved;
+    try { saved = localStorage.getItem(storageKey); } catch {}
+    const requested = new URLSearchParams(location.search).get("theme") || saved;
+    function apply(dark, persist) {
+      document.body.classList.toggle("graphite", dark);
+      button.textContent = dark ? "Light" : "Dark";
+      button.setAttribute("aria-pressed", String(dark));
+      button.setAttribute("aria-label", dark ? "Use porcelain light theme" : "Use graphite dark theme");
+      if (persist) try { localStorage.setItem(storageKey, dark ? "graphite" : "porcelain"); } catch {}
+    }
+    apply(requested === "graphite" || requested === "client", false);
+    button.onclick = () => apply(!document.body.classList.contains("graphite"), true);
   }
 
   function fmtTimer(ms) {
@@ -364,7 +426,8 @@
 
   global.Draft = { ROLES, ROLE_SHORT, $, el, portrait, idFor, learnIds, learnFromGuidance, fmtTimer, signed, renderTeam, renderBans,
                    renderPicks, renderBanTargets, renderCounters, renderChips, renderComp, renderAlerts, renderHeadline, connect, api,
-                   hydrateIcons, shortPickReason, shortBanReason, initials, artReady, artSlug, hasArt, artUrl };
+                   hydrateIcons, shortPickReason, shortBanReason, initials, artReady, artSlug, hasArt, artUrl,
+                   loadImage, championArt, themeControl };
 })(window);
 
 window.Draft.overlayPickReason = function (p) {

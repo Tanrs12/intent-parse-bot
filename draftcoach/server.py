@@ -34,7 +34,7 @@ GET  /api/imports            import history
 POST /api/roster/lineup      {"lineup": [player keys]}      POST /api/roster/enemy-lineup {"lineup": [opponent keys]}
 DELETE /api/roster/player/{key} | /api/roster/opponent/{key}
 GET  /api/champions          names and ids
-GET  /api/champion-icon/{id} portrait (proxied from the client, else redirected to CommunityDragon)
+GET  /api/champion-icon/{id} portrait (bundled locally, else proxied from the client)
 """
 
 from __future__ import annotations
@@ -44,12 +44,14 @@ import contextlib
 import json
 import logging
 import os
+import time
+import urllib.request
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
 
-from . import LOADFILE_DIR, ROOT, VAR_DIR, __version__, champions, loadfiles
+from . import ENGINE_DIR, LOADFILE_DIR, ROOT, VAR_DIR, __version__, champions, loadfiles
 from .draft_order import ManualDraft
 from .hub import Hub, _json_default
 from .lcu import LcuWatcher
@@ -57,7 +59,6 @@ from .roster import Roster
 
 log = logging.getLogger("draftcoach.server")
 STATIC = Path(__file__).with_name("static")
-CDRAGON = "https://cdn.communitydragon.org/latest/champion/{id}/square"
 CDRAGON_ART = {"splash": "https://cdn.communitydragon.org/latest/champion/{id}/splash-art",
                "centered": "https://cdn.communitydragon.org/latest/champion/{id}/splash-art/centered",
                "tile": "https://cdn.communitydragon.org/latest/champion/{id}/tile",
@@ -75,6 +76,29 @@ def find_art_dir(configured: str | None) -> Path | None:
         if candidate.is_dir() and (candidate / "champions").is_dir():
             return candidate
     return None
+
+
+def cached_remote_art(url: str, file: Path) -> bytes | None:
+    """Keep artwork same-origin and retain successful downloads for offline use."""
+    try:
+        if file.is_file():
+            return file.read_bytes()
+        # CommunityDragon answers 403 to Python's default user agent.
+        request = urllib.request.Request(url, headers={"User-Agent": f"FlexersDraftCoach/{__version__} (+https://github.com/Tanrs12/intent-parse-bot)"})
+        with urllib.request.urlopen(request, timeout=8) as response:
+            data = response.read(12 * 1024 * 1024 + 1)
+        if len(data) > 12 * 1024 * 1024 or not data.startswith((b"\xff\xd8\xff", b"\x89PNG")):
+            return None
+        try:
+            file.parent.mkdir(parents=True, exist_ok=True)
+            temporary = file.with_suffix(".tmp")
+            temporary.write_bytes(data)
+            temporary.replace(file)
+        except OSError:
+            pass  # Read-only installations can still display the downloaded art.
+        return data
+    except (OSError, ValueError):
+        return None
 
 
 def load_config(path: str | Path | None) -> dict:
@@ -179,36 +203,10 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
     art_dir = find_art_dir(config.get("art_dir"))
     app.state.art_dir = art_dir
     art_cache: dict[str, bytes] = {}
-    # FLEXERS: artwork fetched once from the client or CommunityDragon is kept on disk, so portraits
-    # load instantly and offline afterwards instead of depending on a CDN redirect every time.
-    art_disk = VAR_DIR / "art-cache"
-
-    def _disk_get(name: str) -> bytes | None:
-        try:
-            file = art_disk / name
-            return file.read_bytes() if file.is_file() else None
-        except OSError:
-            return None
-
-    def _disk_put(name: str, data: bytes) -> None:
-        try:
-            art_disk.mkdir(parents=True, exist_ok=True)
-            (art_disk / name).write_bytes(data)
-        except OSError:
-            pass
-
-    async def _cdn_fetch(url: str) -> bytes | None:
-        import urllib.request
-
-        def fetch() -> bytes | None:
-            try:
-                request = urllib.request.Request(url, headers={"User-Agent": f"FlexersDraftCoach/{__version__} (+https://github.com/Tanrs12/intent-parse-bot)"})
-                with urllib.request.urlopen(request, timeout=8) as response:
-                    return response.read() if response.status == 200 else None
-            except Exception:  # noqa: BLE001
-                return None
-
-        return await asyncio.to_thread(fetch)
+    art_disk = Path(config.get("art_cache_dir") or VAR_DIR / "champion-art")
+    art_misses: dict[str, float] = {}
+    icon_files = {"".join(c for c in p.stem.casefold() if c.isalnum()): p
+                  for p in (ENGINE_DIR / "assets" / "league_champions").glob("*.png")}
     splash_paths: dict[int, dict] = {}
     app.state.hub = hub
     app.state.roster = roster
@@ -598,11 +596,9 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
             raise HTTPException(404, "unknown art kind")
         key = f"{kind}:{champion_id}"
         if key in art_cache:
-            return Response(art_cache[key], media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
-        cached = _disk_get(f"{kind}-{int(champion_id)}.jpg")
-        if cached:
-            art_cache[key] = cached
-            return Response(cached, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
+            data = art_cache[key]
+            media_type = "image/png" if data.startswith(b"\x89PNG") else "image/jpeg"
+            return Response(data, media_type=media_type, headers={"Cache-Control": "public, max-age=86400"})
         rest = watcher.rest if watcher and watcher.connected else None
         if rest is not None:
             try:
@@ -617,40 +613,46 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
                         if len(art_cache) > 80:
                             art_cache.pop(next(iter(art_cache)))
                         art_cache[key] = data
-                        _disk_put(f"{kind}-{int(champion_id)}.jpg", data)
                         return Response(data, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
             except Exception:  # noqa: BLE001 - fall through to the CDN
                 pass
-        data = await _cdn_fetch(CDRAGON_ART[kind].format(id=int(champion_id)))
-        if data:
-            if len(art_cache) > 80:
-                art_cache.pop(next(iter(art_cache)))
-            art_cache[key] = data
-            _disk_put(f"{kind}-{int(champion_id)}.jpg", data)
-            return Response(data, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
-        return RedirectResponse(CDRAGON_ART[kind].format(id=int(champion_id)), status_code=302)
+        if not name:
+            raise HTTPException(404, "unknown champion")
+        if time.monotonic() >= art_misses.get(key, 0):
+            data = await asyncio.to_thread(cached_remote_art, CDRAGON_ART[kind].format(id=champion_id),
+                                           art_disk / f"{kind}-{champion_id}.img")
+            if data:
+                if len(art_cache) > 80:
+                    art_cache.pop(next(iter(art_cache)))
+                art_cache[key] = data
+                media_type = "image/png" if data.startswith(b"\x89PNG") else "image/jpeg"
+                return Response(data, media_type=media_type, headers={"Cache-Control": "public, max-age=86400"})
+            art_misses[key] = time.monotonic() + 60
+        raise HTTPException(404, "artwork unavailable offline")
 
     @app.get("/api/champion-icon/{champion_id}")
     async def champion_icon(champion_id: int) -> Response:
         if champion_id in icon_cache:
             return Response(icon_cache[champion_id], media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
-        cached = _disk_get(f"icon-{int(champion_id)}.png")
-        if cached:
-            icon_cache[champion_id] = cached
-            return Response(cached, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+        name = champions.name_for(champion_id) or ""
+        asset_name = {"Wukong": "MonkeyKing", "Nunu & Willump": "Nunu", "Renata Glasc": "Renata"}.get(name, name)
+        file = icon_files.get("".join(c for c in asset_name.casefold() if c.isalnum()))
+        if file:
+            return FileResponse(file, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+        if art_dir and name:
+            collection_icon = art_dir / "champions" / (art_slug(name) + ".png")
+            if collection_icon.is_file():
+                return FileResponse(collection_icon, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
         rest = watcher.rest if watcher and watcher.connected else None
-        data = None
-        if rest is not None:
-            try:
-                data = await asyncio.to_thread(rest.champion_icon, champion_id)
-            except Exception:  # noqa: BLE001
-                data = None
+        if rest is None:
+            raise HTTPException(404, "champion icon unavailable offline")
+        try:
+            data = await asyncio.to_thread(rest.champion_icon, champion_id)
+        except Exception:  # noqa: BLE001
+            raise HTTPException(404, "champion icon unavailable")
         if not data:
-            data = await _cdn_fetch(CDRAGON.format(id=int(champion_id)))
-        if not data:
-            return RedirectResponse(CDRAGON.format(id=int(champion_id)), status_code=302)
+            raise HTTPException(404, "champion icon unavailable")
         icon_cache[champion_id] = data
-        _disk_put(f"icon-{int(champion_id)}.png", data)
         return Response(data, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
     return app

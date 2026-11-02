@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from io import BytesIO
 
 import pytest
 from fastapi.testclient import TestClient
@@ -26,7 +27,7 @@ def client(tmp_path):
 
 
 def test_pages_and_initial_board(client):
-    assert "<title>Draft Coach</title>" in client.get("/").text
+    assert "<title>Flexers Draft Coach</title>" in client.get("/").text
     assert "Draft Overlay</title>" in client.get("/overlay").text
     assert client.get("/static/mm/icons/check.svg").status_code == 200 and client.get("/static/../run.py").status_code == 404
     assert client.get("/static/common.js").status_code == 200
@@ -113,6 +114,49 @@ def test_simulated_draft_streams_over_websocket(client):
         assert snapshot["state"] is None or snapshot["state"]["source"] == "manual"
 
 
-def test_champion_icon_redirects_without_client(client):
-    r = client.get("/api/champion-icon/266", follow_redirects=False)
-    assert r.status_code == 302 and "communitydragon" in r.headers["location"]
+def test_champion_icon_is_available_offline_without_client(client):
+    for champion_id in (266, 267, 145, 888):
+        r = client.get(f"/api/champion-icon/{champion_id}", follow_redirects=False)
+        assert r.status_code == 200
+        assert r.content.startswith(b"\x89PNG")
+        assert r.headers["content-type"] == "image/png"
+        assert "location" not in r.headers
+
+
+def test_unknown_icon_does_not_redirect_offline(client):
+    assert client.get("/api/champion-icon/999999", follow_redirects=False).status_code == 404
+
+
+def test_art_is_served_same_origin_and_cached_across_restarts(tmp_path, monkeypatch):
+    from draftcoach import server
+
+    payload = b"\xff\xd8\xff" + b"image fixture"
+    monkeypatch.setattr(server.urllib.request, "urlopen", lambda *a, **k: BytesIO(payload))
+    config = {"auto_profiles": False, "art_cache_dir": str(tmp_path / "art")}
+    with TestClient(create_app(config, enable_lcu=False, roster_path=tmp_path / "roster.json")) as c:
+        r = c.get("/api/art/centered/267", follow_redirects=False)
+        assert r.status_code == 200 and r.content == payload
+        assert "location" not in r.headers
+
+    def offline(*args, **kwargs):
+        raise AssertionError("Cached art must not request the network")
+
+    monkeypatch.setattr(server.urllib.request, "urlopen", offline)
+    with TestClient(create_app(config, enable_lcu=False, roster_path=tmp_path / "roster.json")) as c:
+        r = c.get("/api/art/centered/267", follow_redirects=False)
+        assert r.status_code == 200 and r.content == payload
+
+
+def test_missing_art_fails_locally_so_browser_can_use_icon(tmp_path, monkeypatch):
+    from draftcoach import server
+
+    def offline(*args, **kwargs):
+        raise OSError("offline")
+
+    monkeypatch.setattr(server.urllib.request, "urlopen", offline)
+    app = create_app({"auto_profiles": False, "art_cache_dir": str(tmp_path / "art")},
+                     enable_lcu=False, roster_path=tmp_path / "roster.json")
+    with TestClient(app) as c:
+        r = c.get("/api/art/centered/267", follow_redirects=False)
+        assert r.status_code == 404 and "location" not in r.headers
+        assert c.get("/api/champion-icon/267").status_code == 200

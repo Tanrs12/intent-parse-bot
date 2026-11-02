@@ -1,7 +1,65 @@
 # Flexers Draft Coach: the application, the overlay and the shared draft
 
-Written for the team and for whoever works on the app next. Current as of the
-`overlay-improvements` branch (1 November 2026).
+Written for the team and for whoever works on the app next. UI updated on
+`codex-ui-rebuild` (2 November 2026).
+
+## UI rebuild contract
+
+The floating panel opens in porcelain. Its header holds Settings and the theme
+toggle; the decision holds the timer, champion artwork, champion name and one
+full-width action row: **Lock in Nami** followed by **Hover**. The action has a
+44 px minimum height. The five-seat team comp follows in role order. At 430×480,
+the normal local-pick state fits the action and all five rows. Secondary context
+scrolls independently; at short heights the whole workspace may scroll. The
+leading champion's centered art is the backdrop, with solid text surfaces for
+contrast. Known champion IDs render icons, never initials.
+
+`Draft.Review.actionState(snapshot)` uses `local.can_act` and `local.suggestion`
+as the action authority. A simulated client does not need a `client` flag or
+player ID to enable its supplied suggestion. A teammate turn reads
+**Sasha picks next · Nami** and offers no client buttons. An unavailable local
+action stays visible and disabled, with **Simulation · client actions are
+unavailable.** or **League client unavailable · open champion select to act.**
+Stale snapshots cannot enable pick, ban or trade actions. Incoming trades still
+take priority. Every action uses the existing `/api/client/*` routes.
+
+The coach page uses the same decision, followed by **Our five · leading draft**
+and open **Compare team drafts** cards. The draft board and shared settings occupy
+the second desktop column; on small screens they follow the decision and draft
+comparisons in DOM and keyboard order. Roster tools stay in the drawer. Existing
+forms retain unsaved text and focused controls across polling.
+
+`common.js` inserts images before requesting them, tries the icon/tile fallback,
+and fades them on arrival. The old detached lazy-image pattern could indefinitely
+show initials. Guidance ID discovery now includes team comps, pick order and
+current pick groups. The art fallback is centered → installed porcelain/gesture
+when listed by `/api/art/index` → loading portrait → icon. Image boxes have fixed
+dimensions; polling the same hero does not restart its request.
+
+The server serves the existing `assets/league_champions` icons locally, including
+in PyInstaller builds. Art requests use the League client, then a disk-backed
+server download; the browser receives no external CDN redirects. Cache misses
+offline return 404 so the image fallback can continue. High-resolution artwork
+cannot be guaranteed on a first offline launch without the client or collection;
+the bundled champion portrait remains available. Successful remote art is stored
+under `var/champion-art` (configurable with `art_cache_dir`).
+
+Palette values in `mm/tokens.css` are unchanged, so `hud_intent.py` and
+`intent_comp_overlay.py` need no palette migration. Verified minimum text contrast
+across paper, surface, raised and selection backgrounds is 4.76:1 for porcelain
+and 5.91:1 for graphite; primary button text is 5.56:1 and 9.70:1 respectively.
+Both pages persist an explicit theme choice. The panel uses `fd-overlay-theme-v2`
+because the previous version saved its dark default automatically, even when the
+user never chose it. Old installations therefore open this rebuild in porcelain
+once; a subsequent Dark selection persists. No additional package was vendored;
+see `draftcoach/static/vendor/VENDORED.md`.
+
+Run `python tools/verify_draftcoach_ui.py` to check every inline script and shared
+JS with `node --check`, duplicate IDs, text contrast, and the unchanged INTent
+patch against a temporary `_internal/draftcoach/static` copy. Run
+`python -m pytest tests -q -x` for the full suite. Browser regressions in
+`tests/test_draftcoach_ui.py` use Playwright Chromium with intercepted HTTP and
+WebSocket fixtures; they never start an app or issue actions to a real client.
 
 ## 1. What the product is
 

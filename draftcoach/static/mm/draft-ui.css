@@ -1,8 +1,5 @@
-/* Flexers Draft Coach — shared foundation on top of Matchup Master's tokens.css
-   (Edition 02: porcelain paper, graphite ink, cobalt #1749ee, hairline rules,
-   mono uppercase meta). Cobalt = selection/action, ink = content, amber = caveat
-   or short time, muted red = an actual error. Map side is text, never a palette.
-   Structure follows the Codex design review in handoff/001_from_codex_mm-style-overlay.md. */
+/* Matchup Master: porcelain, graphite, teal action, mono labels, 1px rules.
+   The solid palettes are shared with the native color-key HUD. */
 
 :root {
   --fd-fast: 120ms;
@@ -18,7 +15,7 @@ body { margin: 0; background: var(--mm-paper); color: var(--mm-ink); font: 14px/
 button, input, select, textarea { font: inherit; color: inherit; }
 button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }
 button { cursor: pointer; }
-button:disabled { cursor: default; opacity: .55; }
+button:disabled { cursor: default; opacity: 1; color: var(--mm-secondary); background: var(--fd-raised); }
 a { color: inherit; }
 img { display: block; max-width: 100%; }
 h1, h2, h3 { font-weight: 400; margin: 0; }
@@ -37,14 +34,14 @@ h1, h2, h3 { font-weight: 400; margin: 0; }
 .fd-button, .fd-icon-button, .fd-text-button {
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
   border: 1px solid var(--mm-line); border-radius: 6px; background: var(--mm-surface); color: var(--mm-ink); text-decoration: none;
-  transition: color var(--fd-fast) var(--fd-ease), background-color var(--fd-fast) var(--fd-ease), border-color var(--fd-fast) var(--fd-ease);
+  transition: none;
 }
 .fd-button { min-height: 36px; padding: 7px 12px; font-size: 13px; }
 .fd-icon-button { width: 32px; height: 32px; padding: 0; border-color: transparent; }
 .fd-text-button { min-height: 32px; padding: 5px 7px; font-size: 11px; border-color: transparent; background: transparent; }
 :where(.fd-button, .fd-icon-button, .fd-text-button):hover:not(:disabled) { color: var(--mm-blue); background: var(--mm-pale); }
 .fd-button.primary { background: var(--mm-blue); border-color: var(--mm-blue); color: var(--mm-surface); }
-.fd-button.primary:hover:not(:disabled) { color: var(--mm-surface); background: var(--mm-blue); filter: brightness(1.08); }
+.fd-button.primary:hover:not(:disabled) { color: var(--fd-action-ink); background: var(--mm-blue); outline: 2px solid var(--mm-blue); outline-offset: 2px; }
 body.graphite .fd-button.primary { color: #14171b; }
 .fd-button.danger { color: var(--fd-error); }
 .fd-button[aria-pressed="true"] { color: var(--mm-blue); border-color: var(--mm-blue); background: var(--mm-pale); }
@@ -75,11 +72,11 @@ select:hover, input:hover { border-color: #b8c2d0; }
 
 /* portraits: every portrait uses the same treatment, including the lead */
 .portrait { width: 32px; height: 32px; display: grid; place-items: center; flex: 0 0 auto; overflow: hidden; border: 1px solid var(--mm-line); border-radius: 50%; background: var(--mm-paper); color: var(--mm-secondary); font: 500 11px var(--mm-sans); letter-spacing: 0; }
-.portrait img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1); }
+.portrait img { width: 100%; height: 100%; object-fit: cover; }
 .portrait.small { width: 28px; height: 28px; }
 .portrait.tiny { width: 22px; height: 22px; font-size: 9px; }
 .portrait.hover { border-style: dashed; }
-.portrait.hover img { opacity: .65; }
+.portrait.hover img { filter: saturate(.75); }
 
 .toast { position: fixed; z-index: 50; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: calc(100vw - 32px); padding: 10px 16px; border: 1px solid var(--mm-line); border-radius: 6px; background: var(--mm-surface); color: var(--mm-ink); box-shadow: 0 8px 24px #14171b16; font-size: 13px; animation: fd-arrive var(--fd-control) var(--fd-ease); }
 .toast.error { color: var(--fd-error); }
@@ -131,6 +128,12 @@ body.graphite .fd-button.primary {
 .portrait img {
   filter: none;
 }
+.portrait { position: relative; border-radius: 2px; background: var(--fd-raised); }
+.portrait:has(img[data-loaded="error"])::after { content: "◇"; color: var(--mm-secondary); position: absolute; inset: 0; display: grid; place-items: center; }
+.portrait img, #art, #hero-art { opacity: 0; transition: opacity 180ms ease-out; }
+.portrait img[data-loaded="true"], #art[data-loaded="true"], #hero-art[data-loaded="true"] { opacity: 1; }
+.portrait img[data-repeat="true"] { transition: none; }
+.fd-button.primary:disabled, body.graphite .fd-button.primary:disabled { color: var(--mm-secondary); border-color: var(--fd-border); background: var(--fd-raised); }
 :where(button, a, input, select, textarea, summary):focus-visible {
   outline: 3px solid var(--mm-blue);
   outline-offset: 3px;

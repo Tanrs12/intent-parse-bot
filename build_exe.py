@@ -166,6 +166,7 @@ def main() -> int:
         "--add-data", f"{ROOT / 'league_pro_archetypes.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_opgg_reference.py'}{sep}engine",
         "--add-data", f"{ROOT / 'data'}{sep}engine/data",
+        "--add-data", f"{ROOT / 'assets' / 'league_champions'}{sep}engine/assets/league_champions",
         "--add-data", f"{ROOT / 'tools'}{sep}engine/tools",
         # The brain is imported from _internal/engine at runtime, exactly like the source tree.
         "--exclude-module", "league_comp_engine", "--exclude-module", "league_flex_core",

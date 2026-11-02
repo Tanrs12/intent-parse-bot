@@ -198,18 +198,6 @@ button.card:hover:not(:disabled) .champ { color: var(--mm-blue); }
   .coach-drawer { padding: 20px; }
 }
 
-/* hero art in the guidance card: the lead champion's splash, faded into the card */
-.coach-guidance .mm-card { position: relative; overflow: hidden; }
-.coach-hero { position: absolute; left: 0; right: 0; top: 0; height: 150px; z-index: 0; pointer-events: none; }
-.coach-hero img { width: 100%; height: 100%; object-fit: cover; object-position: center 22%; opacity: 0; transition: opacity 600ms var(--fd-ease); display: block;
-  -webkit-mask-image: linear-gradient(to bottom, #000 35%, transparent); mask-image: linear-gradient(to bottom, #000 35%, transparent); }
-.coach-hero img.on { opacity: .55; }
-.coach-hero img[data-kind="porcelain"] { object-fit: contain; object-position: right top; mix-blend-mode: multiply; }
-.coach-hero img[data-kind="porcelain"].on { opacity: .9; }
-.coach-guidance .mm-card > :not(.coach-hero) { position: relative; z-index: 1; }
-.coach-guidance-head, .coach-headline, .coach-reason { text-shadow: 0 1px 0 var(--mm-surface), 0 0 12px var(--mm-surface); }
-.slot.locked-art { background-image: linear-gradient(90deg, var(--mm-surface) 45%, transparent 100%), var(--slot-art); background-size: cover; background-position: right 20%; border-radius: 4px; }
-
 /* playbook plans */
 .plan-row { padding: 10px 0; border-top: 1px solid var(--mm-line); }
 .plan-row.dead { opacity: .55; }
@@ -236,346 +224,128 @@ button.card:hover:not(:disabled) .champ { color: var(--mm-blue); }
 .control-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--mm-line); }
 .control-actions .mm-meta { flex: 1; }
 
-/* Decision-first coach layout. */
-.coach-main {
-  max-width: 1480px;
-  padding: 24px;
-}
-.coach-workspace {
-  grid-template-columns: minmax(0, 1.12fr) minmax(480px, 1fr);
-  gap: 24px;
-  margin-top: 0;
-}
-.coach-context, .coach-guidance, .coach-support {
-  min-width: 0;
-}
-.coach-context {
-  display: grid;
-  gap: 20px;
-}
-.coach-guidance {
-  position: static;
-}
-.coach-guidance .mm-card {
-  overflow: visible;
-}
-.coach-decision {
-  border-top: 3px solid var(--mm-blue);
-  padding: 24px;
-}
-.coach-hero {
-  display: none;
-}
-.coach-guidance-head,
-.coach-headline,
-.coach-reason {
-  text-shadow: none;
-}
-.coach-guidance-head {
-  align-items: center;
-}
-.coach-guidance-head [role="timer"] {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--mm-ink);
-}
-.coach-headline {
-  flex-wrap: wrap;
-  margin: 14px 0 12px;
-  font-size: 32px;
-  line-height: 1.15;
-  font-weight: 650;
-  letter-spacing: -.65px;
-  overflow-wrap: anywhere;
-}
-.coach-headline .portrait {
-  width: 52px;
-  height: 52px;
-}
-.coach-headline small {
-  flex-basis: 100%;
-  font-size: 12px;
-}
-.coach-reason {
-  font-size: 16px;
-  line-height: 1.5;
-}
-.coach-support {
-  padding: 0 8px;
-}
-.coach-section-head {
-  flex-wrap: wrap;
-}
-.coach-section-head h3 {
-  font-size: 17px;
-  font-weight: 600;
-}
-.coach-lobby {
-  margin-top: 24px;
-}
-.coach-lobby > summary,
-.team-sheet > summary {
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 600;
-}
-.coach-lobby > summary {
-  margin-bottom: 0;
-}
-.coach-lobby[open] > summary {
-  margin-bottom: 20px;
-}
-
-.coach-teams {
-  gap: 20px;
-}
-.slot {
-  grid-template-columns: 40px minmax(0, 1fr) auto;
-  min-height: 72px;
-}
-.slot .portrait {
-  width: 40px;
-  height: 40px;
-}
-.slot .name {
-  font-size: 16px;
-  font-weight: 600;
-}
-.slot .sub {
-  font-size: 13px;
-}
-.slot .role, .slot .state {
-  font-size: 11px;
-}
-.slot.locked-art {
-  background: none;
-}
-.coach-board-controls {
-  gap: 10px;
-}
-
-.control-row {
-  flex-wrap: wrap;
-  gap: 12px;
-}
-.control-field {
-  min-width: min(240px, 100%);
-}
-.control-field select {
-  min-height: 40px;
-}
-#control-sync {
-  flex-basis: 100%;
-  text-transform: none;
-  letter-spacing: 0;
-}
-.control-locks {
-  gap: 0;
-}
-.team-sheet-row {
-  display: grid;
-  grid-template-columns:
-    minmax(110px, 1fr) auto minmax(145px, 1.2fr) auto;
-  align-items: end;
-  gap: 8px 12px;
-  padding: 16px 0;
-  border-top: 1px solid var(--mm-line);
-}
-.team-sheet-row[data-local="true"] {
-  border-top-color: var(--mm-blue);
-}
-.sheet-who, .sheet-champion {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-}
-.sheet-who strong {
-  font-size: 16px;
-  overflow-wrap: anywhere;
-}
-.sheet-role {
-  white-space: nowrap;
-  padding-inline: 10px;
-}
-.sheet-champion input {
-  width: 100%;
-  min-height: 40px;
-}
-.sheet-status {
-  grid-column: 1 / -1;
-  font-size: 13px;
-  color: var(--mm-secondary);
-}
-.control-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  border-top: 0;
-  margin-top: 16px;
-  padding-top: 0;
-}
-.control-actions .mm-meta {
-  flex: 1 0 100%;
-  font-size: 13px;
-  text-transform: none;
-  letter-spacing: 0;
-}
-.control-actions .fd-button {
-  min-height: 44px;
-  font-size: 16px;
-}
-.control-actions .primary {
-  flex: 1;
-}
-#intent-hover {
-  min-width: 100px;
-}
-
-.card {
-  grid-template-columns: 40px minmax(0, 1fr);
-}
-.card .portrait {
-  width: 40px;
-  height: 40px;
-}
-.card .champ {
-  font-size: 17px;
-  font-weight: 600;
-}
-.card .role, .card .why {
-  font-size: 13px;
-}
-.card .score, .card .tags {
-  display: none;
-}
-.change, .alert, .plan-note {
-  font-size: 14px;
-}
-#captain-locks {
-  display: none;
-}
-#captain-section[data-waiting="true"]::before {
-  content: "Live changes waiting · move away to refresh";
-  display: block;
-  margin-top: 12px;
-  color: var(--mm-warn);
-  font-size: 12px;
-}
-.captain-phase {
-  padding: 12px;
-}
-.captain-comp {
-  margin-top: 12px;
-  padding: 16px;
-  border: 1px solid var(--mm-line);
-  border-radius: 4px;
-  background: var(--mm-surface);
-}
-.captain-comp.lead {
-  border-color: var(--mm-blue);
-}
-.captain-comp.preferred {
-  box-shadow: inset 3px 0 var(--mm-blue);
-  padding-left: 16px;
-}
-.captain-comp-head {
-  align-items: center;
-  flex-wrap: wrap;
-}
-.captain-comp-head > b {
-  flex: 1 1 170px;
-  font: 600 18px/1.3 var(--mm-sans);
-  letter-spacing: 0;
-}
-.captain-rank {
-  font: 12px/1.4 var(--mm-mono);
-  color: var(--mm-secondary);
-}
-.captain-prefer {
-  min-height: 36px;
-  margin-left: 0;
-  padding: 7px 12px;
-  font: 600 13px/1.2 var(--mm-sans);
-  text-transform: none;
-}
-.captain-role-row {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 16px;
-}
-.captain-role-row .chip {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  min-width: 0;
-  gap: 5px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  font-size: 14px;
-}
-.captain-role-row .portrait {
-  width: 36px;
-  height: 36px;
-}
-.captain-role-row .chip b {
-  overflow-wrap: anywhere;
-}
-.captain-role-row .chip small {
-  font-size: 11px;
-}
-.captain-role-row .captain-player {
-  max-width: 100%;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  text-transform: none;
-  font-family: var(--mm-sans);
-}
-.captain-preference-note,
-.captain-detail,
-.captain-detail-line {
-  font-size: 13px;
-  line-height: 1.5;
-}
-.captain-detail summary {
-  font: 13px/1.5 var(--mm-sans);
-  text-transform: none;
-  letter-spacing: 0;
-}
-.captain-detail-line {
-  margin-top: 8px;
-}
-
+/* Decision first: wide working column, compact draft board alongside. */
+.coach-main { max-width: 1600px; padding: 28px 32px 48px; }
+.coach-workspace { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(360px, .85fr); gap: 28px; margin-top: 0; }
+.coach-guidance, .coach-context, .coach-support { min-width: 0; }
+.coach-guidance { position: static; }
+.coach-context { display: grid; gap: 20px; }
+.coach-wordmark { font-size: 14px; font-weight: 700; letter-spacing: 1.2px; }
+.coach-brand .ov-mark { color: var(--mm-blue); }
+.coach-mast { padding-block: 18px; }
+.coach-decision { padding: 0; overflow: hidden; border-radius: 0; border: 1px solid var(--mm-line); }
+.coach-decision-stage { position: relative; isolation: isolate; min-height: 280px; padding: 24px; }
+.coach-decision-stage > :not(.coach-hero) { position: relative; z-index: 1; }
+.coach-hero { display: block; position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.coach-hero img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 70% 25%; }
+.coach-hero img[data-kind="icon"] { width: 48%; margin-left: auto; object-fit: contain; object-position: right center; }
+.coach-hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, var(--mm-surface) 12%, color-mix(in srgb, var(--mm-surface) 96%, transparent) 44%, transparent 100%), linear-gradient(0deg, var(--mm-surface), transparent 70%); }
+.coach-guidance-head { align-items: center; min-height: 30px; }
+.coach-guidance-head .mm-meta { color: var(--mm-blue); max-width: 75%; }
+.coach-guidance-head [role="timer"] { font: 700 28px/32px var(--mm-mono); color: var(--mm-ink); background: var(--mm-surface); padding: 2px 6px; }
+.coach-guidance-head [role="timer"]:empty { display: none; }
+.coach-headline { display: flex; flex-wrap: wrap; max-width: 74%; margin: 26px 0 10px; font: 700 42px/1.08 var(--mm-sans); letter-spacing: -1.2px; overflow-wrap: anywhere; }
+.coach-headline .portrait { width: 52px; height: 52px; }
+.coach-headline small { flex-basis: 100%; font: 12px/18px var(--mm-mono); letter-spacing: .025em; }
+.coach-headline { width: fit-content; background: var(--mm-surface); }
+.coach-guidance-head .mm-meta { background: var(--mm-surface); }
+.coach-reason { display: table; max-width: 80%; color: var(--mm-secondary); background: var(--mm-surface); font-size: 16px; line-height: 24px; margin: 0 0 18px; }
+.control-actions { display: grid; grid-template-columns: minmax(0, 1fr) 108px; gap: 8px; padding: 0; margin-top: 18px; border: 0; }
+.control-actions .mm-meta { grid-column: 1 / -1; grid-row: 2; text-transform: none; letter-spacing: 0; font: 13px/18px var(--mm-sans); background: var(--mm-surface); }
+#intent-lock { grid-column: 1; grid-row: 1; }
+#intent-hover { grid-column: 2; grid-row: 1; }
+.control-actions .fd-button, #client-actions .fd-button { min-height: 48px; font-size: 17px; font-weight: 600; }
+.coach-leading { padding: 18px 24px 24px; border-top: 1px solid var(--mm-line); }
+.coach-five { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); list-style: none; margin: 14px 0 0; padding: 0; gap: 12px; }
+.coach-five li { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+.coach-five .portrait { width: 100%; height: auto; aspect-ratio: 1; max-width: 90px; margin: 3px 0; }
+.coach-five strong { font-size: 16px; line-height: 20px; overflow-wrap: anywhere; }
+.five-player { font-size: 13px; color: var(--mm-secondary); overflow-wrap: anywhere; }
+.five-state { font: 11px/16px var(--mm-mono); color: var(--mm-secondary); text-transform: uppercase; }
+.coach-five li[data-local="true"] .five-player, .coach-five li[data-status="next"] .five-state { color: var(--mm-blue); font-weight: 700; }
+.coach-five li[data-status="next"] .portrait { outline: 2px solid var(--mm-blue); outline-offset: 2px; }
+.coach-support { margin-top: 18px; }
+.coach-support > .fd-details { padding-block: 16px; margin-top: 0; }
+.coach-support > .fd-details > summary { font-size: 16px; font-weight: 600; color: var(--mm-ink); }
+.coach-section-head { flex-wrap: wrap; }
+.coach-section-head h3 { font-size: 17px; font-weight: 600; }
+.coach-lobby { margin-top: 24px; }
+.coach-lobby > summary, .team-sheet > summary { cursor: pointer; font-size: 16px; font-weight: 600; }
+.coach-lobby:not([open]) > summary { margin-bottom: 0; }
+.coach-board { border-radius: 0; }
+.coach-board-controls { gap: 10px; }
+.coach-side .fd-button { padding-inline: 8px; }
+.coach-history { margin-left: 0; }
+.coach-teams { gap: 16px; }
+.slot { grid-template-columns: 38px minmax(0, 1fr); gap: 5px 9px; min-height: 78px; }
+.slot > :last-child { grid-column: 2; display: flex; gap: 8px; }
+.slot .portrait { width: 38px; height: 38px; grid-row: span 2; }
+.slot .name { font-size: 15px; font-weight: 600; }
+.slot .sub { font-size: 12px; }
+.slot .role, .slot .state { font-size: 10px; text-align: left; }
+.control-row { flex-wrap: wrap; gap: 12px; }
+.control-field { min-width: min(240px, 100%); }
+.control-field select { min-height: 40px; }
+#control-sync { flex-basis: 100%; text-transform: none; letter-spacing: 0; }
+.control-locks { gap: 0; }
+.team-sheet-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px; padding: 16px 0; border-top: 1px solid var(--mm-line); }
+.team-sheet-row[data-local="true"] { border-top-color: var(--mm-blue); }
+.sheet-who, .sheet-champion { display: grid; gap: 6px; min-width: 0; }
+.sheet-who strong { font-size: 16px; overflow-wrap: anywhere; }
+.sheet-role { white-space: nowrap; padding-inline: 10px; }
+.sheet-champion input { width: 100%; min-height: 40px; }
+.sheet-status { grid-column: 1 / -1; font-size: 13px; color: var(--mm-secondary); display: flex; align-items: center; gap: 8px; }
+.card { grid-template-columns: 44px minmax(0, 1fr); }
+.card .portrait { width: 44px; height: 44px; }
+.card .champ { font-size: 17px; font-weight: 600; }
+.card .role, .card .why { font-size: 13px; }
+.card .score, .card .tags { display: none; }
+.change, .alert, .plan-note { font-size: 14px; }
+#captain-locks { display: none; }
+#captain-section > .coach-section-head h3 { display: none; }
+#captain-section[data-waiting="true"]::before { content: "Live changes waiting - move away to refresh"; display: block; margin-top: 12px; color: var(--mm-warn); font-size: 12px; }
+.captain-phase { padding: 12px; border-radius: 0; background: var(--mm-paper); }
+.captain-comps { display: grid; gap: 12px; }
+.captain-comp { min-width: 0; padding: 18px; border: 1px solid var(--mm-line); background: var(--mm-surface); }
+.captain-comp.lead { border-color: var(--mm-blue); }
+.captain-comp.preferred { box-shadow: inset 3px 0 var(--mm-blue); padding-left: 18px; }
+.captain-comp-head { align-items: center; flex-wrap: wrap; }
+.captain-comp-head > b { flex: 1 1 170px; font: 600 18px/1.3 var(--mm-sans); letter-spacing: 0; }
+.captain-rank { font: 12px/1.4 var(--mm-mono); color: var(--mm-secondary); }
+.captain-prefer { min-height: 36px; margin-left: 0; padding: 7px 12px; font: 600 13px/1.2 var(--mm-sans); text-transform: none; }
+.captain-role-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+.captain-role-row .chip { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; gap: 5px; padding: 0; border: 0; border-radius: 0; font-size: 14px; }
+.captain-role-row .portrait { width: 48px; height: 48px; }
+.captain-role-row .chip b { overflow-wrap: anywhere; }
+.captain-role-row .chip small { font-size: 11px; }
+.captain-role-row .captain-player { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-transform: none; font-family: var(--mm-sans); }
+.captain-preference-note, .captain-detail, .captain-detail-line { font-size: 13px; line-height: 1.5; }
+.captain-detail summary { font: 13px/1.5 var(--mm-sans); text-transform: none; letter-spacing: 0; }
+.captain-detail-line { margin-top: 8px; }
+.draft-summary { padding: 0 24px 24px; }
+.summary-five .portrait { width: 100%; height: auto; aspect-ratio: 1; }
 @media (max-width: 1100px) {
-  .coach-workspace {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .coach-guidance {
-    grid-row: 1;
-  }
+  .coach-workspace { grid-template-columns: minmax(0, 1fr); }
+  .coach-main { max-width: 800px; padding: 20px; }
+  .coach-guidance { grid-row: 1; }
+  .slot { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  .slot > :last-child { grid-column: 3; display: block; }
+  .slot .portrait { grid-row: auto; }
 }
-@media (max-width: 640px) {
-  .coach-main {
-    padding: 14px;
-  }
-  .coach-decision {
-    padding: 20px;
-  }
-  .coach-headline {
-    font-size: 28px;
-  }
-  .team-sheet-row {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-  .sheet-champion {
-    grid-column: 1;
-  }
-  .captain-role-row {
-    gap: 6px;
-  }
-  .captain-role-row .chip {
-    font-size: 12px;
-  }
+@media (max-width: 560px) {
+  .coach-main { padding: 12px; }
+  .coach-mast { gap: 12px; padding: 16px; }
+  .coach-mast-actions { gap: 8px; }
+  .coach-decision-stage { padding: 18px; min-height: 260px; }
+  .coach-headline { font-size: 34px; }
+  .coach-reason { font-size: 15px; }
+  .coach-leading { padding: 16px; }
+  .coach-five { gap: 7px; }
+  .coach-five strong { font-size: 13px; line-height: 17px; }
+  .five-player { font-size: 11px; }
+  .five-state { font-size: 10px; }
+  .captain-comp { padding: 12px; }
+  .captain-role-row { gap: 6px; }
+  .captain-role-row .chip { font-size: 12px; }
+  .captain-role-row .portrait { width: 38px; height: 38px; }
 }

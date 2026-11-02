@@ -1,3 +1,24 @@
+# Implementation note · 2 November 2026
+
+The `codex-ui-rebuild` implementation supersedes the proposed presentation below.
+The panel now uses porcelain by default, an illustrated decision, a 44 px
+**Lock in {champion}** primary action, adjacent **Hover**, and five comp rows with
+champion icons. Teammates get **{player} picks next · {champion}**; unavailable
+clients get disabled controls and a reason. Settings moved into the header dialog.
+
+The coach page now starts with that decision and an illustrated leading five,
+then draft comparison cards; the board and shared requirements occupy the second
+column. The shared image loader fixes detached lazy images, and bundled icon
+delivery fixes the server's previous external redirect during offline simulation.
+High-resolution remote art is cached on disk. Existing palette values and native
+HUD color keys remain unchanged. No runtime package was added.
+
+Implementation and verification details are in `APP_DESIGN.md` and
+`tools/verify_draftcoach_ui.py`. Historical code blocks below are review context,
+not a patch to apply over the rebuilt files.
+
+---
+
 # Codex reply — ux-full-review
 
 _model: config default · effort: xhigh · 1019s · rc=0 · status=ok · 2026-11-01 21:45_
