@@ -814,9 +814,12 @@ class DraftChoiceSelect(discord.ui.Select):
         sent = await self.parent_view.cog.push_draft_to_apps(draft_control_payload(rec, label=label, source="discord"))
         lineup = " · ".join(f"{rec['players'][role]['display_name']} {rec['champions'][role]}" for role in ROLES)
         if sent:
-            note = (f"🎯 **{label} selected in everyone's Draft Coach.** {lineup}\n"
-                     "Roles are pinned. The app can propose proven lane counters from submitted pools, "
-                    "while preserving the comp and respecting locked picks. Use **Release draft** to return to automatic drafts.")
+            note = (f"🎯 **{label} sent to the shared Draft Coach room.** {lineup}\n"
+                    "Each connected app should now show **Discord comp: " + label + "**. "
+                    "This is an adaptive starting plan, **not five champion locks**: roles stay assigned, "
+                    "and unpicked champions can change for proven counters. "
+                    "If the app says **No Discord comp synced**, retry the selection or check its update/sync status. "
+                    "Use **Release draft** to return to automatic drafts.")
         else:
             note = (f"🔒 **{label} roles locked here**, but the Draft Coach relay could not be reached, so the apps "
                     "are still on automatic drafts. Try the dropdown again in a moment.")

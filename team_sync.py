@@ -51,6 +51,33 @@ def comp_signature(champions: dict | None) -> str:
     return "|".join(str(champions.get(role) or "?") for role in ROLES)
 
 
+def _visible_role_options(rec: dict) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    """Exactly the primary, same-plan and learning slots visible on Discord cards."""
+    from league_flex_core import role_option_limit
+
+    options: dict[str, list[str]] = {}
+    learning: dict[str, list[str]] = {}
+    for role in ROLES:
+        primary = str((rec.get("champions") or {}).get(role) or "").strip()
+        if not primary:
+            continue
+        player_id = ((rec.get("players") or {}).get(role) or {}).get("user_id")
+        count = role_option_limit(role, player_id)
+        owned = list((rec.get("role_alternatives") or {}).get(role) or [])[:max(0, count - 1)]
+        learn = list((rec.get("learn_suggestions") or {}).get(role) or [])
+        learn_limit = (0 if role == "Mid" and int(player_id or 0) == 286592835850076162
+                       else max(0, count - 1 - len(owned)))
+        learn = learn[:learn_limit]
+        ordered = [primary]
+        for value in [*owned, *learn]:
+            name = str(value or "").strip()
+            if name and name not in ordered:
+                ordered.append(name)
+        options[role] = ordered[:max(1, count)]
+        learning[role] = [name for name in learn if name in options[role]]
+    return options, learning
+
+
 def draft_control_payload(rec: dict, *, label: str, source: str = "discord") -> dict[str, Any]:
     """The relay /preference body that makes every Draft Coach follow one Discord draft.
 
@@ -71,6 +98,7 @@ def draft_control_payload(rec: dict, *, label: str, source: str = "discord") -> 
         if row.get("display_name"):
             names[role] = str(row["display_name"])[:32]
     identity = identity_for_plan(rec.get("team_plan"), rec.get("archetypes"))
+    options, learning = _visible_role_options(rec)
     return {
         "signature": comp_signature(champions),
         "control": {
@@ -85,6 +113,8 @@ def draft_control_payload(rec: dict, *, label: str, source: str = "discord") -> 
                 "plan": str(rec.get("team_plan") or "")[:40],
                 "champions": champions,
                 "players": names,
+                "options": options,
+                "learn_options": learning,
             },
         },
     }
@@ -103,6 +133,24 @@ def clean_chosen(raw: Any) -> dict | None:
     if not champions:
         return None
     players = {role: str(v)[:32] for role, v in (raw.get("players") or {}).items() if role in ROLES and v}
+    role_options = {}
+    role_learning = {}
+    for role in ROLES:
+        primary = champions.get(role)
+        if not primary:
+            continue
+        provided = (raw.get("options") or {}).get(role) or []
+        if not isinstance(provided, list):
+            provided = []
+        picks = [primary]
+        for value in provided:
+            value = str(value or "").strip()[:40]
+            if value and value not in picks and len(picks) < 6:
+                picks.append(value)
+        role_options[role] = picks
+        provided_learning = (raw.get("learn_options") or {}).get(role) or []
+        if isinstance(provided_learning, list):
+            role_learning[role] = [name for name in picks if name != primary and name in provided_learning]
     return {
         "mode": "adaptive" if raw.get("mode") == "adaptive" else "locked",
         "label": str(raw.get("label") or "Team draft")[:40],
@@ -110,6 +158,8 @@ def clean_chosen(raw: Any) -> dict | None:
         "plan": str(raw.get("plan") or "")[:40],
         "champions": champions,
         "players": players,
+        "options": role_options,
+        "learn_options": role_learning,
     }
 
 
