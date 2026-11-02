@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 import time
 from pathlib import Path
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT / "tools") not in sys.path:
@@ -86,3 +87,63 @@ def test_cache_round_trip(tmp_path):
     assert len(rest.calls) - first_calls == 3            # summoner, ranked, listing: games came from disk
     assert stats.load_cached(cache_dir=tmp_path)["account"]["puuid"] == "fake-rise-of-pete"
     assert stats.build_review(payload2)["overview"]["games"] == 5
+
+
+def test_legacy_identity_matches_numeric_account_after_rename():
+    payload = _payload(count=1)
+    payload["account"].update(accountId=2468, summonerId=1357)
+    game = payload["games"][0]
+    for identity in game["participantIdentities"]:
+        player = identity["player"]
+        if player.pop("puuid") == payload["account"]["puuid"]:
+            player.update(currentAccountId=2468, summonerId=1357, summonerName="Old name")
+    assert stats.build_review(payload)["overview"]["games"] == 1
+
+
+def test_ranked_queue_map_without_queues():
+    review = stats.ranked_summary({"queueMap": {"RANKED_FLEX_SR": {
+        "tier": "GOLD", "division": "II", "leaguePoints": 42, "wins": 6, "losses": 4}}})
+    assert len(review) == 1
+    assert (review[0]["queue"], review[0]["lp"], review[0]["winrate"]) == ("Flex", 42, 60.0)
+
+
+@pytest.mark.parametrize("lane,role,expected", [
+    ("TOP", "SOLO", "TOP"), ("JUNGLE", "NONE", "JUNGLE"), ("MID", "SOLO", "MIDDLE"),
+    ("BOT", "DUO_CARRY", "BOTTOM"), ("BOT", "DUO_SUPPORT", "UTILITY"), ("BOTTOM", "NONE", None),
+])
+def test_legacy_lane_roles_without_v5_positions(lane, role, expected):
+    assert stats._position({"timeline": {"lane": lane, "role": role}}) == expected
+
+
+def test_short_early_surrender_excluded_but_fifteen_minute_surrender_counted():
+    payload = _payload(count=2)
+    payload["games"][0]["gameDuration"] = 180
+    payload["games"][1]["gameDuration"] = 900
+    for game in payload["games"]:
+        for p in game["participants"]:
+            p["stats"]["gameEndedInEarlySurrender"] = True
+    review = stats.build_review(payload)
+    assert review["overview"]["games"] == 1
+    assert len(review["recent"]) == 1
+    assert review["recent"][0]["duration"] == 900
+
+
+def test_partial_history_never_fabricates_team_kill_participation():
+    payload = _payload(count=1)
+    game = payload["games"][0]
+    mine = next(i["participantId"] for i in game["participantIdentities"] if i["player"]["puuid"] == payload["account"]["puuid"])
+    game["participants"] = [p for p in game["participants"] if p["participantId"] == mine]
+    assert stats.build_review(payload)["overview"]["kp"] is None
+
+
+def test_inconsistent_team_totals_are_missing_not_over_one_hundred_percent():
+    payload = _payload(count=1)
+    for p in payload["games"][0]["participants"]:
+        p["stats"].update(kills=1, assists=10)
+    assert stats.build_review(payload)["overview"]["kp"] is None
+
+
+def test_lcu_duration_is_seconds_even_before_match_v5_unit_change():
+    payload = _payload(count=1)
+    payload["games"][0].update(gameVersion="11.19.1", gameDuration=1800)
+    assert stats.build_review(payload)["recent"][0]["duration"] == 1800

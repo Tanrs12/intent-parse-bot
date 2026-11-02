@@ -215,6 +215,8 @@ class LcuWatcher:
         self._stop.set()
 
     async def run(self) -> None:
+        from websockets.exceptions import ConnectionClosed
+
         while not self._stop.is_set():
             info = await asyncio.to_thread(find_lockfile, self.lockfile)
             if info is None:
@@ -224,7 +226,7 @@ class LcuWatcher:
             self.rest = LcuRest(info)
             try:
                 await self._session_loop(info)
-            except (OSError, asyncio.TimeoutError) as exc:
+            except (OSError, asyncio.TimeoutError, ConnectionClosed) as exc:
                 await self._status("waiting", f"client not reachable yet ({exc.__class__.__name__})")
             except Exception as exc:  # noqa: BLE001 - keep the watcher alive
                 log.exception("lcu loop failed")

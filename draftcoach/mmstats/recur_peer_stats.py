@@ -1,5 +1,5 @@
 """Ported from Matchup Master (recur_peer_stats.py, 2 November 2026): own-match aggregates over Riot
-match-v5 shaped rows. Pure functions, no I/O. Kept verbatim apart from relative imports."""
+match-v5 shaped rows. LCU adaptations: explicit duration units and invalid KP exclusion."""
 """Cache-only, identity-free comparisons for Recur. No services or engine imports."""
 from collections import Counter
 from datetime import datetime, timezone
@@ -51,7 +51,7 @@ def load_peer_cache(root):
 def duration_seconds(info):
     value = number(info.get('gameDuration'))
     version = str(info.get('gameVersion', '')).split('.')
-    if value is not None and len(version) >= 2 and all(v.isdigit() for v in version[:2]) and tuple(map(int, version[:2])) < (11, 20):
+    if info.get('durationUnit') != 'seconds' and value is not None and len(version) >= 2 and all(v.isdigit() for v in version[:2]) and tuple(map(int, version[:2])) < (11, 20):
         value /= 1000
     return value if value is not None and value > 0 else None
 
@@ -96,6 +96,8 @@ def values(player, participants, duration, frame, map_id):
     allies = [p for p in participants if p.get('teamId') == player.get('teamId')]
     if len(participants) == 10 and len(allies) == 5:
         v['kp'] = ratio(ka, total(p.get('kills') for p in allies), 100)
+        if v['kp'] is not None and not 0 <= v['kp'] <= 100:
+            v['kp'] = None  # incomplete/inconsistent client totals are not a real percentage
         v['damage_share'] = ratio(player.get('totalDamageDealtToChampions'), total(p.get('totalDamageDealtToChampions') for p in allies), 100)
     other = opponent(player, participants, map_id)
     if other and frame:

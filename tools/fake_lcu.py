@@ -57,6 +57,8 @@ QUEUES = {440: {"id": 440, "name": "Ranked Flex", "shortName": "Ranked Flex", "t
               "description": "Custom game"},
           420: {"id": 420, "name": "Ranked Solo/Duo", "shortName": "Ranked Solo", "type": "RANKED_SOLO_5x5", "gameMode": "CLASSIC",
                 "category": "PvP", "description": "Ranked Solo/Duo"}}
+QUEUES.update({400: {"id": 400, "name": "Normal Draft", "type": "NORMAL", "gameMode": "CLASSIC"},
+               450: {"id": 450, "name": "ARAM", "type": "ARAM", "gameMode": "ARAM"}})
 
 DEFAULT_ENEMY = {
     "names": ["Enemy One#EUW", "Enemy Two#EUW", "Enemy Three#EUW", "Enemy Four#EUW", "Enemy Five#EUW"],
@@ -78,6 +80,7 @@ class Lobby:
     def __init__(self, our_names: list[str], enemy: dict, side: str, queue_id: int, planning: float,
                  turn: float, finalization: float, enemy_delay: float, auto_lock: bool):
         self.our_names, self.enemy, self.side = our_names, {**DEFAULT_ENEMY, **(enemy or {})}, side
+        self.party_size = 5
         self.queue_id, self.planning, self.turn, self.finalization = queue_id, planning, turn, finalization
         self.enemy_delay, self.auto_lock = enemy_delay, auto_lock
         self.our_team = 1 if side == "blue" else 2
@@ -436,7 +439,7 @@ class Lobby:
                 "groups": groups, "seats": seats, "trades": self.trades, "queue": self.queue_id,
                 "clients": [{"index": c.index, "cell": c.cell, "port": c.port, "sockets": len(c.sockets), "lockfile": str(c.lockfile)}
                             for c in self.clients],
-                "events": self.events[-40:]}
+                "game_id": (self.session or {}).get("gameId"), "events": self.events}
 
     async def broadcast(self) -> None:
         for client in self.clients:
@@ -541,6 +544,8 @@ class FakeClient:
     async def patch_action(self, request: web.Request) -> web.Response:
         body = await request.json()
         self.lobby.act(self.cell, int(request.match_info["aid"]), body)
+        self.lobby.log_event("client PATCH accepted", origin="client", cell=self.cell,
+                             action_id=int(request.match_info["aid"]), completed=bool(body.get("completed")))
         await self.lobby.broadcast()
         return web.Response(status=204)
 
@@ -559,7 +564,8 @@ class FakeClient:
                                   "map": {"id": 11, "name": "Summoner's Rift"}})
 
     async def lobby_view(self, _request: web.Request) -> web.Response:
-        return web.json_response({"gameConfig": {"queueId": self.lobby.queue_id, "gameMode": "CLASSIC", "mapId": 11,
+        return web.json_response({"members": [{"summonerId": 1000 + c} for c in self.lobby.our_cells[:self.lobby.party_size]],
+                                 "gameConfig": {"queueId": self.lobby.queue_id, "gameMode": "CLASSIC", "mapId": 11,
                                                  "isCustom": self.lobby.queue_id == 0}})
 
     async def champion_summary(self, _request: web.Request) -> web.Response:
@@ -679,6 +685,12 @@ def control_app(lobby: Lobby, client_port_base: int, directory: Path) -> web.App
             lobby.auto_lock = bool(body["auto_lock"])
         if "queue" in body:
             lobby.queue_id = int(body["queue"])
+        if "our" in body:
+            if len(body["our"]) != 5:
+                raise web.HTTPBadRequest(text="five seats required")
+            lobby.our_names = body["our"]
+        if "party_size" in body:
+            lobby.party_size = int(body["party_size"])
         lobby.start()
         await lobby.broadcast()
         return web.json_response(lobby.summary())
@@ -725,6 +737,10 @@ def control_app(lobby: Lobby, client_port_base: int, directory: Path) -> web.App
         await client.rotate(next_port["value"])
         return web.json_response({"ok": True, "port": client.port, "lockfile": str(client.lockfile)})
 
+    async def close_client(request: web.Request) -> web.Response:
+        await lobby.clients[int(request.match_info["client"])].stop()
+        return web.json_response({"ok": True})
+
     async def leave(_request: web.Request) -> web.Response:
         lobby.leave()
         await lobby.broadcast()
@@ -746,6 +762,7 @@ def control_app(lobby: Lobby, client_port_base: int, directory: Path) -> web.App
     app.router.add_post("/control/trade/{a}/{b}", trade)
     app.router.add_post("/control/ws-drop/{client}", ws_drop)
     app.router.add_post("/control/rotate/{client}", rotate)
+    app.router.add_post("/control/close/{client}", close_client)
     app.router.add_post("/control/leave", leave)
     app.router.add_post("/control/end", end)
     return app

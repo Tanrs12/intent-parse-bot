@@ -37,6 +37,28 @@ def test_pages_and_initial_board(client):
     assert snapshot["guidance"]["phase_kind"] == "ban"
 
 
+def test_player_review_follows_signed_in_account_instead_of_latest_global_cache(client, tmp_path, monkeypatch):
+    from draftcoach import stats
+    monkeypatch.setattr(stats, "STATS_DIR", tmp_path / "stats")
+    class Rest:
+        puuid = "account-a"
+        def get(self, path, **_):
+            if path == "/lol-summoner/v1/current-summoner":
+                return {"puuid": self.puuid, "gameName": self.puuid, "tagLine": "TEST"}
+            if path == "/lol-ranked/v1/current-ranked-stats":
+                return {"queues": []}
+            if path.startswith("/lol-match-history/v1/products/lol/"):
+                return {"games": {"games": []}}
+            raise AssertionError(path)
+    rest = Rest()
+    stats.fetch_from_client(rest)  # newest disk cache belongs to a different login
+    rest.puuid = "account-b"
+    client.app.state.hub.rest = rest
+    assert client.get("/api/stats/me").json()["review"]["account"]["puuid"] == "account-b"
+    rest.puuid = "account-c"
+    assert client.get("/api/stats/me").json()["review"]["account"]["puuid"] == "account-c"
+
+
 def test_manual_board_actions_drive_guidance(client):
     r = client.post("/api/draft/action", json={"champion": "rumble"})
     assert r.status_code == 200 and r.json()["state"]["our_bans"] == ["Rumble"]

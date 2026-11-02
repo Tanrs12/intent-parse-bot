@@ -594,9 +594,20 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
         """OP.GG style review of the signed-in player's recent games (cached on disk, client refresh)."""
         from . import stats as player_stats
 
+        puuid = None
+        rest = hub.client_rest()
+        if rest is not None:
+            try:
+                me = await asyncio.to_thread(rest.get, "/lol-summoner/v1/current-summoner")
+                puuid = (me or {}).get("puuid")
+            except Exception as exc:  # noqa: BLE001 - offline review remains readable
+                stats_state["error"] = str(exc)
+        previous = ((stats_state.get("review") or {}).get("account") or {}).get("puuid")
+        if puuid and previous != puuid:
+            stats_state.update(review=None, error=None, refreshed_at=None)
         if refresh or stats_state["review"] is None:
             if stats_state["review"] is None:
-                cached = await asyncio.to_thread(player_stats.load_cached)
+                cached = await asyncio.to_thread(player_stats.load_cached, puuid=puuid)
                 if cached:
                     try:
                         stats_state["review"] = await asyncio.to_thread(player_stats.build_review, cached)
@@ -721,7 +732,8 @@ async def _poll_bridge(hub: Hub, bridge_url: str) -> None:
 
     while True:
         data = await asyncio.to_thread(fetch)
-        guidance = (data or {}).get("guidance") if (data or {}).get("active") else None
+        same_game = hub.state is not None and str((data or {}).get("game_id")) == str(hub.state.game_id)
+        guidance = (data or {}).get("guidance") if same_game and (data or {}).get("active") else None
         hub.intent_guidance = guidance if isinstance(guidance, dict) else None
         await asyncio.sleep(0.5)
 

@@ -18,6 +18,7 @@ import logging
 import os
 import re
 import time
+from types import SimpleNamespace
 from pathlib import Path
 
 from aiohttp import web
@@ -37,13 +38,16 @@ def load_relay_namespace() -> dict:
 
 def build_app(latency_ms: int = 0) -> web.Application:
     ns = load_relay_namespace()
-    state = {"blocked": False, "latency": latency_ms / 1000.0, "requests": 0}
+    state = {"blocked": False, "latency": latency_ms / 1000.0, "requests": 0, "http_error": False, "clock_skew": 0}
+    ns["time"] = SimpleNamespace(time=lambda: time.time() + state["clock_skew"])
 
     @web.middleware
     async def quirks(request: web.Request, handler):
         if request.path.startswith("/control/"):
             return await handler(request)
         state["requests"] += 1
+        if state["http_error"]:
+            raise web.HTTPInternalServerError(text="injected relay outage")
         if state["blocked"]:
             await asyncio.sleep(30)          # a firewall drops the packets: the client times out
             raise web.HTTPGatewayTimeout(text="blocked")
@@ -89,10 +93,16 @@ def build_app(latency_ms: int = 0) -> web.Application:
         return web.json_response({"rooms": out, "requests": state["requests"], "blocked": state["blocked"],
                                   "latency_ms": state["latency"] * 1000})
 
+    async def fault(request: web.Request) -> web.Response:
+        body = await request.json()
+        state.update({k: body[k] for k in ("http_error", "clock_skew") if k in body})
+        return web.json_response(state)
+
     app.router.add_post("/control/block", block)
     app.router.add_post("/control/unblock", unblock)
     app.router.add_post("/control/latency", latency)
     app.router.add_get("/control/rooms", rooms)
+    app.router.add_post("/control/fault", fault)
     return app
 
 

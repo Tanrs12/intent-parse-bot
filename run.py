@@ -26,6 +26,7 @@ import argparse
 import json
 import logging
 import os
+import socket
 import sys
 import threading
 from pathlib import Path
@@ -108,6 +109,22 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     logging.basicConfig(level=args.log_level.upper(), format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    # Reserve the app listener before starting the bridge, relay heartbeat, or roster writes.
+    # A losing double launch must never become a sixth relay participant. On Windows,
+    # SO_REUSEADDR can allow two listeners to bind the same port; require exclusive ownership.
+    listener = socket.socket(socket.AF_INET6 if ":" in args.host else socket.AF_INET, socket.SOCK_STREAM)
+    if sys.platform == "win32":
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+    else:
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        listener.bind((args.host, args.port))
+        listener.listen(2048)
+        listener.setblocking(False)
+    except OSError as exc:
+        listener.close()
+        print(f"Cannot start Draft Coach on {args.host}:{args.port}: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
     config = load_config(args.config)
     config.setdefault("bridge_url", f"http://127.0.0.1:{args.port + 1}")   # FLEXERS: bridge = app port + 1
     simulation = {"delay": args.simulate_delay, "side": args.simulate_side} if args.simulate else None
@@ -124,8 +141,12 @@ def main(argv: list[str] | None = None) -> None:
     if args.comp_overlay or (args.comp_overlay is None and frozen and args.hud):
         _start_comp_overlay()
     print(f"Coach panel: http://{args.host}:{args.port}/    Overlay: http://{args.host}:{args.port}/overlay    HUD demo: /demo")
+    server = uvicorn.Server(uvicorn.Config(app, host=args.host, port=args.port, log_level=args.log_level, access_log=False, log_config=None))
     if not args.window and not args.hud:
-        uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level, access_log=False, log_config=None)
+        try:
+            server.run(sockets=[listener])
+        finally:
+            listener.close()
         return
 
     import threading
@@ -136,8 +157,7 @@ def main(argv: list[str] | None = None) -> None:
         from draftcoach import hud
     from draftcoach import window
 
-    server = uvicorn.Server(uvicorn.Config(app, host=args.host, port=args.port, log_level=args.log_level, access_log=False, log_config=None))
-    thread = threading.Thread(target=server.run, daemon=True)
+    thread = threading.Thread(target=server.run, kwargs={"sockets": [listener]}, daemon=True)
     thread.start()
     hud_url = "http://127.0.0.1:8767" if intent_live else f"http://{args.host}:{args.port}"
     try:
@@ -152,6 +172,7 @@ def main(argv: list[str] | None = None) -> None:
     finally:
         server.should_exit = True
         thread.join(timeout=5)
+        listener.close()
 
 
 def _start_hud_proxy() -> None:
@@ -302,6 +323,9 @@ def _entry() -> None:
         handler = logging.FileHandler(VAR_DIR / "draftcoach.log", encoding="utf-8")
         handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s"))
         logging.getLogger().addHandler(handler)
+        console = logging.StreamHandler()
+        console.setFormatter(handler.formatter)
+        logging.getLogger().addHandler(console)
         logging.getLogger().setLevel(logging.INFO)
     except OSError:
         pass

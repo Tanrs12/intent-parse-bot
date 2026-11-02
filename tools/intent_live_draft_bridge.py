@@ -101,18 +101,19 @@ def _cloud_get() -> dict:
     global _cloud_get_cache, _cloud_get_inflight, _cloud_backoff_until
     with _cloud_get_lock:
         stamp, cached = _cloud_get_cache
-        fresh = cached is not None and time.time() - stamp < 0.25
-        if fresh or _cloud_get_inflight or time.time() < _cloud_backoff_until:
-            if cached is not None:
+        age = time.monotonic() - stamp
+        fresh = cached is not None and age < 0.25
+        if fresh or _cloud_get_inflight or time.monotonic() < _cloud_backoff_until:
+            if cached is not None and age < 20.0:
                 return dict(cached)
-            if _cloud_get_inflight or time.time() < _cloud_backoff_until:
+            if _cloud_get_inflight or time.monotonic() < _cloud_backoff_until:
                 raise RuntimeError("relay unreachable")
         _cloud_get_inflight = True
     try:
         data = _json_get(_cloud_url(), timeout=2.5)
     except Exception:
         with _cloud_get_lock:
-            _cloud_backoff_until = time.time() + 2.0
+            _cloud_backoff_until = time.monotonic() + 2.0
         raise
     finally:
         with _cloud_get_lock:
@@ -121,7 +122,7 @@ def _cloud_get() -> dict:
         data = dict(data)
         data["sync"] = {"mode": "cloud-follower", "source": _cloud_base}
         with _cloud_get_lock:
-            _cloud_get_cache = (time.time(), data)
+            _cloud_get_cache = (time.monotonic(), data)
     return data
 
 
@@ -236,7 +237,8 @@ def _auto_identity() -> dict:
         "player_id": player_id,
         "player_name": str(local.get("display_name") or local.get("riot_id") or socket.gethostname()),
         "priority": int(_HOST_PRIORITIES.get(player_id, 9999)),
-        "in_champ_select": bool(status.get("lcu_in_champ_select")),
+        "in_champ_select": bool(status.get("lcu_in_champ_select")) and not status.get("stale"),
+        "game_id": state.get("game_id"),
     }
 
 
@@ -1494,6 +1496,8 @@ def build_response():
 
     status = snap.get("status") or {}
     state = snap.get("state") or {}
+    if status.get("stale"):
+        return {"active": False, "disabled": False, "reason": "Waiting for League client to reconnect", **gate}
     # The League gameflow endpoint can be sparse in custom / bot champ select.  The Draft Coach
     # watcher also records the queue, so use either source to recognise test lobbies and ARAM.
     qgate = _queue_traits(status.get("queue"))
@@ -1605,7 +1609,7 @@ def build_response():
                                    "count": int((result.get("identities") or {}).get(key, 0))}
                                   for key, spec in IDENTITIES.items()]
         guidance["identity"] = result.get("identity")
-        response = {"active": True, "disabled": False, "reason": "Intent backend active", "testing": testing,
+        response = {"active": True, "disabled": False, "reason": "Intent backend active", "testing": testing, "game_id": state.get("game_id"),
                     "known_profiles": known_profiles, "party_inferred": party_inferred,
                     "guidance": guidance, "control": control, **merged_gate, **party}
         _response_cache_key = cache_key
@@ -1622,7 +1626,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
-        self.wfile.write(payload)
+        try:
+            self.wfile.write(payload)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            # A page/poller can cancel its request during a relay timeout.
+            pass
 
     def do_GET(self):
         path = self.path.split("?", 1)[0]
@@ -1647,19 +1655,22 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/guidance":
             if _cloud_mode == "auto":
+                identity = _auto_identity()
                 with _auto_lock:
                     auto_host = _auto_is_host
                 if auto_host:
                     data = dict(build_response())
                     data["sync"] = _auto_sync_meta("auto-host")
                     self._reply(data)
-                elif not _auto_identity().get("in_champ_select"):
+                elif not identity.get("in_champ_select"):
                     data = dict(build_response())
                     data["sync"] = _auto_sync_meta("auto-idle")
                     self._reply(data)
                 else:
                     try:
                         data = _cloud_get()
+                        if identity.get("game_id") is not None and str(data.get("game_id")) != str(identity["game_id"]):
+                            raise RuntimeError("relay guidance belongs to a different lobby")
                         data["sync"] = _auto_sync_meta("auto-follower")
                         self._reply(data)
                     except Exception as exc:
@@ -1667,9 +1678,10 @@ class Handler(BaseHTTPRequestHandler):
                         # last payload we saw if it is recent, else rank locally: a follower is never left
                         # with an empty panel because the internet hiccupped.
                         stamp, cached = _cloud_get_cache
-                        if cached is not None and time.time() - stamp < 20.0:
+                        same_game = cached is not None and (identity.get("game_id") is None or str(cached.get("game_id")) == str(identity["game_id"]))
+                        if same_game and time.monotonic() - stamp < 20.0:
                             data = dict(cached)
-                            data["sync"] = {**_auto_sync_meta("auto-follower"), "stale_seconds": round(time.time() - stamp, 1)}
+                            data["sync"] = {**_auto_sync_meta("auto-follower"), "stale_seconds": round(time.monotonic() - stamp, 1)}
                             self._reply(data)
                         else:
                             data = dict(build_response())

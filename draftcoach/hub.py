@@ -63,6 +63,7 @@ class Hub:
         self._prev_guidance: dict | None = None
         self._submitted_seq = 0
         self._scored_seq = 0
+        self._generation = 0
         self.rest = None                 # LcuRest of the connected client (set by the server)
         self.any_queue = False           # --any-queue: coach customs/normals too (testing)
         self.lockfile: str | None = None # explicit lockfile path, if the server was given one
@@ -159,10 +160,13 @@ class Hub:
         self.last_session = session
         if not session:
             self.status["lcu_in_champ_select"] = False
+            live_input = self._last_input is not None and self._last_input[0] == "lcu"
             if self.state is not None and self.state.source in ("lcu", "simulation"):
+                live_input = True
                 if DRAFT_TYPES[self.draft_type]["fearless"] and len(self.state.our_locked()) == 5:
                     await self.series_record(self.state)
                 self.log_event("left champion select", "phase")
+            if live_input:
                 self._last_input = None
                 await self.clear(detail=f"not in champ select (phase {gameflow_phase or 'None'})", source=source)
             return
@@ -211,8 +215,11 @@ class Hub:
         await self._push()
 
     async def clear(self, detail: str = "", source: str | None = None) -> None:
+        self._generation += 1
+        self._pending = None
         self.state = None
         self.guidance = None
+        self.intent_guidance = None
         self._prev_state = None
         self._prev_guidance = None
         self.last_change = None
@@ -241,6 +248,9 @@ class Hub:
                 if self.debounce:
                     await asyncio.sleep(self.debounce)
                 state = self._pending
+                if state is None:
+                    continue
+                generation = self._generation
                 seq = self._submitted_seq
                 self._pending = None
                 started = time.perf_counter()
@@ -270,6 +280,8 @@ class Hub:
                                 "counters": [], "comps": [], "notes": [str(exc)], "alerts": [{"level": "error", "text": str(exc)}],
                                 "likely_enemy": [], "flex": [], "roles_now": [], "picking_now": False, "draft_complete": False,
                                 "our_locked": {}, "enemy_locked": {}, "swaps": []}
+                if generation != self._generation:
+                    continue  # A dodge/queue change revoked this computation while it ran.
                 elapsed = (time.perf_counter() - started) * 1000
                 self._diff_events(self._prev_state, state)
                 change = self._explain_change(self._prev_state, self._prev_guidance, state, guidance)
@@ -497,7 +509,7 @@ class Hub:
         simulated = state.source == "simulation"
         view: dict = {"cell_id": slot.cell_id, "name": slot.display_name, "role": slot.role, "locked": slot.locked,
                       "hover": slot.hover, "kind": None, "can_act": False, "suggestion": None, "swap": None,
-                      "incoming_swap": None, "client": simulated or self.client_rest() is not None,
+                      "incoming_swap": None, "client": simulated or (not self.status.get("stale") and self.client_rest() is not None),
                       "simulated": simulated}
         session = self.last_session or {}
         action = client_actions.active_action(session, slot.cell_id)
@@ -532,8 +544,6 @@ class Hub:
                             mine = [{"champion": planned, "champion_id": comp.get("champion_ids", {}).get(picking_role) or champ_map.id_for(planned),
                                      "role": picking_role, "why": ["from the leading draft"]}]
                             break
-                if not mine:
-                    mine = [p for p in g.get("picks") or [] if p["champion"] not in taken]
                 if mine:
                     best = mine[0]
                     view["suggestion"] = {"kind": "pick", "champion": best["champion"], "champion_id": best.get("champion_id"),
@@ -564,6 +574,8 @@ class Hub:
         session = self.last_session
         if session and self.state is not None and self.state.source == "simulation":
             return await self._simulated_client_act(what, champion)
+        if self.status.get("stale"):
+            raise RuntimeError("League client state is stale; wait for it to reconnect")
         rest = self.client_rest()
         if rest is None:
             raise RuntimeError("no League client connected on this machine")

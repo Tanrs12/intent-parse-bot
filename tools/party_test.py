@@ -16,10 +16,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import time
+import threading
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -104,8 +106,8 @@ class Instance:
                "--cloud-sync-mode", "auto", "--cloud-sync-url", "http://127.0.0.1:8790", "--cloud-sync-key", ROOM_KEY,
                "--load", str(REPO / "loadfiles" / "flexers-team.json"), "--roster", str(self.var / f"roster{self.index}.json"),
                "--reset-roster", "--watch", "", "--no-update", "--log-level", "info", *self.extra]
-        env = {**os.environ, "INTENT_LIVE": "1"}    # the packaged exe runs this way: the bridge ranks, the app acts
-        self.proc = subprocess.Popen(cmd, cwd=str(REPO), stdout=open(self.log, "w", encoding="utf-8"), stderr=subprocess.STDOUT,
+        env = {**os.environ, "INTENT_LIVE": "1", "PYTHONUNBUFFERED": "1"}
+        self.proc = subprocess.Popen(cmd, cwd=str(REPO), stdout=open(self.log, "a", encoding="utf-8"), stderr=subprocess.STDOUT,
                                      env=env, creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
 
     def stop(self) -> None:
@@ -139,6 +141,10 @@ class Party:
         self.relay = "http://127.0.0.1:8790"
         self.latencies: list[int] = []
         self.control_latencies: list[int] = []
+        self.poll_stop = threading.Event()
+        self.poll_threads: list[threading.Thread] = []
+        self.poll_failures: list[str] = []
+        self.poll_count = 0
 
     # ---- infrastructure -----------------------------------------------------------------------
     def start_infra(self) -> None:
@@ -168,11 +174,35 @@ class Party:
                               (st or {}).get("status", {}).get("detail", "") if st else "not connected")
 
     def stop_all(self) -> None:
+        self.stop_polling()
         for inst in self.instances:
             inst.stop()
         for proc in self.procs:
             if proc.poll() is None:
                 proc.kill()
+                proc.wait(timeout=10)
+
+    def start_polling(self) -> None:
+        # The two pages' HTTP polling load, without opening browsers. Websocket delivery is
+        # exercised by the LCU watcher and the existing Playwright UI tests.
+        def poll(inst):
+            while not self.poll_stop.is_set():
+                for url in (inst.url + "/api/state", inst.bridge + "/api/guidance"):
+                    if get(url, timeout=5) is None:
+                        self.poll_failures.append(url)
+                    self.poll_count += 1
+                self.poll_stop.wait(0.5)
+        for inst in self.instances:
+            for _ in range(2):
+                worker = threading.Thread(target=poll, args=(inst,), daemon=True)
+                worker.start()
+                self.poll_threads.append(worker)
+
+    def stop_polling(self) -> None:
+        self.poll_stop.set()
+        for worker in self.poll_threads:
+            worker.join(timeout=12)
+        self.poll_threads.clear()
 
     # ---- helpers ------------------------------------------------------------------------------
     def lobby_state(self) -> dict:
@@ -305,7 +335,7 @@ class Party:
         ours = [a for g in lobby.get("groups", []) for a in g if a["ours"]]
         auto = [e for e in lobby.get("events", []) if "auto-" in e.get("text", "")]
         self.report.check("every one of our bans and picks was locked by its app, none by the timer",
-                          all(a["completed"] for a in ours) and not auto, f"{len(auto)} timer auto-locks")
+                          len(ours) == len(acted) == 10 and all(a["completed"] for a in ours) and not auto, f"{len(auto)} timer auto-locks")
 
     def _lobby_action(self, action_id: int) -> dict | None:
         for g in self.lobby_state().get("groups", []):
@@ -348,8 +378,8 @@ class Party:
             self.report.check("quirk: relay back, one captain again and drafts converge", bool(result), str(result))
         elif progress == 7 and not done["rotate"]:
             done["rotate"] = True
-            http("POST", self.lobby + "/control/rotate/3")
-            s = wait_for(lambda: (lambda s: s if s and s["status"].get("connection") == "connected" and (s.get("state") or {}).get("source") == "lcu" else None)(self.instances[3].state()), 30)
+            rotated = http("POST", self.lobby + "/control/rotate/3")
+            s = wait_for(lambda: (lambda s: s if s and s["status"].get("connection") == "connected" and str(rotated["port"]) in s["status"].get("detail", "") and (s.get("state") or {}).get("source") == "lcu" else None)(self.instances[3].state()), 30)
             self.report.check("quirk: client 3 restarted on a new port/password, app 3 followed the new lockfile", bool(s),
                               (s or {}).get("status", {}).get("detail", ""))
 
@@ -384,7 +414,8 @@ class Party:
         if not lobby:
             self.report.check("finalisation reached", False)
             return
-        a, b = 0, 2
+        cells = [c["cell"] for c in lobby["clients"]]
+        a, b = cells[0], cells[2]
         http("POST", self.lobby + f"/control/trade/{a}/{b}")
         inst = self.instance_for_cell(b)
         s = wait_for(lambda: (lambda s: s if s and (s.get("local") or {}).get("incoming_swap") else None)(inst.state()), 10) if inst else None
@@ -412,8 +443,70 @@ class Party:
     def step_end(self) -> None:
         http("POST", self.lobby + "/control/end")
         for inst in self.instances:
-            s = wait_for(lambda: (lambda s: s if s and not (s.get("state") or {}).get("our_team") or (s.get("state") or {}).get("source") != "lcu" else None)(inst.state()), 15)
+            s = wait_for(lambda: (lambda s: s if s and not s["status"].get("lcu_in_champ_select") and not (s.get("local") or {}).get("can_act") else None)(inst.state()), 15)
             self.report.check(f"app {inst.index} left champion select when the game started", bool(s))
+
+    def step_resilience(self) -> None:
+        """New lobbies, unknown roster seat, closed client, standby queues, and an idle turn."""
+        http("POST", self.lobby + "/control/leave")
+        names = [*OUR[:4], "Unlisted Teammate#TEST"]
+        http("POST", self.lobby + "/control/start", {"planning": 120, "queue": 440, "our": names, "party_size": 4})
+        ready = wait_for(lambda: all((i.guidance() or {}).get("active") for i in self.instances), 20)
+        self.report.check("four-player party plus unlisted seat receives guidance", bool(ready))
+        last = self.instances[4].state() or {}
+        seat = next((p for p in (last.get("state") or {}).get("our_team", []) if p.get("is_local")), {})
+        self.report.check("unlisted Riot ID is not assigned a roster player's identity", seat.get("riot_id") == names[4] and not seat.get("user_id"), str(seat.get("riot_id")))
+
+        # Keep both pages polling while the client is genuinely absent, not just rotating its port.
+        http("POST", self.lobby + "/control/close/3")
+        closed = wait_for(lambda: (lambda s: s and s["status"].get("connection") != "connected" and not (s.get("local") or {}).get("can_act"))(self.instances[3].state()), 12)
+        self.report.check("closed League client disables local actions", bool(closed))
+        http("POST", self.lobby + "/control/rotate/3")
+        reopened = wait_for(lambda: (lambda s: s and s["status"].get("connection") == "connected" and s["status"].get("lcu_in_champ_select"))(self.instances[3].state()), 15)
+        self.report.check("reopened League client rejoins the same draft", bool(reopened))
+
+        old_game = self.lobby_state()["game_id"]
+        http("POST", self.relay + "/control/fault", {"http_error": True})
+        http("POST", self.lobby + "/control/leave")
+        idle = wait_for(lambda: all(not (i.guidance() or {}).get("active", True) for i in self.instances), 10)
+        self.report.check("dodge clears guidance on every app during relay HTTP 500", bool(idle))
+        time.sleep(10)
+        new_lobby = http("POST", self.lobby + "/control/start", {"planning": 120})
+        new_game = new_lobby["game_id"]
+        fresh = wait_for(lambda: all((lambda g: g.get("active") and str(g.get("game_id")) == str(new_game))(i.guidance() or {}) for i in self.instances), 15)
+        self.report.check("new lobby after dodge never reuses previous lobby guidance", bool(fresh) and old_game != new_game)
+        http("POST", self.relay + "/control/fault", {"http_error": False, "clock_skew": 3600})
+        self.report.check("relay recovers with an hour of clock skew", bool(wait_for(self._one_host, 20)))
+        http("POST", self.relay + "/control/fault", {"clock_skew": 0})
+
+        for queue, label in ((450, "ARAM"), (400, "Normal Draft")):
+            http("POST", self.lobby + "/control/leave")
+            http("POST", self.lobby + "/control/start", {"queue": queue, "planning": 120})
+            standby = wait_for(lambda: all((lambda s, g: s and not s["status"].get("lcu_in_champ_select") and not (s.get("local") or {}).get("can_act") and g is not None and not g.get("active"))(i.state(), i.guidance()) for i in self.instances), 12)
+            self.report.check(f"{label}: all apps stand by with no client actions", bool(standby))
+
+        http("POST", self.lobby + "/control/leave")
+        http("POST", self.lobby + "/control/start", {"queue": 440, "planning": 1, "turn": 30, "our": OUR, "party_size": 5})
+        action = wait_for(lambda: next((a for group in self.lobby_state().get("groups", []) for a in group if a["current"] and a["ours"]), None), 10)
+        if action:
+            # Never POST an app action. The fake client's timer must be the sole actor.
+            before = len(self.lobby_state()["events"])
+            done = wait_for(lambda: self._lobby_action(action["id"]), 35)
+            events = self.lobby_state()["events"][before:]
+            self.report.check("idle 30-second turn is locked by the fake client timer, not the app", bool(done) and any("auto-" in e["text"] for e in events) and not any(e.get("origin") == "client" for e in events), "timer event present; zero client PATCH requests")
+        else:
+            self.report.check("idle turn reached", False)
+        http("POST", self.lobby + "/control/leave")
+
+    def step_double_launch(self) -> None:
+        first = self.instances[0]
+        duplicate = Instance(5, first.port, first.lockfile, self.var, self.var)
+        duplicate.start()
+        try:
+            exited = wait_for(lambda: duplicate.proc.poll() is not None, 12)
+            self.report.check("double launch on the same app port exits without replacing the original", bool(exited) and first.proc.poll() is None and bool(first.state()))
+        finally:
+            duplicate.stop()
 
     # ---- run ------------------------------------------------------------------------------------
     def run(self) -> dict:
@@ -421,8 +514,12 @@ class Party:
         print("== starting relay, fake lobby and apps", flush=True)
         self.start_infra()
         self.start_apps(5)
+        if not smoke:
+            self.step_double_launch()
         print("== champion select", flush=True)
         self.step_champ_select()
+        if not smoke:
+            self.start_polling()
         print("== sync", flush=True)
         self.step_sync()
         if not smoke:
@@ -438,18 +535,30 @@ class Party:
         self.step_draft(quirks=not smoke)
         if not smoke:
             print("== captain failover", flush=True)
+            self.stop_polling()  # intentional process death is not an HTTP availability failure
             self.step_captain_failover()
+            self.poll_stop.clear()
+            self.start_polling()
         print("== player review", flush=True)
         self.step_stats()
         print("== trade + game start", flush=True)
         self.step_trade()
         self.step_end()
+        if not smoke:
+            print("== rollout resilience", flush=True)
+            self.step_resilience()
+            self.stop_polling()
+            self.report.check("panel + coach polling on all five apps stays responsive", not self.poll_failures, f"{self.poll_count} requests; {len(self.poll_failures)} failures")
         if self.latencies:
             self.report.check("propagation: a lock reaches all five screens", True,
                               f"median {sorted(self.latencies)[len(self.latencies) // 2]} ms, worst {max(self.latencies)} ms over {len(self.latencies)} locks")
         if self.control_latencies:
             self.report.check("propagation: a shared control change reaches all five", True,
                               f"median {sorted(self.control_latencies)[len(self.control_latencies) // 2]} ms, worst {max(self.control_latencies)} ms")
+        errors = [f"{file.name}: {line}" for file in sorted(self.var.glob("app*.log"))
+                  for line in file.read_text(encoding="utf-8", errors="replace").splitlines()
+                  if re.search(r"\bERROR\b|Traceback \(most recent call last\)", line)]
+        self.report.check("app logs contain no ERROR records or unhandled tracebacks", not errors, " | ".join(errors)[:800])
         summary = self.report.summary()
         (self.var / "report.json").write_text(json.dumps({**summary, "lobby_events": self.lobby_state().get("events")}, indent=2), encoding="utf-8")
         print(f"\n== {summary['passed']} passed, {summary['failed']} failed in {summary['seconds']} s  (report: {self.var / 'report.json'})")

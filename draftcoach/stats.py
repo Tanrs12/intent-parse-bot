@@ -42,7 +42,8 @@ def fetch_from_client(rest, *, count: int = 40, puuid: str | None = None, cache_
     if not puuid:
         raise RuntimeError("the client did not report the signed-in player")
     account = {"puuid": puuid, "gameName": me.get("gameName") or me.get("displayName"), "tagLine": me.get("tagLine"),
-               "summonerLevel": me.get("summonerLevel"), "profileIconId": me.get("profileIconId")}
+               "summonerLevel": me.get("summonerLevel"), "profileIconId": me.get("profileIconId"),
+               "accountId": me.get("accountId"), "summonerId": me.get("summonerId")}
     ranked = rest.get("/lol-ranked/v1/current-ranked-stats") or {}
     folder = (cache_dir or STATS_DIR) / puuid
     games_dir = folder / "games"
@@ -104,22 +105,31 @@ def _position(participant: dict) -> str | None:
             return value
     timeline = participant.get("timeline") or {}
     lane, role = str(timeline.get("lane") or "").upper(), str(timeline.get("role") or "").upper()
+    lane = {"MID": "MIDDLE", "BOT": "BOTTOM"}.get(lane, lane)
     return POSITION.get((lane, role)) or {"TOP": "TOP", "JUNGLE": "JUNGLE", "MIDDLE": "MIDDLE"}.get(lane)
 
 
-def to_match_v5(game: dict) -> dict | None:
+def to_match_v5(game: dict, account: dict | None = None) -> dict | None:
     """Riot's client lists games in the older match-v4 layout; the aggregates expect match-v5."""
     if not isinstance(game, dict) or game.get("gameId") is None:
         return None
+    account = account or {}
     identities = {int(i.get("participantId", -1)): (i.get("player") or {}) for i in game.get("participantIdentities") or []}
     participants = []
     for p in game.get("participants") or []:
         pid = int(p.get("participantId", -1))
         stats = p.get("stats") or {}
         player = identities.get(pid, {})
+        puuid = player.get("puuid") or player.get("currentPuuid") or stats.get("puuid")
+        # Older LCU histories identify accounts numerically, including after a rename/transfer.
+        # Never match by display name or assume the first participant is the signed-in player.
+        if not puuid and any(account.get(own_key) and str(account[own_key]) == str(player.get(key))
+                             for own_key, key in (("accountId", "currentAccountId"), ("accountId", "accountId"),
+                                                  ("summonerId", "summonerId"))):
+            puuid = account.get("puuid")
         champion_id = int(p.get("championId") or 0)
         row = {
-            "participantId": pid, "teamId": int(p.get("teamId") or 0), "puuid": player.get("puuid") or stats.get("puuid"),
+            "participantId": pid, "teamId": int(p.get("teamId") or 0), "puuid": puuid,
             "riotIdGameName": player.get("gameName") or player.get("summonerName"), "riotIdTagline": player.get("tagLine"),
             "championId": champion_id, "championName": champ_map.name_for(champion_id) or f"Champion {champion_id}",
             "teamPosition": _position(p), "win": stats.get("win") if isinstance(stats.get("win"), bool) else None,
@@ -144,7 +154,7 @@ def to_match_v5(game: dict) -> dict | None:
     duration = game.get("gameDuration")
     return {"metadata": {"matchId": f"{game.get('platformId') or 'EUW1'}_{int(game['gameId'])}", "participants": [p.get("puuid") for p in participants]},
             "info": {"gameId": int(game["gameId"]), "gameCreation": game.get("gameCreation"), "gameStartTimestamp": game.get("gameCreation"),
-                     "gameDuration": duration, "gameVersion": game.get("gameVersion") or "15.1.1", "queueId": game.get("queueId"),
+                     "gameDuration": duration, "durationUnit": "seconds", "gameVersion": game.get("gameVersion"), "queueId": game.get("queueId"),
                      "mapId": game.get("mapId"), "gameMode": game.get("gameMode"), "participants": participants, "teams": teams}}
 
 
@@ -155,7 +165,8 @@ def _fmt(value, digits=1):
 
 def ranked_summary(ranked: dict) -> list[dict]:
     out = []
-    for queue in (ranked or {}).get("queues") or []:
+    queues = (ranked or {}).get("queues") or [dict(q, queueType=key) for key, q in ((ranked or {}).get("queueMap") or {}).items()]
+    for queue in queues:
         qtype = queue.get("queueType")
         if qtype not in RANKED_QUEUES:
             continue
@@ -173,7 +184,16 @@ def ranked_summary(ranked: dict) -> list[dict]:
 def build_review(payload: dict) -> dict:
     account = payload.get("account") or {}
     puuid = account.get("puuid")
-    matches = [m for m in (to_match_v5(g) for g in payload.get("games") or []) if m]
+    matches = [m for m in (to_match_v5(g, account) for g in payload.get("games") or []) if m]
+    # The early-surrender flag alone also occurs in ordinary losses. Exclude only short SR
+    # games carrying that flag; the LCU cannot certify whether LP was refunded.
+    def remake(m):
+        info = m["info"]
+        duration = info.get("gameDuration")
+        return (info.get("mapId") == 11 and isinstance(duration, (int, float)) and 0 < duration < 300
+                and any(p.get("gameEndedInEarlySurrender") for p in info["participants"]))
+    excluded = sum(remake(m) for m in matches)
+    matches = [m for m in matches if not remake(m)]
     cache = {"account": account, "matches": matches, "timelines": {}}
     stats = build_peer_stats(cache, account=account)
     dash_all, dash_20 = stats["dashboard"]["all"], stats["dashboard"]["last20"]
@@ -245,7 +265,7 @@ def build_review(payload: dict) -> dict:
                     for r in dash_all["records"]],
         "multikills": {k: v["value"] for k, v in dash_all["multikills"].items()},
         "insights": insights,
-        "notes": dash_all["notes"],
+        "notes": [*dash_all["notes"], f"Excluded {excluded} short early-surrender games (under five minutes on Summoner's Rift); LP-neutral remake status is unavailable."],
     }
 
 

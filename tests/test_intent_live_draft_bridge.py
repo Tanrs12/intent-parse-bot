@@ -1,4 +1,5 @@
 from tools import intent_live_draft_bridge as bridge
+import pytest
 
 
 def test_mode_gate_disables_standard_aram(monkeypatch):
@@ -10,6 +11,41 @@ def test_mode_gate_disables_standard_aram(monkeypatch):
     gate = bridge._mode_gate()
     assert gate["disabled"] is True
     assert gate["queue_id"] == 450
+
+
+def test_relay_backoff_cannot_serve_expired_guidance(monkeypatch):
+    monkeypatch.setattr(bridge, "_cloud_get_cache", (bridge.time.monotonic() - 30, {"active": True}))
+    monkeypatch.setattr(bridge, "_cloud_backoff_until", bridge.time.monotonic() + 2)
+    monkeypatch.setattr(bridge, "_cloud_get_inflight", True)
+    with pytest.raises(RuntimeError):
+        bridge._cloud_get()
+
+
+def test_disconnected_http_reader_does_not_crash_reply():
+    class Closed:
+        def write(self, _payload):
+            raise ConnectionAbortedError("reader closed")
+    handler = object.__new__(bridge.Handler)
+    handler.send_response = lambda *_: None
+    handler.send_header = lambda *_: None
+    handler.end_headers = lambda: None
+    handler.wfile = Closed()
+    handler._reply({"active": False})
+
+
+def test_follower_rejects_a_previous_lobbys_payload(monkeypatch):
+    monkeypatch.setattr(bridge, "_cloud_mode", "auto")
+    monkeypatch.setattr(bridge, "_auto_is_host", False)
+    monkeypatch.setattr(bridge, "_auto_identity", lambda: {"in_champ_select": True, "game_id": "new"})
+    monkeypatch.setattr(bridge, "_cloud_get", lambda: {"active": True, "game_id": "old", "guidance": {"comps": ["old draft"]}})
+    monkeypatch.setattr(bridge, "_cloud_get_cache", (bridge.time.monotonic(), {"active": True, "game_id": "old"}))
+    monkeypatch.setattr(bridge, "build_response", lambda: {"active": True, "game_id": "new", "guidance": {"comps": ["new draft"]}})
+    handler = object.__new__(bridge.Handler)
+    handler.path = "/api/guidance"
+    replies = []
+    handler._reply = lambda data: replies.append(data)
+    handler.do_GET()
+    assert replies[0]["game_id"] == "new"
 
 
 def test_mode_gate_disables_aram_mayhem(monkeypatch):
