@@ -202,7 +202,8 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
 
         def fetch() -> bytes | None:
             try:
-                with urllib.request.urlopen(url, timeout=8) as response:
+                request = urllib.request.Request(url, headers={"User-Agent": f"FlexersDraftCoach/{__version__} (+https://github.com/Tanrs12/intent-parse-bot)"})
+                with urllib.request.urlopen(request, timeout=8) as response:
                     return response.read() if response.status == 200 else None
             except Exception:  # noqa: BLE001
                 return None
