@@ -97,6 +97,9 @@ BLOCKED_ROLE_PICKS = {("Top", "Varus")}
 # Team-specific Ranked coaching constraints, not universal champion tier claims.
 # Keep explicitly locked picks legal; these are exclusions from our own suggestions.
 RANKED_PLAYER_AVOID = {
+    # Yasuo Mid is a deliberate opt-in for the captain, not a repeated default
+    # when he has stronger Jungle options and other submitted Mid champions.
+    (139837324438536193, "Mid"): {"Yasuo"},
     (286592835850076162, "ADC"): {"Caitlyn"},  # Ste: needs lane dominance to pay off
     (400745307467415553, "Support"): {"Morgana"},  # Cheeky: unreliable when behind
 }
@@ -1431,6 +1434,15 @@ def _prune_pool(role: str, champions: Iterable[str], meta: dict, limit: int = 8,
             if _explicitly_confirmed_player_pick(int(user_id), role, champion):
                 add(champion)
 
+    # Explicit captain-confirmed Jungle carries must not vanish from a broad
+    # 50+ champion pool due to pro-only evidence. This protects candidate
+    # eligibility; composition score still determines which one actually wins.
+    if role == "Jungle" and int(user_id or 0) == 139837324438536193:
+        for champion in ("Lee Sin", "Qiyana", "Taliyah", "Elise", "Talon",
+                         "Diana", "Gragas", "Wukong"):
+            if champion in unique:
+                add(champion)
+
     # Preserve known favourable responses from the player's *actual pool* before
     # pruning it to the ten candidates the live search can afford.
     if enemy_roles and enemy_roles.get(role):
@@ -1839,7 +1851,7 @@ def _champion_carry_demand(role: str, champion: str, meta: dict) -> float:
 CIAN_JUNGLE_AGENCY_FLOORS = {
     "Diana": 0.72, "Gragas": 0.70, "Lee Sin": 0.76, "Qiyana": 0.79,
     "Elise": 0.70, "Kindred": 0.76, "Lillia": 0.70,
-    "Taliyah": 0.67, "Sylas": 0.73, "Xin Zhao": 0.65,
+    "Taliyah": 0.72, "Talon": 0.75, "Sylas": 0.73, "Xin Zhao": 0.65,
     "Wukong": 0.63, "Nocturne": 0.67, "Graves": 0.70,
 }
 
@@ -2691,6 +2703,38 @@ def _bounded_package_products(
         for top in candidate_tops[:2]:
             for bot in bot_rows[:3]:
                 add_product(top, jungle, mid, bot["adc"], bot["support"])
+
+    # On a 50-champion captain Jungle pool, a single cheap-heuristic coverage
+    # row per pick can be paired with the wrong Top/Mid/bot shell. In practice
+    # this hid strong high-SoloQ picks (Taliyah/Elise/Talon) below the top-300
+    # BEFORE the actual five-man composition scorer evaluated viable packages.
+    # Give each of his *submitted* carries a small, cross-package trial set.
+    # These candidates are not promoted or auto-selected: every one goes through
+    # the normal full team, matchup, and player-fit scoring below.
+    if (int(assignment["Jungle"]["user_id"]) == 139837324438536193
+            and len(pools["Jungle"]) >= 8):
+        for jungle in ("Lee Sin", "Qiyana", "Elise", "Taliyah", "Talon",
+                       "Diana", "Gragas", "Wukong"):
+            if jungle not in pools["Jungle"]:
+                continue
+            mids = sorted(
+                (mid for mid in pools["Mid"] if mid != jungle),
+                key=lambda mid: (
+                    _coordinated_duo_score("Jungle", jungle, "Mid", mid, meta)["score"]
+                    + individual("Mid", mid) * 0.35
+                ), reverse=True)[:4]
+            tops = sorted(
+                (top for top in pools["Top"] if top != jungle),
+                key=lambda top: (
+                    _coordinated_duo_score("Top", top, "Jungle", jungle, meta)["score"]
+                    + individual("Top", top) * 0.35
+                ), reverse=True)[:4]
+            for mid in mids:
+                for top in tops:
+                    if mid == top:
+                        continue
+                    for bot in bot_rows[:4]:
+                        add_product(top, jungle, mid, bot["adc"], bot["support"])
 
     return [
         (row["top"], row["jungle"], row["mid"], row["adc"], row["support"])

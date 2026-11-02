@@ -829,6 +829,7 @@ def _select_diverse_recommendations(
     core_limit: int = 4,
     role_mix_slots: int = 2,
     rotation_token: str | None = None,
+    prefer_captain_jungle: bool = True,
 ) -> list[dict]:
     """Choose quality-first shells, with real player-role rotation in drafts 5–10.
 
@@ -948,9 +949,33 @@ def _select_diverse_recommendations(
         if float(rec.get("score", 0)) >= top_score - 3.0
         and float(rec.get("team_plan_score", 5.0) or 5.0) >= 6.0
     ] or recommendations[:1]
+    # A genuinely competitive captain carry should lead the board. The
+    # rotating session token can change the team shell, but must not randomly
+    # replace a submitted Lee Sin/Qiyana with Vi at the same score.
+    captain_focus = {"Lee Sin": 5, "Qiyana": 4, "Elise": 3, "Taliyah": 3,
+                     "Talon": 3, "Diana": 2, "Gragas": 2, "Wukong": 2}
+    def captain_jungle_focus(rec: dict) -> int:
+        return (captain_focus.get(rec["champions"]["Jungle"], 0)
+                if int(rec["players"]["Jungle"]["user_id"]) == 139837324438536193
+                else 0)
+
+    if limit >= 8 and prefer_captain_jungle:
+        good_carry_openers = [
+            rec for rec in initial_pool
+            if captain_jungle_focus(rec) >= 3
+            and float(rec.get("team_plan_score", 0) or 0) >= 6.0
+            and float(rec.get("bot_lane_score", 0) or 0) >= 7.0
+        ]
+        if good_carry_openers:
+            best_focus = max(captain_jungle_focus(rec) for rec in good_carry_openers)
+            initial_pool = [rec for rec in good_carry_openers if captain_jungle_focus(rec) == best_focus]
     if rotation_token and len(initial_pool) > 1:
         first = max(initial_pool, key=rotation_value)
+    elif prefer_captain_jungle and limit >= 8:
+        first = max(initial_pool, key=lambda rec: float(rec.get("score", 0)))
     else:
+        # Preserve source rank for live counterpicks, committed identities and
+        # short live lists. Source ordering already accounts for enemy bans.
         first = recommendations[0]
     chosen = [first]
     # Champion lineups are distinct even when players swap roles. A duplicate
@@ -1054,42 +1079,35 @@ def _select_diverse_recommendations(
         return preferred if preferred else candidates
 
     def _prefer_cian_jungle_playmakers(candidates: list[dict], *, score_loss: float = 5.0) -> list[dict]:
-        """Give a strong Cian Jungle player agency in some prepared drafts.
-        This is a *portfolio* preference only, not a hard lock, free proficiency
-        proof, or permission to play unsubmitted champions. Two good games out
-        of ten is a target when structurally strong choices actually exist.
+        """Keep distinct, credible captain Jungle carries in the gallery.
+        Repeat Vi is not a substitute for Lee Sin, Qiyana or Elise coverage.
+        Submitted picks only; normal full composition scores still apply.
         """
-        if limit < 8 or len(chosen) < 2:
+        if not prefer_captain_jungle or limit < 8 or len(chosen) < 2:
             return candidates
+        focus = {"Lee Sin", "Qiyana", "Elise", "Taliyah", "Talon",
+                 "Diana", "Gragas", "Wukong"}
         used = {
             prev["champions"]["Jungle"]
             for prev in chosen
             if int(prev["players"]["Jungle"]["user_id"]) == 139837324438536193
-            and prev["champions"]["Jungle"] in CIAN_JUNGLE_AGENCY_FLOORS
+            and prev["champions"]["Jungle"] in focus
         }
-        appearances = sum(
-            int(prev["players"]["Jungle"]["user_id"]) == 139837324438536193
-            and prev["champions"]["Jungle"] in CIAN_JUNGLE_AGENCY_FLOORS
-            for prev in chosen
-        )
-        if appearances >= 2 or len(candidates) < 2:
+        if len(used) >= 5 or len(candidates) < 2:
             return candidates
         strongest = max(float(rec.get("score", 0)) for rec in candidates)
         eligible = [
             rec for rec in candidates
             if int(rec["players"]["Jungle"]["user_id"]) == 139837324438536193
-            and rec["champions"]["Jungle"] in CIAN_JUNGLE_AGENCY_FLOORS
-            and float(rec.get("score", 0)) >= strongest - score_loss
+            and rec["champions"]["Jungle"] in focus
+            and rec["champions"]["Jungle"] not in used
+            and float(rec.get("score", 0)) >= strongest - max(7.0, score_loss)
             and float(rec.get("team_plan_score", 0) or 0) >= 6.0
             and float(rec.get("bot_lane_score", 0) or 0) >= 7.0
-            and float(rec.get("mid_jungle_score", 0) or 0) >= 7.0
+            and (float(rec.get("mid_jungle_score", 0) or 0) >= 6.5
+                 or float(rec.get("team_plan_score", 0) or 0) >= 7.5)
         ]
-        if not eligible:
-            return candidates
-        distinct = [
-            rec for rec in eligible if rec["champions"]["Jungle"] not in used
-        ]
-        return distinct or eligible
+        return eligible or candidates
 
     # Roles may change across plans, but the actual five champions must never
     # be a duplicate of another displayed draft, even with different pilots.
@@ -1101,6 +1119,43 @@ def _select_diverse_recommendations(
         ]
         if not remaining:
             break
+        # On cards 5-8 showcase credible DIFFERENT captain jungle carries,
+        # rather than four more Vi/Jarvan shells. This cannot invent champions,
+        # bypass bad bot lanes or override a clearly superior composition.
+        if prefer_captain_jungle and limit >= 8 and core_limit <= len(chosen) < core_limit + 4:
+            focus = {"Lee Sin", "Qiyana", "Elise", "Taliyah", "Talon",
+                     "Diana", "Gragas", "Wukong"}
+            already = {
+                row["champions"]["Jungle"] for row in chosen
+                if int(row["players"]["Jungle"]["user_id"]) == 139837324438536193
+            }
+            fresh_carries = [
+                rec for rec in remaining
+                if int(rec["players"]["Jungle"]["user_id"]) == 139837324438536193
+                and rec["champions"]["Jungle"] in focus - already
+                and float(rec.get("score", 0)) >= top_score - 8.0
+                and float(rec.get("team_plan_score", 0) or 0) >= 7.0
+                and float(rec.get("bot_lane_score", 0) or 0) >= 7.0
+                and (float(rec.get("mid_jungle_score", 0) or 0) >= 6.3
+                     or float(rec.get("team_plan_score", 0) or 0) >= 7.5)
+            ]
+            if fresh_carries:
+                # New captain-requested options beat another familiar Diana/
+                # Gragas shell when they are already within this narrow score
+                # window and have a real complete composition.
+                requested = {"Lee Sin", "Qiyana", "Elise", "Taliyah", "Talon"}
+                winner = max(fresh_carries, key=lambda rec: (
+                    int(rec["champions"]["Jungle"] in requested),
+                    float(rec.get("score", 0)),
+                    min_champion_difference(rec),
+                ))
+                chosen.append(winner)
+                seen_lineups.add(champion_signature(winner))
+                remaining = [
+                    rec for rec in remaining
+                    if champion_signature(rec) not in seen_lineups
+                ]
+                continue
         tail_role_rotation = (
             limit >= 8 and core_limit >= 4 and role_mix_slots >= 4
             and core_limit <= len(chosen) < core_limit + role_mix_slots

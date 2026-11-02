@@ -279,6 +279,12 @@ def recommend_live_drafts(
             core_limit=min(4, limit),
             role_mix_slots=min(2, max(0, limit - min(4, limit))),
             rotation_token=rotation_token,
+            # Enemy counterpicks, real locks and a captain-selected identity
+            # outrank pregame champion-variety preferences.
+            prefer_captain_jungle=not bool(
+                identity or enemy_champions or enemy_roles
+                or locked_champions or required_champions
+            ),
         )
     # Preserve the captain's planned five if still legal and objectively close
     # to the strongest current option; never force it when the enemy draft makes
