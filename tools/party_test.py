@@ -9,7 +9,7 @@ client websocket drops, client restart, captain's app dying, a late joiner) and 
     python tools/party_test.py --scenario smoke
     python tools/party_test.py --keep          # leave everything running afterwards for a look
 
-Ports: relay 8790, lobby control 8700, fake clients 8710-8714, app N on 8800+10N (bridge +1).
+Ports: relay 8795, lobby control 8700, fake clients 8710-8714, app N on 8800+10N (bridge +1).
 """
 from __future__ import annotations
 
@@ -103,7 +103,7 @@ class Instance:
 
     def start(self) -> None:
         cmd = [PY, str(REPO / "run.py"), "--port", str(self.port), "--lockfile", str(self.lockfile), "--bridge",
-               "--cloud-sync-mode", "auto", "--cloud-sync-url", "http://127.0.0.1:8790", "--cloud-sync-key", ROOM_KEY,
+               "--cloud-sync-mode", "auto", "--cloud-sync-url", "http://127.0.0.1:8795", "--cloud-sync-key", ROOM_KEY,
                "--load", str(REPO / "loadfiles" / "flexers-team.json"), "--roster", str(self.var / f"roster{self.index}.json"),
                "--reset-roster", "--watch", "", "--no-update", "--log-level", "info", *self.extra]
         env = {**os.environ, "INTENT_LIVE": "1", "PYTHONUNBUFFERED": "1"}
@@ -138,7 +138,7 @@ class Party:
         self.procs: list[subprocess.Popen] = []
         self.instances: list[Instance] = []
         self.lobby = "http://127.0.0.1:8700"
-        self.relay = "http://127.0.0.1:8790"
+        self.relay = "http://127.0.0.1:8795"
         self.latencies: list[int] = []
         self.control_latencies: list[int] = []
         self.poll_stop = threading.Event()
@@ -151,7 +151,7 @@ class Party:
         if self.var.exists() and not self.args.keep_var:
             shutil.rmtree(self.var, ignore_errors=True)
         self.var.mkdir(parents=True, exist_ok=True)
-        self.procs.append(subprocess.Popen([PY, str(REPO / "tools" / "local_relay.py"), "--port", "8790"], cwd=str(REPO),
+        self.procs.append(subprocess.Popen([PY, str(REPO / "tools" / "local_relay.py"), "--port", "8795"], cwd=str(REPO),
                                            stdout=open(self.var / "relay.log", "w"), stderr=subprocess.STDOUT))
         self.procs.append(subprocess.Popen([PY, str(REPO / "tools" / "fake_lcu.py"), "--dir", str(self.lobby_dir), "--control-port", "8700",
                                             "--client-port", "8710", "--our", ",".join(OUR), "--side", self.args.side,
@@ -508,6 +508,71 @@ class Party:
         finally:
             duplicate.stop()
 
+    # ---- a draft chosen in Discord ---------------------------------------------------------------
+    def step_discord_choice(self) -> None:
+        """What the bot does when someone picks "Lock Draft N": one relay post, five apps follow it.
+
+        Prefers a draft containing a champion the scripted enemy will ban, so the outcome step can
+        check that only that seat is re-solved and the roles never move.
+        """
+        if str(REPO) not in sys.path:
+            sys.path.insert(0, str(REPO))
+        from team_sync import draft_control_payload
+        g = wait_for(lambda: (lambda g: g if g and g.get("comps") else None)(self.instances[0].guidance()), 15) or {}
+        comps = g.get("comps") or []
+        if not comps:
+            self.report.check("discord choice: a draft to choose", False, "no comps published")
+            return
+        enemy_bans = {c.casefold() for c in (self.lobby_state().get("enemy") or {}).get("bans", []) or []} or {"vi", "jinx", "orianna", "jarvan iv", "galio"}
+        comp = next((c for c in comps if any(str(v).casefold() in enemy_bans for v in (c.get("champions") or {}).values())), comps[0])
+        rec = {"champions": comp.get("champions") or {}, "team_plan": comp.get("team_plan"),
+               "players": {role: {"user_id": (comp.get("player_ids") or {}).get(role), "display_name": (comp.get("players") or {}).get(role)}
+                           for role in ROLES}}
+        payload = draft_control_payload(rec, label="Draft 1 (test)", source="discord")
+        self.chosen = payload["control"]["chosen"]
+        self.chosen_doomed = {role: champ for role, champ in rec["champions"].items() if str(champ).casefold() in enemy_bans}
+        try:
+            http("POST", f"{self.relay}/draft-sync/{ROOM_KEY}/preference", payload)
+        except Exception as exc:  # noqa: BLE001
+            self.report.check("discord choice: relay accepts the chosen draft", False, str(exc))
+            return
+        def all_follow():
+            cs = [((inst.control() or {}).get("control") or {}) for inst in self.instances]
+            ok = all((c.get("chosen") or {}).get("label") == "Draft 1 (test)" and c.get("champion_locks") == payload["control"]["champion_locks"] for c in cs)
+            return cs if ok else None
+        t0 = time.time()
+        cs = wait_for(all_follow, 12, every=0.1)
+        lag = round((time.time() - t0) * 1000)
+        self.control_latencies.append(lag)
+        self.report.check("discord choice: all five apps follow the chosen draft (pinned roles, locked five)", bool(cs),
+                          f"{lag} ms; doomed {self.chosen_doomed or 'none'}" if cs else str([(inst.control() or {}).get("control") for inst in self.instances]))
+        def lead_is_chosen():
+            gs = [inst.guidance() or {} for inst in self.instances]
+            return gs if all(((g.get("comps") or [{}])[0].get("champions") == rec["champions"]) and (g.get("chosen") or {}).get("intact") for g in gs) else None
+        self.report.check("discord choice: the chosen draft leads on every app before bans", bool(wait_for(lead_is_chosen, 12, every=0.2)))
+
+    def step_chosen_outcome(self) -> None:
+        chosen = getattr(self, "chosen", None)
+        if not chosen:
+            return
+        gs = [inst.guidance() or {} for inst in self.instances]
+        statuses = [g.get("chosen") or {} for g in gs]
+        self.report.check("chosen draft: every app still reports it after the draft", all(s.get("label") == "Draft 1 (test)" for s in statuses), str([s.get("label") for s in statuses]))
+        doomed = getattr(self, "chosen_doomed", {})
+        for role, champ in doomed.items():
+            swaps = [(s.get("replaced") or {}).get(role) or {} for s in statuses]
+            self.report.check(f"chosen draft: {role} {champ} was banned, so that seat alone was re-solved",
+                              all(sw.get("was") == champ and sw.get("why") == "banned" and sw.get("now") for sw in swaps), str(swaps[:2]))
+        lobby = self.lobby_state()
+        ours = {a["position"]: a for a in (lobby.get("ours") or [])} if isinstance(lobby.get("ours"), list) else {}
+        locked = [g.get("our_locked") or {} for g in gs]
+        kept = [role for role, champ in chosen["champions"].items() if role not in doomed]
+        self.report.check("chosen draft: the surviving champions are the ones we locked in",
+                          bool(locked) and all(all(lk.get(role) == chosen["champions"][role] for role in kept) for lk in locked),
+                          str(locked[0]) if locked else "no guidance")
+        untouched = [len((s.get("replaced") or {})) <= len(doomed) for s in statuses]
+        self.report.check("chosen draft: no seat changed without a ban or an enemy pick forcing it", all(untouched), str([s.get("replaced") for s in statuses[:1]]))
+
     # ---- run ------------------------------------------------------------------------------------
     def run(self) -> dict:
         smoke = self.args.scenario == "smoke"
@@ -531,8 +596,12 @@ class Party:
                                    lambda c: (c.get("champion_locks") or {}).get("Support") == "Thresh")
             before = ((self.instances[0].control() or {}).get("control") or {}).get("shake", 0)
             self.step_control_sync("shake it up on app 2", {"shake_it_up": True}, lambda c, b=before: int(c.get("shake") or 0) > int(b))
+            print("== draft chosen in Discord", flush=True)
+            self.step_discord_choice()
         print("== the draft", flush=True)
         self.step_draft(quirks=not smoke)
+        if not smoke:
+            self.step_chosen_outcome()
         if not smoke:
             print("== captain failover", flush=True)
             self.stop_polling()  # intentional process death is not an HTTP availability failure
@@ -580,7 +649,7 @@ def main() -> None:
         if not args.keep:
             party.stop_all()
         else:
-            print("left running: relay 8790, lobby 8700, apps " + ", ".join(i.url for i in party.instances))
+            print("left running: relay 8795, lobby 8700, apps " + ", ".join(i.url for i in party.instances))
     sys.exit(1 if summary["failed"] else 0)
 
 

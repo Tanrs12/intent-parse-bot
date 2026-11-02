@@ -28,8 +28,15 @@ Written for the five players. Five minutes per PC.
 - The panel shows one decision at a time. When it is **your** pick or ban, two buttons appear:
   **Hover** (shows the champion in League) and **Lock in** / **Ban**. They act through your own League
   client. When it is a teammate's turn, it says who is picking.
-- The **Draft settings** button (panel) or **Team sheet** (coach page) sets the team style
-  (dive, poke, front-to-back, ...), pins a player to a role, locks a champion for a role, or asks for
+- **Choosing the draft happens in Discord.** The bot posts the ten drafts to the league-drafts channel
+  as usual. Pick one from the **Lock Draft N** dropdown and every app follows it within a second: roles
+  are pinned to the players in that draft, all five champions are locked, and the draft's style is kept.
+  When the enemy bans or takes one of them, only that seat is re-solved, in the same style, and the
+  panel's team list says "was Sylas · banned" next to the replacement. The bot also keeps a **Live draft**
+  message in the channel that follows champ select (bans, enemy picks, our five, who picks next).
+  **Release draft** puts the apps back on automatic drafts.
+- The **Draft settings** button (panel) or **Team sheet** (coach page) does the same by hand: team style
+  (dive, poke, front-to-back, ...), pin a player to a role, lock a champion for a role, or ask for
   different drafts ("Find different drafts"). A change by any one of you reaches everyone within half
   a second.
 - After the last lock the panel shows the final five, the carry plan and any champion trade to make.

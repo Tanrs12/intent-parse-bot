@@ -104,3 +104,8 @@ body.fd-overlay.embedded { height: auto; min-height: 100%; padding: 12px; overfl
 @media (max-height: 400px) { .ov-body { overflow-y: auto; display: block; } .ov-context { overflow: visible; } }
 @media (max-width: 360px) { .ov-head { flex-wrap: wrap; } .ov-brand { min-width: 140px; } .ov-focus { padding-inline: 10px; } .ov-comp-row { gap: 5px; } }
 .ov-comp-tag { white-space: nowrap; }
+
+/* FLEXERS: a seat re-solved after a ban in the team's chosen draft */
+.ov-comp-row[data-swapped="true"] .ov-comp-champ { color: var(--mm-accent, #c8962e); }
+.ov-comp-swap { display: block; font-size: 10px; opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+

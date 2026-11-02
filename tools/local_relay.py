@@ -8,7 +8,7 @@ The relay handlers are loaded from bot.py itself (the section between ``_SYNC_SE
   client times out, which is what a firewall does.
 * ``GET /control/rooms``: the rooms, participants and elected leaders, for assertions.
 
-    python tools/local_relay.py --port 8790
+    python tools/local_relay.py --port 8795
 """
 from __future__ import annotations
 
@@ -108,7 +108,7 @@ def build_app(latency_ms: int = 0) -> web.Application:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--port", type=int, default=8790)
+    parser.add_argument("--port", type=int, default=8795)
     parser.add_argument("--latency", type=int, default=0, help="milliseconds added to every relay request")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")

@@ -9,7 +9,7 @@ and drives a whole draft through it the way five teammates would:
 
 | Piece | Tool | Port(s) |
 | --- | --- | --- |
-| Draft-sync relay (the deployed bot's code, no Discord) | `tools/local_relay.py` | 8790 |
+| Draft-sync relay (the deployed bot's code, no Discord) | `tools/local_relay.py` | 8795 |
 | Fake League lobby: five fake clients sharing one champion select | `tools/fake_lcu.py` | control 8700, clients 8710–8714 |
 | Five Draft Coach apps, each on its own fake client, in production mode (`INTENT_LIVE=1`) | `run.py` | app 8800/8810/…, bridge = app port + 1 |
 
@@ -77,7 +77,7 @@ actor. Its generic "locked" event alone cannot identify who acted.
 
 Use `--scenario full` and `--scenario full --side red` consecutively. Logs append across the captain
 restart and flush immediately; `run.py` also sends Python logging to stderr so each app log includes
-LCU errors. Port constants remain 8700 / 8710 / 8790 / 8800+10N. The test asserts ten actual actions,
+LCU errors. Port constants remain 8700 / 8710 / 8795 / 8800+10N. The test asserts ten actual actions,
 keeps the complete lobby event history, and verifies the new port after client rotation.
 
 The original smoke/full scenarios passed (65/0 in 54.1 s, 76/0 in 72.1 s), but the full run logged

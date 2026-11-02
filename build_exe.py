@@ -22,8 +22,8 @@ ROOT = Path(__file__).resolve().parent
 NAME = "FlexersDraftCoach"
 DIST = ROOT / "dist" / NAME
 ART_CANDIDATES = [ROOT / "art"]   # the MatchupMaster porcelain set is 143 MB; the app falls back to CommunityDragon art
-TEAM_SYNC_RELAY = "https://draft--intent-parse-bot--cdzz6bjv54yz.code.run"
-TEAM_SYNC_ROOM_KEY = "flexers-intent-ranked-flex-room-v1"  # shared room identity, not a credential
+sys.path.insert(0, str(ROOT))
+from team_sync import TEAM_SYNC_RELAY, TEAM_SYNC_ROOM_KEY  # noqa: E402  the bot and the build share one room
 
 LAUNCHERS = {
     "Repair Draft Coach Update.bat": r'''@echo off
@@ -156,6 +156,7 @@ def main() -> int:
         "--add-data", f"{ROOT / 'league_patch_live.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_flex_core.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_draft_backend.py'}{sep}engine",
+        "--add-data", f"{ROOT / 'team_sync.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_player_data.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_pro_data.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_multi_source.py'}{sep}engine",

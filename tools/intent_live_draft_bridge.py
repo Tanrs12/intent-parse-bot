@@ -28,6 +28,7 @@ import league_aggregate_sources
 from league_draft_backend import IDENTITIES, _pick_group_meta, recommend_live_drafts
 from league_flex_core import role_option_limit
 from league_pro_data import refresh_recent_pro_data
+from team_sync import chosen_status, clean_chosen
 
 ROLES = ["Top", "Jungle", "Mid", "ADC", "Support"]
 COACH_STATE_URL = "http://127.0.0.1:8765/api/state"
@@ -280,7 +281,10 @@ def _apply_cloud_control(control: dict) -> None:
         if isinstance(shared, dict):
             _set_control({**shared, "signature": (control or {}).get("preference")}, replace=True)
         else:
-            _set_preference((control or {}).get("preference"))
+            # The room's control was released (Discord "Release draft" or a cleared preference):
+            # drop the locks and the chosen draft too, keep the shake counter so retired drafts stay retired.
+            _set_control({"identity": None, "role_locks": {}, "champion_locks": {}, "chosen": None,
+                          "shake": int(_control.get("shake") or 0), "signature": (control or {}).get("preference")}, replace=True)
 
 
 def cloud_auto_loop() -> None:
@@ -392,8 +396,10 @@ PREFERENCE_MAX_GAP = 2.5
 #   role_locks      role -> Discord user id: that player must play that role
 #   champion_locks  role -> champion: every draft must contain it (a lock we have not revealed yet)
 #   shake           counter; each increment reshuffles and retires the drafts already shown this game
-_control: dict = {"identity": None, "role_locks": {}, "champion_locks": {}, "shake": 0}
+#   chosen          the draft the team picked (in Discord or an app): label, source, original five
+_control: dict = {"identity": None, "role_locks": {}, "champion_locks": {}, "shake": 0, "chosen": None}
 _shaken_signatures: dict[str, list[str]] = {}       # game id -> signatures retired by shakes
+_CONTROL_KEYS = ("identity", "role_locks", "champion_locks", "shake", "chosen")
 
 
 def _normalise_control(raw: dict | None) -> dict:
@@ -401,6 +407,7 @@ def _normalise_control(raw: dict | None) -> dict:
     identity = str(raw.get("identity") or "").strip().casefold() or None
     if identity not in IDENTITIES:
         identity = None
+    chosen = clean_chosen(raw.get("chosen"))
     role_locks = {}
     for role, uid in (raw.get("role_locks") or {}).items():
         if role in ROLES and str(uid).lstrip("-").isdigit() and int(uid) > 0:
@@ -411,7 +418,7 @@ def _normalise_control(raw: dict | None) -> dict:
         shake = max(0, int(raw.get("shake") or 0))
     except (TypeError, ValueError):
         shake = 0
-    return {"identity": identity, "role_locks": role_locks, "champion_locks": champion_locks, "shake": shake}
+    return {"identity": identity, "role_locks": role_locks, "champion_locks": champion_locks, "shake": shake, "chosen": chosen}
 
 
 def _get_control() -> dict:
@@ -427,7 +434,7 @@ def _set_control(update: dict | None, *, replace: bool = False) -> dict:
     signature = str(update.pop("signature", None) or "").strip() or None
     with _preference_lock:
         base = {} if replace else dict(_control)
-        for key in ("identity", "role_locks", "champion_locks", "shake"):
+        for key in _CONTROL_KEYS:
             if key in update:
                 base[key] = update[key]
         new = _normalise_control(base)
@@ -1605,6 +1612,15 @@ def build_response():
         lead = (guidance.get("comps") or [{}])[0]
         _last_best_signature = lead.get("signature") or (_comp_signature(lead.get("champions")) if lead.get("champions") else None)
         guidance["control"] = control
+        # FLEXERS: the draft the team chose (Discord "Lock Draft N" or an app) and what the live
+        # re-solve did to it: roles stay pinned, surviving champions stay locked, only banned or
+        # taken seats change, and the panel says which seat changed and why.
+        guidance["chosen"] = chosen_status(
+            control.get("chosen"), lead,
+            our_bans=list(effective_state.get("our_bans") or []),
+            enemy_bans=list(effective_state.get("enemy_bans") or []),
+            enemy_locked=[row.get("locked") for row in effective_state.get("enemy_team", []) if row.get("locked")],
+        )
         guidance["identities"] = [{"key": key, "label": spec["label"], "description": spec["description"],
                                    "count": int((result.get("identities") or {}).get(key, 0))}
                                   for key, spec in IDENTITIES.items()]
@@ -1735,7 +1751,7 @@ class Handler(BaseHTTPRequestHandler):
             # synced room the relay owns the authoritative copy and every client applies its version.
             current = _get_control()
             if path == "/api/control":
-                merged = {**current, **{k: v for k, v in payload.items() if k in ("identity", "role_locks", "champion_locks", "shake", "signature")}}
+                merged = {**current, **{k: v for k, v in payload.items() if k in _CONTROL_KEYS + ("signature",)}}
                 if payload.get("shake") == "+1" or payload.get("shake_it_up"):
                     merged["shake"] = int(current.get("shake") or 0) + 1
                 control = _normalise_control(merged)

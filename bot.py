@@ -168,6 +168,19 @@ async def _relay_preference(request: web.Request) -> web.Response:
             "champion_locks": {str(k)[:12]: str(v)[:40] for k, v in (control.get("champion_locks") or {}).items() if v},
             "shake": int(control.get("shake") or 0),
         }
+        # A draft chosen in Discord (or an app) travels with its label and original five so every
+        # client can say "Draft 3 · Sylas banned, playing Galio" instead of silently re-ranking.
+        chosen = control.get("chosen")
+        if isinstance(chosen, dict):
+            champions = {str(k)[:12]: str(v)[:40] for k, v in (chosen.get("champions") or {}).items() if v}
+            if champions:
+                clean["chosen"] = {
+                    "label": str(chosen.get("label") or "Team draft")[:40],
+                    "source": str(chosen.get("source") or "")[:12],
+                    "plan": str(chosen.get("plan") or "")[:40],
+                    "champions": champions,
+                    "players": {str(k)[:12]: str(v)[:32] for k, v in (chosen.get("players") or {}).items() if v},
+                }
         row["control"] = clean
     elif "control" in payload and payload.get("control") is None:
         row["control"] = None

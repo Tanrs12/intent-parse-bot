@@ -20,6 +20,7 @@ from discord.ext import commands, tasks
 
 import db as database
 from config import LEAGUE_EVENT_CHANNEL_ID, LEAGUE_GUILD_ID
+from team_sync import TEAM_SYNC_ROOM_KEY, clear_control_payload, draft_control_payload
 from league_comp_engine import (
     ALL_IN_ADCS,
     BLOCKED_ROLE_PICKS,
@@ -751,6 +752,45 @@ class UnavailableChampionsModal(discord.ui.Modal, title="Banned / taken champion
         )
 
 
+def live_draft_text(payload: dict | None, label: str) -> str:
+    """The Discord mirror of what the five apps show: bans, enemy picks, our five and the next pick.
+
+    Empty when no app is in champ select, so the mirror task knows the draft is over.
+    """
+    if not isinstance(payload, dict) or not payload.get("active"):
+        return ""
+    g = payload.get("guidance") or {}
+    comps = g.get("comps") or []
+    if not comps:
+        return ""
+    lead = comps[0]
+    chosen = g.get("chosen") or {}
+    replaced = chosen.get("replaced") or {}
+    our_locked = g.get("our_locked") or {}
+    lines = [f"🎯 **Live draft · {chosen.get('label') or label}**" + (" · " + chosen["plan"] if chosen.get("plan") else "")]
+    our_bans = [str(c) for c in (g.get("our_bans") or []) if c]
+    enemy_bans = [str(c) for c in (g.get("enemy_bans") or []) if c]
+    enemy_locked = [str(c) for c in (g.get("enemy_locked") or []) if c]
+    if our_bans or enemy_bans:
+        lines.append(f"🚫 Our bans: {', '.join(our_bans) or '—'} · Enemy bans: {', '.join(enemy_bans) or '—'}")
+    if enemy_locked:
+        lines.append("🟥 Enemy picks: " + ", ".join(enemy_locked))
+    for role in ROLES:
+        champ = our_locked.get(role) or (lead.get("champions") or {}).get(role) or "?"
+        lead_player = (lead.get("players") or {}).get(role)
+        if isinstance(lead_player, dict):
+            lead_player = lead_player.get("display_name")
+        who = (chosen.get("players") or {}).get(role) or lead_player or ""
+        marker = "🔒" if our_locked.get(role) else "▫️"
+        swap = replaced.get(role)
+        tail = f"  (was {swap['was']}, {swap['why']})" if swap else ""
+        lines.append(f"{marker} **{role}** {who + ' · ' if who else ''}{champ}{tail}")
+    picking = g.get("picking_now") or g.get("headline")
+    if picking:
+        lines.append("➡️ " + str(picking))
+    return "\n".join(lines)[:1900]
+
+
 class DraftChoiceSelect(discord.ui.Select):
     def __init__(self, parent: "DraftControlsView", recommendations: list[dict]):
         self.parent_view = parent
@@ -767,10 +807,22 @@ class DraftChoiceSelect(discord.ui.Select):
             }
             for role in ROLES
         }
-        await interaction.response.send_message(
-            f"🔒 **Draft {index + 1} roles locked.** Future bans/enemy picks will change champions only — not who is playing each role.",
-            ephemeral=True,
-        )
+        # The choice drives the five Draft Coach apps through the shared relay room: roles pinned,
+        # the five champions locked, the draft's style kept. A ban re-solves only that seat.
+        label = f"Draft {index + 1}"
+        sent = await self.parent_view.cog.push_draft_to_apps(draft_control_payload(rec, label=label, source="discord"))
+        lineup = " · ".join(f"{rec['players'][role]['display_name']} {rec['champions'][role]}" for role in ROLES)
+        if sent:
+            note = (f"🔒 **{label} sent to everyone's Draft Coach.** {lineup}\n"
+                    "Roles are pinned. If a champion gets banned or taken, only that seat is re-solved in the same style, "
+                    "and the apps say what changed. Use **Release draft** to go back to automatic drafts.")
+        else:
+            note = (f"🔒 **{label} roles locked here**, but the Draft Coach relay could not be reached, so the apps "
+                    "are still on automatic drafts. Try the dropdown again in a moment.")
+        await interaction.response.send_message(note, ephemeral=True)
+        if sent and interaction.guild is not None:
+            await self.parent_view.cog.announce_draft_choice(interaction.guild, interaction.channel, label, lineup)
+            self.parent_view.cog.start_live_mirror(interaction.guild, interaction.channel, label)
 
 
 class DraftControlsView(discord.ui.View):
@@ -783,6 +835,23 @@ class DraftControlsView(discord.ui.View):
         self.locked_assignment = locked_assignment
         if self.recommendations and self.locked_assignment is None:
             self.add_item(DraftChoiceSelect(self, self.recommendations))
+
+    @discord.ui.button(label="Release draft", emoji="🔓", style=discord.ButtonStyle.secondary)
+    async def release_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.locked_assignment = None
+        if not any(isinstance(item, DraftChoiceSelect) for item in self.children) and self.recommendations:
+            self.add_item(DraftChoiceSelect(self, self.recommendations))
+        sent = await self.cog.push_draft_to_apps(clear_control_payload())
+        self.cog.stop_live_mirror(interaction.guild.id if interaction.guild else 0)
+        try:
+            await interaction.message.edit(view=self)
+        except (discord.HTTPException, AttributeError):
+            pass
+        await interaction.response.send_message(
+            "🔓 Draft released. The apps are back on automatic drafts." if sent else
+            "🔓 Released here, but the Draft Coach relay could not be reached.",
+            ephemeral=True,
+        )
 
     @discord.ui.button(label="Update bans / enemy picks", emoji="🚫", style=discord.ButtonStyle.danger)
     async def unavailable_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -855,6 +924,7 @@ class LeagueFlexCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self._live_mirrors: dict[int, asyncio.Task] = {}
         self.bot.add_view(LeagueEventView(self))
         self._legacy_reminder_cleanup = asyncio.create_task(self.remove_existing_reminder())
         self._pro_meta_refresh_task = asyncio.create_task(self.refresh_pro_meta_forever())
@@ -940,6 +1010,91 @@ class LeagueFlexCog(commands.Cog):
             except Exception:
                 log.exception("League shared data refresh failed; retaining last good snapshot")
             await asyncio.sleep(60 * 60)
+
+    # ---- the chosen draft -> the five Draft Coach apps (through the relay this bot hosts) -----------
+    def relay_base(self) -> str:
+        """The relay runs inside this process (bot.py); loopback is the shortest path to it."""
+        return os.getenv("INTENT_SYNC_LOCAL_RELAY") or f"http://127.0.0.1:{os.getenv('PORT', '8080')}"
+
+    async def push_draft_to_apps(self, payload: dict) -> bool:
+        url = f"{self.relay_base()}/draft-sync/{TEAM_SYNC_ROOM_KEY}/preference"
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=6)) as session:
+                async with session.post(url, json=payload) as response:
+                    if response.status != 200:
+                        log.warning("Draft relay refused the chosen draft: HTTP %s", response.status)
+                        return False
+                    return True
+        except Exception:
+            log.exception("Could not push the chosen draft to the relay")
+            return False
+
+    async def read_live_draft(self) -> dict | None:
+        """The captain's published guidance, or None when no app is in champ select."""
+        url = f"{self.relay_base()}/draft-sync/{TEAM_SYNC_ROOM_KEY}"
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=6)) as session:
+                async with session.get(url) as response:
+                    if response.status != 200:
+                        return None
+                    return await response.json()
+        except Exception:
+            return None
+
+    async def announce_draft_choice(self, guild: discord.Guild, channel, label: str, lineup: str) -> None:
+        try:
+            target = await self._ensure_draft_channel(guild)
+        except (discord.Forbidden, discord.HTTPException):
+            target = None
+        target = target or channel
+        if target is None or not hasattr(target, "send"):
+            return
+        try:
+            await target.send(f"🔒 **{label} is the team draft.** {lineup}\nEveryone's Draft Coach is following it.")
+        except discord.HTTPException:
+            log.exception("Could not announce the chosen draft")
+
+    def start_live_mirror(self, guild: discord.Guild, channel, label: str) -> None:
+        """One message in the draft channel that follows champ select: bans, enemy picks, our five."""
+        self.stop_live_mirror(guild.id)
+        self._live_mirrors[guild.id] = asyncio.create_task(self._live_mirror(guild, channel, label))
+
+    def stop_live_mirror(self, guild_id: int) -> None:
+        task = self._live_mirrors.pop(guild_id, None)
+        if task and not task.done():
+            task.cancel()
+
+    async def _live_mirror(self, guild: discord.Guild, channel, label: str) -> None:
+        try:
+            target = await self._ensure_draft_channel(guild)
+        except (discord.Forbidden, discord.HTTPException):
+            target = None
+        target = target or channel
+        if target is None or not hasattr(target, "send"):
+            return
+        message = None
+        last_text = ""
+        idle_since = None
+        started = asyncio.get_event_loop().time()
+        while asyncio.get_event_loop().time() - started < 45 * 60:
+            payload = await self.read_live_draft()
+            text = live_draft_text(payload, label)
+            if text:
+                idle_since = None
+                if text != last_text:
+                    try:
+                        if message is None:
+                            message = await target.send(text)
+                        else:
+                            await message.edit(content=text)
+                        last_text = text
+                    except discord.HTTPException:
+                        log.exception("Could not update the live draft message")
+            else:
+                idle_since = idle_since or asyncio.get_event_loop().time()
+                if message is not None and asyncio.get_event_loop().time() - idle_since > 90:
+                    break
+            await asyncio.sleep(3)
 
     async def get_draft_state(self, guild_id: int):
         db = await database.connect()

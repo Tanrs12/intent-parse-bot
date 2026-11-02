@@ -318,8 +318,12 @@
         champion_id: D.idFor(seat.locked), status: "locked" } : row;
     }).filter(Boolean);
     const src = (g && g.pick_order_source) || "";
-    const label = src.startsWith("plan:") ? "Our planned five · " + src.slice(5) : "Our planned five";
-    const key = label + "|" + ordered.map((r) => r.slot + r.champion + (r.champion_id || D.idFor(r.champion) || "") + r.status + ((byRole[r.role] || {}).is_local ? "L" : "") + ((byRole[r.role] || {}).display_name || "")).join("|");
+    // A draft the team chose (Discord "Lock Draft N") names the list; a replaced seat says why.
+    const chosen = (g && g.chosen) || null;
+    const replaced = (chosen && chosen.replaced) || {};
+    const label = chosen ? (chosen.label || "Team draft") + (chosen.source === "discord" ? " · from Discord" : "") + (chosen.intact ? "" : " · " + Object.keys(replaced).length + " seat" + (Object.keys(replaced).length === 1 ? "" : "s") + " changed")
+      : src.startsWith("plan:") ? "Our planned five · " + src.slice(5) : "Our planned five";
+    const key = label + "|" + ordered.map((r) => r.slot + r.champion + (r.champion_id || D.idFor(r.champion) || "") + r.status + ((byRole[r.role] || {}).is_local ? "L" : "") + ((byRole[r.role] || {}).display_name || "") + (replaced[r.role] ? replaced[r.role].was + replaced[r.role].why : "")).join("|");
     if (key === orderKey) return;
     orderKey = key;
     $("order-label").textContent = label;
@@ -332,8 +336,13 @@
       const who = D.el("span", "ov-comp-who");
       who.append(D.el("b", "", ROLE_LONG[r.role] || r.role), D.el("span", "", seat.display_name ? seat.display_name + (seat.is_local ? " · you" : "") : ""));
       const tag = r.status === "locked" ? "Locked" : r.status === "next" ? (seat.is_local ? "You pick now" : "Picks next") : "Later";
+      const swap = replaced[r.role];
       li.append(D.portrait(r.champion, "", r.champion_id), who, D.el("b", "ov-comp-champ", r.champion), D.el("span", "ov-comp-tag", tag));
-      li.title = [r.champion, seat.display_name, seat.is_local ? "Your seat" : "", r.status === "next" ? "Picks next" : r.status, ...(r.tags || [])].filter(Boolean).join(" \u00b7 ");
+      if (swap) {
+        li.dataset.swapped = "true";
+        who.append(D.el("span", "ov-comp-swap", "was " + swap.was + " \u00b7 " + swap.why));
+      }
+      li.title = [r.champion, seat.display_name, seat.is_local ? "Your seat" : "", r.status === "next" ? "Picks next" : r.status, swap ? "Replaces " + swap.was + " (" + swap.why + ")" : "", ...(r.tags || [])].filter(Boolean).join(" \u00b7 ");
       list.append(li);
     }
   }

@@ -720,7 +720,14 @@
 
     const pref = (g && g.preference) || {};
     const prefNote = $("captain-preference");
-    if (!pref.signature) {
+    const chosen = (g && g.chosen) || null;
+    if (chosen) {
+      const swaps = Object.entries(chosen.replaced || {}).map(([role, r]) => role + ": " + r.was + " " + r.why + " → " + r.now);
+      prefNote.textContent = chosen.label + (chosen.source === "discord" ? " chosen in Discord" : " chosen") +
+        (chosen.plan ? " · " + chosen.plan : "") +
+        (swaps.length ? " · " + swaps.join(" · ") : " · all five still available");
+      prefNote.className = "captain-preference-note " + (swaps.length ? "warn" : "on");
+    } else if (!pref.signature) {
       prefNote.textContent = "Prefer a draft to keep it while it remains competitive.";
       prefNote.className = "captain-preference-note";
     } else if (!pref.active) {
