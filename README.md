@@ -8,6 +8,8 @@ It intentionally contains no Warcraft Logs/MoP functionality. League signup stat
 
 **Download:** https://github.com/Tanrs12/intent-parse-bot/releases/latest/download/FlexersDraftCoach.zip
 
+**Team guide:** [docs/draftcoach/ROLLOUT.md](docs/draftcoach/ROLLOUT.md) (install, first game, what to do if something looks wrong). How it was tested: [docs/draftcoach/PARTY_TEST.md](docs/draftcoach/PARTY_TEST.md).
+
 Unzip, open the folder, double-click `FlexersDraftCoach.exe` (or one of the `.bat`
 launchers) while League is open. No Python needed. The app lives in this repository
 (`draftcoach/`, `run.py`, `build_exe.py`, `loadfiles/`) and ranks through the same brain as

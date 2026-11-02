@@ -506,7 +506,10 @@ class Hub:
             view["action_id"] = int(action["id"])
             view["can_act"] = view["client"]
             if action.get("type") == "ban":
-                best = next(iter(g.get("bans") or []), None)
+                # FLEXERS: never suggest a champion that is already banned or picked (the shared ranking can
+                # lag a ban that landed a moment ago).
+                gone = set(state.our_bans) | set(state.enemy_bans) | set(state.our_locked().values()) | set(state.enemy_locked().values())
+                best = next((b for b in g.get("bans") or [] if b.get("champion") not in gone), None)
                 if best:
                     view["suggestion"] = {"kind": "ban", "champion": best["champion"], "champion_id": best.get("champion_id"),
                                           "reason": (best.get("reasons") or [""])[0]}

@@ -274,21 +274,32 @@ class Lobby:
         labels = ", ".join(f"{'B' if a['actorCellId'] < 5 else 'R'}{a['actorCellId']}" for a in self.groups[index])
         self.log_event(f"turn {index + 1}/{len(self.groups)}: {self.groups[index][0]['type']} by {labels}", group=index)
 
+    def _available(self, wanted: str | None, position: str) -> int:
+        """The scripted champion if it is still available, else the first free fallback for that lane,
+        else any free champion: a real enemy never fails to lock because our team took their plan."""
+        gone = self.unavailable()
+        for name in [wanted] + FALLBACK.get(position, []):
+            if name and cid(name) and cid(name) not in gone:
+                return cid(name)
+        for name, champion_id in champ_map.all_ids().items():
+            if champion_id not in gone:
+                return champion_id
+        return 0
+
     def _enemy_step(self, action: dict, elapsed: float) -> bool:
         kind = action["type"]
         index = self.enemy_done[kind]
+        position = self.member(action["actorCellId"])["assignedPosition"]
         if kind == "ban":
             target = self.enemy["bans"][index % len(self.enemy["bans"])]
             if elapsed >= self.enemy_delay:
-                self._complete(action, cid(target))
+                self._complete(action, self._available(target, position))
                 self.enemy_done[kind] += 1
                 return True
             return False
         hover = (self.enemy["hover_first"] + [None] * 5)[index]
         pick = self.enemy["picks"][index % len(self.enemy["picks"])]
-        want = cid(pick) if elapsed >= self.enemy_delay * 1.5 or not hover else cid(hover)
-        if want in self.unavailable():
-            want = next((cid(x) for x in self.enemy["picks"] if cid(x) not in self.unavailable()), 0)
+        want = self._available(pick, position) if elapsed >= self.enemy_delay * 1.5 or not hover else self._available(hover, position)
         changed = False
         if elapsed >= self.enemy_delay * 0.5 and action["championId"] != want and want:
             action["championId"] = want

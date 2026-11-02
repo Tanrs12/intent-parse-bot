@@ -149,7 +149,7 @@ class Party:
                                            stdout=open(self.var / "relay.log", "w"), stderr=subprocess.STDOUT))
         self.procs.append(subprocess.Popen([PY, str(REPO / "tools" / "fake_lcu.py"), "--dir", str(self.lobby_dir), "--control-port", "8700",
                                             "--client-port", "8710", "--our", ",".join(OUR), "--side", self.args.side,
-                                            "--turn", str(self.args.turn), "--planning", "6", "--finalization", "150"],   # long enough for the failover step before the trade
+                                            "--turn", str(self.args.turn), "--planning", "6", "--finalization", "420"],   # long enough for failover + review steps before the trade; the test ends the game itself
                                            cwd=str(REPO), stdout=open(self.var / "lobby.log", "w"), stderr=subprocess.STDOUT))
         ok = wait_for(lambda: get(self.relay + "/health"), 15) and wait_for(lambda: get(self.lobby + "/control/state"), 15)
         self.report.check("relay and fake lobby started", bool(ok))
