@@ -412,6 +412,7 @@ button.card:hover:not(:disabled) .champ { color: var(--mm-blue); }
 .team-draft-seats small { display: block; color: var(--mm-secondary); font-size: 10px; margin-top: 2px; }
 @media (max-width: 720px) { .team-draft-seats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-.team-draft-seats .control-field { display: flex; flex-direction: column; justify-content: flex-end; min-width: 0; }
-.team-draft-seats .control-field > .mm-meta { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
-.team-draft-seats select { width: 100%; min-width: 0; }
+.team-draft-seats .control-field { display: grid; grid-template-rows: 16px 40px 14px; align-items: start; gap: 4px; min-width: 0; }
+.team-draft-seats .control-field > .mm-meta { display: block; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team-draft-seats select { width: 100%; min-width: 0; min-height: 40px; }
+.team-draft-seats small { margin-top: 0; line-height: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
