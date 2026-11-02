@@ -518,7 +518,7 @@
     if (!rows.length) { section.hidden = true; return; }
     section.hidden = false;
     const src = g.pick_order_source || "";
-    $("order-sub").textContent = src.startsWith("plan:") ? "for " + src.slice(5) : "for the leading composition";
+    $("order-sub").textContent = src.startsWith("plan:") ? "for " + src.slice(5) : src === "lead" ? "for the leading pick's draft" : "for the leading composition";
     for (const r of rows) {
       const c = D.el("span", "chip" + (r.status === "locked" ? " on" : r.status === "next" ? " next" : ""));
       c.append(D.el("small", "", r.slot), D.portrait(r.champion, "tiny", r.champion_id), D.el("b", "", r.champion), D.el("small", "", D.ROLE_SHORT[r.role] || r.role));

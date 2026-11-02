@@ -118,8 +118,8 @@
       <section id="post-draft-summary" class="draft-summary"
                aria-label="Final team and game plan" hidden></section>
       <div id="order" hidden>
-        <p class="ov-list-label mm-meta" id="order-label">Next reveal</p>
-        <ol class="ov-order" id="order-list" aria-labelledby="order-label"></ol>
+        <p class="ov-list-label mm-meta" id="order-label">Team comp</p>
+        <ol class="ov-comp" id="order-list" aria-labelledby="order-label"></ol>
       </div>
       <div id="alternatives" hidden>
         <p class="ov-list-label mm-meta" id="alternatives-label">Alternatives</p>
@@ -334,18 +334,33 @@
   }
 
   let orderKey = "";
-  function renderOrder(g) {
-    const rows = ((g && g.pick_order) || []).filter(r => r.status === "next").slice(0, 2);
+  function renderOrder(g, s) {
+    // The full five of the draft the lead pick belongs to, in role order: locked seats, the seat that
+    // picks next, the seats still to come, and which one is us.
+    const rows = (g && g.pick_order) || [];
     const box = $("order"), list = $("order-list");
-    box.hidden = !rows.length;
-    const key = rows.map((r) => r.slot + r.champion + r.status).join("|");
+    box.hidden = rows.length !== 5;
+    if (rows.length !== 5) { orderKey = ""; return; }
+    const seats = ((s && s.our_team) || []).filter((p) => p.role);
+    const byRole = Object.fromEntries(seats.map((p) => [p.role, p]));
+    const ordered = D.ROLES.map((r) => rows.find((x) => x.role === r)).filter(Boolean);
+    const src = (g && g.pick_order_source) || "";
+    const label = src.startsWith("plan:") ? "Team comp · " + src.slice(5) : "Team comp · leading draft";
+    const key = label + "|" + ordered.map((r) => r.slot + r.champion + r.status + ((byRole[r.role] || {}).is_local ? "L" : "") + ((byRole[r.role] || {}).display_name || "")).join("|");
     if (key === orderKey) return;
     orderKey = key;
+    $("order-label").textContent = label;
     list.replaceChildren();
-    for (const r of rows) {
-      const li = D.el("li", "ov-order-item"); li.dataset.status = r.status;
-      li.append(D.el("small", "", r.slot), D.el("b", "", r.champion));
-      li.title = (D.ROLE_SHORT[r.role] || r.role) + ((r.tags || []).length ? " · " + r.tags.join(", ") : "");
+    for (const r of ordered) {
+      const seat = byRole[r.role] || {};
+      const li = D.el("li", "ov-comp-row");
+      li.dataset.status = r.status;
+      li.dataset.local = String(!!seat.is_local);
+      const who = D.el("span", "ov-comp-who");
+      who.append(D.el("b", "", ROLE_LONG[r.role] || r.role), D.el("span", "", seat.display_name ? seat.display_name + (seat.is_local ? " · you" : "") : ""));
+      const tag = r.status === "locked" ? "Locked" : r.status === "next" ? (seat.is_local ? "You pick now" : "Picks next") : r.slot;
+      li.append(D.portrait(r.champion, "", r.champion_id), who, D.el("b", "ov-comp-champ", r.champion), D.el("span", "ov-comp-tag", tag));
+      li.title = (r.tags || []).join(", ");
       list.append(li);
     }
   }
@@ -681,7 +696,7 @@
     );
     $("type").disabled = typePending || !!populated;        // live client too: fearless / ranked rules apply to any source
     renderPlanSelect(snap.guidance);
-    renderOrder(snap.guidance);
+    renderOrder(snap.guidance, s);
     $("type").title = populated ? "Change format in Coach after resetting this draft." : "";
 
     const conn = $("conn");

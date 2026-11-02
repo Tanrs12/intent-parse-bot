@@ -849,6 +849,24 @@ def advise(state: DraftState, roster: Roster | None = None, *, meta: dict | None
             pick["score"] = round(max(0.0, min(100.0, pick["score"] + pick["order_adjustment"])), 1)
             pick["rank"] = round(pick["rank"] + pick["order_adjustment"], 3)
         picks.sort(key=lambda p: (p["source"] != "exhausted", p["rank"], p["flex"]), reverse=True)
+        # FLEXERS: the leading pick carries matchup, counter-risk and familiarity evidence the composition
+        # ranking does not. When it still beats the champion the order scheduled for its role, the order
+        # follows the lead (its best five), so the panel never says "X leads" next to "reveal Y next".
+        lead = picks[0] if picks else None
+        if (lead is not None and source_plan is None and lead["source"] != "exhausted"
+                and lead["role"] not in our_locked and target.get(lead["role"]) != lead["champion"]
+                and isinstance(lead.get("best_comp"), dict)):
+            target = dict(lead["best_comp"])
+            target[lead["role"]] = lead["champion"]
+            target.update(our_locked)
+            if len(target) == 5 and len(set(target.values())) == 5:
+                order_rows = plan_pick_order(target, state.side, meta, matchups, pools_all, our_locked)
+                order_source = "lead"
+                scheduled_now = {(r["role"], r["champion"]) for r in order_rows if r["status"] == "next"}
+                for pick in picks:
+                    pick["why"] = [w for w in pick["why"] if not w.startswith("pick order:")]
+                    if (pick["role"], pick["champion"]) in scheduled_now:
+                        pick["why"].append("pick order: reveal now")
 
     # ---- what to do now -------------------------------------------------------------------------------
     headline, phase_kind = _headline(state, picks, ban_list, roles_now, picking_now, draft_complete, team, enemy_team)
