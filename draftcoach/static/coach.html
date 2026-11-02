@@ -26,6 +26,11 @@
 </header>
 
 <main class="coach-main">
+  <details class="mm-card coach-lobby coach-review" id="review-card" aria-labelledby="review-title">
+    <summary class="fd-card-head"><span id="review-title">Player review</span><span class="mm-meta" id="review-sub">Your own account, read from your League client</span></summary>
+    <div class="coach-inline-actions"><button class="fd-button" id="review-refresh" type="button">Refresh from my client</button></div>
+    <div id="review-body"></div>
+  </details>
   <details class="mm-card coach-lobby" id="lobby-card" aria-labelledby="lobby-title">
     <summary class="fd-card-head"><span id="lobby-title">Player links &amp; pools</span><span class="mm-meta" id="lobby-sub">Waiting for players</span></summary>
     <div class="coach-seats" id="lobby"></div>
@@ -200,6 +205,7 @@
 
 <script src="/static/common.js"></script>
 <script src="/static/draft-review.js"></script>
+<script src="/static/player-review.js"></script>
 <script>
 (function () {
   const D = window.Draft;
@@ -216,6 +222,7 @@
   D.themeControl($("coach-theme"), "fd-coach-theme");
   D.hydrateIcons(document);
   D.Review.mountCoach();
+  D.PlayerReview.mount();
   let coachStreamOpen = false;
 
   // ---- drawer ---------------------------------------------------------------------
@@ -565,7 +572,7 @@
   // ---- shared draft control: identity, hard locks, shake, and this seat's hover / lock ----------------
   // Independent of the INTent UI patch: polls the bridge itself so it works patched or unpatched.
   let intentGuidance = null, intentControl = null, identityList = [], controlBusy = false;
-  const BRIDGE = "http://127.0.0.1:8766";
+  const BRIDGE = "http://127.0.0.1:" + (Number(location.port || 8765) + 1);  // FLEXERS: the bridge runs on app port + 1
   async function pollDraftControl() {
     try {
       const r = await fetch(BRIDGE + "/api/guidance", { cache: "no-store" });
@@ -580,7 +587,7 @@
     } catch (e) { intentControl = null; }
     if (latest) render(latest);
   }
-  setInterval(pollDraftControl, 1000);
+  setInterval(pollDraftControl, 500);
   pollDraftControl();
   async function postControl(update) {
     if (controlBusy) return false;
@@ -648,7 +655,7 @@
       return;
     }
     try {
-      const r = await fetch("http://127.0.0.1:8766/api/preference", {
+      const r = await fetch(BRIDGE + "/api/preference", {
         method: "POST", cache: "no-store", headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ signature: signature || null })
       });

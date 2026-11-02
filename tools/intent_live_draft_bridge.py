@@ -86,11 +86,42 @@ def _cloud_url(suffix: str = "") -> str:
     return f"{_cloud_base}/draft-sync/{_cloud_key}{suffix}"
 
 
+_cloud_get_cache: tuple[float, dict | None] = (0.0, None)
+_cloud_get_lock = threading.Lock()
+_cloud_get_inflight = False
+_cloud_backoff_until = 0.0
+
+
 def _cloud_get() -> dict:
-    data = _json_get(_cloud_url(), timeout=6.0)
+    """The captain's published payload. FLEXERS: cached for 250 ms so the panel, coach page and
+    HUD polling at once share one relay round trip instead of three. Only one fetch is ever in
+    flight; callers that arrive while it runs get the last payload, and after a failure the relay
+    is left alone for two seconds, so a blocked relay (firewall, outage) never queues the panel
+    behind a stack of timeouts."""
+    global _cloud_get_cache, _cloud_get_inflight, _cloud_backoff_until
+    with _cloud_get_lock:
+        stamp, cached = _cloud_get_cache
+        fresh = cached is not None and time.time() - stamp < 0.25
+        if fresh or _cloud_get_inflight or time.time() < _cloud_backoff_until:
+            if cached is not None:
+                return dict(cached)
+            if _cloud_get_inflight or time.time() < _cloud_backoff_until:
+                raise RuntimeError("relay unreachable")
+        _cloud_get_inflight = True
+    try:
+        data = _json_get(_cloud_url(), timeout=2.5)
+    except Exception:
+        with _cloud_get_lock:
+            _cloud_backoff_until = time.time() + 2.0
+        raise
+    finally:
+        with _cloud_get_lock:
+            _cloud_get_inflight = False
     if isinstance(data, dict):
         data = dict(data)
         data["sync"] = {"mode": "cloud-follower", "source": _cloud_base}
+        with _cloud_get_lock:
+            _cloud_get_cache = (time.time(), data)
     return data
 
 
@@ -114,7 +145,7 @@ def cloud_publish_loop() -> None:
             _apply_cloud_control(control)
         except Exception:
             pass
-        time.sleep(0.8)
+        time.sleep(0.3)   # FLEXERS: publish three times a second; a change reaches followers within ~0.5 s
 
 
 
@@ -224,7 +255,7 @@ def _cloud_heartbeat(identity: dict) -> dict:
     payload = json.dumps(identity).encode("utf-8")
     req = urllib.request.Request(_cloud_url("/heartbeat"), data=payload,
                                  headers={"Content-Type": "application/json"}, method="POST")
-    with urllib.request.urlopen(req, timeout=5.0) as response:
+    with urllib.request.urlopen(req, timeout=2.5) as response:
         return json.loads(response.read())
 
 
@@ -269,9 +300,16 @@ def cloud_auto_loop() -> None:
                 published = _cloud_publish(payload, _auto_client_id)
                 _apply_cloud_control(published)
         except Exception:
-            with _auto_lock:
-                _auto_is_host = False
-        time.sleep(0.8)
+            # FLEXERS: a failed heartbeat (blocked relay, timeout) does not demote the captain at once; its own
+            # screen keeps the locally ranked drafts, and the relay re-elects if it stays dark for 6 s (its TTL).
+            _auto_failures = globals().get("_auto_failures", 0) + 1
+            globals()["_auto_failures"] = _auto_failures
+            if _auto_failures >= 20:
+                with _auto_lock:
+                    _auto_is_host = False
+        else:
+            globals()["_auto_failures"] = 0
+        time.sleep(0.3)   # FLEXERS: publish three times a second; a change reaches followers within ~0.5 s
 
 def _comp_signature(champions: dict | None) -> str:
     champions = champions or {}
@@ -1625,9 +1663,18 @@ class Handler(BaseHTTPRequestHandler):
                         data["sync"] = _auto_sync_meta("auto-follower")
                         self._reply(data)
                     except Exception as exc:
-                        self._reply({"active": False, "disabled": False,
-                                     "reason": "Waiting for the Flexers draft captain",
-                                     "sync": _auto_sync_meta("auto-follower"), "error": str(exc)}, 503)
+                        # FLEXERS: the relay is unreachable (firewall, outage, captain gone quiet). Serve the
+                        # last payload we saw if it is recent, else rank locally: a follower is never left
+                        # with an empty panel because the internet hiccupped.
+                        stamp, cached = _cloud_get_cache
+                        if cached is not None and time.time() - stamp < 20.0:
+                            data = dict(cached)
+                            data["sync"] = {**_auto_sync_meta("auto-follower"), "stale_seconds": round(time.time() - stamp, 1)}
+                            self._reply(data)
+                        else:
+                            data = dict(build_response())
+                            data["sync"] = {**_auto_sync_meta("auto-local"), "error": str(exc)}
+                            self._reply(data)
             elif _cloud_mode == "follow":
                 try:
                     self._reply(_cloud_get())
@@ -1715,7 +1762,7 @@ def background_refresh(server):
         refresh_shared_engine_data()
         refresh_pro_snapshot()
         try:
-            _json_get("http://127.0.0.1:8765/api/config", timeout=1.5)
+            _json_get(COACH_STATE_URL.rsplit("/api/", 1)[0] + "/api/config", timeout=1.5)
             seen_coach = True
             down_since = None
         except Exception:

@@ -55,7 +55,7 @@ class LockfileInfo:
 
     @property
     def ws_url(self) -> str:
-        return f"wss://127.0.0.1:{self.port}/"
+        return f"{'wss' if self.protocol == 'https' else 'ws'}://127.0.0.1:{self.port}/"
 
 
 def parse_lockfile(text: str) -> LockfileInfo:
@@ -114,6 +114,8 @@ class LcuRest:
         self.ctx = ssl.create_default_context()
         self.ctx.check_hostname = False
         self.ctx.verify_mode = ssl.CERT_NONE  # the client uses a self-signed cert on 127.0.0.1
+        if info.protocol != "https":
+            self.ctx = None  # a fake client for the party test speaks plain http
 
     def get(self, path: str, *, raw: bool = False, timeout: float = 5.0):
         request = urllib.request.Request(self.info.base_url + path, headers={"Authorization": self.info.auth_header,
@@ -285,7 +287,7 @@ class LcuWatcher:
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
-        async with websockets.connect(info.ws_url, ssl=ctx, subprotocols=["wamp"],
+        async with websockets.connect(info.ws_url, ssl=ctx if info.protocol == "https" else None, subprotocols=["wamp"],
                                       additional_headers={"Authorization": info.auth_header},
                                       max_size=16 * 1024 * 1024, open_timeout=5) as ws:
             await ws.send(json.dumps([5, CHAMP_SELECT_EVENT]))

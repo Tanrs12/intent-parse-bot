@@ -185,3 +185,22 @@ familiarity words (PRIORITISE = comfort, TEST MORE = refresh, REVIEW = developin
   search that generates identity-specific shells would widen the pool when the pools are thin.
 - Locks and identity are not yet shown on the in-client gallery overlay; they are on the coach
   page and the panel.
+
+## 8. Player review (2 November 2026)
+
+The coach page has a **Player review** card: the signed-in player's own account, read from their own
+League client (`/lol-ranked`, `/lol-match-history`), no API key. `draftcoach/stats.py` converts the
+client's match format into the Riot match-v5 shape and runs the Matchup Master aggregates ported into
+`draftcoach/mmstats/` (own-match dashboard and same-role peer comparison, verbatim apart from imports).
+The review shows rank and LP per queue, record and form, KDA, CS / damage / gold / vision per minute,
+kill participation, champions, roles, recent games, lane matchups on record, when you win and lose
+(after a loss, game of the session, game length, side) and plain-language insights. It is cached under
+`var/stats/<puuid>/` and served by `GET /api/stats/me` (`?refresh=1` re-reads the client). It is coach
+page only; the panel and HUD never show it.
+
+## 9. The party test
+
+`tools/party_test.py` runs five apps against five fake League clients in one lobby with the relay
+running locally, drives a whole draft through each user's own client and measures propagation. See
+`docs/draftcoach/PARTY_TEST.md`.
+

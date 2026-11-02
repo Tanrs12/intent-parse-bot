@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable
 
 from . import advisor, loadfiles
+from . import champions as champ_map
 from . import client_actions
 from . import state as ds
 from .draft_order import DRAFT_TYPES, ManualDraft, normalise_type
@@ -47,6 +48,7 @@ class Hub:
         self.roster_path = roster_path
         self.state: ds.DraftState | None = None
         self.guidance: dict | None = None
+        self.intent_guidance: dict | None = None     # FLEXERS: the shared backend's latest picks/bans (server poller)
         self.status: dict[str, Any] = {"connection": "waiting", "detail": "starting", "source": None, "updated_at": None,
                                        "compute_ms": None, "events": 0, "stale": False, "lcu_in_champ_select": False}
         self.events: deque[dict] = deque(maxlen=60)
@@ -485,6 +487,11 @@ class Hub:
         slot = next((p for p in state.our_team if p.cell_id == state.local_cell_id), None)
         if slot is None:
             return None
+        shared = self.intent_guidance
+        if isinstance(shared, dict) and not (g.get("picks") or g.get("bans")):
+            # INTent live mode: the bridge ranks, this app only acts. Its picks and bans drive the seat.
+            g = {**g, "picks": list(shared.get("picks") or []), "bans": list(shared.get("bans") or []),
+                 "swaps": list(g.get("swaps") or shared.get("swaps") or [])}
         # FLEXERS: the scripted simulation stands in for the League client, so the panel's Hover / Lock
         # buttons can be tried in demo mode; the action lands on the simulated session (see client_act).
         simulated = state.source == "simulation"
@@ -510,7 +517,20 @@ class Hub:
                     if sw["to_cell"] == slot.cell_id:
                         picking_role = sw["from_role"]
                 view["picking_role"] = picking_role
-                mine = [p for p in g.get("picks") or [] if p["role"] == picking_role] or list(g.get("picks") or [])
+                # FLEXERS: never offer a champion another seat already took or a ban removed, and when the
+                # ranked picks carry nothing for this seat's role, fall back to the leading draft's champion
+                # for that role rather than the top pick of a different role.
+                taken = set(state.our_locked().values()) | set(state.enemy_locked().values()) | set(state.our_bans) | set(state.enemy_bans)
+                mine = [p for p in g.get("picks") or [] if p["role"] == picking_role and p["champion"] not in taken]
+                if not mine:
+                    for comp in (shared or {}).get("comps") or g.get("comps") or []:
+                        planned = (comp.get("champions") or {}).get(picking_role)
+                        if planned and planned not in taken:
+                            mine = [{"champion": planned, "champion_id": comp.get("champion_ids", {}).get(picking_role) or champ_map.id_for(planned),
+                                     "role": picking_role, "why": ["from the leading draft"]}]
+                            break
+                if not mine:
+                    mine = [p for p in g.get("picks") or [] if p["champion"] not in taken]
                 if mine:
                     best = mine[0]
                     view["suggestion"] = {"kind": "pick", "champion": best["champion"], "champion_id": best.get("champion_id"),

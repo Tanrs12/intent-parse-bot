@@ -167,6 +167,9 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
             tasks.append(asyncio.create_task(_watch_loadfiles(hub, Path(watch_dir))))
         if sync_url:
             tasks.append(asyncio.create_task(_sync_roster(hub, sync_url, sync_interval)))
+        # FLEXERS: keep the shared backend's latest picks and bans on the hub, so this seat's
+        # suggestion (and the Hover / Lock buttons) exist even when the app computes nothing locally.
+        tasks.append(asyncio.create_task(_poll_bridge(hub, str(config.get("bridge_url") or os.environ.get("INTENT_BRIDGE_URL") or "http://127.0.0.1:8766"))))
         if hub.state is None:
             await hub.ingest_manual()
             await hub.settle()
@@ -210,6 +213,9 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
     splash_paths: dict[int, dict] = {}
     app.state.hub = hub
     app.state.roster = roster
+    # FLEXERS: the INTent bridge serves on app port + 1 (8766 for the default 8765); several app
+    # instances on one PC (the party test) each get their own pair.
+    app.state.bridge_url = str(config.get("bridge_url") or os.environ.get("INTENT_BRIDGE_URL") or "http://127.0.0.1:8766")
     app.state.draft = draft
     app.state.config = config
     hub.any_queue = bool(any_queue)
@@ -275,7 +281,7 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
         """LAN-safe relay for the coach PC's authoritative INTent result."""
         import urllib.request
         def fetch() -> dict:
-            with urllib.request.urlopen("http://127.0.0.1:8766/api/guidance", timeout=8) as response:
+            with urllib.request.urlopen(app.state.bridge_url + "/api/guidance", timeout=8) as response:
                 return json.loads(response.read())
         try:
             return JSONResponse(await asyncio.to_thread(fetch))
@@ -289,7 +295,7 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
         payload = await _json(request)
         def send() -> dict:
             data = json.dumps(payload).encode("utf-8")
-            req = urllib.request.Request("http://127.0.0.1:8766/api/control", data=data,
+            req = urllib.request.Request(app.state.bridge_url + "/api/control", data=data,
                                          headers={"Content-Type": "application/json"}, method="POST")
             with urllib.request.urlopen(req, timeout=8) as response:
                 return json.loads(response.read())
@@ -305,7 +311,7 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
         payload = await _json(request)
         def send() -> dict:
             data = json.dumps({"signature": payload.get("signature"), "control": payload.get("control")}).encode("utf-8")
-            req = urllib.request.Request("http://127.0.0.1:8766/api/preference", data=data,
+            req = urllib.request.Request(app.state.bridge_url + "/api/preference", data=data,
                                          headers={"Content-Type": "application/json"}, method="POST")
             with urllib.request.urlopen(req, timeout=8) as response:
                 return json.loads(response.read())
@@ -568,6 +574,49 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
                              "champions_known": len(champions.all_names()), "watch_dir": str(watch_dir) if watch_dir else None,
                              "roster_path": str(roster_path) if roster_path else None, "art_dir": str(art_dir) if art_dir else None})
 
+    # ---- player review: this machine's own account, through its own client ----------------------
+    stats_lock = asyncio.Lock()
+    stats_state: dict = {"review": None, "error": None, "refreshing": False, "refreshed_at": None}
+
+    async def _refresh_stats(count: int = 40) -> dict:
+        from . import stats as player_stats
+
+        rest = hub.client_rest()
+        if rest is None:
+            raise RuntimeError("no League client on this machine: open League and try again")
+        payload = await asyncio.to_thread(player_stats.fetch_from_client, rest, count=count)
+        review = await asyncio.to_thread(player_stats.build_review, payload)
+        stats_state.update(review=review, error=None, refreshed_at=time.time())
+        return review
+
+    @app.get("/api/stats/me")
+    async def get_my_stats(refresh: int = 0) -> JSONResponse:
+        """OP.GG style review of the signed-in player's recent games (cached on disk, client refresh)."""
+        from . import stats as player_stats
+
+        if refresh or stats_state["review"] is None:
+            if stats_state["review"] is None:
+                cached = await asyncio.to_thread(player_stats.load_cached)
+                if cached:
+                    try:
+                        stats_state["review"] = await asyncio.to_thread(player_stats.build_review, cached)
+                    except Exception as exc:  # noqa: BLE001
+                        log.warning("cached stats unusable: %s", exc)
+            if refresh or stats_state["review"] is None:
+                if stats_lock.locked():
+                    stats_state["refreshing"] = True
+                else:
+                    async with stats_lock:
+                        stats_state["refreshing"] = True
+                        try:
+                            await _refresh_stats()
+                        except Exception as exc:  # noqa: BLE001
+                            stats_state["error"] = str(exc)
+                        finally:
+                            stats_state["refreshing"] = False
+        return JSONResponse({"review": stats_state["review"], "error": stats_state["error"], "refreshing": stats_state["refreshing"],
+                             "refreshed_at": stats_state["refreshed_at"], "client": hub.client_rest() is not None})
+
     @app.get("/api/champions")
     async def get_champions() -> JSONResponse:
         return JSONResponse({"champions": champions.all_ids()})
@@ -656,6 +705,25 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
         return Response(data, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
     return app
+
+
+async def _poll_bridge(hub: Hub, bridge_url: str) -> None:
+    """Every half second, copy the INTent bridge's guidance (picks, bans, swaps) onto the hub."""
+    import urllib.request
+
+    def fetch() -> dict | None:
+        try:
+            with urllib.request.urlopen(bridge_url + "/api/guidance", timeout=1.5) as response:
+                data = json.loads(response.read())
+        except Exception:  # noqa: BLE001
+            return None
+        return data if isinstance(data, dict) else None
+
+    while True:
+        data = await asyncio.to_thread(fetch)
+        guidance = (data or {}).get("guidance") if (data or {}).get("active") else None
+        hub.intent_guidance = guidance if isinstance(guidance, dict) else None
+        await asyncio.sleep(0.5)
 
 
 async def _sync_roster(hub: Hub, url: str, interval: float) -> None:

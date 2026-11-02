@@ -178,7 +178,7 @@
   };
 
     // ---- shared draft control and authoritative panel guidance -------------------
-  const BRIDGE = "http://127.0.0.1:8766";
+  const BRIDGE = "http://127.0.0.1:" + (Number(location.port || 8765) + 1);  // FLEXERS: the bridge runs on app port + 1
   let identityPending = false, identityFilled = false;
   let panelBridge = null, panelControl = null, controlPolling = false;
 
@@ -276,7 +276,7 @@
   $("shake").onclick = () =>
     updatePanelControl({ shake_it_up: true });
 
-  setInterval(pollControl, 2000);
+  setInterval(pollControl, 500);   // FLEXERS: followers see the captain's change within half a second
   pollControl();
 
   // ---- plan the team is going with --------------------------------------------

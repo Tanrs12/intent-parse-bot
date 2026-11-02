@@ -109,6 +109,7 @@ def main(argv: list[str] | None = None) -> None:
 
     logging.basicConfig(level=args.log_level.upper(), format="%(asctime)s %(name)s %(levelname)s %(message)s")
     config = load_config(args.config)
+    config.setdefault("bridge_url", f"http://127.0.0.1:{args.port + 1}")   # FLEXERS: bridge = app port + 1
     simulation = {"delay": args.simulate_delay, "side": args.simulate_side} if args.simulate else None
     app = create_app(config, enable_lcu=not args.no_lcu and not args.simulate, lockfile=args.lockfile, simulation=simulation,
                      roster_path=Path(args.roster) if args.roster else None, watch_dir=Path(args.watch) if args.watch else None,
@@ -117,7 +118,7 @@ def main(argv: list[str] | None = None) -> None:
     bridge_enabled = bool(args.bridge or (args.bridge is None and frozen))
     intent_live = os.environ.get("INTENT_LIVE") == "1"
     if bridge_enabled:
-        _start_bridge(upstream=args.sync, cloud_url=args.cloud_sync_url, cloud_key=args.cloud_sync_key, cloud_mode=args.cloud_sync_mode)
+        _start_bridge(port=args.port + 1, upstream=args.sync, cloud_url=args.cloud_sync_url, cloud_key=args.cloud_sync_key, cloud_mode=args.cloud_sync_mode)
     if args.hud and intent_live:
         _start_hud_proxy()       # Rat-style native HUD reads the same INTent guidance via 8767
     if args.comp_overlay or (args.comp_overlay is None and frozen and args.hud):
@@ -225,6 +226,7 @@ def _start_bridge(port: int = 8766, upstream: str | None = None, *, cloud_url: s
 
     def serve() -> None:
         try:
+            bridge.COACH_STATE_URL = f"http://127.0.0.1:{port - 1}/api/state"
             bridge.configure_upstream(upstream)
             bridge.configure_cloud(cloud_url, cloud_key, cloud_mode)
             follower = bool(upstream or cloud_mode == "follow")
