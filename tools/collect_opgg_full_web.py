@@ -128,6 +128,7 @@ def read_page(path: Path) -> dict | None:
 
 def rebuild_index(folder: Path) -> dict:
     indexed = {role: {} for role in ROLES}
+    baselines = {role: {} for role in ROLES}
     pages = rows = 0
     by_patch = {}
     for path in (folder / "pages").glob("*/*.json"):
@@ -137,6 +138,20 @@ def rebuild_index(folder: Path) -> dict:
         role, ours = page["role"], page["ours"]
         pages += 1
         by_patch[page["source_patch"]] = by_patch.get(page["source_patch"], 0) + 1
+        # Each observed same-role game has one lane opponent. Weighting the
+        # full matchup list by games closely reproduces the champion's
+        # overall win rate without another provider request or mixing patches.
+        counted_games = sum(int(e["games"]) for e in page["rows"])
+        baseline_wr = (round(sum(float(e["head_to_head_win_rate"]) * int(e["games"])
+                                 for e in page["rows"]) / counted_games, 3)
+                       if counted_games else None)
+        if baseline_wr is not None:
+            baselines[role][normalise(ours)] = {
+                "source_patch": page["source_patch"],
+                "role_baseline_win_rate": baseline_wr,
+                "role_baseline_games": counted_games,
+                "retrieved_epoch": page["retrieved_epoch"],
+            }
         for entry in page["rows"]:
             rows += 1
             key = normalise(entry["enemy"])
@@ -144,6 +159,8 @@ def rebuild_index(folder: Path) -> dict:
                 "ours": ours, "enemy": entry["enemy"],
                 "games": entry["games"],
                 "head_to_head_win_rate": entry["head_to_head_win_rate"],
+                "role_baseline_win_rate": baseline_wr,
+                "role_baseline_games": counted_games,
                 "source_patch": page["source_patch"],
                 "rank_filter": page["rank_filter"],
                 "region_filter": page["region_filter"],
@@ -157,6 +174,7 @@ def rebuild_index(folder: Path) -> dict:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "pages": pages, "observations": rows, "by_patch": by_patch,
         "matchups": indexed,
+        "role_baselines": baselines,
         "warning": "Private page snapshots; don't combine patches or infer an automatic counter bonus.",
     }
     folder.mkdir(parents=True, exist_ok=True)
@@ -169,7 +187,8 @@ def rebuild_index(folder: Path) -> dict:
 
 def collect(role: str, champions: list[str], *, folder: Path = FOLDER,
             max_new: int = 12, delay: float = MIN_GAP_SECONDS,
-            expected_patch: str | None = None, force: bool = False) -> dict:
+            expected_patch: str | None = None, force: bool = False,
+            emit=print) -> dict:
     if role not in ROLES:
         raise ValueError("unsupported role")
     if not 0 <= max_new <= MAX_PER_RUN:
@@ -181,7 +200,7 @@ def collect(role: str, champions: list[str], *, folder: Path = FOLDER,
     for c in champions:
         key = normalise(c)
         if key not in allowed:
-            print(f"SKIP {c}: not in supported {role} role catalogue", flush=True)
+            emit(f"SKIP {c}: not in supported {role} role catalogue")
             continue
         if key not in {normalise(x) for x in unique}:
             unique.append(allowed[key])
@@ -193,10 +212,10 @@ def collect(role: str, champions: list[str], *, folder: Path = FOLDER,
             time.time() - float(old["retrieved_epoch"]) <= CACHE_SECONDS and
             (not expected_patch or old["source_patch"] == expected_patch)):
             cached += 1
-            print(f"CACHED {role} {champion}: {len(old['rows'])} matchups, patch {old['source_patch']}")
+            emit(f"CACHED {role} {champion}: {len(old['rows'])} matchups, patch {old['source_patch']}")
             continue
         if requested >= max_new:
-            print(f"SKIP {champion}: budget exhausted ({max_new} HTTP requests)")
+            emit(f"SKIP {champion}: budget exhausted ({max_new} HTTP requests)")
             continue
         if requested:
             time.sleep(delay)
@@ -223,16 +242,16 @@ def collect(role: str, champions: list[str], *, folder: Path = FOLDER,
             temp.write_text(json.dumps(page,ensure_ascii=False,indent=2),encoding="utf8")
             temp.replace(path)
             success += 1
-            print(f"NEW {role} {champion}: {len(page['rows'])} opponents, "
-                  f"{page['source_patch']} {page['rank_filter']}",flush=True)
+            emit(f"NEW {role} {champion}: {len(page['rows'])} opponents, "
+                 f"{page['source_patch']} {page['rank_filter']}")
         except urllib.error.HTTPError as exc:
-            print(f"HTTP {exc.code} for {champion}; no data saved", flush=True)
+            emit(f"HTTP {exc.code} for {champion}; no data saved")
             if exc.code in (401,403,429):
                 stopped += 1
-                print("STOP: access restriction. Do not bypass or retry automatically.")
+                emit("STOP: access restriction. Do not bypass or retry automatically.")
                 break
         except (urllib.error.URLError, TimeoutError, ValueError) as exc:
-            print(f"ERROR {champion}: {type(exc).__name__} {str(exc)[:160]}",flush=True)
+            emit(f"ERROR {champion}: {type(exc).__name__} {str(exc)[:160]}")
     index = rebuild_index(folder)
     return {"new_requests": requested, "new_pages": success,
             "cached_pages": cached, "stopped": stopped,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from adaptive_draft import select_adaptive_comp
+from league_opgg_full_reference import full_for_enemy
 
 import copy
 from typing import Iterable, Mapping
@@ -16,9 +17,11 @@ from league_flex_core import (
 )
 from league_comp_engine import (
     ROLES,
+    LIVE_PATCH,
     attach_learn_suggestions,
     counter_ban_recommendations,
     load_meta,
+    DRAFT_SPECIFIC_COUNTERS,
     recommend_comps,
     _mastery_points_for,
     _champion_history_for,
@@ -320,6 +323,13 @@ def recommend_live_drafts(
             candidates, chosen_champions, enemy_roles=dict(enemy_roles or {}),
             unavailable=unavailable_set, actual_locks=locked_champions,
             identity=identity, limit=limit,
+            champion_traits=load_meta().get("champion_traits") or {},
+            global_counter_rules=DRAFT_SPECIFIC_COUNTERS,
+            statistical_evidence={
+                role: full_for_enemy(role, enemy, patch=LIVE_PATCH).get("rows") or []
+                for role, enemy in (enemy_roles or {}).items()
+                if role in ROLES and enemy
+            },
         )
         candidates = selected + [r for r in candidates if r not in selected]
     # Preserve the captain's planned five if still legal and objectively close

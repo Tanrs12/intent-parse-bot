@@ -33,6 +33,11 @@ def _canon(value: str) -> str:
     return re.sub(r"[^a-z0-9]", "", str(value).casefold())
 
 
+def _page_slug(value: str) -> str:
+    key = _canon(value)
+    return {"wukong": "monkeyking", "nunuandwillump": "nunu"}.get(key, key)
+
+
 def _source_patch(live_patch: str) -> str:
     parts = str(live_patch or "").split(".")
     if len(parts) < 2 or not parts[-1].isdigit():
@@ -90,7 +95,55 @@ def full_for_enemy(role: str, enemy: str, *, patch: str,
         key = _canon(champion)
         if key not in unique or int(unique[key]["games"]) < games:
             unique[key] = {**row, "games": games, "head_to_head_win_rate": wr,
-                           "type": "statistical_reference_only"}
+                           "type": "statistical_reference_only",
+                           "source_direction": "own_champion_page"}
+    # A confirmed *enemy* page typically lists 38-61 opponents. Inverting
+    # that page gives many playable matchups from ONE small public request:
+    # enemy-side observed win rate 45% implies our-side approximately 55%.
+    # Different champion pages have slightly different samples, so direct
+    # own-champion observations take precedence. These are observational
+    # percentages, not independent pair samples or automatic draft bonuses.
+    enemy_page = index_file.parent / "pages" / role.lower() / (_page_slug(enemy) + ".json")
+    try:
+        page = json.loads(enemy_page.read_text(encoding="utf8"))
+    except (OSError, ValueError, TypeError):
+        page = {}
+    if (page.get("source") == "OP.GG public counters page" and
+        page.get("role") == role and _canon(page.get("ours")) == _canon(enemy) and
+        page.get("source_patch") == expected and
+        page.get("rank_filter") == "Emerald+" and
+        page.get("queue_filter") == "Ranked Solo/Duo" and
+        page.get("region_filter") == "All Servers" and
+        0 <= t - float(page.get("retrieved_epoch", -1e20)) <= MAX_PRESENTATION_AGE):
+        for opponent in page.get("rows") or []:
+            try:
+                games = int(opponent["games"])
+                enemy_wr = float(opponent["head_to_head_win_rate"])
+                our_champion = str(opponent["enemy"])
+            except (KeyError, ValueError, TypeError):
+                continue
+            key = _canon(our_champion)
+            if (key in unique or not key or key == _canon(enemy) or
+                games < MIN_RELIABLE_GAMES or not 0 <= enemy_wr <= 100):
+                continue
+            own_baseline = (((d.get("role_baselines") or {}).get(role) or {})
+                            .get(key) or {})
+            if own_baseline.get("source_patch") != expected:
+                own_baseline = {}
+            unique[key] = {
+                "role_baseline_win_rate": own_baseline.get("role_baseline_win_rate"),
+                "role_baseline_games": own_baseline.get("role_baseline_games", 0),
+                "ours": our_champion, "enemy": enemy, "games": games,
+                "head_to_head_win_rate": round(100 - enemy_wr, 2),
+                "source_patch": expected, "rank_filter": "Emerald+",
+                "region_filter": "All Servers", "queue_filter": "Ranked Solo/Duo",
+                "retrieved_at": page.get("retrieved_at"),
+                "retrieved_epoch": page.get("retrieved_epoch"),
+                "source_url": page.get("url"),
+                "type": "statistical_reference_only",
+                "source_direction": "reverse_from_enemy_page",
+                "opponent_page_win_rate": enemy_wr,
+            }
     return {
         "status": "matching_patch" if unique else "no_matching_patch_rows",
         "rows": list(unique.values()), "source_patch": expected,
