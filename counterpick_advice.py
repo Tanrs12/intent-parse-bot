@@ -9,11 +9,28 @@ from __future__ import annotations
 from typing import Mapping
 from league_matchup_universe import role_universe, scout_note
 from league_opgg_mcp_reference import cached_for_enemy
+from league_chaincc_pro_synergy import pro_duo
 
 from league_comp_engine import (
-    ROLES, load_meta, load_lane_matchups, load_solo_queue_winrates,
+    ROLES, LIVE_PATCH, load_meta, load_lane_matchups, load_solo_queue_winrates,
     live_lane_matchup_adjustment, score_comp,
 )
+
+def _pro_duo_references(champions: dict[str, str]) -> dict:
+    """At most two factual team-pair references; not ranking or legality."""
+    results = {}
+    for package, (first_role, second_role) in {
+        "Mid+Jungle": ("Mid", "Jungle"),
+        "ADC+Support": ("ADC", "Support"),
+    }.items():
+        first, second = champions.get(first_role), champions.get(second_role)
+        if not first or not second:
+            continue
+        row = pro_duo(package, first, second, patch=LIVE_PATCH)
+        if row:
+            results[package] = row
+    return results
+
 
 MIN_GAMES = 100
 MIN_GAIN = 0.75
@@ -35,8 +52,12 @@ def counter_advice(
     a guess based only on the enemy player's champ-select seat.
     """
     champions = dict((lead or {}).get("champions") or {})
+    # Optional local professional reference is presentation-only; injected
+    # test fixtures must not depend on private filesystem research caches.
+    pro_refs = _pro_duo_references(champions) if matchup_data is None else {}
     if not champions or not enemy_roles:
-        return {"lanes": [], "status": "waiting_for_confirmed_enemy_lane"}
+        return {"lanes": [], "status": "waiting_for_confirmed_enemy_lane",
+                "pro_duos": pro_refs}
     meta = meta if meta is not None else load_meta()
     samples = matchup_data if matchup_data is not None else load_lane_matchups()
     unavailable = set(unavailable or ())
@@ -231,4 +252,4 @@ def counter_advice(
             "coverage": ("verified" if playable or learn else
                          "scouting_only" if scouting else "no_qualified_counter_data"),
         })
-    return {"lanes": rows, "status": "evaluated"}
+    return {"lanes": rows, "status": "evaluated", "pro_duos": pro_refs}

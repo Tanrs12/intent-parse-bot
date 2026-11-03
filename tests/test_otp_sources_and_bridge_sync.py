@@ -43,8 +43,8 @@ def test_bridge_uses_actual_discord_owner_pools_not_ui_option_labels():
 def test_otp_catalog_has_sources_and_restricts_uncertified_statistics():
     info = json.loads((ROOT / "data/league_otp_matchup_notes.json").read_text(encoding="utf8"))
     assert info["schema_version"] == 1
-    assert len(info["sources"]) >= 23
-    assert len(info["entries"]) >= 61
+    assert len(info["sources"]) >= 36
+    assert len(info["entries"]) >= 101
     assert len({(x["role"], x["our"], x["enemy"]) for x in info["entries"]}) == len(info["entries"])
     assert all(len(row["sources"]) >= 1 for row in info["entries"])
     assert all(s["url"].startswith("https://") for row in info["entries"] for s in row["sources"])
@@ -109,3 +109,23 @@ def test_mid_otp_notes_separate_lane_risks_from_autopick_scores():
     assert lane["planned"] == "Akali"
     assert "fear" in lane["planned_risk"]["summary"].lower()
     assert "https://" in lane["planned_risk"]["sources"][0]["url"]
+
+
+
+def test_additional_scouting_covers_multiple_roles_without_fake_statistics():
+    catalog = json.loads((ROOT / "data/league_otp_matchup_notes.json").read_text(encoding="utf8"))
+    assert len(catalog["entries"]) >= 101
+    assert len(catalog["sources"]) >= 36
+    assert scout_note("Jungle", "Kindred", "Lee Sin")["verdict"] == "unfavourable"
+    assert scout_note("Jungle", "Kindred", "Kayn")["verdict"] == "mixed"
+    assert scout_note("Jungle", "Taliyah", "Master Yi")["verdict"] == "mixed"
+    assert scout_note("ADC", "Kog'Maw", "Ezreal")["verdict"] == "mixed"
+    assert scout_note("ADC", "Kog'Maw", "Caitlyn")["verdict"] == "unfavourable"
+    assert scout_note("Mid", "Yasuo", "Vex")["verdict"] == "unfavourable"
+    assert scout_note("Mid", "Qiyana", "Twisted Fate")["verdict"] == "mixed"
+    assert all("win_rate" not in row and "draft_points" not in row for row in catalog["entries"])
+    for row in catalog["entries"]:
+        assert row["sources"] and all(x["url"].startswith("https://") for x in row["sources"])
+    from collections import Counter
+    counts = Counter(row["role"] for row in catalog["entries"])
+    assert all(counts[role] > 0 for role in ("Top","Jungle","Mid","ADC"))

@@ -1901,8 +1901,12 @@ def build_response():
             counter_advice(
                 scouting_lead, known_enemy_lanes,
                 unavailable=unavailable, ally_locks=locked,
-            ) if control.get("chosen") and known_enemy_lanes and lead.get("champions")
+            ) if control.get("chosen") and lead.get("champions")
             else {"lanes": [], "status": "waiting_for_confirmed_enemy_lane"}
+            # Even before enemy roles are confirmed, counter_advice supplies
+            # read-only professional duo references for the chosen five.
+            # No lane counter or automatic replacement is evaluated until
+            # known_enemy_lanes has a confirmed opponent.
         )
         # FLEXERS: the draft the team chose (Discord "Lock Draft N" or an app) and what the live
         # re-solve did to it: roles stay pinned, surviving champions stay locked, only banned or

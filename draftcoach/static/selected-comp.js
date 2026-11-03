@@ -29,7 +29,8 @@
       if (ROLES.includes(seat.role) && seat.locked) ownLocks[seat.role] = seat.locked;
     }
     const advice = guidance?.counter_advice?.lanes || [];
-    const key = JSON.stringify([chosen, [...bans], [...taken], replacements, ownLocks, advice, wide]);
+    const proDuos = guidance?.counter_advice?.pro_duos || {};
+    const key = JSON.stringify([chosen, [...bans], [...taken], replacements, ownLocks, advice, proDuos, wide]);
     if (root.dataset.model === key) return;
     root.dataset.model = key;
     root.hidden = !chosen;
@@ -159,6 +160,19 @@
       rows.append(row);
     }
     root.append(rows);
+    // Read-only ChainCC professional co-occurrence, never an auto-pick signal.
+    // A season aggregate is deliberately labelled as such, not as the live patch.
+    for (const [packageName, label] of [["Mid+Jungle", "MID + JUNGLE"], ["ADC+Support", "BOT DUO"]]) {
+      const reference = proDuos[packageName];
+      if (!reference || !reference.games) continue;
+      const n = Number(reference.games);
+      const winrate = Number(reference.win_rate);
+      const period = reference.exact_patch ? "patch " + reference.patch : reference.patch;
+      root.append(D.el("p", "fd-sc-reference",
+        "PRO REFERENCE · " + label + " · " + reference.first + " + " + reference.second +
+        " · " + n + " games, " + (Number.isFinite(winrate) ? winrate.toFixed(1) + "% wins" : "win rate unavailable") +
+        " · " + period + " · observational only"));
+    }
     root.append(D.el("p", "fd-sc-footnote", chosen.mode === "adaptive"
       ? "Roles fixed · Unpicked champions can adapt to verified enemy lanes"
       : "Selected plan · Actual League locks take priority"));

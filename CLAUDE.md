@@ -73,8 +73,8 @@ Read this before changing the app, UI or relay. Preserve Rat's existing architec
   Do not move these options into the legal `picks` list unless the common
   engine has enough permitted numerical evidence and the player owns them.
 - Qualitative specialist collection: `data/league_otp_matchup_notes.json`
-  contains 61 short, attributed human/reviewed matchup opinions indexed
-  against 23 sources (Top and Mid). `data/league_otp_video_chapters.json` contains 47
+  contains 101 short, attributed qualitative matchup observations indexed
+  against 36 source entries (Top, Jungle, Mid and ADC). `data/league_otp_video_chapters.json` contains 47
   Gwen-specialist YouTube chapters with NO transcribed verdicts. The tier
   opinions can reorder SCOUT and LEARN suggestions in the presentation layer
   but never impersonate a current-patch win rate or override a player's pool.
@@ -147,3 +147,51 @@ Read `FLEXERS_DRAFT_COACH.md`, `docs/draftcoach/APP_DESIGN.md`,
 `docs/draftcoach/ROLLOUT.md`, and `docs/draftcoach/PARTY_TEST.md`.
 Rat's Game Plan, Draft Studio and panel are the foundation, not components
 to overwrite. Update this handoff whenever changing the above contracts.
+
+
+## High-volume evidence handoff — 3 November 2026 continuation
+
+- Full source and provenance audit: `docs/draftcoach/MATCHUP_EVIDENCE_COLLECTION_2026-11-03.md`.
+  The **101 qualitative observations** (36 indexed sources) are short,
+  independently phrased and non-scoring; several are conflicting or old.
+- Private local PocketPick 16.16 archive is installed in this dev checkout's
+  ignored `var/pocketpick/`. `tools/matchup_evidence_inventory.py` reports
+  7,974 valid observed pairings and 2,594 deduplicated historical 40+
+  pairings when combined with the bundled LoLalytics 16.20 100+ table.
+  **Never commit raw PocketPick data** or call it current high-elo.
+- The limited OP.GG official MCP cache reached 213 rolling matchup
+  references from 34 champion summaries plus prior direct lane requests.
+  All private, rank/patch unverified, AppData TTL 24 h. Source rights
+  remain **small-scale noncommercial**, not unrestricted bulk fetching.
+- **Openly licensed CC BY 4.0 ChainCC** pro data was imported locally for
+  2014–2026 (13 seasons): 515,595 observed pro lane pairings and
+  343,784 year/patch directional records. Data folder `var/chaincc/` is
+  ignored; use `tools/build_chaincc_matchup_index.py --all-years --download`.
+  Actual source: https://chaincc.lol/free/data/. Attribute ChainCC.
+- The new `tools/build_chaincc_duo_index.py --all-years` indexes
+  409,660 pro appearances of Mid+Jungle or ADC+Support pairs, producing
+  124,832 year/patch rows. `league_chaincc_pro_synergy.py` supplies
+  **read-only**, zero-draft-points reference lookups; `counterpick_advice`
+  carries only two duo references to `selected-comp.js`, where they show
+  as labelled PRO REFERENCE. The latest ChainCC pro patch is 16.20, not
+  the live client 26.21; use a clearly marked season fallback only.
+- Do not extrapolate match outcome from pick1..pick5 as draft chronology,
+  or confuse a pro pair's win rate with a controlled synergy benefit.
+  Preserve Rat's shared backend, the owner-submitted champion pools,
+  legal switch gates, existing relay, Hover/Lock, 10-unique-draft rule
+  and five-player sync. This research cannot automatically swap champions.
+- Smoke/UI/build tests are required before release; see exact pytest
+  commands and source notes in the collection report.
+
+- The World Championship 2026 frozen snapshot was rebuilt from licensed
+  ChainCC `league=WLDs`: `data/league_worlds_2026_chaincc_snapshot.json`
+  contains 73 games through 31 Oct 2026, 103 champion pick/ban counts and
+  159 professional duo pair records. It is an independent **read-only**
+  historical snapshot; never infer draft pick order, patch 26.21 samples
+  or force a champion from it.
+
+- The live bridge now invokes read-only `counter_advice` for a chosen
+  composition even before confirmed enemy lanes, so two pro duo references
+  can display pre-lobby; `counter_advice` exits immediately with
+  `waiting_for_confirmed_enemy_lane` and **does not evaluate counterpicks**
+  until enemies are confirmed. This never runs the external collectors.

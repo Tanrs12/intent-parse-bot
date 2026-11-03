@@ -149,5 +149,12 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--download", action="store_true", help="Retrieve CC BY 4.0 source files from ChainCC")
     p.add_argument("--dir", type=Path, default=_folder())
+    p.add_argument("--years", nargs="+", type=int, default=[2025, 2026],
+                   help="Explicit seasons to index (default: 2025 2026)")
+    p.add_argument("--all-years", action="store_true",
+                   help="Index every CC BY 4.0 season from 2014 through 2026")
     options = p.parse_args()
-    print(json.dumps(build_index(options.dir, download=options.download), indent=2))
+    years = tuple(range(2014, 2027)) if options.all_years else tuple(sorted(set(options.years)))
+    if not years or any(year < 2014 or year > 2026 for year in years):
+        p.error("Only released seasons 2014-2026 are supported")
+    print(json.dumps(build_index(options.dir, years=years, download=options.download), indent=2))

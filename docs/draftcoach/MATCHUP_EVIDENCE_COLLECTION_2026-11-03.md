@@ -30,11 +30,11 @@ picked or locked in League.
 - The user's private PocketPick EUW 16.16 sample contains **10,806** raw pair
   rows from **30,000** historical matches. Only a subset has sufficiently many
   games; do not commit that private dataset to GitHub.
-- **61 curated, short, individually attributed directional notes** stored in
-  `data/league_otp_matchup_notes.json`, from Reddit specialist discussion,
-  public counter summaries and longer champion-main work (51 Top, 10 Mid).
+- **101 curated, short, individually attributed directional notes** stored in
+  `data/league_otp_matchup_notes.json` from champion mains' discussions and
+  public counter summaries, now spanning Top, Jungle, Mid and ADC.
   This is not a licensed win-rate export.
-- **23 research index sources** (including LoLMatchups.GG OTP pages, Gnar/Kayle
+- **36 research index entries**, some navigation-only (including LoLMatchups.GG OTP pages, Gnar/Kayle
   communities, Onetricks.gg, relevant YouTube and player-main guides).
 - **47 accurate Gwen tierlist video chapter pointers** in
   `data/league_otp_video_chapters.json`; explicitly **unreviewed**
@@ -212,3 +212,109 @@ unchanged; known planned Mid risks can now appear in the read-only panel.
 Patch 26.21 is current on 3 November 2026; 26.22 is scheduled for
 4 November. Revalidate source freshness after the patch before suggesting
 current-patch numerical counter advantages.
+
+
+## Large-scale licensed evidence expansion — 3 November (continued)
+
+**The user explicitly requested as much credible coverage as possible.** The
+solution now has three distinct kinds of sources; do not add their record
+counts together as independent current-patch counters.
+
+### Local private sources
+
+- The two specifically approved PocketPick 16.16 EUW 30,000-match aggregates
+  were restored to this development PC's ignored `var/pocketpick/`. Their
+  original 10,806 raw ordered matchup rows should never be published.
+- `tools/matchup_evidence_inventory.py` calculates unique role-qualified
+  coverage after alias normalisation. LoLalytics 16.20 has **1,319**
+  same-role 100+-game pairings. PocketPick contributes **7,974** observed
+  role-valid pairings, **1,644** with 40+ games. The deduplicated union
+  of LoLalytics 100+ and PocketPick 40+ is **2,594**, and at a 100+
+  threshold from either source is **1,548**. These are **historical**
+  observations from different populations, NOT 26.21 matchups.
+- Official OP.GG MCP cache extended through small, rate-limited, permissioned
+  requests to **213 fresh pair references** (58 Top / 35 Jungle / 48 Mid /
+  36 ADC / 36 Support) from **34 per-champion summary requests**, including
+  earlier per-lane guide observations. All still lack attested rank/patch;
+  24-hour private AppData cache, not committed and not ranked automatically.
+  Do not turn this into an unlimited bulk-mirroring job. See
+  `tools/opgg_cache_audit.py`.
+
+### Open professional dataset
+
+ChainCC at https://chaincc.lol/free/data/ explicitly releases seasonal pro
+CSV archives under **CC BY 4.0 with attribution**, with no API key or rate
+limit, accessed 3 November 2026. `tools/build_chaincc_matchup_index.py`
+now supports `--all-years --download` for **2014–2026**. The local
+`var/chaincc/` index (not GitHub) contains:
+
+- 13 seasons, **515,595 observed game-role lane pairings** and
+  **343,784 year/patch directional matchup records**, which overlap by
+  time window and are not unique current-patch enemy matchups.
+- New `tools/build_chaincc_duo_index.py --all-years` reads the same player
+  files, joins exact game/side/patch, and indexes actual **Mid+Jungle** and
+  **ADC+Support** rosters: **409,660 observed team-duo appearances** and
+  **124,832 year/patch duo records**. No invented pick order or synergy.
+- In 2026 separately, the year-level index contains **6,302** directional
+  matchup rows and **2,309** distinct team duo rows. The latest patch
+  present in ChainCC 2026 is **16.20** (the live client is 26.21 on 3 Nov).
+  There are **1,040** exact-patch directional rows at 16.20, but only
+  **160** have 5+ games and **none** have 20+; of 372 exact-patch duo
+  rows, 51 have 5+ and only 5 have 20+. Never treat the small numbers as
+  proof of champion counters or turn pro team results into SoloQ win rates.
+- `league_chaincc_pro_synergy.pro_duo()` is a read-only, zero-score
+  retrieval helper for season/patch duo observations. `counterpick_advice`
+  attaches at most two references to guidance for the selected five,
+  and `draftcoach/static/selected-comp.js` labels them **PRO REFERENCE**
+  with game count and explicit patch/season information. Locked champions,
+  captain election, pools, ranker, relay and Hover/Lock stay unchanged.
+- The role-based matchup index and duo index are collected to ignored local
+  `var/` files. The code and attribution can be pushed to GitHub, not raw
+  provider exports or user-specific data. The new
+  `tools/pro_evidence_audit.py` reports coverage without network calls.
+
+### Specialist human guidance
+
+Now **101 short directional notes** and **36 indexed source entries**. Added
+forty entries spanning Kindred/Kha'Zix/Gragas/Taliyah Jungle, Yasuo/Qiyana/
+Taliyah Mid, and Kog'Maw/Ezreal/Yunara ADC. Dates range from 2024–2026;
+very old tips and mutually contradictory player anecdotes are labelled,
+often **mixed**, and can never certify numerical draft adjustments.
+Specialist link directories for Fiora, Swain and Kog'Maw item research
+were indexed as navigation, not misrepresented as viewed matchup verdicts.
+
+### Reproducible commands
+
+- `python tools/matchup_evidence_inventory.py`
+- `python tools/opgg_cache_audit.py`
+- `python tools/pro_evidence_audit.py`
+- `python tools/build_chaincc_matchup_index.py --all-years --download`
+- `python tools/build_chaincc_duo_index.py --all-years`
+- `python -m pytest -q tests/test_matchup_evidence_inventory.py
+  tests/test_chaincc_duo_index.py tests/test_pro_duo_counter_advice.py`
+
+The next high-quality numerical source would be authorised versioned Riot
+Match-V5 with an approved credential, or a licensed patch/rank-filtered
+provider feed. Nothing we collected gives unrestricted OP.GG bulk rights.
+
+### Frozen Worlds 2026 snapshot from ChainCC (through 31 October)
+
+`tools/build_chaincc_worlds_snapshot.py` filters the licensed 2026 source
+`league=WLDs` and joins team + player side/game rows, without pretending
+`pick1` through `pick5` are chronological. The generated, attributable
+`data/league_worlds_2026_chaincc_snapshot.json` records **73 games**,
+**146 team-side drafts**, **103 champions** seen in picks/bans, and
+**159 distinct Mid+Jungle or ADC+Support pairings**. All 73 games were
+played on patch **16.20**; the latest match in that filtered source is
+**31 October 2026, 23:05:06**. This does not include games after that.
+The largest pick counts are Lee Sin 24, Ezreal 22, Jarvan IV 21,
+Rumble 21 and Alistar 20. The most common bans are Nocturne 53,
+Vi 42, Cassiopeia 38, Renata Glasc 36 and Olaf 32. This is
+**descriptive professional draft priority**, not player-pool or SoloQ
+scoring authority. Rebuild after newer licensed source updates.
+
+- The live bridge now invokes read-only `counter_advice` for a chosen
+  composition even before confirmed enemy lanes, so two pro duo references
+  can display pre-lobby; `counter_advice` exits immediately with
+  `waiting_for_confirmed_enemy_lane` and **does not evaluate counterpicks**
+  until enemies are confirmed. This never runs the external collectors.
