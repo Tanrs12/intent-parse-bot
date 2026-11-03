@@ -11,6 +11,8 @@ from league_matchup_universe import role_universe, scout_note
 from league_opgg_mcp_reference import cached_for_enemy
 from league_opgg_full_reference import full_for_enemy
 from league_chaincc_pro_synergy import pro_duo
+from league_pocketpick_history import historical_for_enemy
+from league_pro_order_context import selected_after as pro_selected_after
 
 from league_comp_engine import (
     ROLES, LIVE_PATCH, load_meta, load_lane_matchups, load_solo_queue_winrates,
@@ -82,6 +84,52 @@ def counter_advice(
         original_points = float(original_edge.get("points") or 0)
         pool = [str(c) for c in submitted.get(role, []) if c and c not in unavailable]
         pool_set = set(pool) | {original}
+        # Earlier-patch EUW Silver-Platinum history is a broad, attributed
+        # scouting fallback for positions without current verified samples.
+        # It is NEVER a reason to force a counter or alter the legal pool.
+        historical = (historical_for_enemy(role, enemy)
+                      if matchup_data is None else {"rows": []})
+        historical_base = None
+        historical_alternatives = []
+        for observation in historical.get("rows") or []:
+            champion_name = observation["champion"]
+            if champion_name == original:
+                historical_base = observation
+            elif (champion_name not in unavailable
+                  and champion_name not in champions.values()
+                  and observation["games"] >= 20):
+                info = dict(observation)
+                info["type"] = ("playable" if champion_name in pool_set
+                                else "learn")
+                info["confidence"] = ("low" if observation["games"] < 40
+                                       else "historical")
+                # Sorting only. This is NOT a candidate ranking bonus.
+                info["shrunk_reference_lift_pp"] = round(
+                    info["adjusted_matchup_lift_pp"] *
+                    info["games"] / (info["games"] + 100.0), 2)
+                historical_alternatives.append(info)
+        historical_alternatives.sort(key=lambda row: (
+            row["type"] == "playable",
+            row["games"] >= 40,
+            row["shrunk_reference_lift_pp"],
+            row["games"],
+        ), reverse=True)
+        # Ordered-pick archive: a later pro pick is not necessarily a lane
+        # counter, and professional Worlds 26.20 is NOT in this source.
+        pro_response_planned = (pro_selected_after(original, enemy)
+                                if matchup_data is None else {})
+        pro_response_alternatives = []
+        if matchup_data is None:
+            for champion_name in pool:
+                if (champion_name == original or champion_name in unavailable
+                    or champion_name in champions.values()):
+                    continue
+                pattern = pro_selected_after(champion_name, enemy)
+                if pattern:
+                    pro_response_alternatives.append(pattern)
+            # n is evidence density, NOT an implied winrate-based counter
+            pro_response_alternatives.sort(
+                key=lambda e:e["games"], reverse=True)
         # Local-only, rate-limited OP.GG MCP references do not have validated
         # patch, rank or queue. Show as evidence links, never score auto-picks.
         opgg_cache = cached_for_enemy(role, enemy) if matchup_data is None else {}
@@ -289,6 +337,24 @@ def counter_advice(
             "playable": playable,
             "learn": learn,
             "scout": scouting[:4],
+            "pro_order_reference": {
+                "planned": pro_response_planned,
+                "alternatives": pro_response_alternatives[:3],
+                "label": "Selected later in a historical pro draft (lane unknown), not a proven counter",
+                "source_url": "https://github.com/DeusExMachina1993/LoL-Draft",
+                "licence": "CC BY-SA 4.0",
+                "last_patch": "26.17",
+            },
+            "pocket_reference": {
+                "planned": historical_base,
+                "alternatives": historical_alternatives[:4],
+                "patch": historical.get("patch"),
+                "rank": historical.get("rank"),
+                "region": historical.get("region"),
+                "observations": historical.get("observations", 0),
+                "source_url": historical.get("source_url"),
+                "label": "Historical lower-rank research, not a 26.21 counter or an automatic pick",
+            },
             "opgg_full_reference": {
                 "planned": full_base,
                 "alternatives": full_alternatives[:4],
