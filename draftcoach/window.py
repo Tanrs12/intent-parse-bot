@@ -22,6 +22,23 @@ import urllib.request
 import webbrowser
 
 WIDTH, HEIGHT = 430, 620
+SCALES = (0.85, 1.0, 1.15, 1.3)
+
+
+def _settings_path():
+    from . import VAR_DIR
+
+    return VAR_DIR / "overlay-window.json"
+
+
+def load_scale() -> float:
+    try:
+        import json
+
+        scale = float(json.loads(_settings_path().read_text(encoding="utf-8")).get("scale", 1.0))
+    except (OSError, ValueError, TypeError, AttributeError):
+        return 1.0
+    return min(SCALES, key=lambda s: abs(s - scale))
 
 
 class Api:
@@ -30,6 +47,7 @@ class Api:
     def __init__(self, url: str):
         self.url = url
         self._window = None   # underscore: pywebview must not try to expose the Window object to JS
+        self.scale = load_scale()
 
     def close(self) -> None:
         if self._window is not None:
@@ -42,10 +60,35 @@ class Api:
     def open_coach(self) -> None:
         webbrowser.open(self.url + "/")
 
+    def open_studio(self) -> None:
+        webbrowser.open(self.url + "/studio")
+
+    def set_scale(self, scale: float) -> float:
+        """Size preset from the overlay's Size button: resize the window and remember it."""
+        import json
+
+        try:
+            scale = min(SCALES, key=lambda s: abs(s - float(scale)))
+        except (TypeError, ValueError):
+            return self.scale
+        self.scale = scale
+        if self._window is not None:
+            try:
+                self._window.resize(int(WIDTH * scale), int(HEIGHT * scale))
+            except Exception:  # noqa: BLE001
+                pass
+        try:
+            path = _settings_path()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps({"scale": scale}), encoding="utf-8")
+        except OSError:
+            pass
+        return scale
+
     def set_height(self, height: int) -> None:
         if self._window is not None:
             try:
-                self._window.resize(WIDTH, max(260, min(900, int(height))))
+                self._window.resize(int(WIDTH * self.scale), max(260, min(1200, int(height))))
             except Exception:  # noqa: BLE001
                 pass
 
@@ -111,8 +154,8 @@ def run(url: str, *, x: int = 40, y: int = 120, theme: str | None = None) -> Non
     wait_for_server(url)
     api = Api(url)
     title = "Flexers Draft Overlay"
-    page = f"{url}/overlay?host=webview" + (f"&theme={theme}" if theme else "")
-    window = webview.create_window(title, url=page, width=WIDTH, height=HEIGHT, x=x, y=y,
+    page = f"{url}/overlay?host=webview&scale={api.scale}" + (f"&theme={theme}" if theme else "")
+    window = webview.create_window(title, url=page, width=int(WIDTH * api.scale), height=int(HEIGHT * api.scale), x=x, y=y,
                                    frameless=True, on_top=True, transparent=False, resizable=False, js_api=api)
     api._window = window
 

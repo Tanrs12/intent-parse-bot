@@ -76,7 +76,21 @@ class Hub:
         self._swaps_done: set[tuple] = set()
         self._swap_task: asyncio.Task | None = None
         self._tierlist: dict | None = None
+        from .profile_sync import ProfileStore
+        from . import identity as _identity
+
+        self.profiles = ProfileStore(roster_path.parent / "profiles.json" if roster_path else None, _identity.device_id())
+        self.profile_relay = None
         self._published_at = 0.0
+        # The client's current role / pick-order swap offers for the overlay's swap buttons.
+        self._offers: dict = {}
+        self._offers_epoch: tuple | None = None
+        self._offers_task: asyncio.Task | None = None
+        self._offers_at = 0.0
+        self._offers_again = False
+        self._offers_poll: asyncio.Task | None = None
+        self._pickable: set[int] | None = None   # champion ids this account may pick in this champ select
+        self._pickable_epoch: tuple | None = None
         self._sync_series()
 
     # ---- draft type / fearless series -------------------------------------------
@@ -200,6 +214,8 @@ class Hub:
                 await self.clear(detail=f"not in champ select (phase {gameflow_phase or 'None'})", source=source)
             return
         seat_fallback = source == "simulation" or is_custom or is_bot
+        if source == "lcu":
+            self._link_local_account(session)
         state = ds.state_from_lcu_session(session, self.roster, gameflow_phase, seat_fallback=seat_fallback)
         self._apply_wanted_role(state)
         state.source = source
@@ -289,7 +305,7 @@ class Hub:
                 self._pending = None
                 started = time.perf_counter()
                 try:
-                    if os.environ.get("INTENT_LIVE") == "1":
+                    if os.environ.get("INTENT_LIVE") == "1" and self.roster.settings.get("draft_source") == "discord":
                         # In INTent live mode this server is the lightweight LCU/state/action layer.
                         # The shared backend on :8766 owns composition scoring, matchup reactions,
                         # bans and pick order, so running Rat's full advisor here would duplicate the
@@ -381,6 +397,8 @@ class Hub:
         if normalise_type(self.roster.settings.get("draft_type")) != self.draft_type:
             self.draft.set_type(self.roster.settings.get("draft_type"))
             self._sync_series()
+        if result.applied:
+            self.profiles.apply_to(self.roster)   # loadfiles, LAN sync and Discord exports carry no versions
         level = "error" if result.errors else ("warn" if result.warnings else "import")
         summary = f"{result.name}: {len(result.applied)} change(s)"
         if result.errors:
@@ -538,10 +556,12 @@ class Hub:
         slot = next((p for p in state.our_team if p.cell_id == state.local_cell_id), None)
         if slot is None:
             return None
-        shared = self.intent_guidance
-        if isinstance(shared, dict) and not (g.get("picks") or g.get("bans")):
-            # INTent live mode: the bridge ranks, this app only acts. Its picks and bans drive the seat.
-            g = {**g, "picks": list(shared.get("picks") or []), "bans": list(shared.get("bans") or []),
+        shared = self.shared_guidance()
+        if isinstance(shared, dict):
+            # Following the team's shared drafts: its picks and bans drive this seat (what the page shows is
+            # what Lock does); the app's own lists only fill in when the shared ones are empty.
+            g = {**g, "picks": list(shared.get("picks") or []) or list(g.get("picks") or []),
+                 "bans": list(shared.get("bans") or []) or list(g.get("bans") or []),
                  "swaps": list(g.get("swaps") or shared.get("swaps") or [])}
         # FLEXERS: the scripted simulation stands in for the League client, so the panel's Hover / Lock
         # buttons can be tried in demo mode; the action lands on the simulated session (see client_act).
@@ -575,14 +595,22 @@ class Hub:
                 # ranked picks carry nothing for this seat's role, fall back to the leading draft's champion
                 # for that role rather than the top pick of a different role.
                 taken = set(state.our_locked().values()) | set(state.enemy_locked().values()) | set(state.our_bans) | set(state.enemy_bans)
-                mine = [p for p in g.get("picks") or [] if p["role"] == picking_role and p["champion"] not in taken]
+                mine = [p for p in g.get("picks") or [] if p["role"] == picking_role and p["champion"] not in taken
+                        and self.can_pick(p["champion"])]
                 if not mine:
                     for comp in (shared or {}).get("comps") or g.get("comps") or []:
                         planned = (comp.get("champions") or {}).get(picking_role)
-                        if planned and planned not in taken:
+                        if planned and planned not in taken and self.can_pick(planned):
                             mine = [{"champion": planned, "champion_id": comp.get("champion_ids", {}).get(picking_role) or champ_map.id_for(planned),
                                      "role": picking_role, "why": ["from the leading draft"]}]
                             break
+                if not mine and picking_role:
+                    # Nothing planned for this seat (a practice lobby, a stranger's role): this player's own
+                    # best comfort pick for the role, never another seat's champion.
+                    comfort = assist.comfort_picks(picking_role, taken | set(state.never_pick), self.tierlist(), self.matchups,
+                                                   comfort=self.comfort, pool=slot.pool.get(picking_role, []),
+                                                   avoid=set(slot.avoid), limit=12)
+                    mine = [{**p, "why": ["your comfort pick for " + picking_role]} for p in comfort if self.can_pick(p["champion"])][:1]
                 if mine:
                     best = mine[0]
                     view["suggestion"] = {"kind": "pick", "champion": best["champion"], "champion_id": best.get("champion_id"),
@@ -645,6 +673,8 @@ class Hub:
         actions = client_actions.ClientActions(rest)
         if what in ("hover", "lock"):
             champion = champion or ((view.get("suggestion") or {}).get("champion"))
+            if champion and kind == "pick" and not self.can_pick(champion):
+                raise RuntimeError(f"You can't pick {champion} on this account (not owned or disabled)")
             if not champion:
                 raise RuntimeError("nothing to accept: no suggestion for this seat")
             result = await asyncio.to_thread(getattr(actions, what), session, champion)
@@ -666,6 +696,7 @@ class Hub:
                 raise RuntimeError("seat swap needs a family, swap id and verb")
             result = await asyncio.to_thread(actions.swap, family, int(swap_id), verb)
             self.log_event(f"client: {'role' if family == 'position-swaps' else 'pick-order'} swap {verb}", "board")
+            self.refresh_offers(force=True)
         else:
             raise RuntimeError(f"unknown client action: {what}")
         return result
@@ -719,6 +750,55 @@ class Hub:
             return None
         return next((p for p in state.our_team if p.cell_id == state.local_cell_id), None)
 
+    def _link_local_account(self, session: dict) -> None:
+        """This PC's owner plays whatever account is logged in here: record it on their roster entry so
+        the seat matches them (pools, priorities) on a smurf too."""
+        from . import identity
+
+        owner = identity.load_owner()
+        player = self.roster.players.get(owner) if owner else None
+        if player is None:
+            return
+        local = session.get("localPlayerCellId")
+        me = next((m for m in session.get("myTeam") or [] if isinstance(m, dict) and m.get("cellId") == local), None)
+        if not me:
+            return
+        riot_id = f"{me.get('gameName')}#{me.get('tagLine')}" if me.get("gameName") and me.get("tagLine") else None
+        from . import my_champs
+
+        if my_champs.link_unique(self.roster, player, riot_id, me.get("puuid")):
+            self.profiles.record_accounts(player)
+            self.roster.touch()
+            self.log_event(f"this PC is {player.name}: linked {riot_id or 'this account'}", "roster")
+            self.persist()
+
+    def effective_source(self) -> str:
+        """"discord" when this seat follows the team's shared drafts right now, else "app".
+
+        auto follows only on affirmative evidence that the team is in this lobby (the bridge's
+        ``control.team_present``); missing or old bridge data means the app's own ranking."""
+        setting = str(self.roster.settings.get("draft_source") or "auto")
+        if setting == "app":
+            return "app"
+        shared = self.intent_guidance
+        if setting == "discord":
+            return "discord" if isinstance(shared, dict) else "app"
+        control = (shared or {}).get("control") or {}
+        return "discord" if isinstance(shared, dict) and control.get("team_present") is True else "app"
+
+    def shared_guidance(self) -> dict | None:
+        """The bridge's guidance when it is in effect (see effective_source), else None."""
+        return self.intent_guidance if self.effective_source() == "discord" else None
+
+    def can_pick(self, champion: str | None) -> bool:
+        """False only when the client's pickable list for this champ select is known and lacks it
+        (not owned, disabled, or a free-rotation champion that left rotation)."""
+        if not champion:
+            return False
+        if self._pickable is None or self._pickable_epoch != self._epoch(self.last_session):
+            return True
+        return champ_map.id_for(champion) in self._pickable
+
     def wanted_role(self, state: ds.DraftState | None = None) -> str | None:
         """The role this seat should end up in: the team's role lock for our verified identity, else
         our own "My role tonight" choice. Display names never authorise anything: a stranger called
@@ -727,7 +807,7 @@ class Hub:
         slot = None
         if state is not None and state.local_cell_id is not None:
             slot = next((p for p in state.our_team if p.cell_id == state.local_cell_id), None)
-        control = (self.intent_guidance or {}).get("control") or {}
+        control = (self.shared_guidance() or {}).get("control") or {}
         if slot is not None and slot.user_id and slot.player_key:
             for role, uid in (control.get("role_locks") or {}).items():
                 try:
@@ -766,7 +846,7 @@ class Hub:
         """Our 0-based pick slot in the leading draft's reveal order (counter-pick roles go last)."""
         if role not in assist.ROLES:
             return None
-        comps = (self.intent_guidance or {}).get("comps") or []
+        comps = (self.shared_guidance() or {}).get("comps") or []
         rows = (comps[0].get("pick_order") if comps and isinstance(comps[0], dict) else None) \
             or (self.guidance or {}).get("pick_order") or []
         order = [r.get("role") for r in rows if isinstance(r, dict) and r.get("role") in assist.ROLES]
@@ -788,12 +868,17 @@ class Hub:
                 enemy = next((p.locked for p in state.enemy_team
                               if p.locked and p.role == role and assist.confident_lane(p, tier)), None)
                 out["role"] = role
-                out["picks"] = assist.comfort_picks(
+                out["picks"] = [p for p in assist.comfort_picks(
                     role, state.unavailable() | set(state.never_pick), tier, self.matchups, comfort=self.comfort,
-                    pool=slot.pool.get(role, []), enemy_laner=enemy, avoid=set(slot.avoid)) if role else []
+                    pool=slot.pool.get(role, []), enemy_laner=enemy, avoid=set(slot.avoid), limit=12)
+                    if self.can_pick(p["champion"])][:6] if role else []
                 target = self.wanted_role()
                 out["swaps"] = assist.swap_plan(self.last_session or {}, target, self.wanted_pick_slot(target))
                 out["comfort_known"] = bool(self.comfort)
+                current = self._offers if self._offers_epoch == self._epoch(self.last_session) else {}
+                names = {p.cell_id: p.display_name for p in state.our_team}
+                out["offers"] = assist.swap_offer_rows(self.last_session or {}, current, names)
+                out["auto_swap"] = bool(self.roster.settings.get("auto_swap", True))
             return out
         except Exception as exc:  # noqa: BLE001 - assistance must never break the snapshot
             log.exception("assist failed")
@@ -822,6 +907,74 @@ class Hub:
             loop.create_task(self._load_comfort(game))
         if self.roster.settings.get("auto_swap", True) and (self._swap_task is None or self._swap_task.done()):
             self._swap_task = loop.create_task(self._auto_swap(session, state, epoch))
+        self.refresh_offers(epoch)
+
+    def refresh_offers(self, epoch: tuple | None = None, *, force: bool = False) -> None:
+        """Re-read the client's swap offers and pickable champions (at most once a second unless forced).
+        A forced refresh asked for while one is running is not dropped: it runs right after."""
+        epoch = epoch or self._epoch(self.last_session)
+        if self._offers_task is not None and not self._offers_task.done():
+            self._offers_again = self._offers_again or force
+            return
+        if not force and epoch == self._offers_epoch and time.time() - self._offers_at < 1.0:
+            return
+        self._offers_task = asyncio.get_running_loop().create_task(self._load_offers(epoch))
+        if self._offers_poll is None or self._offers_poll.done():
+            self._offers_poll = asyncio.get_running_loop().create_task(self._poll_offers())
+
+    async def _poll_offers(self) -> None:
+        """While this client is in champion select, keep the swap buttons fresh without waiting for events."""
+        while self.last_session is not None and self.status.get("lcu_in_champ_select"):
+            await asyncio.sleep(2.0)
+            if self.last_session is not None and self.status.get("lcu_in_champ_select"):
+                self.refresh_offers()
+
+    async def _load_offers(self, epoch: tuple) -> None:
+        rest = self.client_rest()
+        if rest is None:
+            return
+        actions = client_actions.ClientActions(rest)
+        offers: dict = {}
+        for family in client_actions.SWAP_FAMILIES:   # each resource on its own: one failing never hides the others
+            try:
+                offers[family] = await asyncio.to_thread(actions.swap_offers, family)
+            except Exception as exc:  # noqa: BLE001
+                log.debug("%s unavailable: %s", family, exc)
+        try:
+            pickable = await asyncio.to_thread(rest.get, "/lol-champ-select/v1/pickable-champion-ids")
+        except Exception as exc:  # noqa: BLE001
+            log.debug("pickable champions unavailable: %s", exc)
+            pickable = None
+        self._offers_at = time.time()
+        if self._epoch(self.last_session) == epoch:
+            changed = False
+            if isinstance(pickable, list):
+                fresh = {int(c) for c in pickable if str(c).lstrip("-").isdigit()}
+                if fresh != self._pickable or epoch != self._pickable_epoch:
+                    self._pickable, self._pickable_epoch = fresh, epoch
+                    changed = True
+            merged = {**(self._offers if epoch == self._offers_epoch else {}), **offers}
+            if merged != self._offers or epoch != self._offers_epoch:
+                self._offers, self._offers_epoch = merged, epoch
+                changed = True
+            if changed:
+                await self._push()
+        if self._offers_again:
+            self._offers_again = False
+            self._offers_task = asyncio.get_running_loop().create_task(self._load_offers(self._epoch(self.last_session)))
+
+    async def load_comfort_now(self) -> None:
+        """Mastery outside champion select (the "My champs" tab); a game in progress keeps its own."""
+        rest = self.client_rest()
+        if rest is None:
+            return
+        try:
+            rows = await asyncio.to_thread(rest.get, "/lol-champion-mastery/v1/local-player/champion-mastery")
+        except Exception as exc:  # noqa: BLE001
+            log.warning("champion mastery unavailable: %s", exc)
+            return
+        if not self.comfort:
+            self.comfort = assist.comfort_from_mastery(rows if isinstance(rows, list) else [])
 
     async def _load_comfort(self, game: tuple) -> None:
         rest = self.client_rest()
@@ -920,6 +1073,8 @@ class Hub:
             "imports": list(self.roster.history)[-12:],
             "engine_data": engine_data_info(),
             "assist": self.assist_view(),
+            "draft_source": {"setting": str(self.roster.settings.get("draft_source") or "auto"),
+                             "effective": self.effective_source()},
         }
 
     async def _push(self) -> None:

@@ -1028,10 +1028,12 @@ def _control_for_lobby(control: dict, five: list[dict], five_ids: set[int]) -> d
     present = sum(1 for row in five if not row.get("_uncontrolled") and not row.get("_local_unsigned")
                   and int(row.get("user_id") or 0) > 0)
     steering = ("chosen", "champion_locks", "identity", "role_locks", "signature")
-    if present >= TEAM_CONTROL_MIN_PLAYERS or not any(control.get(k) for k in steering):
-        return control
+    if present >= TEAM_CONTROL_MIN_PLAYERS:
+        return {**control, "team_present": True, "team_absent": False}
+    if not any(control.get(k) for k in steering):
+        return {**control, "team_present": False, "team_absent": True}
     return {**control, "chosen": None, "champion_locks": {}, "identity": None, "role_locks": {},
-            "signature": None, "team_absent": True}
+            "signature": None, "team_present": False, "team_absent": True}
 
 
 def _apply_role_locks(live: dict[str, int], role_locks: dict[str, int], five_ids: set[int]) -> dict[str, int]:

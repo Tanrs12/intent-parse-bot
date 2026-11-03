@@ -68,16 +68,24 @@ def merged_state() -> dict:
                 p = {"role": local_role, "champion": options[0],
                      "champion_id": ids[0] if ids else None,
                      "why": (top_comp.get("enemy_draft_reasons") or [])[:2]}
-        p = p or choices[0]
-        hovered = confirmed_hovers.get(local_role) == local_hover and local_hover
-        why = "; ".join(p.get("why") or [])
-        if hovered and p.get("champion") != local_hover:
-            why = (f"Hovering {local_hover}; better draft option. " + why).strip()
-        suggestion = {
-            "kind": "pick", "champion": p.get("champion"), "champion_id": p.get("champion_id"),
-            "role": p.get("role"), "reason": why, "source": "intent-ranked",
-        }
-        local["picking_role"] = p.get("role")
+        if p is None and not local_role:
+            p = choices[0]      # role unknown: nothing to contradict
+        if p is None:
+            # Never another seat's champion: fall back to the app's own suggestion for this seat's role.
+            own = local.get("suggestion") or {}
+            if own.get("kind") == "pick" and own.get("champion") and own.get("role") in (None, local_role):
+                p = {"role": own.get("role") or local_role, "champion": own.get("champion"),
+                     "champion_id": own.get("champion_id"), "why": [own.get("reason") or ""]}
+        if p is not None:
+            hovered = confirmed_hovers.get(local_role) == local_hover and local_hover
+            why = "; ".join(w for w in p.get("why") or [] if w)
+            if hovered and p.get("champion") != local_hover:
+                why = (f"Hovering {local_hover}; better draft option. " + why).strip()
+            suggestion = {
+                "kind": "pick", "champion": p.get("champion"), "champion_id": p.get("champion_id"),
+                "role": p.get("role"), "reason": why, "source": "intent-ranked",
+            }
+            local["picking_role"] = p.get("role")
 
     local["can_act"] = can_act
     local["suggestion"] = suggestion if can_act else None

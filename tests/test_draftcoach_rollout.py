@@ -34,6 +34,7 @@ def test_idle_lcu_does_not_clear_an_explicit_manual_board(monkeypatch):
     monkeypatch.setenv("INTENT_LIVE", "1")
     async def run():
         hub = Hub(Roster(auto_profiles=False), debounce_ms=0, prewarm=0)
+        hub.roster.settings["draft_source"] = "discord"     # the INTent stub this test was written against
         await hub.ingest_manual()
         await hub.settle()
         await hub.ingest_lcu_session(None, "Lobby")
@@ -47,7 +48,10 @@ def test_local_suggestion_never_falls_back_to_another_role():
     hub.state = ds.state_from_lcu_session(hub.last_session, hub.roster, "ChampSelect")
     hub.guidance = {"picks": [], "bans": []}
     hub.intent_guidance = {"picks": [{"champion": "Nami", "role": "Support"}]}
-    assert hub.local_view()["suggestion"] is None
+    view = hub.local_view()
+    # Never another role's champion; this seat may get its own comfort pick for its own role instead.
+    assert view["suggestion"] is None or (view["suggestion"]["champion"] != "Nami"
+                                          and view["suggestion"]["role"] == view["picking_role"])
 
 
 def test_stale_session_cannot_offer_or_execute_client_actions():

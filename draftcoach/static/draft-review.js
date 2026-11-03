@@ -25,14 +25,21 @@
     if (a.kind !== "pick") return null;
     const me = (s.our_team || []).find(p => p.is_local);
     if (me?.locked) return null;
-    const p = (g.picks || []).find(p =>
-      me?.user_id != null && p.player_id != null && String(p.player_id) === String(me.user_id)
-    ) || (g.picks || []).find(p => p.role === (me?.role || local.role));
-    return p ? { ...p, kind: "pick" } : null;
+    // The server already merged the bridge's picks for this seat and checked role and ownership;
+    // a raw bridge pick (another role, an unowned champion) is never put on the Lock button.
+    const own = local.suggestion;
+    if (!own || own.kind !== "pick") return null;
+    const ranked = (g.picks || []).find(p => p.champion === own.champion && p.role === own.role);
+    return ranked ? { ...ranked, ...own, kind: "pick" } : own;
   }
 
   function liveSnapshot(snapshot, bridge) {
     if (!snapshot?.state || snapshot.state.source === "manual") return snapshot;
+    // Draft source (settings.draft_source): "app" keeps this app's own ranking on screen, "discord" follows the
+    // shared drafts, "auto" follows them only when the team is in this lobby (the bridge marks a lobby without
+    // three verified teammates as team_absent). A chosen Discord comp is shown either way.
+    // The hub decides (snapshot.draft_source.effective); the page never second-guesses it.
+    if ((snapshot.draft_source || {}).effective !== "discord") return snapshot;
     // The bridge's guidance wins when it carries drafts or picks. When the bridge is active but
     // empty (scripted simulation, a lobby it cannot rank) the app's own guidance, which comes from
     // the same backend, stays on screen rather than a dead "no recommendation".
@@ -60,7 +67,7 @@
       active.cell_ids?.length && !active.cell_ids.includes(me.cell_id));
     const kind = local?.suggestion?.kind || active?.kind || local?.kind || "pick";
     const rows = (kind === "ban" ? g?.bans : g?.picks) || [];
-    const suggestion = local?.suggestion || rows.find(p => p.role === (me?.role || local?.role)) || rows[0];
+    const suggestion = local?.suggestion || rows.find(p => p.role === (local?.picking_role || me?.role || local?.role));
     const fresh = !!snapshot && !snapshot.status?.stale && snapshot.status?.connection !== "error";
     const enabled = !!(fresh && ours && local?.can_act && local.suggestion &&
       kind === active.kind && !(kind === "pick" && me?.locked));

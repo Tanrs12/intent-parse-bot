@@ -196,8 +196,9 @@ def test_legacy_automatic_dark_preference_does_not_override_new_default(browser_
     show(page, draft())
     assert page.locator("body.graphite").count() == 0
     page.locator("#theme").click()
-    page.reload()
     pw.expect(page.locator("body")).to_have_class("fd-overlay graphite")
+    page.reload()                                        # Will, 3 Nov 2026: every open starts light
+    pw.expect(page.locator("body")).to_have_class("fd-overlay")
     assert errors == []
 
 

@@ -183,6 +183,8 @@ DEFAULT_SETTINGS = {
     "queues": [],             # queue ids the live coach reacts to (440 = Ranked Flex, 0 = custom); [] = every queue but ARAM/Arena
     "scouting_weight": 1.0,   # how much scouted enemy pools move ban/counter scores
     "auto_swap": True,        # request/accept the role and pick-order swaps that reach the chosen plan
+    "draft_source": "auto",   # auto: team's shared drafts when 3+ of the team are in this lobby, else this app's own;
+                              # app: always this app's own ranking; discord: always the shared Discord/INTent drafts
     "draft_type": "tournament",  # tournament | ranked | fearless
     "plan_weight": 4.0,       # pick-score bonus for completing a viable playbook composition
 }
@@ -245,7 +247,12 @@ class Roster:
         for row in data.get("opponents", []):
             opp = Opponent.from_dict(row)
             self.opponents[opp.key] = opp
-        self.settings = {**DEFAULT_SETTINGS, **{k: v for k, v in (data.get("settings") or {}).items() if k in DEFAULT_SETTINGS}}
+        saved = dict(data.get("settings") or {})
+        if "draft_source" not in saved and isinstance(saved.get("discord_drafts"), bool):
+            saved["draft_source"] = "discord" if saved["discord_drafts"] else "app"   # pre-release boolean
+        self.settings = {**DEFAULT_SETTINGS, **{k: v for k, v in saved.items() if k in DEFAULT_SETTINGS}}
+        if self.settings.get("draft_source") not in ("auto", "app", "discord"):
+            self.settings["draft_source"] = "auto"
         if self.settings.get("queues") in LEGACY_QUEUE_DEFAULTS:
             # Saved before 2 Nov 2026, when Ranked Flex + test lobbies was the default: now every queue.
             self.settings["queues"] = []

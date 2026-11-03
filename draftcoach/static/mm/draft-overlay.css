@@ -109,3 +109,50 @@ body.fd-overlay.embedded { height: auto; min-height: 100%; padding: 12px; overfl
 .ov-comp-row[data-swapped="true"] .ov-comp-champ { color: var(--mm-accent, #c8962e); }
 .ov-comp-swap { display: block; font-size: 10px; opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+
+/* Role / pick-order swap buttons */
+.ov-swaps { margin-top: 10px; display: grid; gap: 6px; }
+.ov-swaps-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ov-swap-list { display: grid; gap: 6px; }
+.ov-swap-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.ov-swap-row .fd-button { flex: 1 1 auto; min-height: 36px; text-align: left; }
+.ov-swap-row.incoming .fd-button.primary { flex: 3 1 auto; }
+
+/* Tabs: Draft / My champs / Stats */
+.ov-tabs { display: flex; align-items: stretch; gap: 2px; flex: none; padding: 0 10px; border-bottom: 1px solid var(--mm-line); background: var(--mm-paper); }
+.ov-tab { appearance: none; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--mm-secondary);
+  font: 600 11px/14px var(--mm-sans); letter-spacing: 0.04em; text-transform: uppercase; padding: 4px 8px 3px; cursor: pointer; }
+.ov-tab[aria-selected="true"] { color: var(--mm-ink); border-bottom-color: var(--accent, var(--mm-blue)); }
+.ov-tab:focus-visible { outline: 2px solid var(--mm-blue); outline-offset: -2px; }
+.ov-tabs .ov-discord { margin-left: auto; min-height: 0; padding: 2px 4px; font-size: 11px; }
+.ov-pane { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.ov-pane[hidden] { display: none; }
+.ov-pane-scroll { overflow-y: auto; padding: 10px 14px 14px; display: grid; gap: 12px; align-content: start; }
+.ov-field { display: grid; gap: 4px; }
+.ov-field select, .ov-me-add input { min-height: 32px; border: 1px solid var(--fd-border); background: var(--mm-surface); color: var(--mm-ink); font: 14px var(--mm-sans); padding: 4px 8px; }
+.ov-me-head { display: grid; gap: 4px; }
+.ov-me-role { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--mm-line); }
+.ov-me-role-head { display: flex; justify-content: space-between; align-items: baseline; }
+.ov-me-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.ov-me-option { cursor: pointer; }
+.ov-me-pool { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.ov-me-pool-item { display: grid; grid-template-columns: 1.4em auto 1fr auto auto; align-items: center; gap: 6px; }
+.ov-me-add { display: flex; gap: 6px; }
+.ov-me-add input { flex: 1; min-width: 0; }
+.ov-stats-head { display: flex; justify-content: space-between; align-items: center; }
+.ov-stat-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.ov-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; }
+.ov-stat-grid dd { margin: 0; font: 600 16px/20px var(--mm-sans); font-variant-numeric: tabular-nums; }
+.ov-form { display: flex; gap: 3px; margin: 0; font: 600 12px var(--mm-mono); }
+.ov-form span { width: 18px; text-align: center; padding: 2px 0; border: 1px solid var(--mm-line); }
+.ov-form .ov-form-w { color: var(--mm-blue); }
+.ov-form .ov-form-l { color: var(--fd-error); }
+.ov-stat-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ov-stat-table th { text-align: left; font: 10px var(--mm-mono); color: var(--mm-secondary); padding: 4px 2px; border-bottom: 1px solid var(--mm-line); }
+.ov-stat-table td { padding: 4px 2px; border-bottom: 1px solid var(--mm-line); }
+.ov-stat-table td:first-child { display: flex; align-items: center; gap: 6px; }
+.ov-insights { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; }
+.ov-insight-warn { color: var(--mm-warn); }
+.ov-rank { padding: 3px 8px; border: 1px solid var(--mm-line); background: var(--mm-paper); font: 12px/16px var(--mm-sans); }
+.ov-me-head[hidden] { display: none; }
+.ov-foot-links { display: flex; gap: 14px; }

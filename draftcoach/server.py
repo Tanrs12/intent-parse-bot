@@ -53,6 +53,11 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTex
 
 from . import ENGINE_DIR, LOADFILE_DIR, ROOT, VAR_DIR, __version__, champions, loadfiles
 from .draft_order import ManualDraft
+from . import assist, identity, my_champs
+
+import league_comp_engine as engine  # type: ignore  # noqa: E402
+
+ROLE_ORDER = ("Top", "Jungle", "Mid", "ADC", "Support")
 from .hub import MISSING, Hub, _json_default
 from .lcu import LcuWatcher
 from .roster import Roster
@@ -126,7 +131,8 @@ def build_roster(config: dict, roster_path: Path | None, reset: bool = False) ->
 def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile: str | None = None,
                simulation: dict | None = None, roster_path: Path | None = None, watch_dir: Path | None = None,
                load_files: list[Path] | None = None, reset_roster: bool = False, sync_url: str | None = None,
-               sync_interval: float = 60.0, any_queue: bool = False) -> FastAPI:
+               sync_interval: float = 60.0, any_queue: bool = False,
+               profile_relay: tuple[str, str] | None = None) -> FastAPI:
     config = config or {}
     roster = build_roster(config, roster_path, reset=reset_roster)
     draft = ManualDraft(side=str(config.get("side") or "blue"))
@@ -167,6 +173,15 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
             tasks.append(asyncio.create_task(_watch_loadfiles(hub, Path(watch_dir))))
         if sync_url:
             tasks.append(asyncio.create_task(_sync_roster(hub, sync_url, sync_interval)))
+        # Team profiles: what is stored here wins over loadfiles imported at start (those are older), then
+        # the relay exchange keeps every teammate's app converging.
+        if hub.profiles.apply_to(roster):
+            await hub.roster_changed("team profiles applied")
+        if profile_relay and profile_relay[0] and profile_relay[1]:
+            from .profile_sync import RelaySync
+
+            hub.profile_relay = RelaySync(hub.profiles, profile_relay[0], profile_relay[1])
+            tasks.append(asyncio.create_task(_exchange_profiles(hub)))
         # FLEXERS: keep the shared backend's latest picks and bans on the hub, so this seat's
         # suggestion (and the Hover / Lock buttons) exist even when the app computes nothing locally.
         tasks.append(asyncio.create_task(_poll_bridge(hub, str(config.get("bridge_url") or os.environ.get("INTENT_BRIDGE_URL") or "http://127.0.0.1:8766"))))
@@ -235,6 +250,10 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
     @app.get("/coach", response_class=HTMLResponse)
     async def coach_page() -> FileResponse:
         return FileResponse(STATIC / "coach.html", media_type="text/html")
+
+    @app.get("/studio", response_class=HTMLResponse)
+    async def studio_page() -> FileResponse:
+        return FileResponse(STATIC / "studio.html", media_type="text/html")
 
     @app.get("/overlay", response_class=HTMLResponse)
     async def overlay_page(layout: str | None = None) -> FileResponse:
@@ -460,6 +479,15 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
         return await _draft_reply()
 
     # ---- acting through this machine's League client -------------------------------------------
+    @app.post("/api/window/open")
+    async def open_window() -> JSONResponse:
+        """Reopen the floating overlay after it was closed (the coach keeps running without it)."""
+        supervisor = getattr(app.state, "window_supervisor", None)
+        if supervisor is None:
+            raise HTTPException(404, "this coach was started without the overlay window")
+        started = await asyncio.to_thread(supervisor.open)
+        return JSONResponse({"ok": True, "started": started, "running": supervisor.running})
+
     @app.get("/api/client/local")
     async def client_local() -> JSONResponse:
         return JSONResponse({"local": hub.local_view(), "client": hub.client_rest() is not None})
@@ -631,6 +659,180 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
         return JSONResponse({"review": stats_state["review"], "error": stats_state["error"], "refreshing": stats_state["refreshing"],
                              "refreshed_at": stats_state["refreshed_at"], "client": hub.client_rest() is not None})
 
+    # ---- "My champs": this PC's player, their pools per role and their best options -------------
+    async def _account() -> dict:
+        """The account signed in to this PC's League client (read only: links nothing)."""
+        rest = hub.client_rest()
+        if rest is None:
+            raise HTTPException(409, "League client not detected on this PC")
+        try:
+            me = await asyncio.to_thread(rest.get, "/lol-summoner/v1/current-summoner") or {}
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(409, f"League client did not answer: {exc}")
+        game, tag = me.get("gameName") or me.get("displayName") or "", me.get("tagLine") or ""
+        return {"riot_id": f"{game}#{tag}" if game and tag else (game or None), "puuid": me.get("puuid") or None,
+                "game_name": game}
+
+    async def _me() -> dict:
+        """The account plus its player: the PC owner when this PC is linked (the account is then recorded
+        on the owner unless another player owns it), else the player owning this exact account."""
+        acct = await _account()
+        owner = identity.load_owner()
+        player = my_champs.account_player(roster, acct["riot_id"], acct["puuid"], owner)
+        if player is not None and owner == player.key and my_champs.link_unique(roster, player, acct["riot_id"], acct["puuid"]):
+            hub.profiles.record_accounts(player)
+            await hub.roster_changed(f"this PC is {player.name}: linked {acct['riot_id']}")
+        return {**acct, "player": player, "linked": player is not None and owner == player.key}
+
+    @app.get("/api/me")
+    async def get_me() -> JSONResponse:
+        me = await _me()
+        player = me["player"]
+        if not hub.comfort:
+            await hub.load_comfort_now()
+        pools = {role: list(player.champions(role)) for role in ROLE_ORDER} if player else {role: [] for role in ROLE_ORDER}
+        options = {}
+        for role in ROLE_ORDER:
+            rows = assist.comfort_picks(role, set(roster.never_pick), hub.tierlist(), hub.matchups,
+                                        comfort=hub.comfort, pool=pools[role], avoid=set(player.avoid) if player else set(), limit=6)
+            options[role] = [{k: r[k] for k in ("champion", "champion_id", "score", "win_rate", "comfort", "in_pool", "why")} for r in rows]
+        relay = getattr(hub, "profile_relay", None)
+        return JSONResponse({"team_sync": dict(relay.status) if relay else {"state": "off"},
+                             "linked": me["linked"], "device_owner": identity.load_owner(),
+                             "players": sorted(({"key": p.key, "name": p.name} for p in roster.players.values()),
+                                               key=lambda p: p["name"].casefold()),
+                             "riot_id": me["riot_id"], "name": player.name if player else me["game_name"],
+                             "player_key": player.key if player else None, "roles": list(player.roles) if player else [],
+                             "pools": pools, "options": options, "mastery_known": bool(hub.comfort),
+                             "patch": hub.tierlist().get("patch")})
+
+    @app.post("/api/me/owner")
+    async def set_my_owner(request: Request) -> JSONResponse:
+        """Link this PC to a roster player ({"player_key"}) or to a new one ({"new_name"}); {} unlinks.
+        Validated before anything changes; the current account is recorded on the chosen player only."""
+        payload = await _json(request)
+        key = payload.get("player_key") or None
+        new_name = str(payload.get("new_name") or "").strip()[:40]
+        if key and key not in roster.players:
+            raise HTTPException(404, "no such player")
+        if payload.get("new_name") is not None and not new_name:
+            raise HTTPException(400, "a name is needed")
+        acct = await _account()
+        if new_name:
+            key = my_champs.new_player(roster, new_name, acct["riot_id"], acct["puuid"]).key
+        identity.save_owner(key)
+        if key:
+            my_champs.link_unique(roster, roster.players[key], acct["riot_id"], acct["puuid"])
+            hub.profiles.record_accounts(roster.players[key])
+        await hub.roster_changed(f"this PC is {roster.players[key].name}" if key else "this PC unlinked")
+        return JSONResponse({"ok": True, "device_owner": key})
+
+    @app.post("/api/me/pool")
+    async def set_my_pool(request: Request) -> JSONResponse:
+        """Replace this player's pool for one role (order = priority). An account nobody owns gets its own
+        new player (never adopted by display name)."""
+        payload = await _json(request)
+        role = payload.get("role")
+        if role not in ROLE_ORDER:
+            raise HTTPException(400, "role must be one of " + ", ".join(ROLE_ORDER))
+        names, unknown = [], []
+        for raw in payload.get("champions") or []:
+            name = champions.resolve(str(raw))
+            (names if name else unknown).append(name or str(raw))
+        if unknown:
+            raise HTTPException(400, "unknown champion: " + ", ".join(unknown))
+        me = await _me()
+        player = me["player"]
+        if player is None:
+            if not me["riot_id"]:
+                raise HTTPException(409, "could not read this PC's Riot ID from the client")
+            player = my_champs.new_player(roster, me["game_name"] or me["riot_id"], me["riot_id"], me["puuid"])
+            my_champs.link_unique(roster, player, me["riot_id"], me["puuid"])
+        pool = my_champs.set_pool(player, role, names)
+        hub.profiles.record_pool(player, role)
+        hub.profiles.record_accounts(player)
+        await hub.roster_changed(f"{player.name}: {role} pool set ({len(pool)})")
+        return JSONResponse({"ok": True, "player_key": player.key, "pool": pool})
+
+    # ---- Draft Studio --------------------------------------------------------------------------
+    def _lineup(payload: dict) -> dict:
+        raw = payload.get("lineup") or {}
+        return {role: (raw.get(role) if raw.get(role) in roster.players else None) for role in ROLE_ORDER}
+
+    def _names(values) -> list[str]:
+        return [c for c in (champions.resolve(str(v)) for v in values or []) if c]
+
+    @app.post("/api/data/refresh")
+    async def refresh_data() -> JSONResponse:
+        """Pull the latest shared drafting data (player histories, matchups, pro pairs) now. Bad or partial
+        downloads never replace the last good data; app code itself only changes through app updates."""
+        import sys as _sys
+
+        bridge = _sys.modules.get("intent_live_draft_bridge")
+        if bridge is None or not hasattr(bridge, "refresh_shared_engine_data"):
+            raise HTTPException(409, "drafting data refresh needs the INTent bridge (start with --bridge)")
+        status = await asyncio.to_thread(bridge.refresh_shared_engine_data, True)
+        hub.meta, hub.matchups = engine.load_meta(), engine.load_lane_matchups()
+        await hub.rescore()
+        return JSONResponse({"ok": all(v.get("ok") for v in status.values()) if status else False, "files": status})
+
+    @app.get("/api/studio/setup")
+    async def studio_setup() -> JSONResponse:
+        import league_draft_backend as ldb
+
+        players = [{"key": p.key, "name": p.name, "roles": [r for r in p.roles if r in ROLE_ORDER],
+                    "pools": {r: list(p.champions(r)) for r in ROLE_ORDER if p.pools.get(r)}}
+                   for p in sorted(roster.players.values(), key=lambda p: p.name.casefold())]
+        identities = [{"key": k, "label": v.get("label", k), "description": v.get("description", "")}
+                      for k, v in getattr(ldb, "IDENTITIES", {}).items()]
+        return JSONResponse({"players": players, "roles": list(ROLE_ORDER), "identities": identities,
+                             "device_owner": identity.load_owner(), "patch": hub.tierlist().get("patch")})
+
+    @app.post("/api/studio/generate")
+    async def studio_generate(request: Request) -> JSONResponse:
+        from . import studio
+
+        p = await _json(request)
+        out = await asyncio.to_thread(
+            studio.generate, roster, hub.tierlist(), lineup=_lineup(p),
+            locks={r: c for r, c in (p.get("locks") or {}).items() if r in ROLE_ORDER},
+            bans=_names(p.get("bans")), excluded={r: _names(v) for r, v in (p.get("excluded") or {}).items() if r in ROLE_ORDER},
+            identity=p.get("identity") or None, creative=bool(p.get("creative")), seed=p.get("seed") or None,
+            count=int(p.get("count") or 6), side="red" if p.get("side") == "red" else "blue",
+            exclude_signatures=[str(s) for s in p.get("exclude_signatures") or []][:60],
+            hard_exclude=bool(p.get("different")))
+        return JSONResponse(out)
+
+    @app.post("/api/studio/reroll")
+    async def studio_reroll(request: Request) -> JSONResponse:
+        from . import studio
+
+        p = await _json(request)
+        if p.get("role") not in ROLE_ORDER:
+            raise HTTPException(400, "role must be one of " + ", ".join(ROLE_ORDER))
+        out = await asyncio.to_thread(
+            studio.reroll_lane, roster, hub.tierlist(), lineup=_lineup(p),
+            draft={r: c for r, c in (p.get("draft") or {}).items() if r in ROLE_ORDER}, role=p["role"],
+            reject=_names(p.get("reject")), bans=_names(p.get("bans")), side="red" if p.get("side") == "red" else "blue")
+        return JSONResponse(out)
+
+    @app.post("/api/studio/insight")
+    async def studio_insight(request: Request) -> JSONResponse:
+        """Per lineup seat: champions to learn and pool weaknesses for that role, plus team-wide gaps."""
+        from . import studio
+
+        p = await _json(request)
+        lineup = _lineup(p)
+        seats, pools = {}, {}
+        for role in ROLE_ORDER:
+            player = roster.players.get(lineup[role] or "")
+            pool = list(player.champions(role)) if player else []
+            pools[role] = pool
+            seats[role] = {"player": player.name if player else None, "pool": pool,
+                           "learn": studio.learn(pool, role, hub.tierlist(), exclude=set(roster.never_pick)),
+                           "weaknesses": studio.weaknesses(pool, role, hub.tierlist(), hub.matchups)}
+        return JSONResponse({"seats": seats, "team": studio.team_gaps(pools)})
+
     @app.get("/api/champions")
     async def get_champions() -> JSONResponse:
         return JSONResponse({"champions": champions.all_ids()})
@@ -719,6 +921,22 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
         return Response(data, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
     return app
+
+
+async def _exchange_profiles(hub: Hub) -> None:
+    """Every 20 s: merge the team's profile room into this app and share what it has (see profile_sync)."""
+    relay = hub.profile_relay
+    while True:
+        try:
+            changed = await asyncio.to_thread(relay.exchange)
+            if changed:
+                players = {key for key, _ in changed}
+                if hub.profiles.apply_to(hub.roster, players):
+                    names = ", ".join(sorted(hub.roster.players[k].name for k in players if k in hub.roster.players))
+                    await hub.roster_changed(f"team sync: updated {names}")
+        except Exception as exc:  # noqa: BLE001 - offline, relay restart, firewall: keep the local copy, retry
+            relay.status.update(state="offline", last_error=f"{type(exc).__name__}: {str(exc)[:120]}")
+        await asyncio.sleep(relay.interval)
 
 
 async def _poll_bridge(hub: Hub, bridge_url: str) -> None:

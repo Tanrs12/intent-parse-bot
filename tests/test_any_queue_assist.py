@@ -234,6 +234,7 @@ def test_hub_uses_lineup_fallback_only_in_test_lobbies(roster, monkeypatch):
     monkeypatch.setenv("INTENT_LIVE", "1")
     sess = _session(names=False)
 
+    roster.settings["draft_source"] = "discord"                                  # light stub: identity, not ranking
     async def go(queue):
         hub = Hub(roster)
         await hub.ingest_lcu_session(sess, "ChampSelect", queue)
@@ -273,6 +274,7 @@ def _live_hub(roster, rest, monkeypatch, tmp_path, role="Top"):
     hub = Hub(roster)
     hub.rest = rest
     hub.status["connection"] = "connected"          # the client watcher reports this before any session
+    roster.settings["draft_source"] = "discord"         # the light INTent stub: these tests are not about ranking
     return hub
 
 

@@ -21,6 +21,8 @@
   <div class="coach-mast-actions">
     <button class="fd-text-button" id="coach-theme" type="button" aria-pressed="false">Dark</button>
     <span class="mm-meta coach-status" id="status" data-mode="connecting">Connecting</span>
+    <a class="fd-text-button" href="/studio" target="_blank" rel="noopener">Draft Studio</a>
+    <button class="fd-text-button" id="open-overlay" type="button" title="Reopen the floating overlay window (the coach keeps running when it is closed)">Open overlay</button>
     <button class="fd-button" id="open-roster" type="button"><span class="mm-icon" data-icon="book" aria-hidden="true"></span>Roster &amp; imports</button>
     <a class="fd-button" href="/overlay" target="_blank" rel="noopener"><span class="mm-icon" data-icon="overlay" aria-hidden="true"></span>Preview overlay</a>
   </div>
@@ -238,6 +240,10 @@
   const drawer = $("drawer");
   let drawerInvoker = null;
 
+  document.getElementById("open-overlay").onclick = async () => {
+    try { const r = await D.api("POST", "/api/window/open"); toast(r.started ? "Overlay opened." : "The overlay is already open."); }
+    catch (e) { toast("Overlay not available here: " + e.message, true); }
+  };
   function toast(text, isError) { const t = D.el("div", "toast" + (isError ? " error" : ""), text); document.body.appendChild(t); setTimeout(() => t.remove(), isError ? 4500 : 2400); }
   async function act(path, body) { try { return await D.api("POST", path, body); } catch (e) { toast(e.message, true); return null; } }
   function editingText(target) { return target instanceof Element && Boolean(target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')); }

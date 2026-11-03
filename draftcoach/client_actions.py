@@ -18,6 +18,7 @@ without a client; ``ClientActions`` wraps them around a ``LcuRest``.
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from . import champions as champ_map
@@ -98,7 +99,26 @@ class ClientActions:
             raise RuntimeError(f"unknown champion: {champion}")
         self.rest.request("PATCH", self._action_url(action), {"championId": cid})
         self.rest.request("PATCH", self._action_url(action), {"championId": cid, "completed": True})
-        return {"action_id": int(action["id"]), "kind": action.get("type"), "champion": champion, "completed": True}
+        # The client can answer 2xx and still not lock (champion not owned, action already moved on):
+        # read it back so the button never says "locked in" for a lock that did not happen.
+        verified = None
+        for attempt in range(3):
+            try:
+                after = self.rest.get("/lol-champ-select/v1/session")
+            except Exception:  # noqa: BLE001
+                after = None
+            now = next((a for group in (after or {}).get("actions") or [] for a in group or []
+                        if isinstance(a, dict) and a.get("id") == action.get("id")), None) if isinstance(after, dict) else None
+            if now is not None:
+                verified = bool(now.get("completed") and int(now.get("championId") or 0) == cid)
+                if verified:
+                    break
+            if attempt < 2:
+                time.sleep(0.25)
+        if verified is False:
+            raise RuntimeError(f"League did not lock {champion} (is it owned and still available?)")
+        return {"action_id": int(action["id"]), "kind": action.get("type"), "champion": champion, "completed": True,
+                "verified": bool(verified)}
 
     def request_trade(self, session: dict, with_cell: int) -> dict:
         trade = trade_for_cell(session, with_cell)

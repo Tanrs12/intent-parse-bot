@@ -101,15 +101,15 @@
   }
 
   function themeControl(button, storageKey) {
-    let saved;
-    try { saved = localStorage.getItem(storageKey); } catch {}
-    const requested = new URLSearchParams(location.search).get("theme") || saved;
+    // Every window opens in the porcelain (light) theme on every machine; the button switches for this
+    // session only, and only an explicit ?theme= in the URL opens it dark.
+    const requested = new URLSearchParams(location.search).get("theme");
     function apply(dark, persist) {
       document.body.classList.toggle("graphite", dark);
       button.textContent = dark ? "Light" : "Dark";
       button.setAttribute("aria-pressed", String(dark));
       button.setAttribute("aria-label", dark ? "Use porcelain light theme" : "Use graphite dark theme");
-      if (persist) try { localStorage.setItem(storageKey, dark ? "graphite" : "porcelain"); } catch {}
+      if (persist) try { localStorage.removeItem(storageKey); } catch {}
     }
     apply(requested === "graphite" || requested === "client", false);
     button.onclick = () => apply(!document.body.classList.contains("graphite"), true);

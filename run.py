@@ -29,6 +29,7 @@ import os
 import socket
 import sys
 import threading
+import time
 from pathlib import Path
 
 ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
@@ -63,6 +64,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--cloud-sync-key", default=os.environ.get("INTENT_SYNC_KEY", ""), help="shared 16+ character draft session key")
     parser.add_argument("--window", action="store_true", help="open the always-on-top overlay window as well")
     parser.add_argument("--window-only", action="store_true", help="only open the overlay window (server already running)")
+    parser.add_argument("--parent-pid", type=int, help=argparse.SUPPRESS)   # the server that started this window
     parser.add_argument("--hud", action="store_true", help="draw the in-client HUD over the League client (Windows)")
     parser.add_argument("--hud-only", action="store_true", help="only the HUD, against a server that is already running")
     parser.add_argument("--comp-overlay", dest="comp_overlay", action="store_true", default=None,
@@ -94,10 +96,14 @@ def main(argv: list[str] | None = None) -> None:
             pass
     if frozen and not any((args.window, args.window_only, args.hud, args.hud_only, args.simulate, args.no_lcu)):
         # Double-clicked exe: behave like the live-client launcher.
-        args.window, args.hud = True, True
-        print("Opening the floating panel and the in-client HUD (run with --help for other modes).")
+        args.window = True
+        print("Opening the floating panel (run with --help for other modes; --hud adds the in-client HUD).")
 
     if args.window_only:
+        # First thing, before the window loads: leave as soon as the server that started us is gone.
+        from draftcoach.window_supervisor import watch_parent
+
+        watch_parent(args.parent_pid, lambda: os._exit(0))
         from draftcoach import window
 
         window.run(f"http://{args.host}:{args.port}")
@@ -131,7 +137,8 @@ def main(argv: list[str] | None = None) -> None:
     app = create_app(config, enable_lcu=not args.no_lcu and not args.simulate, lockfile=args.lockfile, simulation=simulation,
                      roster_path=Path(args.roster) if args.roster else None, watch_dir=Path(args.watch) if args.watch else None,
                      load_files=[Path(p) for p in args.load], reset_roster=args.reset_roster,
-                     sync_url=args.sync, sync_interval=args.sync_interval, any_queue=args.any_queue)
+                     sync_url=args.sync, sync_interval=args.sync_interval, any_queue=args.any_queue,
+                     profile_relay=(args.cloud_sync_url, args.cloud_sync_key) if args.cloud_sync_url and args.cloud_sync_key else None)
     bridge_enabled = bool(args.bridge or (args.bridge is None and frozen))
     intent_live = os.environ.get("INTENT_LIVE") == "1"
     if bridge_enabled:
@@ -151,28 +158,40 @@ def main(argv: list[str] | None = None) -> None:
 
     import threading
 
-    if intent_live:
-        from draftcoach import hud_intent as hud
-    else:
-        from draftcoach import hud
-    from draftcoach import window
+    from draftcoach.window_supervisor import WindowSupervisor, window_command
 
-    thread = threading.Thread(target=server.run, kwargs={"sockets": [listener]}, daemon=True)
-    thread.start()
-    hud_url = "http://127.0.0.1:8767" if intent_live else f"http://{args.host}:{args.port}"
-    try:
-        if args.hud and args.window:
-            # Panel on the main thread (WebView2 needs it), HUD on its own tkinter thread.
-            threading.Thread(target=hud.run, args=(hud_url,), daemon=True).start()
-            window.run(f"http://{args.host}:{args.port}")
-        elif args.hud:
-            hud.run(hud_url)
+    # The server owns the main thread and outlives the overlay: a closed or crashed window (its own
+    # process, see window_supervisor) never stops the client watcher or a champion select in progress.
+    supervisor = None
+    if args.window:
+        supervisor = WindowSupervisor(window_command(args.host, args.port, ROOT / "run.py"), VAR_DIR / "window.log")
+        app.state.window_supervisor = supervisor
+        threading.Thread(target=lambda: (_wait_listening(args.host, args.port), supervisor.open()), daemon=True).start()
+    if args.hud:
+        if intent_live:
+            from draftcoach import hud_intent as hud
         else:
-            window.run(f"http://{args.host}:{args.port}")
+            from draftcoach import hud
+        hud_url = "http://127.0.0.1:8767" if intent_live else f"http://{args.host}:{args.port}"
+        threading.Thread(target=hud.run, args=(hud_url,), daemon=True, name="hud").start()
+    try:
+        server.run(sockets=[listener])
     finally:
-        server.should_exit = True
-        thread.join(timeout=5)
+        if supervisor is not None:
+            supervisor.stop()
         listener.close()
+
+
+def _wait_listening(host: str, port: int, timeout: float = 20.0) -> None:
+    import urllib.request
+
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            with urllib.request.urlopen(f"http://{host}:{port}/api/config", timeout=2):
+                return
+        except Exception:  # noqa: BLE001
+            time.sleep(0.3)
 
 
 def _start_hud_proxy() -> None:
@@ -251,6 +270,8 @@ def _start_bridge(port: int = 8766, upstream: str | None = None, *, cloud_url: s
             bridge.configure_upstream(upstream)
             bridge.configure_cloud(cloud_url, cloud_key, cloud_mode)
             follower = bool(upstream or cloud_mode == "follow")
+            # Offline start: the last good shared data snapshots (newer than the bundle) before any scoring.
+            bridge._restore_shared_cache()
             if not follower:
                 bridge._load_cached_signups()
             from http.server import ThreadingHTTPServer
@@ -258,6 +279,17 @@ def _start_bridge(port: int = 8766, upstream: str | None = None, *, cloud_url: s
             httpd = ThreadingHTTPServer(("127.0.0.1", port), bridge.Handler)
             if not follower:
                 threading.Thread(target=bridge.background_refresh, args=(httpd,), daemon=True).start()
+            else:
+                # A follower publishes nothing but still keeps the drafting data current (hourly, self-throttled).
+                def refresh_data() -> None:
+                    while True:
+                        try:
+                            bridge.refresh_shared_engine_data()
+                            bridge.refresh_pro_snapshot()
+                        except Exception:  # noqa: BLE001
+                            logging.getLogger("draftcoach").debug("shared data refresh failed", exc_info=True)
+                        time.sleep(300)
+                threading.Thread(target=refresh_data, daemon=True, name="intent-data-refresh").start()
             if cloud_mode == "host":
                 threading.Thread(target=bridge.cloud_publish_loop, daemon=True, name="intent-cloud-publisher").start()
             elif cloud_mode == "auto":

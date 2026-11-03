@@ -286,3 +286,54 @@ def swap_plan(session: dict, target_role: str | None, target_pick_slot: int | No
             elif has_target:
                 plan["decline"].append({"family": family, "swap_id": entry.get("id"), "with_cell": cell})
     return plan
+
+
+VERBS_BY_STATE = {"AVAILABLE": ("request",), "SENT": ("cancel",), "RECEIVED": ("accept", "decline")}
+
+
+def swap_offer_rows(session: dict, offers: dict | None, names: dict | None = None) -> list[dict]:
+    """Every role / pick-order swap the client offers this seat, as buttons for the overlay.
+
+    ``offers`` is {"position-swaps": [...], "pick-order-swaps": [...]} from the client (the session's
+    own ``positionSwaps`` / ``pickOrderSwaps`` win when present); ``names`` maps cell -> display name.
+    Each row says who it is with, what we would get, and which verbs the offer's state allows."""
+    from .state import role_from_position
+
+    names = names or {}
+    team = [m for m in session.get("myTeam") or [] if isinstance(m, dict)]
+    role_of, pick_cells = {}, []
+    for member in team:
+        try:
+            role_of[int(member.get("cellId", -1))] = role_from_position(member.get("assignedPosition"))
+        except (TypeError, ValueError):
+            continue
+    for group in session.get("actions") or []:
+        for action in group or []:
+            if isinstance(action, dict) and action.get("type") == "pick" and action.get("isAllyAction", True):
+                try:
+                    cell = int(action.get("actorCellId", -1))
+                except (TypeError, ValueError):
+                    continue
+                if cell in role_of and cell not in pick_cells:
+                    pick_cells.append(cell)
+    sources = {"position-swaps": session.get("positionSwaps"), "pick-order-swaps": session.get("pickOrderSwaps")}
+    rows = []
+    for family in ("position-swaps", "pick-order-swaps"):
+        entries = sources[family] if sources[family] is not None else (offers or {}).get(family) or []
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            state = _state_of(entry)
+            verbs = VERBS_BY_STATE.get(state)
+            try:
+                cell, swap_id = int(entry.get("cellId", -1)), int(entry.get("id"))
+            except (TypeError, ValueError):
+                continue
+            if not verbs or cell not in role_of:
+                continue
+            row = {"family": family, "swap_id": swap_id, "cell": cell, "state": state, "verbs": list(verbs),
+                   "name": names.get(cell) or f"Seat {cell + 1}", "role": role_of.get(cell)}
+            if family == "pick-order-swaps":
+                row["pick_slot"] = pick_cells.index(cell) if cell in pick_cells else None
+            rows.append(row)
+    return rows

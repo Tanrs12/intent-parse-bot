@@ -46,7 +46,7 @@ echo Starting Flexers Draft Coach against your League client...
 echo Ten INTent composition plans are available during champ select (PgUp/PgDn for pages).
 echo Coach page: http://127.0.0.1:8765/   (close this window to stop)
 :restart
-FlexersDraftCoach.exe --load "loadfiles\flexers-team.json" --hud
+FlexersDraftCoach.exe --load "loadfiles\flexers-team.json" --window
 set EXITCODE=%ERRORLEVEL%
 if "%EXITCODE%"=="42" exit /b 0
 if not "%EXITCODE%"=="0" echo Draft Coach stopped unexpectedly; restarting in 2 seconds...
@@ -63,7 +63,7 @@ pause
     "Draft Coach (any queue).bat": r'''@echo off
 cd /d "%~dp0"
 echo Coaching every champion select (normals too). Default launchers: Ranked Flex and custom games only.
-FlexersDraftCoach.exe --load "loadfiles\flexers-team.json" --window --hud --any-queue
+FlexersDraftCoach.exe --load "loadfiles\flexers-team.json" --window --any-queue
 pause
 ''',
     "Player (sync from coach PC).bat": r'''@echo off
@@ -71,13 +71,13 @@ cd /d "%~dp0"
 set /p COACH=Coach PC address (for example 192.168.1.20:8765):
 if "%COACH%"=="" set COACH=127.0.0.1:8765
 echo Using your own League client, with roster AND authoritative live draft synced from http://%COACH%
-FlexersDraftCoach.exe --window --hud --sync http://%COACH%
+FlexersDraftCoach.exe --window --sync http://%COACH%
 pause
 ''',
     "Coach PC (share roster on the LAN).bat": r'''@echo off
 cd /d "%~dp0"
 echo Coach mode: this PC is the authoritative INTent draft brain; players point the sync launcher at this machine's IP.
-FlexersDraftCoach.exe --host 0.0.0.0 --load "loadfiles\flexers-team.json" --window --hud
+FlexersDraftCoach.exe --host 0.0.0.0 --load "loadfiles\flexers-team.json" --window
 pause
 ''',
 }

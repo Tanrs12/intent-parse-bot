@@ -52,6 +52,30 @@ jobs:
             throw "Packaged Draft Coach produced no CLI startup output."
           }
 
+      # Run the frozen app for real (simulated champion select, no League client): the server, the
+      # pages and the draft engine must answer before anything is published to the team.
+      - name: Verify packaged application serves and drafts
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path .\dist\FlexersDraftCoach\FlexersDraftCoach.exe
+          $p = Start-Process -FilePath $exe -ArgumentList '--simulate','--simulate-delay','0.5','--no-update','--no-auto-sync','--port','8891' -PassThru -RedirectStandardOutput sim.log -RedirectStandardError sim.err
+          try {
+            $ok = $false
+            for ($i = 0; $i -lt 90; $i++) {
+              try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8891/api/config -TimeoutSec 3 | Out-Null; $ok = $true; break } catch { Start-Sleep 1 }
+            }
+            if (-not $ok) { Get-Content sim.log, sim.err; throw "Packaged Draft Coach did not start serving." }
+            foreach ($page in '/', '/overlay', '/studio') {
+              $r = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:8891$page" -TimeoutSec 10
+              if ($r.StatusCode -ne 200) { throw "page $page returned $($r.StatusCode)" }
+            }
+            $body = '{"lineup":{},"count":2,"creative":true}'
+            $gen = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8891/api/studio/generate -Body $body -ContentType 'application/json' -TimeoutSec 120
+            if (-not $gen.drafts -or $gen.drafts.Count -lt 1) { throw "Draft Studio produced no drafts: $($gen.error)" }
+          } finally {
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          }
+
       - uses: actions/upload-artifact@v4
         with:
           name: FlexersDraftCoach

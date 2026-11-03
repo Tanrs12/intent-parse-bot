@@ -816,7 +816,7 @@ def run(url: str, theme: str | None = None) -> None:
         panel.run(url, theme=theme)
         return
     wait_for_server(url)
-    NativeHud(url, theme or "client", always=os.environ.get("FD_HUD_ALWAYS") == "1").run()
+    NativeHud(url, theme or "porcelain", always=os.environ.get("FD_HUD_ALWAYS") == "1").run()
 
 
 def main(argv: list[str] | None = None) -> None:

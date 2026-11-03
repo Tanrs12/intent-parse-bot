@@ -1,4 +1,4 @@
-﻿# INTent League Bot
+# INTent League Bot
 
 Dedicated Discord bot/service for the INTent Ranked Flex tools.
 
@@ -21,10 +21,29 @@ updates the `draft-coach-latest` release (see `.github/workflows/draft-coach.yml
 - `/league coach` in Discord exports everyone's signup roles, priorities and champion pools as
   a loadfile; drop it into the app's `loadfiles/` folder and it ranks with exactly that data.
 - The zip also contains the full source in `source/`.
-- It only coaches **Ranked Flex** champion selects (queue 440). Customs and normals show
-  "standing by"; pass `--any-queue` or set `settings.queues` to `[]` to coach those too.
+- It coaches **every queue except ARAM and Arena** (Solo/Duo, Flex, normals, Quickplay, Clash,
+  customs) with friends or strangers. A saved `settings.queues` list still limits it if you set one.
 - Run from source: `pip install -r requirements.txt -r requirements-draftcoach.txt` then
-  `python run.py --window --hud` (`--simulate` replays a scripted draft without a client).
+  `python run.py --bridge --window` (`--simulate` replays a scripted draft without a client), or
+  double-click `Draft Coach (source, every queue).bat`.
+
+### What's new (November 2026)
+
+- **One overlay** (the white panel); the in-client HUD is optional (`--hud`). Closing or crashing the
+  overlay no longer stops the coach: reopen it from the coach page. It opens in light mode.
+- **Overlay tabs:** *Draft* (live), *My champs* (who this PC is, your pool per role with best options,
+  add/remove/reorder) and *Stats* (rank, form, champions, insights). Size S/M/L/XL.
+- **Champion select:** one-click lock that only offers your own role and champions you own; enemy
+  pick prediction from their bans; role and pick-order swap buttons (request / accept / decline /
+  cancel) plus automatic swaps towards "My role tonight" (switch: *Auto: On/Off*).
+- **Drafts: Auto / App / Discord.** Auto follows the team's shared Discord drafts when three or more
+  of the team are in your lobby, otherwise the app ranks on its own.
+- **Draft Studio** (`/studio`): build drafts for any lineup with pins, bans and a preferred style,
+  reject one champion to re-roll just that lane, show different/creative drafts, and pool insight
+  (weaknesses and champions to learn that play like your pool).
+- **Team profiles sync:** champion pools edited in *My champs* and linked accounts (smurfs) reach
+  every teammate's app the next time you are online together, via the team relay; every PC keeps its
+  own copy. Link a PC once ("This PC is …") and every account used on it counts as that player.
 - Tests: `python -m pytest tests` runs the bot's and the desktop app's suites together.
 - Details, loadfiles, playbook and API: `FLEXERS_DRAFT_COACH.md` and
   `docs/draftcoach/research.md`.

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flexers Draft Studio</title>
+<link rel="stylesheet" href="/static/mm/tokens.css">
+<link rel="stylesheet" href="/static/mm/draft-ui.css">
+<link rel="stylesheet" href="/static/mm/draft-coach.css">
+<link rel="stylesheet" href="/static/mm/studio.css">
+</head>
+<body class="coach-page studio-page">
+<header class="coach-mast">
+  <div class="coach-brand">
+    <svg class="ov-mark" viewBox="0 0 36 30" aria-hidden="true"><path fill="currentColor" d="M4 28V2h26v6H11v5h16v6H11v9z"/></svg>
+    <div>
+      <div class="coach-wordmark">FLEXERS DRAFT STUDIO</div>
+      <div class="mm-meta">Build drafts &middot; Re-roll a lane &middot; Grow your pools</div>
+    </div>
+  </div>
+  <nav class="studio-nav"><button class="fd-text-button" id="refresh-data" type="button" title="Pull the latest shared drafting data (histories, matchups, pro pairs)">Refresh data</button>
+    <a class="fd-text-button" href="/">Coach</a>
+    <button class="fd-text-button" id="theme" type="button" aria-pressed="false">Dark</button></nav>
+</header>
+
+<main class="studio-main">
+  <section class="mm-card studio-build" aria-labelledby="build-title">
+    <header class="fd-card-head"><h2 id="build-title">Build</h2><span class="mm-meta" id="patch"></span></header>
+    <p class="fd-note">Pick who plays each role (or leave it open), pin any champions you want, then generate.</p>
+    <div class="studio-lineup" id="lineup"></div>
+    <label class="studio-field"><span class="mm-meta">Bans and champions to avoid</span>
+      <input id="bans" type="text" list="champion-names" placeholder="e.g. Yone, Malphite" autocomplete="off"></label>
+    <div class="studio-row">
+      <label class="studio-field"><span class="mm-meta">Prefer this style</span>
+        <select id="identity" title="The engine prefers this style but may pick another when it scores far better"><option value="">Best overall</option></select></label>
+      <label class="studio-field"><span class="mm-meta">Side</span>
+        <select id="side"><option value="blue">Blue</option><option value="red">Red</option></select></label>
+    </div>
+    <label class="studio-check"><input type="checkbox" id="creative"> Creative: shuffle the search for less obvious drafts</label>
+    <div class="studio-actions">
+      <button class="fd-button primary" id="generate" type="button">Generate drafts</button>
+      <button class="fd-button" id="more" type="button" disabled>Show different drafts</button>
+    </div>
+    <p class="studio-status" id="status" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="studio-results" aria-labelledby="results-title">
+    <h2 id="results-title" class="studio-h2">Drafts</h2>
+    <p class="fd-note" id="results-note">Generated drafts appear here. Click <b>Not this</b> on any lane to replace just that champion.</p>
+    <div class="studio-drafts" id="drafts"></div>
+  </section>
+
+  <section class="mm-card studio-insight" aria-labelledby="insight-title">
+    <header class="fd-card-head"><h2 id="insight-title">Pool insight</h2>
+      <button class="fd-button" id="insight" type="button">Analyse this lineup</button></header>
+    <p class="fd-note">For each chosen player: what their pool is missing in that role, and champions worth learning next that play like the ones they already know.</p>
+    <div id="team-gaps"></div>
+    <div class="studio-seats" id="seats"></div>
+  </section>
+</main>
+<datalist id="champion-names"></datalist>
+
+<script src="/static/common.js"></script>
+<script>
+(() => {
+  "use strict";
+  const D = window.Draft, $ = (id) => document.getElementById(id);
+  const ROLE_LONG = { Top: "Top", Jungle: "Jungle", Mid: "Mid", ADC: "Bot", Support: "Support" };
+  let setup = null, lastRequest = null, shown = [];
+  D.themeControl($("theme"), "fd-studio-theme");
+
+  function status(text, isError) { const s = $("status"); s.textContent = text || ""; s.dataset.error = String(!!isError); }
+  function names(text) { return String(text || "").split(/[,;]/).map((s) => s.trim()).filter(Boolean); }
+
+  async function init() {
+    try {
+      const [s, champs] = await Promise.all([D.api("GET", "/api/studio/setup"), D.api("GET", "/api/champions")]);
+      setup = s;
+      if (champs && champs.champions) {
+        if (D.learnIds) D.learnIds(champs.champions);
+        const list = Object.keys(champs.champions).filter((n) => isNaN(Number(n))).sort((a, b) => a.localeCompare(b));
+        $("champion-names").replaceChildren(...list.map((n) => { const o = document.createElement("option"); o.value = n; return o; }));
+      }
+    } catch (e) { status("Could not load the roster: " + e.message, true); return; }
+    $("patch").textContent = setup.patch ? "Solo-queue stats · patch " + setup.patch : "";
+    for (const i of setup.identities || []) { const o = new Option(i.label, i.key); o.title = i.description; $("identity").append(o); }
+    const box = $("lineup");
+    for (const role of setup.roles) {
+      const row = D.el("div", "studio-seat");
+      row.append(D.el("strong", "studio-role", ROLE_LONG[role] || role));
+      const sel = D.el("select"); sel.id = "player-" + role.toLowerCase(); sel.setAttribute("aria-label", (ROLE_LONG[role] || role) + " player");
+      sel.append(new Option("Anyone (meta picks)", ""));
+      const fits = setup.players.filter((p) => (p.pools[role] || []).length || p.roles.includes(role));
+      const rest = setup.players.filter((p) => !fits.includes(p));
+      for (const p of fits) sel.append(new Option(p.name, p.key));
+      if (rest.length) { const g = document.createElement("optgroup"); g.label = "No " + (ROLE_LONG[role] || role) + " pool"; for (const p of rest) g.append(new Option(p.name, p.key)); sel.append(g); }
+      if (setup.device_owner && fits.some((p) => p.key === setup.device_owner) && !document.querySelector(`select option[value="${CSS.escape(setup.device_owner)}"]:checked`)) {
+        const owner = setup.players.find((p) => p.key === setup.device_owner);
+        if (owner && owner.roles[0] === role) sel.value = owner.key;
+      }
+      const lock = D.el("input"); lock.type = "text"; lock.id = "lock-" + role.toLowerCase(); lock.setAttribute("list", "champion-names");
+      lock.placeholder = "Pin a champion"; lock.setAttribute("aria-label", "Pin a " + (ROLE_LONG[role] || role) + " champion"); lock.autocomplete = "off";
+      row.append(sel, lock);
+      box.append(row);
+    }
+  }
+
+  function request(extra) {
+    const lineup = {}, locks = {};
+    for (const role of setup.roles) {
+      lineup[role] = $("player-" + role.toLowerCase()).value || null;
+      const pin = $("lock-" + role.toLowerCase()).value.trim();
+      if (pin) locks[role] = pin;
+    }
+    return { lineup, locks, bans: names($("bans").value), identity: $("identity").value || null,
+             side: $("side").value, creative: $("creative").checked, count: 6, ...(extra || {}) };
+  }
+
+  async function generate(different) {
+    if (!setup) return;
+    const body = request(different ? { exclude_signatures: shown.slice(-60), creative: true, different: true } : {});
+    lastRequest = body;
+    status(different ? "Finding different drafts…" : "Building drafts…");
+    $("generate").disabled = $("more").disabled = true;
+    try {
+      const r = await D.api("POST", "/api/studio/generate", body);
+      if (r.error) { status(r.error, true); return; }
+      if (!different) shown = [];
+      shown.push(...r.drafts.map((d) => d.signature));
+      renderDrafts(r.drafts);
+      status(r.drafts.length ? r.drafts.length + " drafts" + (body.creative ? " (creative)" : "") + "."
+        : different ? "No more different drafts for these constraints." : "No legal draft for these constraints: loosen a pin or a ban.", !r.drafts.length);
+      if (different && !r.drafts.length) return;
+    } catch (e) { status("Draft engine error: " + e.message, true); }
+    finally { $("generate").disabled = false; $("more").disabled = !shown.length; }
+  }
+
+  function renderDrafts(drafts) {
+    const box = $("drafts"); box.replaceChildren();
+    $("results-note").hidden = !!drafts.length;
+    drafts.forEach((d, i) => box.append(draftCard(d, i)));
+  }
+
+  function draftCard(d, index) {
+    const card = D.el("article", "mm-card studio-draft");
+    card.rejected = {};
+    const head = D.el("header", "studio-draft-head");
+    head.append(D.el("strong", "", (d.plan || "Draft").replace(/^\w/, (c) => c.toUpperCase())), D.el("span", "mm-meta", "score " + d.score));
+    card.append(head);
+    const lanes = D.el("ol", "studio-lanes");
+    for (const role of setup.roles) lanes.append(laneRow(card, d, role));
+    card.append(lanes);
+    if ((d.strengths || []).length) card.append(D.el("p", "studio-why", "+ " + d.strengths.slice(0, 2).join(" · ")));
+    if ((d.gaps || []).length) card.append(D.el("p", "studio-why gap", "− " + d.gaps.slice(0, 2).join(" · ")));
+    if ((d.pick_order || []).length) card.append(D.el("p", "mm-meta", "Pick order: " + d.pick_order.map((p) => ROLE_LONG[p.role] || p.role).join(" → ")));
+    return card;
+  }
+
+  function laneRow(card, d, role) {
+    const li = D.el("li", "studio-lane");
+    const champ = d.champions[role];
+    li.append(D.el("span", "studio-lane-role mm-meta", (ROLE_LONG[role] || role).toUpperCase()), D.portrait(champ, "small", d.champion_ids && d.champion_ids[role]));
+    const who = D.el("div", "studio-lane-name"); who.append(D.el("b", "", champ), D.el("small", "", (d.players && d.players[role]) || ""));
+    li.append(who);
+    const pin = D.el("button", "fd-text-button", "Pin"); pin.type = "button"; pin.title = "Pin " + champ + " in the build";
+    pin.onclick = () => { $("lock-" + role.toLowerCase()).value = champ; status(champ + " pinned for " + (ROLE_LONG[role] || role) + "."); };
+    const no = D.el("button", "fd-button", "Not this"); no.type = "button"; no.title = "Replace " + champ + " and keep the other four";
+    no.onclick = () => reroll(card, d, role, li);
+    li.append(pin, no);
+    return li;
+  }
+
+  async function reroll(card, d, role, li) {
+    if (card.busy) { status("One re-roll at a time on a draft."); return; }
+    card.busy = true;
+    card.querySelectorAll("button").forEach((b) => { b.disabled = true; });
+    const rejected = card.rejected[role] = [...(card.rejected[role] || []), d.champions[role]];
+    status("Re-rolling " + (ROLE_LONG[role] || role) + " without " + rejected.join(", ") + "…");
+    try {
+      const body = { ...(lastRequest || request()), draft: d.champions, role, reject: rejected };
+      const r = await D.api("POST", "/api/studio/reroll", body);
+      const next = (r.drafts || [])[0];
+      if (!next) { status("Nothing else fits " + (ROLE_LONG[role] || role) + " with the other four kept.", true); return; }
+      const fresh = draftCard(next);
+      fresh.rejected = card.rejected;
+      card.replaceWith(fresh);
+      status((ROLE_LONG[role] || role) + ": " + next.champions[role] + " instead.");
+    } catch (e) { status("Re-roll failed: " + e.message, true); }
+    finally {
+      card.busy = false;
+      if (card.isConnected) card.querySelectorAll("button").forEach((b) => { b.disabled = false; });
+    }
+  }
+
+  async function insight() {
+    if (!setup) return;
+    status("Analysing pools…");
+    try {
+      const r = await D.api("POST", "/api/studio/insight", { lineup: request().lineup });
+      const gaps = $("team-gaps"); gaps.replaceChildren();
+      for (const g of r.team || []) gaps.append(D.el("p", "studio-note " + g.level, g.text));
+      const box = $("seats"); box.replaceChildren();
+      for (const role of setup.roles) {
+        const s = r.seats[role]; const card = D.el("article", "studio-seat-card");
+        card.append(D.el("h3", "", (ROLE_LONG[role] || role) + (s.player ? " · " + s.player : " · open")));
+        if (s.pool.length) card.append(D.el("p", "mm-meta", "Pool: " + s.pool.join(", ")));
+        for (const w of s.weaknesses) card.append(D.el("p", "studio-note " + w.level, w.text));
+        if (s.learn.length) {
+          card.append(D.el("p", "mm-meta", s.pool.length ? "Learn next (plays like your pool)" : "Strong picks to start with"));
+          const chips = D.el("div", "studio-chips");
+          for (const l of s.learn) {
+            const c = D.el("span", "chip"); c.title = l.win_rate.toFixed(1) + "% win" + (l.similar_to ? " · like " + l.similar_to : "");
+            c.append(D.portrait(l.champion, "tiny", l.champion_id), D.el("b", "", l.champion), D.el("small", "", l.similar_to ? "like " + l.similar_to : l.win_rate.toFixed(1) + "%"));
+            chips.append(c);
+          }
+          card.append(chips);
+        }
+        box.append(card);
+      }
+      status("Pool insight ready.");
+    } catch (e) { status("Analysis failed: " + e.message, true); }
+  }
+
+  $("refresh-data").onclick = async () => {
+    status("Refreshing drafting data…");
+    try {
+      const r = await D.api("POST", "/api/data/refresh");
+      const files = Object.entries(r.files || {});
+      status(files.length ? files.map(([n, v]) => n.replace(/^league_|\.json$/g, "") + (v.ok ? (v.updated ? " updated" : " current") : " failed")).join(" · ") : "Nothing to refresh.", !r.ok);
+    } catch (e) { status("Refresh failed: " + e.message, true); }
+  };
+  $("generate").onclick = () => generate(false);
+  $("more").onclick = () => generate(true);
+  $("insight").onclick = insight;
+  init();
+})();
+</script>
+</body>
+</html>

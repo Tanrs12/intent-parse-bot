@@ -927,7 +927,7 @@ def run(url: str, theme: str | None = None) -> None:
         panel.run(url, theme=theme)
         return
     wait_for_server(url)
-    NativeHud(url, theme or "client", always=True).run()
+    NativeHud(url, theme or "porcelain", always=True).run()
 
 
 def main(argv: list[str] | None = None) -> None:
