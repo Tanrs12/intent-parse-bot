@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import re
@@ -194,12 +195,63 @@ async def _relay_preference(request: web.Request) -> web.Response:
                               "preference_version": row["preference_version"], "room_epoch": row.get("epoch")})
 
 
+def _signup_json(value, fallback):
+    try:
+        parsed = json.loads(value) if value else fallback
+    except (TypeError, ValueError):
+        return fallback
+    return parsed if isinstance(parsed, type(fallback)) else fallback
+
+
+def _signup_export_row(row) -> dict:
+    """One league_flex_signups row in the desktop app's live_flex_signups.json shape.
+
+    This mirrors the Northflank export script in tools/intent_live_draft_bridge.py:
+    raw parsed columns, no engine imports here (the app normalises on its side).
+    """
+    return {
+        "user_id": int(row["discord_user_id"] or 0),
+        "display_name": str(row["display_name"] or ""),
+        "roles": _signup_json(row["roles_json"], []),
+        "role_priority": _signup_json(row["role_priority_json"], {}),
+        "champions": _signup_json(row["champions_json"], {}),
+    }
+
+
+async def _relay_signups(request: web.Request) -> web.Response:
+    """Read-only: the players' Discord-submitted champion pools for the league guild."""
+    _sync_key(request)
+    try:
+        db = await database.connect()
+        try:
+            cur = await db.execute(
+                "SELECT discord_user_id, display_name, roles_json, role_priority_json, champions_json, updated_at"
+                " FROM league_flex_signups WHERE guild_id=? ORDER BY display_name",
+                (LEAGUE_GUILD_ID,),
+            )
+            rows = await cur.fetchall()
+        finally:
+            await db.close()
+        signups = [_signup_export_row(row) for row in rows]
+        stamps = [str(row["updated_at"]) for row in rows if row["updated_at"]]
+    except Exception as exc:
+        # Internet-facing: never leak a traceback or a connection string.
+        log.warning("Signup export failed: %s", type(exc).__name__)
+        raise web.HTTPServiceUnavailable(text="signups unavailable")
+    signups.sort(key=lambda p: (p["display_name"].casefold(), p["user_id"]))
+    return web.json_response(
+        {"ok": True, "signups": signups, "updated_at": (max(stamps) if stamps else None), "count": len(signups)},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 async def start_draft_sync_relay() -> web.AppRunner:
     app = web.Application(client_max_size=2 * 1024 * 1024)
     app.router.add_get("/health", _relay_health)
     app.router.add_post("/draft-sync/{key}/heartbeat", _relay_heartbeat)
     app.router.add_put("/draft-sync/{key}", _relay_put)
     app.router.add_get("/draft-sync/{key}", _relay_get)
+    app.router.add_get("/draft-sync/{key}/signups", _relay_signups)
     app.router.add_post("/draft-sync/{key}/preference", _relay_preference)
     runner = web.AppRunner(app)
     await runner.setup()

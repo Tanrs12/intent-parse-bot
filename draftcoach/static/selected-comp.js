@@ -37,7 +37,7 @@
     ensureIcons();
     root.className = "fd-selected-comp " + (wide ? "wide" : "narrow");
     const head = D.el("div", "fd-sc-header");
-    head.append(D.el("b", "", "DISCORD  /  " + (chosen.label || "Team comp").toUpperCase()));
+    head.append(D.el("b", "", (chosen.source === "discord" ? "DISCORD" : "TEAM") + "  /  " + (chosen.label || "Team comp").toUpperCase()));
     head.append(D.el("span", "fd-sc-mode", chosen.mode === "adaptive" ? "ADAPTIVE" : "SELECTED"));
     root.append(head);
     if (chosen.plan) root.append(D.el("p", "fd-sc-plan", chosen.plan));
@@ -89,4 +89,7 @@
       : "Selected plan · Actual League locks take priority"));
   }
   window.DraftSelectedComp = { render };
+  // Both pages call D.SelectedComp.render(...): without this alias every coach-page render threw
+  // before drawing anything (and the panel never drew the chosen comp).
+  if (D) D.SelectedComp = window.DraftSelectedComp;
 })();

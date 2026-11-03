@@ -23,6 +23,7 @@
     <span class="mm-meta coach-status" id="status" data-mode="connecting">Connecting</span>
     <button class="fd-button" id="open-roster" type="button"><span class="mm-icon" data-icon="book" aria-hidden="true"></span>Roster &amp; imports</button>
     <a class="fd-button" href="/overlay" target="_blank" rel="noopener"><span class="mm-icon" data-icon="overlay" aria-hidden="true"></span>Preview overlay</a>
+    <button class="fd-button" id="show-panel" type="button" title="Bring the always-on-top panel back" hidden><span class="mm-icon" data-icon="overlay" aria-hidden="true"></span>Show panel</button>
   </div>
 </header>
 
@@ -37,6 +38,26 @@
     <div class="coach-seats" id="lobby"></div>
     <p class="fd-note">Link an account to use that player&rsquo;s champion pools. Default pools remain available for unlinked players.</p>
   </details>
+
+  <section class="mm-card coach-gameplan" id="gameplan-card" aria-labelledby="gameplan-title">
+    <header class="fd-card-head"><h2 id="gameplan-title">Game plan</h2><span class="mm-meta" id="gameplan-sub">Pick five, build the drafts, send one to the team</span></header>
+    <div class="gameplan-players" id="gameplan-players" role="group" aria-label="Who is playing"></div>
+    <div class="gameplan-controls">
+      <label class="fd-field gameplan-unavailable"><span>Banned or taken (optional)</span><input type="text" id="gameplan-unavailable" placeholder="Morgana, Jarvan IV" autocomplete="off"></label>
+      <button class="fd-button primary" id="gameplan-build" type="button">Build drafts</button>
+      <button class="fd-button" id="gameplan-reroll" type="button" title="Different drafts for the same five">Different drafts</button>
+      <button class="fd-button" id="gameplan-release" type="button" title="Back to automatic drafts for the whole team" hidden>Release team draft</button>
+      <span class="mm-meta" id="gameplan-note"></span>
+    </div>
+    <p class="plan-note" id="gameplan-status">Choose the five playing tonight. Players with the app open are picked for you.</p>
+    <div class="gameplan-side" id="gameplan-side" hidden>
+      <span class="mm-meta">Pick order and bans for</span>
+      <button class="fd-button" id="gameplan-blue" type="button" aria-pressed="true">Blue side</button>
+      <button class="fd-button" id="gameplan-red" type="button" aria-pressed="false">Red side</button>
+    </div>
+    <div class="team-draft-edit" id="gameplan-edit" hidden></div>
+    <div class="captain-comps gameplan-drafts" id="gameplan-drafts"></div>
+  </section>
 
   <div class="coach-workspace">
     <section class="mm-card coach-board" id="board" aria-labelledby="board-title">
@@ -288,7 +309,7 @@
       b.onclick = async () => { if (confirm("Remove " + p.name + " from the roster?")) { await fetch("/api/roster/player/" + p.key, { method: "DELETE" }); loadRoster(); } };
       del.append(b); tr.append(del); players.append(tr);
     }
-    if (!r.players.length) { const td = D.el("td", "champs", "No players yet. Import a loadfile."); td.colSpan = 4; players.append(D.el("tr")).append(td); }
+    if (!r.players.length) { const td = D.el("td", "champs", "No players yet. Import a loadfile."); td.colSpan = 4; const tr = D.el("tr"); tr.append(td); players.append(tr); }
     const opps = $("opponents"); opps.replaceChildren();
     for (const o of r.opponents) {
       const tr = D.el("tr"); const who = D.el("td"); who.append(D.el("b", "", o.name)); if (o.riot_ids.length) who.append(D.el("div", "champs", o.riot_ids.join(", ")));
@@ -297,7 +318,7 @@
       b.onclick = async () => { if (confirm("Remove " + o.name + "?")) { await fetch("/api/roster/opponent/" + o.key, { method: "DELETE" }); loadRoster(); } };
       del.append(b); tr.append(del); opps.append(tr);
     }
-    if (!r.opponents.length) { const td = D.el("td", "champs", "No scouting yet."); td.colSpan = 4; opps.append(D.el("tr")).append(td); }
+    if (!r.opponents.length) { const td = D.el("td", "champs", "No scouting yet."); td.colSpan = 4; const tr = D.el("tr"); tr.append(td); opps.append(tr); }
     lineupSelects($("lineup"), r.lineup, r.players.map((p) => [p.key, p.name]), "/api/roster/lineup", ["Seat 1", "Seat 2", "Seat 3", "Seat 4", "Seat 5"]);
     lineupSelects($("enemy-lineup"), r.enemy_lineup, r.opponents.map((o) => [o.key, o.name]), "/api/roster/enemy-lineup", ["Enemy 1", "Enemy 2", "Enemy 3", "Enemy 4", "Enemy 5"]);
     const policy = $("policy"); policy.replaceChildren();
@@ -597,9 +618,9 @@
       box.replaceChildren();
       box.append(D.el("b", "", chosen
         ? (chosen.source === "discord" ? "Discord comp selected: " : "Team comp selected: ") + (chosen.label || "Team draft")
-        : "No Discord comp synced"));
+        : "No team draft chosen"));
       if (!chosen) box.append(D.el("small", "", intentControl
-        ? "Choose a comp in Discord again. This app has not received a selected plan."
+        ? "No team draft yet. Build drafts in Game plan and send one to everyone (or lock one in Discord)."
         : "Shared control connection unavailable. Recheck Draft Coach sync."));
       if (chosen) {
         box.append(D.el("small", "", chosen.mode === "adaptive"
@@ -624,7 +645,7 @@
       const d = await r.json();
       intentControl = d.control;
       identityList = d.identities || identityList;
-      intentSync = d.sync || null; isCaptain = !!d.is_captain;
+      intentSync = d.sync || null; isCaptain = !!d.is_captain; gpSyncSeen = true;
     } catch (e) { intentControl = null; intentSync = null; }
     renderSync();
     renderSelectedTeamComp();
@@ -633,7 +654,7 @@
   setInterval(pollDraftControl, 500);
 
   // ---- sync check: who has the app open, whether they are in champ select, the role they want ----
-  let intentSync = null, isCaptain = false;
+  let intentSync = null, isCaptain = false, gpSyncSeen = false;
   function renderSync() {
     const box = $("sync-list"), note = $("sync-note"), sel = $("my-role");
     if (!box) return;
@@ -707,8 +728,7 @@
     if (ok) toast(role + " changed to " + champion + " for the whole team.");
     return ok;
   }
-  function renderTeamDraftEdit(g) {
-    const box = $("team-draft-edit");
+  function renderTeamDraftEdit(g, box = $("team-draft-edit")) {
     const chosen = g && g.chosen;
     if (!box) return;
     if (!chosen) { box.hidden = true; box.replaceChildren(); return; }
@@ -1025,6 +1045,195 @@
     }
   }
 
+  // ---- the game plan: five players -> ranked drafts, built in this app and sent to everyone ----------
+  // No Discord in the loop: the same signup pools and the same /league game engine, run here.
+  const GP = { players: [], selected: new Set(), result: null, side: "blue", token: 0, busy: false, seeded: false,
+               touched: false, loadedAt: Date.now(), hereKey: "" };
+  const gpCard = $("gameplan-card");
+  function gpSave() { try { localStorage.setItem("fd-gameplan-five", JSON.stringify([...GP.selected])); } catch (e) {} }
+  // Discord ids are bigger than a JavaScript number can hold exactly, so the server sends them as strings and
+  // the page keeps them as strings; ids that arrive as (rounded) numbers from the bridge are only ever matched
+  // by rounding both sides the same way (Number()).
+  function gpSaved() { try { return (JSON.parse(localStorage.getItem("fd-gameplan-five") || "[]") || []).map(String).filter((s) => s && s !== "0"); } catch (e) { return []; } }
+  function gpHere() {
+    // Who has the app open right now, keyed by the rounded Discord id: the sync check already knows.
+    const out = new Map();
+    for (const p of (intentSync && intentSync.players) || []) if (p.player_id) out.set(Number(p.player_id), p);
+    return out;
+  }
+  function gpSeedSelection() {
+    if (GP.seeded || GP.touched || !GP.players.length) return;
+    // Wait for the first sync-check reply so the players with the app open win over last night's five;
+    // if the bridge never answers, fall back to the saved five after a few seconds.
+    if (!gpSyncSeen && Date.now() - GP.loadedAt < 4000) return;
+    const known = new Map(GP.players.map((p) => [Number(p.user_id), String(p.user_id)]));
+    const picks = [...gpHere().keys()].map((n) => known.get(n)).filter(Boolean);
+    const ids = new Set(known.values());
+    for (const id of gpSaved()) if (picks.length < 5 && ids.has(id) && !picks.includes(id)) picks.push(id);
+    if (!picks.length) return;                       // nothing known yet: try again on the next poll
+    GP.selected = new Set(picks.slice(0, 5));
+    GP.seeded = true;
+  }
+  function renderGamePlanPlayers() {
+    const box = $("gameplan-players"); box.replaceChildren();
+    const here = gpHere();
+    if (GP.players.length) {
+      // A picked player who left the signup list would otherwise count as picked but have no button.
+      const known = new Set(GP.players.map((p) => String(p.user_id)));
+      const gone = [...GP.selected].filter((id) => !known.has(id));
+      if (gone.length) { for (const id of gone) GP.selected.delete(id); gpSave(); toast("A picked player is no longer in the signup list and was unpicked.", true); }
+    }
+    for (const p of GP.players) {
+      const id = String(p.user_id);
+      const on = GP.selected.has(id), h = here.get(Number(p.user_id));
+      const b = D.el("button", "gameplan-player" + (on ? " on" : "") + (h ? " here" : ""));
+      b.type = "button"; b.setAttribute("aria-pressed", String(on));
+      b.append(D.el("b", "", p.display_name), D.el("small", "", (p.roles || []).map((r) => D.ROLE_SHORT[r] || r).join(" / ") || "no roles"));
+      if (h) b.append(D.el("span", "gameplan-here", h.captain ? "here · captain" : h.in_champ_select ? "in champ select" : "app open"));
+      b.title = Object.entries(p.pools || {}).map(([r, n]) => r + ": " + n + " champions").join(", ") || "No champion pools submitted";
+      b.onclick = () => {
+        if (on) GP.selected.delete(id);
+        else if (GP.selected.size >= 5) { toast("Five already picked. Unpick someone first.", true); return; }
+        else GP.selected.add(id);
+        GP.touched = true; gpSave(); renderGamePlanPlayers();
+      };
+      box.append(b);
+    }
+    const n = GP.selected.size;
+    $("gameplan-build").disabled = GP.busy || n !== 5;
+    $("gameplan-reroll").disabled = GP.busy || n !== 5 || !GP.result;
+    if (!GP.players.length) $("gameplan-status").textContent = "No players with champion pools yet. Import the team loadfile or let the Discord signups sync.";
+    else if (!GP.result) $("gameplan-status").textContent = n === 5 ? "Five picked. Build the drafts." : n + " of 5 picked. Players with the app open are picked for you.";
+  }
+  async function loadGamePlan() {
+    try {
+      const r = await fetch("/api/gameplan", { cache: "no-store" });
+      if (!r.ok) throw new Error("gameplan " + r.status);
+      const d = await r.json();
+      GP.players = d.players || [];
+      if (!GP.result && d.result) { GP.result = d.result; GP.selected = new Set((d.result.players || []).map((p) => String(p.user_id))); GP.seeded = true; }
+      gpSeedSelection();
+      renderGamePlanPlayers();
+      renderGamePlanDrafts();
+    } catch (e) { $("gameplan-status").textContent = "Game plan unavailable: " + e.message; }
+  }
+  async function buildGamePlan(reroll) {
+    if (GP.busy || GP.selected.size !== 5) return;
+    GP.busy = true; renderGamePlanPlayers();
+    if (reroll) GP.token += 1;
+    $("gameplan-note").textContent = "Building…";
+    try {
+      const r = await fetch("/api/gameplan", { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ players: [...GP.selected], unavailable: $("gameplan-unavailable").value, token: GP.token || null }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.detail || ("gameplan " + r.status));
+      GP.result = d;
+      $("gameplan-note").textContent = (d.recommendations || []).length + " drafts · " + d.elapsed_ms + " ms";
+      $("gameplan-drafts").dataset.key = "";
+      renderGamePlanDrafts();
+    } catch (e) { toast("Could not build the drafts: " + e.message, true); $("gameplan-note").textContent = ""; }
+    finally { GP.busy = false; renderGamePlanPlayers(); }
+  }
+  function gpChosenMatches(rec) {
+    const chosen = intentControl && intentControl.chosen;
+    return !!(chosen && chosen.champions && D.ROLES.every((role) => (rec.champions || {})[role] === chosen.champions[role]));
+  }
+  async function sendPlanToTeam(rec) {
+    // The same relay body a draft locked in Discord sends: roles pinned, the five as the adaptive plan.
+    const body = rec.control || {};
+    const ok = await postControl({ signature: body.signature || null, ...(body.control || {}) });
+    if (ok) toast(rec.label + " sent to everyone's Draft Coach. Champion select follows it.");
+    $("gameplan-drafts").dataset.key = "";
+    renderGamePlanDrafts();
+  }
+  function renderGamePlanDrafts() {
+    const box = $("gameplan-drafts"), result = GP.result, chosen = intentControl && intentControl.chosen;
+    $("gameplan-release").hidden = !chosen;
+    $("gameplan-side").hidden = !(result && (result.recommendations || []).length);
+    $("gameplan-blue").setAttribute("aria-pressed", String(GP.side === "blue")); $("gameplan-red").setAttribute("aria-pressed", String(GP.side === "red"));
+    const key = JSON.stringify([result && result.built_at, result && result.token, GP.side, chosen && chosen.champions, chosen && chosen.label, controlBusy]);
+    if (box.dataset.key === key) return;
+    box.dataset.key = key;
+    box.replaceChildren();
+    if (!result) return;
+    const recs = result.recommendations || [], status = $("gameplan-status"), cov = result.coverage || {};
+    if (!recs.length) { status.textContent = result.reason || ("No legal five-champion draft for these five." + ((cov.missing_pools || []).length ? " No champions submitted for " + cov.missing_pools.join(", ") + "." : "")); return; }
+    const notes = [recs.length + " drafts for " + (result.players || []).map((p) => p.display_name).join(", "), (result.layouts || 0) + " role layout" + (result.layouts === 1 ? "" : "s")];
+    if ((cov.missing_pools || []).length) notes.push("no champions submitted for " + cov.missing_pools.slice(0, 6).join(", "));
+    if ((result.unavailable || []).length) notes.push("without " + result.unavailable.join(", "));
+    status.textContent = notes.join(" · ");
+    recs.forEach((rec, index) => {
+      const isChosen = gpChosenMatches(rec);
+      const row = D.el("div", "captain-comp gameplan-draft" + (index === 0 ? " lead" : "") + (isChosen ? " preferred" : ""));
+      const head = D.el("div", "captain-comp-head");
+      head.append(D.el("b", "", (rec.label || "Draft " + (index + 1)) + " · " + (rec.team_plan || "balanced")),
+        D.el("span", "captain-rank", "score " + Number(rec.score || 0).toFixed(0) + (rec.identity && rec.identity !== "balanced" ? " · " + rec.identity : "")));
+      const send = D.el("button", "captain-prefer send" + (isChosen ? " on" : ""), isChosen ? "Team draft" : "Send to team");
+      send.type = "button"; send.disabled = controlBusy;
+      send.title = "Everyone's Draft Coach follows this draft: roles pinned, these five as the plan; a banned or taken seat is re-solved in champion select.";
+      send.onclick = () => (isChosen ? releaseTeamDraft() : sendPlanToTeam(rec));
+      head.append(send);
+      row.append(head);
+      const steps = D.el("div", "captain-role-row");
+      for (const role of D.ROLES) {
+        const champion = (rec.champions || {})[role]; if (!champion) continue;
+        const chip = D.el("span", "chip");
+        const owner = (rec.players || {})[role]; const playerName = typeof owner === "string" ? owner : (owner && owner.display_name) || "";
+        chip.append(D.el("small", "", D.ROLE_SHORT[role] || role), D.portrait(champion, "", (rec.champion_ids || {})[role]), D.el("b", "", champion), D.el("small", "captain-player", playerName));
+        const alts = ((rec.role_alternatives || {})[role] || []), learn = ((rec.learn_suggestions || {})[role] || []);
+        if (alts.length || learn.length) chip.append(D.el("small", "gameplan-alts", "or " + [...alts, ...learn.map((c) => c + " (learn)")].join(" · ")));
+        chip.title = [role, champion, playerName].filter(Boolean).join(" · ");
+        steps.append(chip);
+      }
+      row.append(steps);
+      const side = (rec.sides || {})[GP.side] || {};
+      if ((side.pick_order || []).length) {
+        const order = D.el("div", "plan-steps gameplan-order");
+        for (const step of side.pick_order) { const s = D.el("span", "chip"); s.append(D.el("small", "", step.pick_group_label || ("#" + step.slot)), D.portrait(step.champion, "tiny"), D.el("b", "", step.champion)); order.append(s); }
+        row.append(order);
+      }
+      const bans = (side.bans || []).map((b) => b && b.champion).filter(Boolean);
+      const cond = (side.conditional_bans || []).filter((b) => (b.added || []).length).slice(0, 4)
+        .map((b) => "if " + b.champion + " " + String(D.ROLE_SHORT[b.role] || b.role).toLowerCase() + " → also ban " + b.added.join(", "));
+      const line = [];
+      if (bans.length) line.push((GP.side === "red" ? "Red" : "Blue") + " bans: " + bans.join(", "));
+      if (cond.length) line.push(cond.join(" · "));
+      const carry = (rec.carry_options || []).slice(0, 2).map((c) => (c.display_name || c.role) + ": " + c.champion);
+      if (carry.length) line.push("Carry: " + carry.join(" | "));
+      if (line.length) row.append(D.el("div", "plan-note", line.join("  ·  ")));
+      box.append(row);
+    });
+    D.hydrateIcons(box);
+  }
+  function renderGamePlanCard() {
+    // In champion select the live sections take over; before and after, this is the team's planning table.
+    const st = (latest && latest.status) || {}, state = latest && latest.state;
+    const live = !!st.lcu_in_champ_select || !!(state && state.source === "simulation");
+    gpCard.hidden = live;
+    if (live) return;
+    // Who has the app open changes while the card is up: refresh the badges at once, and while the
+    // captain has not touched the selection, re-pick the five from whoever is here now.
+    const hereKey = JSON.stringify([...gpHere().values()].map((p) => [Number(p.player_id), !!p.captain, !!p.in_champ_select]).sort());
+    if (hereKey !== GP.hereKey) { GP.hereKey = hereKey; if (!GP.touched) GP.seeded = false; if (GP.players.length) renderGamePlanPlayers(); }
+    if (!GP.seeded) { gpSeedSelection(); if (GP.seeded) renderGamePlanPlayers(); }
+    const chosen = intentControl && intentControl.chosen;
+    renderTeamDraftEdit(chosen ? { chosen, comps: [{ role_options: chosen.options || {} }] } : null, $("gameplan-edit"));
+    renderGamePlanDrafts();
+  }
+  $("gameplan-build").onclick = () => buildGamePlan(false);
+  $("gameplan-reroll").onclick = () => buildGamePlan(true);
+  $("gameplan-release").onclick = () => releaseTeamDraft();
+  $("gameplan-blue").onclick = () => { GP.side = "blue"; renderGamePlanDrafts(); };
+  $("gameplan-red").onclick = () => { GP.side = "red"; renderGamePlanDrafts(); };
+  $("gameplan-unavailable").addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); buildGamePlan(false); } });
+  loadGamePlan();
+  setInterval(loadGamePlan, 60000);
+  if (new URLSearchParams(location.search).get("host") === "webview") {
+    const showPanel = $("show-panel");
+    showPanel.hidden = false;
+    showPanel.onclick = () => { const api = window.pywebview && window.pywebview.api; if (api && api.open_panel) api.open_panel(); else toast("The panel opens with the app.", true); };
+  }
+
   function render(snapshot) {
     latest = snapshot;
     snapshot = D.Review.liveSnapshot(snapshot, intentGuidance);
@@ -1116,6 +1325,7 @@
     const showBan = !!ourBan;
     renderCaptain(g, state);
     renderDraftControl(snapshot);
+    renderGamePlanCard();
     renderPickOrder(g);
     renderPlans(g, state);
     $("pick-section").hidden = showBan || !state || oursLocked === 5; $("ban-section").hidden = !showBan;

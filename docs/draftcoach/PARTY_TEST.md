@@ -23,6 +23,10 @@ deterministic per player). The app connects to it exactly as it connects to Leag
 - every app connects to its own client and sits in its own seat (Riot ID → roster player → Discord id)
 - the queue is recognised as Ranked Flex
 - one captain is elected through the relay and all five show the same drafts
+- the game plan (`game plan:`), before champion select and with no Discord: one app lists the five
+  test players with pools, builds the ten drafts through `/api/gameplan` (both sides' pick order and
+  bans, a relay control body per draft, timed), sends draft 1 through its bridge, all five apps follow
+  it (adaptive plan, five roles pinned), and release returns everyone to automatic
 - shared controls (team style, role lock, champion lock, shake) posted on one app reach all five, timed
 - sync check (`sync check:`): a wanted role set on one app shows for that player on all five, one
   captain everywhere, all five in champion select (each app has its own role file, `INTENT_ROLE_FILE`)

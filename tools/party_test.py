@@ -189,8 +189,11 @@ class Party:
         def poll(inst):
             while not self.poll_stop.is_set():
                 for url in (inst.url + "/api/state", inst.bridge + "/api/guidance"):
+                    started = time.time()
                     if get(url, timeout=5) is None:
-                        self.poll_failures.append(url)
+                        # Say which request, how long it took and when: a bare count cannot be diagnosed.
+                        self.poll_failures.append(f"{url.split('127.0.0.1:')[-1]} after {time.time() - started:.1f}s "
+                                                  f"at {time.time() - self.report.started:.0f}s ({LAST_ERROR.get(url, '?')})")
                     self.poll_count += 1
                 self.poll_stop.wait(0.5)
         for inst in self.instances:
@@ -586,6 +589,59 @@ class Party:
             return cs if all(not c.get("chosen") and not c.get("champion_locks") for c in cs) else None
         self.report.check("app choice: release puts all five back on automatic drafts", bool(wait_for(all_released, 12, every=0.1)))
 
+    # ---- the team's own game plan, built in the app before champion select (no Discord) ----------
+    def step_app_plan(self) -> None:
+        """Pick five in the app, build the drafts with the /league game engine, send one: five apps follow."""
+        inst = self.instances[0]
+        snap = get(inst.url + "/api/gameplan") or {}
+        wanted = {"cian", "kayla", "aristo", "jack", "jezz"}
+        listed = snap.get("players") or []
+        ids = [p["user_id"] for p in listed if str(p.get("display_name", "")).casefold() in wanted]
+        self.report.check("game plan: the app lists the five test players with champion pools", len(ids) == 5,
+                          f"{len(ids)} of 5 among " + ", ".join(str(p.get("display_name")) for p in listed))
+        if len(ids) != 5:
+            return
+        t0 = time.time()
+        try:
+            plan = http("POST", inst.url + "/api/gameplan", {"players": ids}, timeout=90) or {}
+        except Exception as exc:  # noqa: BLE001
+            self.report.check("game plan: drafts built in the app", False, str(exc))
+            return
+        recs = plan.get("recommendations") or []
+        def complete(rec: dict) -> bool:
+            sides = rec.get("sides") or {}
+            return (len(rec.get("champions") or {}) == 5 and (rec.get("control") or {}).get("control") is not None
+                    and all(len((sides.get(side) or {}).get("pick_order") or []) == 5 for side in ("blue", "red")))
+        ok = bool(recs) and all(complete(rec) for rec in recs)
+        self.report.check("game plan: drafts built in the app (five champions, both sides' pick order, bans, control payload)", ok,
+                          f"{len(recs)} drafts; engine {plan.get('elapsed_ms')} ms, round trip {round((time.time() - t0) * 1000)} ms"
+                          if recs else str(plan)[:300])
+        if not ok:
+            return
+        rec = recs[0]
+        body = rec["control"]
+        try:
+            http("POST", inst.bridge + "/api/control", {"signature": body.get("signature"), **(body.get("control") or {})})
+        except Exception as exc:  # noqa: BLE001
+            self.report.check("game plan: the bridge accepts the draft chosen in the app", False, str(exc))
+            return
+        def all_follow():
+            cs = [((i.control() or {}).get("control") or {}) for i in self.instances]
+            good = all((c.get("chosen") or {}).get("label") == rec["label"]
+                       and (c.get("chosen") or {}).get("champions") == rec["champions"] for c in cs)
+            return cs if good else None
+        t1 = time.time()
+        cs = wait_for(all_follow, 15, every=0.1)
+        self.report.check("game plan: all five apps follow the draft chosen in the app, before champion select", bool(cs),
+                          f"{round((time.time() - t1) * 1000)} ms" if cs else str([(i.control() or {}).get("control") for i in self.instances][:1])[:300])
+        self.report.check("game plan: the chosen plan is adaptive with all five roles pinned (the same semantics as a Discord choice)",
+                          bool(cs) and all((c.get("chosen") or {}).get("mode") == "adaptive" and len(c.get("role_locks") or {}) == 5 for c in cs or []))
+        http("POST", inst.bridge + "/api/control", {"signature": None, "identity": None, "role_locks": {}, "champion_locks": {}, "chosen": None})
+        def all_released():
+            cs = [((i.control() or {}).get("control") or {}) for i in self.instances]
+            return cs if all(not c.get("chosen") for c in cs) else None
+        self.report.check("game plan: release puts all five back on automatic drafts", bool(wait_for(all_released, 15, every=0.1)))
+
     # ---- a draft chosen in Discord ---------------------------------------------------------------
     def step_discord_choice(self) -> None:
         """What the bot does when someone picks "Lock Draft N": one relay post, five apps follow it.
@@ -663,6 +719,9 @@ class Party:
         self.start_apps(5)
         if not smoke:
             self.step_double_launch()
+        if not smoke:
+            print("== game plan before champion select", flush=True)
+            self.step_app_plan()
         print("== champion select", flush=True)
         self.step_champ_select()
         if not smoke:
@@ -702,7 +761,8 @@ class Party:
             print("== rollout resilience", flush=True)
             self.step_resilience()
             self.stop_polling()
-            self.report.check("panel + coach polling on all five apps stays responsive", not self.poll_failures, f"{self.poll_count} requests; {len(self.poll_failures)} failures")
+            self.report.check("panel + coach polling on all five apps stays responsive", not self.poll_failures,
+                              f"{self.poll_count} requests; {len(self.poll_failures)} failures" + ("; " + " | ".join(self.poll_failures[:4]) if self.poll_failures else ""))
         if self.latencies:
             self.report.check("propagation: a lock reaches all five screens", True,
                               f"median {sorted(self.latencies)[len(self.latencies) // 2]} ms, worst {max(self.latencies)} ms over {len(self.latencies)} locks")

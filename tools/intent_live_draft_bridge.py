@@ -233,10 +233,22 @@ def _auto_identity() -> dict:
         player_id = int(local.get("user_id") or 0)
     except (TypeError, ValueError):
         player_id = 0
+    name = local.get("display_name") or local.get("riot_id")
+    if not player_id:
+        # FLEXERS: before champion select there is no seat, but the League client knows who is signed
+        # in (the server matches that account to the roster). Without it the room only ever saw PC names
+        # and the Game plan could not tick the players who actually have the app open.
+        account = status.get("local_account") or {}
+        try:
+            player_id = int(account.get("user_id") or 0)
+        except (TypeError, ValueError):
+            player_id = 0
+        if player_id:
+            name = account.get("display_name") or account.get("riot_id") or name
     return {
         "client_id": _auto_client_id,
         "player_id": player_id,
-        "player_name": str(local.get("display_name") or local.get("riot_id") or socket.gethostname()),
+        "player_name": str(name or socket.gethostname()),
         "priority": int(_HOST_PRIORITIES.get(player_id, 9999)),
         "in_champ_select": bool(status.get("lcu_in_champ_select")) and not status.get("stale"),
         "game_id": state.get("game_id"),
@@ -313,6 +325,34 @@ def _cloud_publish(payload: dict, client_id: str | None = None) -> dict:
         return json.loads(response.read())
 
 
+# FLEXERS: the draft this app itself sent to the team (Send to team / the seat editor). The relay keeps
+# rooms in memory only, so a bot redeploy or an idle eviction would otherwise silently drop the plan from
+# every screen; the app that chose it puts it back when it sees a fresh, empty room.
+_last_sent: dict | None = None            # {"signature", "control", "at", "reposted_epoch"}
+_LAST_SENT_MAX_AGE = 6 * 3600
+
+
+def _remember_sent(signature: str | None, control: dict | None) -> None:
+    global _last_sent
+    if isinstance(control, dict) and control.get("chosen"):
+        _last_sent = {"signature": signature, "control": dict(control), "at": time.time(), "reposted_epoch": None}
+    else:
+        _last_sent = None                 # released: nothing to restore
+
+
+def _restore_sent_control(epoch) -> dict | None:
+    """Re-post this app's chosen draft into a recreated room; the relay's reply, or None."""
+    global _last_sent
+    sent = _last_sent
+    if not sent or sent.get("reposted_epoch") == epoch or time.time() - float(sent.get("at") or 0) > _LAST_SENT_MAX_AGE:
+        return None
+    sent["reposted_epoch"] = epoch
+    try:
+        return _cloud_preference(sent.get("signature"), sent.get("control"))
+    except Exception:
+        return None
+
+
 def _apply_cloud_control(control: dict) -> None:
     global _cloud_pref_version
     global _cloud_room_epoch
@@ -323,6 +363,12 @@ def _apply_cloud_control(control: dict) -> None:
         # are evicted): forget the old version so the fresh room's state is taken, even version 0.
         _cloud_room_epoch = epoch
         _cloud_pref_version = -1
+        if not isinstance((control or {}).get("control"), dict):
+            restored = _restore_sent_control(epoch)
+            if isinstance(restored, dict) and isinstance(restored.get("control"), dict):
+                control = {**control, "control": restored["control"], "preference": restored.get("signature"),
+                           "preference_version": int(restored.get("preference_version") or 1)}
+                version = int(control["preference_version"])
     if version > _cloud_pref_version:
         _cloud_pref_version = version
         shared = (control or {}).get("control")
@@ -772,6 +818,41 @@ def _reload_signup_cache_if_changed() -> bool:
     return True
 
 
+def _refresh_signups_from_relay() -> bool:
+    """The pools and 1/2/3 priorities people set in Discord, from the team relay (GET .../signups).
+
+    FLEXERS: every player's PC lacks the Northflank CLI, so without this the app planned from the roster
+    file's pools and never saw what a teammate changed in Discord. The relay is the bot process, so the
+    rows are the bot's own database. A relay without the endpoint (older bot) just leaves the cache alone.
+    """
+    global _signups, _response_cache_key
+    if not (_cloud_base and _cloud_key):
+        return False
+    try:
+        with urllib.request.urlopen(_cloud_url("/signups"), timeout=6.0) as response:
+            data = json.loads(response.read())
+    except Exception:
+        return False
+    rows = data.get("signups") if isinstance(data, dict) else None
+    if not isinstance(rows, list) or not rows:
+        return False
+    parsed = [normalise_team_role_update(p) for p in rows if isinstance(p, dict) and p.get("user_id")]
+    if not parsed:
+        return False
+    with _cache_lock:
+        changed = parsed != _signups
+        _signups = parsed
+    if changed:
+        _response_cache_key = None
+    try:
+        SIGNUP_CACHE.write_text(json.dumps(parsed, ensure_ascii=False, indent=2), encoding="utf-8")
+        # The bridge owns the cache now: the app imports it into the roster instead of overwriting it.
+        SIGNUP_CACHE.with_name("live_flex_signups.seeded").unlink(missing_ok=True)
+    except OSError:
+        pass
+    return True
+
+
 def refresh_signups(force: bool = False):
     global _signups, _last_signup_refresh, _response_cache_key
     _reload_signup_cache_if_changed()
@@ -780,6 +861,7 @@ def refresh_signups(force: bool = False):
         return
     _last_signup_refresh = now
     if not NORTHFLANK.exists():
+        _refresh_signups_from_relay()
         return
     payload = base64.b64encode(_signup_export_script().encode()).decode()
     remote = f'''python -c 'import base64;exec(base64.b64decode("{payload}"))' '''
@@ -787,6 +869,7 @@ def refresh_signups(force: bool = False):
         cp = subprocess.run(
             ["cmd", "/c", str(NORTHFLANK), "exec", "service", "--project", "intent-parse-bot", "--service", "intent-parse-bot", "--shell-cmd", remote, "--quiet"],
             capture_output=True, text=True, timeout=25,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),   # FLEXERS: the exe has no console; a child must not pop one
         )
         marker = "SIGNUPS_JSON="
         line = next((ln for ln in cp.stdout.splitlines() if ln.startswith(marker)), None)
@@ -1439,7 +1522,10 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
                 for role in ROLES
             },
             "players": {role: (rec.get("players", {}).get(role) or {}).get("display_name", role) for role in ROLES},
-            "player_ids": {role: int((rec.get("players", {}).get(role) or {}).get("user_id") or 0) for role in ROLES},
+            # FLEXERS: strings, not ints. Discord ids exceed JavaScript's exact-integer range, so a page that
+            # read them as numbers posted rounded ids back as role locks that matched nobody.
+            "player_ids": {role: (str(uid) if (uid := int((rec.get("players", {}).get(role) or {}).get("user_id") or 0)) else None)
+                           for role in ROLES},
             "player_meta": {
                 role: {
                     "uncontrolled": bool((rec.get("players", {}).get(role) or {}).get("_uncontrolled")),
@@ -1897,7 +1983,10 @@ class Handler(BaseHTTPRequestHandler):
                 control = _normalise_control(current)
             try:
                 if _cloud_mode in ("follow", "auto"):
-                    self._reply(_cloud_preference(signature, control))
+                    reply = _cloud_preference(signature, control)
+                    if path == "/api/control" and "chosen" in payload:
+                        _remember_sent(signature, control)      # FLEXERS: survives a relay restart (see _restore_sent_control)
+                    self._reply(reply)
                 elif _upstream_base:
                     self._reply(_upstream_preference(signature, control))
                 else:
