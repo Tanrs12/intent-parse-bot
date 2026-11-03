@@ -106,16 +106,39 @@ def counter_advice(
                 "retrieved_at": observed.get("retrieved_at"),
                 "source_url": observed["source_url"],
                 "evidence_limit": "patch_rank_attested_observation_not_autopick",
+                "source_direction": observed.get("source_direction", "own_champion_page"),
+                "role_baseline_win_rate": observed.get("role_baseline_win_rate"),
+                "role_baseline_games": observed.get("role_baseline_games"),
             }
+            try:
+                if observed.get("role_baseline_win_rate") is not None:
+                    info["adjusted_matchup_lift_pp"] = round(
+                        float(observed["head_to_head_win_rate"]) -
+                        float(observed["role_baseline_win_rate"]), 2)
+            except (TypeError, ValueError):
+                pass
             if champion_name == original:
                 full_base = info
             elif champion_name not in unavailable and champion_name not in champions.values():
                 info["type"] = "playable" if champion_name in pool_set else "learn"
+                if info["type"] == "playable":
+                    # The assigned owner's submitted role pool makes this a
+                    # real option, but single-seat changes may remove crucial
+                    # frontline. The shared adaptive engine can separately
+                    # test compensated two-seat completions.
+                    fit = score_comp({**champions, role: champion_name}, meta)
+                    fit_delta = float(fit.get("score", 0)) - scored_baseline
+                    info["team_score_delta"] = round(fit_delta, 2)
+                    info["team_fit"] = ("needs_compensation" if fit_delta < -3
+                                        else "fits_comp")
                 full_alternatives.append(info)
-        # Surface the strongest observed options within the actual owner's
-        # submitted pool first, never as eligible / automatic counter swaps.
+        # Prioritise actual player pool, a coherent five, then baseline-
+        # adjusted opponent lift rather than sorting raw win rates alone.
         full_alternatives.sort(key=lambda e: (
-            e["type"] == "playable", e["head_to_head_win_rate"], e["games"]
+            e["type"] == "playable",
+            e.get("team_fit") != "needs_compensation",
+            e.get("adjusted_matchup_lift_pp", -100),
+            e["games"],
         ), reverse=True)
         opgg_alternatives = []
         for _key, row in opgg_cache.items():
