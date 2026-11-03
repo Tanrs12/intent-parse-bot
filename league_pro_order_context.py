@@ -31,7 +31,7 @@ def index_path()->Path:
 
 
 @lru_cache(maxsize=3)
-def _load(path:str,stamp:int)->dict:
+def _load(path:str,stamp:tuple[int,int,int,int])->dict:
     try:
         data=json.loads(Path(path).read_text(encoding="utf8"))
     except (OSError,TypeError,ValueError):
@@ -46,6 +46,16 @@ def _load(path:str,stamp:int)->dict:
     return data
 
 
+def _index_stamp(path: Path) -> tuple[int,int,int,int]:
+    """Detect rapid Windows rewrites and atomic replacements, not only mtime.
+
+    CI/filesystems can preserve nanosecond timestamps across a fast rewrite;
+    source licence validation MUST re-run if the file's size or identity changes.
+    """
+    s = path.stat()
+    return (source_mtime_ns(path), s.st_ctime_ns, s.st_size, s.st_ino)
+
+
 def selected_after(ours:str,enemy:str,*,min_games:int=5)->dict:
     """Only one fact: our champion was picked AFTER enemy's pick in pro games.
 
@@ -56,7 +66,7 @@ def selected_after(ours:str,enemy:str,*,min_games:int=5)->dict:
     path=index_path()
     if not path.is_file():
         return {}
-    archive=_load(str(path),source_mtime_ns(path))
+    archive=_load(str(path),_index_stamp(path))
     if not archive:
         return {}
     sample=archive["responses"].get(_canonical(ours)+"|"+_canonical(enemy))
@@ -83,7 +93,7 @@ def selected_after(ours:str,enemy:str,*,min_games:int=5)->dict:
 
 def archive_summary()->dict:
     path=index_path()
-    archive=_load(str(path),source_mtime_ns(path)) if path.is_file() else {}
+    archive=_load(str(path),_index_stamp(path)) if path.is_file() else {}
     return {
         "installed":bool(archive),
         "games":int(archive.get("games",0)),
