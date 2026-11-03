@@ -31,7 +31,8 @@
     const advice = guidance?.counter_advice?.lanes || [];
     const proDuos = guidance?.counter_advice?.pro_duos || {};
     const key = JSON.stringify([chosen, [...bans], [...taken], replacements, ownLocks,
-      advice, proDuos, guidance?.counter_advice?.live_fetch, wide]);
+      advice, proDuos, guidance?.counter_advice?.live_fetch,
+      guidance?.compensation_search, wide]);
     if (root.dataset.model === key) return;
     root.dataset.model = key;
     root.hidden = !chosen;
@@ -54,6 +55,19 @@
     } else if (liveFetch?.state === "access_restricted") {
       root.append(D.el("p", "fd-sc-reference",
         "OP.GG access restricted; live lookup paused. Cached scouting remains available."));
+    }
+    const compensation = guidance?.compensation_search;
+    if (compensation?.state === "evaluating" ||
+        compensation?.state === "queued_next_state") {
+      root.append(D.el("p", "fd-sc-reference",
+        "Checking coordinated counter-draft changes across all open lanes. " +
+        "The current legal draft remains available while the search runs."));
+    } else if (compensation?.state === "ready" &&
+               (compensation?.selected_changes || []).length === 2) {
+      root.append(D.el("p", "fd-sc-reference",
+        "Coordinated change: " + compensation.selected_changes
+          .map(role => SHORT[role]).join(" + ") +
+        " · counter plus team-role compensation; existing players and locks preserved."));
     }
     if (chosen.plan) root.append(D.el("p", "fd-sc-plan", chosen.plan));
 

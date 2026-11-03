@@ -134,3 +134,40 @@ def test_direct_champion_page_takes_precedence_over_reverse_enemy_estimate(tmp_p
         index_path=tmp_path / "index.json")["rows"]}
     assert row["Jayce"]["source_direction"] == "own_champion_page"
     assert row["Jayce"]["head_to_head_win_rate"] == 48.10
+
+
+
+def test_offmeta_bot_web_fetch_requires_explicit_confirmed_or_declared_context(
+    tmp_path, monkeypatch
+):
+    from tools.collect_opgg_full_web import collect
+    requests = []
+    class FakeResponse:
+        status = 200
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return None
+        def read(self, max_bytes):
+            return sample_html(champ="Hwei").encode("utf8")
+    def open_page(req, timeout=30):
+        requests.append(req.full_url)
+        return FakeResponse()
+    monkeypatch.setattr("urllib.request.urlopen", open_page)
+    blocked = collect(
+        "ADC", ["Hwei"], folder=tmp_path, max_new=1,
+        allow_declared_offmeta=False, expected_patch="16.21",
+        emit=lambda *_: None,
+    )
+    assert blocked["new_pages"] == 0
+    assert not requests
+
+    approved = collect(
+        "ADC", ["Hwei"], folder=tmp_path, max_new=1,
+        allow_declared_offmeta=True, expected_patch="16.21",
+        emit=lambda *_: None,
+    )
+    assert approved["new_pages"] == 1
+    assert approved["index_observations"] == 4
+    assert requests == ["https://op.gg/lol/champions/hwei/counters/adc"]
+    assert page_file(tmp_path, "ADC", "Hwei").is_file()

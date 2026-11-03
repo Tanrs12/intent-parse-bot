@@ -31,6 +31,8 @@ from league_pro_data import refresh_recent_pro_data
 from team_sync import chosen_status, clean_chosen
 from counterpick_advice import counter_advice
 from league_opgg_live_fetch import request_live_counters
+from league_opgg_full_reference import full_for_enemy, folder as opgg_full_folder
+from adaptive_compensation_search import request_compensation_search
 
 ROLES = ["Top", "Jungle", "Mid", "ADC", "Support"]
 COACH_STATE_URL = "http://127.0.0.1:8765/api/state"
@@ -1857,31 +1859,19 @@ def build_response():
         chosen_plan = control.get("chosen") or {}
         known_enemy_lanes = _locked_enemy_roles(effective_state)
         adaptive_plan = (chosen_plan.get("champions") or {}) if chosen_plan.get("mode") == "adaptive" else {}
-        # Keep the team-selected picks in every UNCHALLENGED lane. Only a
-        # revealed enemy lane is allowed a researched counter, and the scorer
-        # still applies the player's actual submitted pool/comp requirements.
-        # A revealed counter can require moving a *team job* to a second
-        # role (e.g. replace Ornn Top with Sylas into Malphite, but move
-        # frontline from Lee Sin Jungle to Skarner). Preserve every other
-        # unchallenged seat; only free its structural companion for the
-        # shared, pool-safe two-seat adaptive candidate search.
-        compensation_roles = set()
-        if "Top" in known_enemy_lanes and "Top" not in locked:
-            compensation_roles.add("Jungle")
-        if "Jungle" in known_enemy_lanes and "Jungle" not in locked:
-            compensation_roles.add("Top")
-        if "Mid" in known_enemy_lanes and "Mid" not in locked:
-            compensation_roles.add("Jungle")
+        # First solve a stable baseline anchored to the captain's chosen
+        # team. A separate *asynchronous* search will then open each other
+        # unpicked lane in turn as a possible compensation role. That permits
+        # Top Vayne + Mid Galio or Mid Zed + Bot Ziggs, rather than only the
+        # previous hardcoded Top/Jungle or Mid/Jungle pair.
         preserve_plan = {
             role: champ for role, champ in adaptive_plan.items()
             if role in ROLES and role not in known_enemy_lanes
-            and role not in compensation_roles
             and role not in locked and champ not in unavailable
         }
         # FLEXERS: if the pinned roles or the preserved plan leave nothing playable for this lobby,
         # the fallback relaxes them rather than emptying every screen.
-        result = _drafts_with_fallback(
-            live_role_players,
+        result_kwargs = dict(
             signups=five,
             unavailable=unavailable,
             locked_champions=locked,
@@ -1908,7 +1898,55 @@ def build_response():
             identity=control["identity"],
             exclude_signatures=_shaken_signatures.get(game_key, []),
         )
+        result = _drafts_with_fallback(live_role_players, **result_kwargs)
+        compensation_state = None
+        is_counter_captain = (
+            not testing
+            and (_cloud_mode not in ("auto", "follow") or _auto_is_host)
+            and not _upstream_base
+        )
+        forced_ally_pick = any(
+            role in adaptive_plan and champ != adaptive_plan[role]
+            for role, champ in locked.items()
+        )
+        if (is_counter_captain and adaptive_plan
+            and (known_enemy_lanes or forced_ally_pick)
+            and result.get("recommendations")):
+            # A newly fetched public counter page changes our statistical
+            # evidence without changing the lobby picks. Include the local
+            # index version so the on-demand search recomputes after a fetch.
+            try:
+                opgg_index_stamp = (opgg_full_folder() / "index.json").stat().st_mtime_ns
+            except OSError:
+                opgg_index_stamp = 0
+            completed, compensation_state = request_compensation_search(
+                f"{cache_key}|opgg:{opgg_index_stamp}",
+                on_update=_invalidate_opgg_guidance,
+                initial=result,
+                chosen=adaptive_plan,
+                known_enemy_lanes=known_enemy_lanes,
+                actual_locks=locked,
+                hard_required={
+                    role: champ for role, champ in control["champion_locks"].items()
+                    if role not in locked and champ not in unavailable
+                },
+                unavailable=set(unavailable),
+                backend_kwargs=result_kwargs,
+                backend=recommend_live_drafts,
+                champion_traits=league_comp_engine.load_meta().get("champion_traits") or {},
+                global_counter_rules=league_comp_engine.DRAFT_SPECIFIC_COUNTERS,
+                statistical_evidence={
+                    role: full_for_enemy(role, enemy, patch=league_comp_engine.LIVE_PATCH).get("rows") or []
+                    for role, enemy in known_enemy_lanes.items()
+                },
+            )
+            if completed is not None:
+                result = completed
         guidance = _guidance_from_result(result, effective_state)
+        if compensation_state:
+            guidance["compensation_search"] = {"state": compensation_state}
+            if result.get("compensation_search"):
+                guidance["compensation_search"].update(result["compensation_search"])
         global _last_best_signature
         lead = (guidance.get("comps") or [{}])[0]
         _last_best_signature = lead.get("signature") or (_comp_signature(lead.get("champions")) if lead.get("champions") else None)

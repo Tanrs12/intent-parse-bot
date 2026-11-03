@@ -239,3 +239,177 @@ data and calibrate rankings after testing.
 Run `python tools/opgg_full_audit.py` and review
 `docs/draftcoach/MATCHUP_EVIDENCE_COLLECTION_2026-11-03.md` for exact
 counts, source restrictions, tests, and resumption plan.
+
+
+## Live enemy counter pulls and coordinated counter-draft (3 November 2026)
+
+**User decision policy:** Once an enemy is *locked* and its lane is established,
+look at our assigned player for that role, their actual submitted role pool,
+the planned champion's job, relevant current-patch counter performance,
+and the whole team. Consider a second champion swap to replace lost frontline
+or other structure (e.g. Ornn Top + Lee Sin Jungle -> Sylas Top + Skarner
+Jungle versus Malphite Top). Treat uncommon enormous counters, such as Sylas
+stealing Malphite R, differently from small raw win-rate swings. Carry-top
+Vayne is credible only for a skilled player who submitted Vayne Top; never
+force Jezz or any other player onto an unfamiliar carry just because OP.GG
+reports a favourable statistic.
+
+Implementation is inside the **existing shared live draft backend**, not an
+independent second ranker:
+- `league_draft_backend.recommend_live_drafts` still generates pool-legal,
+  player-assigned candidates and scores whole-team composition, ranked
+  comfort, bot lane and mid-jungle synergy.
+- `adaptive_draft.select_adaptive_comp` may now select a coordinated TWO
+  champion replacement from those existing candidates if at least one changed
+  role is a confirmed enemy counter; the second change preserves a team job.
+  No actual role-owner changes. No actual locked pick changes. A frontline
+  role lost by the counter must be explicitly compensated, with team, bot and
+  jungle-mid scores protected. Normal single-seat adaptation remains legal.
+- `league_comp_engine.DRAFT_SPECIFIC_COUNTERS` is reused for the already
+  documented Sylas-versus-Malphite interaction. No new duplicated rule table.
+- A strong, **baseline-adjusted** OP.GG current-patch Emerald+ signal is
+  eligible as an additional cautious swap input only with both original
+  and candidate own-champion baselines, each >=10,000 role games and
+  >=500 head-to-head games, from the same patch/rank/queue. Per-role
+  baseline = sum(head-to-head WR * games) / sum(games) over the full opponent
+  table. A 700-game confidence shrinkage and 0.26 point-per-percentage-point
+  upper-bounded conversion prevent naive high-WR autopicking. Ordinary raw
+  WR alone does not qualify. Observational, not a proof of causality.
+- `league_opgg_full_reference.full_for_enemy` now uses **one enemy page**
+  to infer each opponent's complementary head-to-head WR; a directly
+  collected own-champion matchup takes priority when available. Reverse
+  estimates and their page provenance are labelled.
+- The live bridge frees a *possible* Top/Jungle compensation pair after a
+  confirmed Top or Jungle reveal (or Mid/Jungle for a Mid reveal), rather
+  than hard-freezing all roles not directly countered. The shared scorer
+  decides whether either or both switches are actually better.
+- When the chosen composition changes, the live chosen-status panel now
+  receives `adaptive_reasons` for both the counter and its compensating
+  role, rather than just saying "swapped".
+- `league_opgg_live_fetch.LiveCounterCollector` schedules **background**
+  HTTPS GETs for confirmed enemy roles only, prioritising one complete
+  enemy table and at most two submitted role-pool alternatives plus the
+  planned champion. Hard ceilings: 15 new page requests per UTC day per
+  captain PC, 5 per lobby, 4 seconds apart, 24h cache, stop immediately
+  on 401/403/429. Persistent counters survive app restarts; optional off
+  via `DRAFTCOACH_LIVE_OPGG=0`. Only the elected captain fetches in a
+  shared lobby; follower apps use shared guidance. Never fetch on hover,
+  in tests, or synchronously on the score/UI thread. No unlimited scraping.
+- Private OP.GG full pages and indexes remain ignored under
+  `var/opgg_full/` in the dev checkout and installed folder, not GitHub.
+  The collector index now records per-champion weighted win-rate baseline
+  without any additional HTTP requests.
+- Flex-role ambiguity stays conservative: `_locked_enemy_roles` accepts
+  trusted role annotations and unique-role inference but does not guess
+  ambiguous enemy lane roles. **A captain-controlled manual role override
+  is still a future UI task** and must be lobby-scoped and synchronised
+  through the relay before being used for scoring.
+
+Tests:
+`tests/test_adaptive_pair_swaps.py`,
+`tests/test_opgg_live_fetch.py`,
+`tests/test_opgg_full_web.py`,
+`tests/test_opgg_full_advice_ui.py` and existing Discord adaptive,
+live bridge and five-player simulator tests.
+
+Source permission reminder: OP.GG's reply allows careful small-scale,
+attributed, non-commercial page visits and warns against excessive
+traffic. This is **not** permission for an unrestricted full-site crawl.
+
+
+
+## All-lane coordinated team-role compensation (3 Nov 2026 — latest decision)
+
+**Updated after user clarification:** A counter pick does not force its second
+team-structure adjustment into Jungle. The second champion change can come
+from **Top, Jungle, Mid, ADC/Bot or Support**, whichever assigned player's
+role pool and composition scorer can support. Examples:
+- Ornn Top -> Vayne Top into an appropriate counter, while Orianna Mid
+  -> Galio Mid adds back a legitimate frontline/engage champion
+- A similar Vayne Top counter can instead ask Lulu Support -> Braum Support
+- Orianna Mid -> Zed or Yasuo Mid can be paired with Jinx Bot -> Ziggs Bot
+  to keep magic damage; the bot player must actually own Ziggs in their ADC
+  role pool and the resulting bot duo must remain viable
+- **If Zed or Yasuo is already locked in League**, that lock is immutable.
+  A separate repair path finds a one-seat magic-damage replacement elsewhere
+  without needing a confirmed enemy lane; no change if no lost structural
+  job or if the proposed companion is itself locked
+
+Code:
+- `adaptive_draft.py`: score and player ownership gates, actual locks,
+  frontend count, role-based AP/AD mix, strong matchup evidence, and
+  explanations of the job being restored; no more than two champion
+  changes. Minor bot-duo score loss can be tolerated only if the new
+  overall five scores sufficiently well and the bot lane remains viable.
+- `adaptive_compensation_search.py`: **at most four independent
+  secondary-lane branches** from the same shared, legally-scored
+  `recommend_live_drafts` brain, each freezing the other planned roles.
+  A single background worker prevents UI blocking, caches results against
+  the exact champ-select state, and invalidates the bridge response cache
+  when ready. A newer state cannot consume stale candidates.
+- `tools/intent_live_draft_bridge.py`: normal chosen draft resolved first,
+  then only the elected captain runs optional all-lane companion search
+  after a confirmed enemy role or a newly locked actual champion conflicts
+  with the selected five. Do not run this search for test simulations or
+  followers. Never undo a live champion lock. Manual enemy-role overrides
+  remain a separate future feature.
+- `draftcoach/static/selected-comp.js`: shows search status, the two
+  changed lanes and the chosen-status reasons once ready.
+- `build_exe.py`: packages the new `adaptive_compensation_search.py`.
+
+**Safety:** These are CHAMPION changes, not player role reassignment. Every
+alternative comes from the existing shared backend and its submitted role
+pool, comfort and five-man scoring. Do not force a high-stat Vayne Top on a
+support main who cannot play it, or turn every lane into high-variance
+counter-pick musical chairs. Preserving overall comp > small matchup swing.
+
+
+## Early enemy ADC lock: Bot mage counter with flexible physical-DPS replacement
+
+A **confirmed enemy ADC lock** now functions as a normal counter-draft anchor,
+even before the remaining enemy team is known. The player assigned to our ADC
+seat can choose a strong statistical mage-Bot counter **only if it is already
+in their explicitly submitted ADC role pool**. The solver then searches any
+other unlocked lane (Top, Jungle, Mid, Support) for a player-legal physical
+damage replacement, using the same five-player composition score:
+
+- Example layouts checked with synthetic proven-counter fixtures:
+  Hwei Bot + Graves Jungle; Vel'Koz Bot + Kindred Jungle;
+  Swain Bot + Tristana Mid; Swain Bot + Vayne Top.
+  These are **conditional legal examples, not assertions that every mage is
+  a hard counter to every marksman**.
+- The champion itself may be off-meta in the reference catalogue. The real
+  `recommend_live_drafts` backend passed tests with Hwei, Vel'Koz and Swain
+  Bot as the assigned player's submitted role pick. Neither Hwei nor Vel'Koz
+  becomes an unrequested option for players who did not submit them.
+- `tools/collect_opgg_full_web.py --declared-offmeta` permits public Bot-page
+  data lookup for an explicitly confirmed enemy champion or an actual owner's
+  submitted Bot pick, after validating it exists in the champion catalogue.
+  Live captain fetches use this flag only for confirmed enemy roles, planned
+  champion and up to two submitted pool alternatives. The CLI default still
+  excludes off-meta role candidates.
+- Real 3 Nov OP.GG 16.21 Emerald+ complete Bot pages were independently
+  retrieved for Hwei, Vel'Koz and Swain, **38 opponent rows per page**.
+  Now **50** private full counter pages and **2,575** page observations across
+  five roles; all patch 16.21. Never check these rows into GitHub.
+- `adaptive_draft._damage_roles` now counts meaningful physical/magic
+  sources (`ratings.damage >= 2`) rather than treating the incidental damage
+  of a full tank/support as equivalent to an ADC. A mage replacing Jinx Bot
+  can be paired with a legitimate AD Mid, Top or Jungle; the full team
+  must retain viable frontline, bot pairing and mid-jungle identity.
+- We do **not** declare every raw favourable Bot win rate a hard counter.
+  Example: Hwei vs Caitlyn observed 54.64% in 1,305 games, with Hwei's
+  own overall Bot baseline 53.339%. Jinx vs Caitlyn is 52.39% in
+  20,677 games, against Jinx's own 51.185% Bot baseline. Both outperform
+  their normal expectation by ~1.2–1.3 percentage points: little
+  differential counter advantage. This is why same-patch baseline adjustment,
+  sample shrinkage, player skill, and compensated team shape are required.
+- A **real locked ADC pick** prevents bot replacement regardless of enemy
+  matchup score; the optimiser does not attempt to undo it. Flex-role
+  enemy picks whose ADC position cannot be inferred still require explicit
+  confirmation in the future manual enemy-role UI rather than guessing.
+
+Tests: `tests/test_mage_bot_compensation.py` has synthetic four-lane,
+lock, sample-quality and real-backend explicit off-meta pool checks;
+`tests/test_opgg_full_web.py` prevents off-meta page fetch unless caller
+explicitly marks the confirmed/declared context.
