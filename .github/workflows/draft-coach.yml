@@ -42,15 +42,39 @@ jobs:
       - name: Verify packaged application starts
         shell: pwsh
         run: |
-          & .\dist\FlexersDraftCoach\FlexersDraftCoach.exe --no-update --help *> draftcoach-smoke.log
-          if ($LASTEXITCODE -ne 0) {
-            Get-Content draftcoach-smoke.log
-            throw "Packaged Draft Coach failed startup verification."
+          # The exe is a windowed (no console) build, so there is no --help text to read. Start it as
+          # a server, wait for it to answer, then make it build a game plan: that exercises the bundled
+          # engine, data files and team roster end to end before anything is published.
+          $app = ".\dist\FlexersDraftCoach"
+          $p = Start-Process -FilePath "$app\FlexersDraftCoach.exe" -WorkingDirectory $app -PassThru `
+                 -ArgumentList '--no-update','--no-lcu','--no-auto-sync','--no-bridge','--port','8901','--load','loadfiles\flexers-team.json'
+          $ok = $false
+          for ($i = 0; $i -lt 120; $i++) {
+            Start-Sleep -Seconds 1
+            if ($p.HasExited) { break }
+            try {
+              $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 http://127.0.0.1:8901/api/config
+              if ($r.StatusCode -eq 200) { $ok = $true; break }
+            } catch {}
           }
-          if (-not (Select-String -Path draftcoach-smoke.log -Pattern 'usage: FlexersDraftCoach.exe' -Quiet)) {
-            Get-Content draftcoach-smoke.log
-            throw "Packaged Draft Coach produced no CLI startup output."
+          $plan = $null
+          if ($ok) {
+            for ($i = 0; $i -lt 30 -and -not $plan; $i++) {
+              try {
+                $players = (Invoke-RestMethod -TimeoutSec 5 http://127.0.0.1:8901/api/gameplan).players
+                if ($players.Count -ge 5) {
+                  $ids = @($players | Select-Object -First 5 | ForEach-Object { $_.user_id })
+                  $body = @{ players = $ids } | ConvertTo-Json -Compress
+                  $plan = Invoke-RestMethod -Method Post -TimeoutSec 120 -ContentType 'application/json' -Body $body http://127.0.0.1:8901/api/gameplan
+                } else { Start-Sleep -Seconds 1 }
+              } catch { Start-Sleep -Seconds 1 }
+            }
           }
+          Get-Content "$app\var\draftcoach.log" -ErrorAction SilentlyContinue | Select-Object -Last 40
+          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+          if (-not $ok) { throw "Packaged Draft Coach did not serve /api/config within 120 s." }
+          if (-not $plan -or $plan.recommendations.Count -lt 1) { throw "Packaged Draft Coach could not build a game plan (engine or data missing from the bundle)." }
+          Write-Host ("Packaged app served a game plan: {0} drafts in {1} ms" -f $plan.recommendations.Count, $plan.elapsed_ms)
 
       - uses: actions/upload-artifact@v4
         with:
