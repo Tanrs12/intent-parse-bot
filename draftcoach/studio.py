@@ -55,6 +55,23 @@ def lineup_signups(roster: Roster, lineup: dict[str, str | None], tier: dict, ex
     return signups, role_players
 
 
+def is_placeholder(user_id: int) -> bool:
+    """An open lineup seat's stand-in id (PUG_BASE + seat), never a real Discord account."""
+    return PUG_BASE <= int(user_id) < PUG_BASE + 1000
+
+
+def _control_for(rec: dict, label: str) -> dict | None:
+    """The same team payload as Coach -> Game plan -> "Send to team": roles pinned to the real players
+    chosen in the lineup (an open seat pins nobody), these five as the adaptive plan."""
+    try:
+        from team_sync import draft_control_payload
+    except Exception:  # noqa: BLE001 - a build without the shared module just cannot send
+        return None
+    real = {r: p for r, p in (rec.get("players") or {}).items()
+            if isinstance(p, dict) and str(p.get("user_id") or "").isdigit() and not is_placeholder(int(p["user_id"]))}
+    return draft_control_payload({**rec, "players": real}, label=label, source="app")
+
+
 def _draft_rows(result: dict | None) -> list[dict]:
     out = []
     for rec in (result or {}).get("recommendations") or []:
@@ -62,6 +79,7 @@ def _draft_rows(result: dict | None) -> list[dict]:
         if not all(champions.get(r) for r in ROLES):
             continue
         out.append({
+            "control": _control_for(rec, "Studio: " + str(rec.get("team_plan") or rec.get("plan") or "draft")),
             "champions": {r: champions[r] for r in ROLES},
             "champion_ids": {r: champ_map.id_for(champions[r]) for r in ROLES},
             "players": {r: ((rec.get("players") or {}).get(r) or {}).get("display_name") for r in ROLES},
