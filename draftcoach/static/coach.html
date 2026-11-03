@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/static/mm/draft-ui.css">
 <link rel="stylesheet" href="/static/mm/draft-coach.css">
 <link rel="stylesheet" href="/static/mm/selected-comp.css">
+<link rel="stylesheet" href="/static/mm/gameplan-enhancements.css">
 </head>
 <body class="coach-page">
 <header class="coach-mast">
@@ -52,7 +53,7 @@
     </div>
     <p class="plan-note" id="gameplan-status">Choose the five playing tonight. Players with the app open are picked for you.</p>
     <div class="gameplan-side" id="gameplan-side" hidden>
-      <span class="mm-meta">Pick order and bans for</span>
+      <span class="mm-meta">Highlight our side</span>
       <button class="fd-button" id="gameplan-blue" type="button" aria-pressed="true">Blue side</button>
       <button class="fd-button" id="gameplan-red" type="button" aria-pressed="false">Red side</button>
     </div>
@@ -1212,7 +1213,13 @@
     // The same relay body a draft locked in Discord sends: roles pinned, the five as the adaptive plan.
     const body = rec.control || {};
     const ok = await postControl({ signature: body.signature || null, ...(body.control || {}) });
-    if (ok) toast(rec.label + " sent to everyone's Draft Coach. Champion select follows it.");
+    if (ok) {
+      const original = ((body.control || {}).chosen || {}).champions || {};
+      const confirmed = intentControl?.chosen?.champions || {};
+      const acknowledged = D.ROLES.every((role) => original[role] && original[role] === confirmed[role]);
+      if (acknowledged) toast(rec.label + " accepted in the shared room. The floating panel will follow this plan.");
+      else toast("The relay did not confirm the selected five. Check Sync check and retry.", true);
+    }
     $("gameplan-drafts").dataset.key = "";
     renderGamePlanDrafts();
   }
@@ -1244,33 +1251,84 @@
       send.onclick = () => (isChosen ? releaseTeamDraft() : sendPlanToTeam(rec));
       head.append(send);
       row.append(head);
-      const steps = D.el("div", "captain-role-row");
+      const steps = D.el("div", "captain-role-row gameplan-role-portraits");
       for (const role of D.ROLES) {
         const champion = (rec.champions || {})[role]; if (!champion) continue;
-        const chip = D.el("span", "chip");
-        const owner = (rec.players || {})[role]; const playerName = typeof owner === "string" ? owner : (owner && owner.display_name) || "";
-        chip.append(D.el("small", "", D.ROLE_SHORT[role] || role), D.portrait(champion, "", (rec.champion_ids || {})[role]), D.el("b", "", champion), D.el("small", "captain-player", playerName));
-        const alts = ((rec.role_alternatives || {})[role] || []), learn = ((rec.learn_suggestions || {})[role] || []);
-        if (alts.length || learn.length) chip.append(D.el("small", "gameplan-alts", "or " + [...alts, ...learn.map((c) => c + " (learn)")].join(" · ")));
-        chip.title = [role, champion, playerName].filter(Boolean).join(" · ");
+        const chip = D.el("div", "chip gameplan-role-card");
+        const owner = (rec.players || {})[role];
+        const playerName = typeof owner === "string" ? owner : (owner && owner.display_name) || "";
+        chip.append(D.el("small", "gameplan-role-label", D.ROLE_SHORT[role] || role),
+                    D.el("small", "captain-player", playerName));
+        const alts = ((rec.role_alternatives || {})[role] || []);
+        const learn = ((rec.learn_suggestions || {})[role] || []);
+        const shown = [...new Set([champion, ...alts, ...learn])].slice(0, 5);
+        const images = D.el("div", "gameplan-option-row");
+        for (const candidate of shown) {
+          const learning = learn.includes(candidate) && candidate !== champion && !alts.includes(candidate);
+          const item = D.el("div", "gameplan-option" +
+            (candidate === champion ? " primary" : "") + (learning ? " learn" : ""));
+          item.title = candidate + (learning ? " · learning only / not in the playable pool"
+            : candidate === champion ? " · planned pick" : " · playable alternative");
+          item.append(D.portrait(candidate, "", candidate === champion ? (rec.champion_ids || {})[role] : null));
+          item.append(D.el("span", "gameplan-option-name", candidate));
+          if (learning) item.append(D.el("small", "gameplan-learning-label", "LEARN"));
+          images.append(item);
+        }
+        chip.append(images);
         steps.append(chip);
       }
       row.append(steps);
-      const side = (rec.sides || {})[GP.side] || {};
-      if ((side.pick_order || []).length) {
-        const order = D.el("div", "plan-steps gameplan-order");
-        for (const step of side.pick_order) { const s = D.el("span", "chip"); s.append(D.el("small", "", step.pick_group_label || ("#" + step.slot)), D.portrait(step.champion, "tiny"), D.el("b", "", step.champion)); order.append(s); }
-        row.append(order);
+
+      // Both side plans use the EXISTING backend bans and pick groups. The
+      // opponent's slots are placeholders, never invented enemy champions.
+      const fullSequence = ["B1", "R1", "R2", "B2", "B3", "R3", "R4", "B4", "B5", "R5"];
+      const sideBoards = D.el("div", "gameplan-side-boards");
+      for (const sideName of ["blue", "red"]) {
+        const data = (rec.sides || {})[sideName] || {};
+        const panel = D.el("section", "gameplan-side-panel " + sideName +
+          (GP.side === sideName ? " active" : ""));
+        const subhead = D.el("h4", "gameplan-side-heading",
+          (sideName === "blue" ? "BLUE" : "RED") + " SIDE · PICK ORDER");
+        panel.append(subhead);
+        const ordered = D.el("div", "gameplan-full-order");
+        const ownSteps = data.pick_order || [];
+        let ownIndex = 0;
+        for (const slot of fullSequence) {
+          const friendly = (slot[0] === "B") === (sideName === "blue");
+          const step = friendly ? ownSteps[ownIndex++] : null;
+          const cell = D.el("div", "gameplan-pick-step" + (friendly ? " ours" : " enemy"));
+          cell.append(D.el("strong", "gameplan-slot", slot));
+          if (step && step.champion) {
+            cell.append(D.portrait(step.champion, "tiny"),
+                        D.el("span", "gameplan-pick-name", step.champion));
+          } else {
+            cell.append(D.el("span", "gameplan-enemy-placeholder", "Enemy pick"));
+          }
+          ordered.append(cell);
+        }
+        panel.append(ordered);
+        panel.append(D.el("h5", "gameplan-ban-heading", (sideName === "blue" ? "BLUE" : "RED") + " SIDE · BAN PLAN"));
+        const bans = D.el("div", "gameplan-ban-row");
+        for (const ban of (data.bans || []).slice(0, 5)) {
+          if (!ban || !ban.champion) continue;
+          const cell = D.el("div", "gameplan-ban-chip");
+          cell.append(D.portrait(ban.champion, "tiny"),
+                      D.el("span", "", ban.champion));
+          bans.append(cell);
+        }
+        if (!bans.childElementCount) bans.append(D.el("span", "gameplan-no-bans", "No ban data"));
+        panel.append(bans);
+        const branches = (data.conditional_bans || [])
+          .filter((b) => (b.added || []).length).slice(0, 3)
+          .map((b) => "If " + b.champion + " " + String(D.ROLE_SHORT[b.role] || b.role).toLowerCase() +
+               " → " + b.added.join(", "));
+        if (branches.length) panel.append(D.el("p", "gameplan-conditional-bans", branches.join(" · ")));
+        sideBoards.append(panel);
       }
-      const bans = (side.bans || []).map((b) => b && b.champion).filter(Boolean);
-      const cond = (side.conditional_bans || []).filter((b) => (b.added || []).length).slice(0, 4)
-        .map((b) => "if " + b.champion + " " + String(D.ROLE_SHORT[b.role] || b.role).toLowerCase() + " → also ban " + b.added.join(", "));
-      const line = [];
-      if (bans.length) line.push((GP.side === "red" ? "Red" : "Blue") + " bans: " + bans.join(", "));
-      if (cond.length) line.push(cond.join(" · "));
-      const carry = (rec.carry_options || []).slice(0, 2).map((c) => (c.display_name || c.role) + ": " + c.champion);
-      if (carry.length) line.push("Carry: " + carry.join(" | "));
-      if (line.length) row.append(D.el("div", "plan-note", line.join("  ·  ")));
+      row.append(sideBoards);
+      const carry = (rec.carry_options || []).slice(0, 2)
+        .map((c) => (c.display_name || c.role) + ": " + c.champion);
+      if (carry.length) row.append(D.el("div", "plan-note", "Carry plan: " + carry.join(" | ")));
       box.append(row);
     });
     D.hydrateIcons(box);

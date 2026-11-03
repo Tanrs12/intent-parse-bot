@@ -6,6 +6,8 @@ It intentionally contains no Warcraft Logs/MoP functionality. League signup stat
 
 ## Flexers Draft Coach (desktop app)
 
+**For Rat, Claude Code and future developers:** read [CLAUDE.md](CLAUDE.md) before changing Draft Coach. It documents the shared engine, team relay, Game Plan ownership, multi-pick visual integration, counterpick data limits, and the tests that protect Rat's features. The November 3 integration is additive, not a replacement of Draft Studio or the live overlay.
+
 **Download:** https://github.com/Tanrs12/intent-parse-bot/releases/latest/download/FlexersDraftCoach.zip
 
 **Team guide:** [docs/draftcoach/ROLLOUT.md](docs/draftcoach/ROLLOUT.md) (install, first game, what to do if something looks wrong). How it was tested: [docs/draftcoach/PARTY_TEST.md](docs/draftcoach/PARTY_TEST.md).

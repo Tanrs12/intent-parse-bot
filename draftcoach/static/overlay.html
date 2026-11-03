@@ -398,6 +398,15 @@
         champion_id: (leadComp.champion_ids || {})[role], status: "later", tags: [] }));
     }
     const box = $("order"), list = $("order-list");
+    const liveChosen = panelControl?.chosen || null;
+    const activeSelect = !!lastSnapshot?.status?.lcu_in_champ_select;
+    // During standby there is no current in-client pick order. Hide the
+    // unrelated automatic five when a team draft is actually selected.
+    if (liveChosen && !activeSelect) {
+      box.hidden = true;
+      orderKey = "";
+      return;
+    }
     box.hidden = rows.length !== 5;
     if (rows.length !== 5) { orderKey = ""; return; }
     const seats = ((s && s.our_team) || []).filter((p) => p.role);
@@ -413,7 +422,7 @@
     const chosen = (g && g.chosen) || null;
     const replaced = (chosen && chosen.replaced) || {};
     const label = chosen ? (chosen.label || "Team draft") + (chosen.source === "discord" ? " · from Discord" : "") + (chosen.intact ? "" : " · " + Object.keys(replaced).length + " seat" + (Object.keys(replaced).length === 1 ? "" : "s") + " changed")
-      : src.startsWith("plan:") ? "Our planned five · " + src.slice(5) : "Our planned five";
+      : src.startsWith("plan:") ? "Automatic preview · " + src.slice(5) : "Automatic preview · not sent to team";
     const key = label + "|" + ordered.map((r) => r.slot + r.champion + (r.champion_id || D.idFor(r.champion) || "") + r.status + ((byRole[r.role] || {}).is_local ? "L" : "") + ((byRole[r.role] || {}).display_name || "") + (replaced[r.role] ? replaced[r.role].was + replaced[r.role].why : "")).join("|");
     if (key === orderKey) return;
     orderKey = key;

@@ -29,6 +29,7 @@ from league_draft_backend import IDENTITIES, _pick_group_meta, recommend_live_dr
 from league_flex_core import normalise_team_role_update, role_option_limit
 from league_pro_data import refresh_recent_pro_data
 from team_sync import chosen_status, clean_chosen
+from counterpick_advice import counter_advice
 
 ROLES = ["Top", "Jungle", "Mid", "ADC", "Support"]
 COACH_STATE_URL = "http://127.0.0.1:8765/api/state"
@@ -1865,6 +1866,15 @@ def build_response():
         lead = (guidance.get("comps") or [{}])[0]
         _last_best_signature = lead.get("signature") or (_comp_signature(lead.get("champions")) if lead.get("champions") else None)
         guidance["control"] = control
+        # Scouting only. An off-pool recommendation never enters the legal
+        # champion selection or the client Hover/Lock actions.
+        guidance["counter_advice"] = (
+            counter_advice(
+                lead, known_enemy_lanes,
+                unavailable=unavailable, ally_locks=locked,
+            ) if control.get("chosen") and known_enemy_lanes and lead.get("champions")
+            else {"lanes": [], "status": "waiting_for_confirmed_enemy_lane"}
+        )
         # FLEXERS: the draft the team chose (Discord "Lock Draft N" or an app) and what the live
         # re-solve did to it: roles stay pinned, surviving champions stay locked, only banned or
         # taken seats change, and the panel says which seat changed and why.

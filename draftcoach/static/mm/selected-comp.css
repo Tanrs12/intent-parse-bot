@@ -20,6 +20,7 @@
 .fd-sc-option .fd-sc-name { width: 100%; font: 10px/12px var(--mm-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fd-sc-lock { position: absolute; top: 0; right: calc(50% - 24px); width: 12px; line-height: 12px; border-radius: 50%; background: var(--mm-blue); color: var(--mm-surface); font-size: 9px; }
 .fd-sc-reason { margin: 4px 0 0; color: var(--mm-secondary); font: 10px/13px var(--mm-sans); overflow-wrap: anywhere; }
+.fd-sc-idea-badge { color: var(--mm-warn); font: 700 8px/10px var(--mm-mono); }
 .fd-sc-footnote { margin: 8px 0 0; color: var(--mm-secondary); font: 10px/14px var(--mm-sans); }
 .fd-selected-comp.wide .fd-sc-roles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .fd-selected-comp.wide .fd-sc-role { padding: 10px; min-height: 116px; }

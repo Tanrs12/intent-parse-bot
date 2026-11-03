@@ -28,7 +28,8 @@
     for (const seat of state?.our_team || []) {
       if (ROLES.includes(seat.role) && seat.locked) ownLocks[seat.role] = seat.locked;
     }
-    const key = JSON.stringify([chosen, [...bans], [...taken], replacements, ownLocks, wide]);
+    const advice = guidance?.counter_advice?.lanes || [];
+    const key = JSON.stringify([chosen, [...bans], [...taken], replacements, ownLocks, advice, wide]);
     if (root.dataset.model === key) return;
     root.dataset.model = key;
     root.hidden = !chosen;
@@ -51,6 +52,11 @@
       }
       const learning = new Set(chosen.learn_options?.[role] || []);
       const rec = replacements[role];
+      const lane = advice.find(x => x.role === role);
+      const playable = lane?.playable?.[0];
+      const learn = lane?.learn?.[0];
+      if (playable?.champion && !options.includes(playable.champion)) options.push(playable.champion);
+      if (learn?.champion && !options.includes(learn.champion)) options.push(learn.champion);
       // An adaptive counter is visually distinct from the original Discord options.
       if (rec?.now && !options.includes(rec.now)) options.push(rec.now);
       const row = D.el("article", "fd-sc-role");
@@ -61,8 +67,9 @@
 
       const picks = D.el("div", "fd-sc-picks");
       for (const champ of options.filter(Boolean)) {
-        const isCounter = !!rec && champ === rec.now && champ !== primary;
-        const isLearn = learning.has(champ);
+        const isCounter = ((!!rec && champ === rec.now && champ !== primary)
+          || (!!playable && champ === playable.champion));
+        const isLearn = learning.has(champ) || (!!learn && champ === learn.champion);
         const isLocked = ownLocks[role] === champ;
         const unavailable = !isLocked && (bans.has(champ) || taken.has(champ));
         const item = D.el("div", "fd-sc-option" +
@@ -75,11 +82,21 @@
           unavailable ? "Unavailable" : isLocked ? "Locked in League" : ""].filter(Boolean).join(" · ");
         item.append(D.portrait(champ, "small"));
         item.append(D.el("span", "fd-sc-name", champ));
+        if (learn?.champion === champ) item.append(D.el("span", "fd-sc-idea-badge", "LEARN"));
+        else if (playable?.champion === champ) item.append(D.el("span", "fd-sc-idea-badge", "COUNTER"));
         if (isLocked) item.append(D.el("span", "fd-sc-lock", "✓"));
         picks.append(item);
       }
       row.append(picks);
       if (rec?.why) row.append(D.el("p", "fd-sc-reason", rec.why));
+      else if (lane?.enemy) {
+        const item = playable || learn;
+        row.append(D.el("p", "fd-sc-reason",
+          item ? "Versus " + lane.enemy + ": " + item.champion + (playable ? " (in pool)" : " (LEARN only)") +
+            " · " + item.games + " games · " + (item.patch || "patch unspecified") +
+            (item.evidence_freshness === "historical" ? " (historical)" : "")
+          : "Versus " + lane.enemy + ": no qualified counter data; keep the chosen plan"));
+      }
       else if (options.length > 1) row.append(D.el("p", "fd-sc-reason", "Same-plan options" + (learning.size ? " · learning marked" : "")));
       rows.append(row);
     }
