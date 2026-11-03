@@ -23,6 +23,7 @@
 .fd-sc-reason { margin: 4px 0 0; color: var(--mm-secondary); font: 10px/13px var(--mm-sans); overflow-wrap: anywhere; }
 .fd-sc-idea-badge { color: var(--mm-warn); font: 700 8px/10px var(--mm-mono); }
 .fd-sc-source-link { display: inline-block; margin-top: 4px; color: var(--mm-blue); font: 10px/14px var(--mm-sans); text-decoration: underline; }
+.fd-sc-risk { margin: 4px 0 0; font: 10px/14px var(--mm-sans); color: var(--mm-warn); }
 .fd-sc-footnote { margin: 8px 0 0; color: var(--mm-secondary); font: 10px/14px var(--mm-sans); }
 .fd-selected-comp.wide .fd-sc-roles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .fd-selected-comp.wide .fd-sc-role { padding: 10px; min-height: 116px; }

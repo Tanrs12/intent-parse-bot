@@ -787,7 +787,15 @@
     try {
       const r = await fetch(BRIDGE + "/api/control", { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify(update) });
       if (!r.ok) throw new Error("control " + r.status);
-      const d = await r.json(); if (d.control) intentControl = d.control;
+      const d = await r.json();
+      if (update.chosen) {
+        const accepted = d.control?.chosen?.champions || {};
+        const requested = update.chosen.champions || {};
+        if (!D.ROLES.every(role => requested[role] && requested[role] === accepted[role]))
+          throw new Error("Team relay did not acknowledge those five champions");
+      }
+      if (d.control) intentControl = d.control;
+      renderSelectedTeamComp();  // the main window updates before the next 500 ms poll
       toast(update.shake_it_up ? "Finding different drafts…" : "Shared draft updated.");
       return true;
     } catch (e) {
@@ -1291,21 +1299,22 @@
           (sideName === "blue" ? "BLUE" : "RED") + " SIDE · PICK ORDER");
         panel.append(subhead);
         const ordered = D.el("div", "gameplan-full-order");
+        // Show only OUR five actual slots. The global sequence remains the
+        // source of B/R pick positions; enemy slots are not useful placeholders
+        // when previewing our five before champ select.
+        const ourSlots = fullSequence.filter(slot =>
+          (slot[0] === "B") === (sideName === "blue"));
         const ownSteps = data.pick_order || [];
-        let ownIndex = 0;
-        for (const slot of fullSequence) {
-          const friendly = (slot[0] === "B") === (sideName === "blue");
-          const step = friendly ? ownSteps[ownIndex++] : null;
-          const cell = D.el("div", "gameplan-pick-step" + (friendly ? " ours" : " enemy"));
+        ownSteps.slice(0, 5).forEach((step, index) => {
+          const slot = ourSlots[index];
+          const cell = D.el("div", "gameplan-pick-step ours");
           cell.append(D.el("strong", "gameplan-slot", slot));
-          if (step && step.champion) {
+          if (step.champion) {
             cell.append(D.portrait(step.champion, "tiny"),
                         D.el("span", "gameplan-pick-name", step.champion));
-          } else {
-            cell.append(D.el("span", "gameplan-enemy-placeholder", "Enemy pick"));
           }
           ordered.append(cell);
-        }
+        });
         panel.append(ordered);
         panel.append(D.el("h5", "gameplan-ban-heading", (sideName === "blue" ? "BLUE" : "RED") + " SIDE · BAN PLAN"));
         const bans = D.el("div", "gameplan-ban-row");

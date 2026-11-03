@@ -1,0 +1,1085 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-11-03",
+  "notes_policy": "Summarised single-user opinions or publicly viewed counter directions; NOT licensed winrate data. Stored source titles/URLs and small independently phrased tips, never full copied guides.",
+  "sources": [
+    {
+      "title": "Kayle Top player thread",
+      "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/",
+      "champions": [
+        "Kayle"
+      ],
+      "status": "31 player-observation matchups summarised",
+      "notes": "One author's views; no verified rank, can differ by phase"
+    },
+    {
+      "title": "Kayle one-trick Saneryus guide",
+      "url": "https://lolmatchups.gg/Kayle/matchups?lane=TOP",
+      "champions": [
+        "Kayle"
+      ],
+      "status": "reference",
+      "notes": "Challenger-attributed spreadsheet; provider statistics and tips remain on original site"
+    },
+    {
+      "title": "Gnar community matchup spreadsheet",
+      "url": "https://lolmatchups.gg/Gnar/matchups?lane=TOP",
+      "champions": [
+        "Gnar"
+      ],
+      "status": "reference",
+      "notes": "Ranked data and community tips; third-party statistics not replicated"
+    },
+    {
+      "title": "Camille Grandmaster matchup notes",
+      "url": "https://lolmatchups.gg/Camille/matchups?lane=TOP",
+      "champions": [
+        "Camille"
+      ],
+      "status": "reference",
+      "notes": "Grandmaster contributors; avoid bulk copying"
+    },
+    {
+      "title": "Gwen OTP historical spreadsheet",
+      "url": "https://www.reddit.com/r/GwenMains/comments/1covkc8",
+      "champions": [
+        "Gwen"
+      ],
+      "status": "reference",
+      "notes": "Self-described Master/Grandmaster EUW Gwen specialist, older patch"
+    },
+    {
+      "title": "Irelia Challenger self-described matchup spreadsheet",
+      "url": "https://www.reddit.com/r/IreliaMains/comments/1tqfxaq/the_ultimate_irelia_matchups_guide_for_every_mid/",
+      "champions": [
+        "Irelia"
+      ],
+      "status": "reference",
+      "notes": "User-reported Challenger and personal experience, not representative population"
+    },
+    {
+      "title": "Irelia Master community matchup spreadsheet",
+      "url": "https://www.reddit.com/r/IreliaMains/comments/1sme2bj/irelia_full_top_matchup_spreadsheet/",
+      "champions": [
+        "Irelia"
+      ],
+      "status": "reference",
+      "notes": "Community editor and caveats, not ranked statistical export"
+    },
+    {
+      "title": "Multi-champion Challenger guide directory",
+      "url": "https://www.mobatrainer.gg/lol/matchups",
+      "champions": [
+        "Irelia",
+        "Qiyana",
+        "Sylas",
+        "Gnar",
+        "Shen",
+        "Gwen",
+        "Kayle",
+        "Diana",
+        "Yasuo",
+        "Kindred"
+      ],
+      "status": "reference",
+      "notes": "Index of about 58 guide champions; attribution and licensing before importing"
+    },
+    {
+      "title": "Kayle1v9 matchup reference",
+      "url": "https://kayle1v9.com/",
+      "champions": [
+        "Kayle"
+      ],
+      "status": "reference",
+      "notes": "Public browsable matchup ratings; do not bulk extract"
+    },
+    {
+      "title": "Gnar r/GnarMains discussion",
+      "url": "https://www.reddit.com/r/GnarMains/comments/1soka6z/gnar_community_matchups_spreadsheet/",
+      "champions": [
+        "Gnar"
+      ],
+      "status": "4 community view matchups summarised",
+      "notes": "Commenters sometimes disagree with source tier list"
+    },
+    {
+      "title": "LoLalytics Malphite public counter summary",
+      "url": "https://lolalytics.com/lol/malphite/build/",
+      "champions": [
+        "Malphite"
+      ],
+      "status": "6 directional public summary references",
+      "notes": "No bulk redistribution or automated scraping authorisation"
+    },
+    {
+      "title": "Onetricks.gg high-elo champion guides",
+      "url": "https://www.onetricks.gg/guides",
+      "champions": [
+        "Qiyana",
+        "Tryndamere",
+        "Sett",
+        "Mordekaiser",
+        "Kindred",
+        "Irelia",
+        "Gwen"
+      ],
+      "status": "curated guide directory",
+      "notes": "Directory lists approximately 210 user-submitted guides, varying quality and rank. Reference only until specific guide reviewed and licensed."
+    },
+    {
+      "title": "Gwen KilllaaG S16 47-chapter matchup video",
+      "url": "https://www.youtube.com/watch?v=VXjsGYa3Z-g",
+      "champions": [
+        "Gwen"
+      ],
+      "status": "47 chapter pointers indexed separately",
+      "notes": "YouTube chapter timestamps indexed; opinions not transcribed, verified or used for scoring."
+    },
+    {
+      "title": "Kayle community collaborative matchup sheet",
+      "url": "https://www.reddit.com/r/Kaylemains/comments/1shw72s/community_kayle_matchup_spreadsheet_share_and/",
+      "champions": [
+        "Kayle"
+      ],
+      "status": "reference",
+      "notes": "Community collaboration with Saneryus, commenters dispute some advice. No numeric export."
+    },
+    {
+      "title": "Garen Grandmaster OTP guide discussion",
+      "url": "https://www.reddit.com/r/GarenMains/comments/1t3y5wx/looking_for_a_spreadsheet_of_matchups/",
+      "champions": [
+        "Garen"
+      ],
+      "status": "reference",
+      "notes": "Community points to free but older Garen top/mid spreadsheet and newer subscription material; no scraping."
+    }
+  ],
+  "entries": [
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Jax",
+      "verdict": "unfavourable",
+      "summary": "High-pressure all-in; author recommends avoiding lane.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Akali",
+      "verdict": "unfavourable",
+      "summary": "Top-lane trades and ultimate cooldown difficult.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Jayce",
+      "verdict": "unfavourable",
+      "summary": "Phase Rush spacing denies return trades.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Malphite",
+      "verdict": "unfavourable",
+      "summary": "Comet poke and ultimate timing punishing.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Irelia",
+      "verdict": "unfavourable",
+      "summary": "Early wave control very unforgiving.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Rengar",
+      "verdict": "unfavourable",
+      "summary": "Brush pressure forces careful positioning.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Ambessa",
+      "verdict": "unfavourable",
+      "summary": "Early priority and ultimate dodging important.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Ryze",
+      "verdict": "unfavourable",
+      "summary": "Long lane vulnerable until late scaling.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Pantheon",
+      "verdict": "mixed",
+      "summary": "Spacing and empowered ability tracking crucial.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Wukong",
+      "verdict": "mixed",
+      "summary": "Level-six ultimate timing decides trades.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Swain",
+      "verdict": "favourable",
+      "summary": "Farm safely; punish missed crowd control.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "K'Sante",
+      "verdict": "mixed",
+      "summary": "Author and commenters disagree about difficulty.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Riven",
+      "verdict": "mixed",
+      "summary": "Dodge mobility-driven damage; spacing matters.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Kennen",
+      "verdict": "mixed",
+      "summary": "Save ultimate for incoming engagement.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Gnar",
+      "verdict": "favourable",
+      "summary": "Manage passive stacks and Mega leap.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Fiora",
+      "verdict": "mixed",
+      "summary": "Vital positioning decides early fights.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Yone",
+      "verdict": "mixed",
+      "summary": "Play around his return cooldown.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Cho'Gath",
+      "verdict": "favourable",
+      "summary": "Avoid rupture and silence execute windows.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Renekton",
+      "verdict": "mixed",
+      "summary": "Watch fury and preserve wave spacing.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Vladimir",
+      "verdict": "unfavourable",
+      "summary": "Early dives and empowered Q are dangerous.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Aatrox",
+      "verdict": "mixed",
+      "summary": "Skill-dependent projectile and movement spacing.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Gragas",
+      "verdict": "mixed",
+      "summary": "Use minion spacing against body slam.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Yasuo",
+      "verdict": "mixed",
+      "summary": "Read minion dashes; avoid repeated Q hits.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Kled",
+      "verdict": "mixed",
+      "summary": "Dodge tether before committed fights.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Urgot",
+      "verdict": "mixed",
+      "summary": "Respect later-level auto-attack spike.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Darius",
+      "verdict": "mixed",
+      "summary": "Preserve health before wave priority trades.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Rumble",
+      "verdict": "unfavourable",
+      "summary": "Harass-heavy lane; watch heat and overheat.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Nasus",
+      "verdict": "mixed",
+      "summary": "Wither timing and build choices change lane.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Quinn",
+      "verdict": "favourable",
+      "summary": "Avoid blind and punish leap cooldown.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Camille",
+      "verdict": "mixed",
+      "summary": "Respect wall angles and true-damage timing.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Tryndamere",
+      "verdict": "mixed",
+      "summary": "Early crits volatile; mobility management matters.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Sylas",
+      "verdict": "mixed",
+      "summary": "Block chain with minions; watch healing.",
+      "patch": "unverified (historical player opinion)",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "individual Kayle player qualitative matchup advice; not a measured win rate",
+      "source_quality": "single community player, rank unverified",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "u/likkleague · r/Kaylemains",
+          "url": "https://www.reddit.com/r/Kaylemains/comments/1nnogdp/actual_matchup_spreadsheet_for_top_lane_with_tips/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Gnar",
+      "enemy": "Irelia",
+      "verdict": "unfavourable",
+      "summary": "Several mains report punishing extended trades.",
+      "patch": "unverified or rolling",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "single source or rank-specific",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "gnar_reddit",
+          "url": "https://www.reddit.com/r/GnarMains/comments/1soka6z/gnar_community_matchups_spreadsheet/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Gnar",
+      "enemy": "Varus",
+      "verdict": "unfavourable",
+      "summary": "Community reports ranged lane pressure.",
+      "patch": "unverified or rolling",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "single source or rank-specific",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "gnar_reddit",
+          "url": "https://www.reddit.com/r/GnarMains/comments/1soka6z/gnar_community_matchups_spreadsheet/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Gnar",
+      "enemy": "Vayne",
+      "verdict": "unfavourable",
+      "summary": "Spacing pressure difficult for Gnar.",
+      "patch": "unverified or rolling",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "single source or rank-specific",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "gnar_reddit",
+          "url": "https://www.reddit.com/r/GnarMains/comments/1soka6z/gnar_community_matchups_spreadsheet/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Gnar",
+      "enemy": "Garen",
+      "verdict": "mixed",
+      "summary": "Community disagrees on difficulty and sustain.",
+      "patch": "unverified or rolling",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "single source or rank-specific",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "gnar_reddit",
+          "url": "https://www.reddit.com/r/GnarMains/comments/1soka6z/gnar_community_matchups_spreadsheet/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Gnar",
+      "enemy": "Shen",
+      "verdict": "favourable",
+      "summary": "Shen struggles to contain Gnar lane pressure.",
+      "patch": "26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "multi-source but may disagree",
+      "weight_label": "multi-source",
+      "sources": [
+        {
+          "provider": "gnar_wincon",
+          "url": "https://wincon.app/gnar/top/counters/"
+        },
+        {
+          "provider": "gnar_reddit",
+          "url": "https://www.reddit.com/r/GnarMains/comments/1soka6z/gnar_community_matchups_spreadsheet/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Gnar",
+      "enemy": "Cho'Gath",
+      "verdict": "unfavourable",
+      "summary": "Ranked high-elo results favour Cho'Gath.",
+      "patch": "26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "single source or rank-specific",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "gnar_wincon",
+          "url": "https://wincon.app/gnar/top/counters/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Malphite",
+      "enemy": "Singed",
+      "verdict": "unfavourable",
+      "summary": "Public patch summary lists Singed counter.",
+      "patch": "26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "single source or rank-specific",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "malphite_lolalytics",
+          "url": "https://lolalytics.com/lol/malphite/build/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Malphite",
+      "enemy": "Ornn",
+      "verdict": "unfavourable",
+      "summary": "Public patch summary lists Ornn counter.",
+      "patch": "26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "single source or rank-specific",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "malphite_lolalytics",
+          "url": "https://lolalytics.com/lol/malphite/build/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Malphite",
+      "enemy": "Sylas",
+      "verdict": "unfavourable",
+      "summary": "Public patch summary lists Sylas counter.",
+      "patch": "26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "single source or rank-specific",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "malphite_lolalytics",
+          "url": "https://lolalytics.com/lol/malphite/build/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Malphite",
+      "enemy": "Vayne",
+      "verdict": "favourable",
+      "summary": "Public patch summary lists Malphite counter.",
+      "patch": "26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "single source or rank-specific",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "malphite_lolalytics",
+          "url": "https://lolalytics.com/lol/malphite/build/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Malphite",
+      "enemy": "Tryndamere",
+      "verdict": "favourable",
+      "summary": "Public patch summary lists Malphite counter.",
+      "patch": "26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "single source or rank-specific",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "malphite_lolalytics",
+          "url": "https://lolalytics.com/lol/malphite/build/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Malphite",
+      "enemy": "Jayce",
+      "verdict": "favourable",
+      "summary": "Public patch summary lists Malphite counter.",
+      "patch": "26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "single source or rank-specific",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "malphite_lolalytics",
+          "url": "https://lolalytics.com/lol/malphite/build/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Camille",
+      "enemy": "Shen",
+      "verdict": "unfavourable",
+      "summary": "High-elo match results penalise Camille.",
+      "patch": "26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "single source or rank-specific",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "camille_wincon",
+          "url": "https://wincon.app/camille/top/counters/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Camille",
+      "enemy": "Cho'Gath",
+      "verdict": "favourable",
+      "summary": "Current Master+ match results favour Camille.",
+      "patch": "26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "single source or rank-specific",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "camille_wincon",
+          "url": "https://wincon.app/camille/top/counters/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Irelia",
+      "enemy": "Yasuo",
+      "verdict": "mixed",
+      "summary": "Challenger author highlights rune-dependent level one.",
+      "patch": "unverified or rolling",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "single source or rank-specific",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "irelia_chal",
+          "url": "https://www.reddit.com/r/IreliaMains/comments/1tqfxaq/the_ultimate_irelia_matchups_guide_for_every_mid/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Irelia",
+      "enemy": "Yone",
+      "verdict": "mixed",
+      "summary": "Resolve setup influences early all-in.",
+      "patch": "unverified or rolling",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "single source or rank-specific",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "irelia_chal",
+          "url": "https://www.reddit.com/r/IreliaMains/comments/1tqfxaq/the_ultimate_irelia_matchups_guide_for_every_mid/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Irelia",
+      "enemy": "Poppy",
+      "verdict": "mixed",
+      "summary": "Community tips emphasise wall avoidance.",
+      "patch": "unverified or rolling",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "single source or rank-specific",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "irelia_master",
+          "url": "https://www.reddit.com/r/IreliaMains/comments/1sme2bj/irelia_full_top_matchup_spreadsheet/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Irelia",
+      "enemy": "Volibear",
+      "verdict": "unfavourable",
+      "summary": "Master author notes problematic lane.",
+      "patch": "unverified or rolling",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "single source or rank-specific",
+      "weight_label": "single-opinion",
+      "sources": [
+        {
+          "provider": "irelia_master",
+          "url": "https://www.reddit.com/r/IreliaMains/comments/1sme2bj/irelia_full_top_matchup_spreadsheet/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Shen",
+      "verdict": "mixed",
+      "summary": "OTP considers later levels favourable; match outcomes disagree.",
+      "patch": "26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "curated directional source; no imported win rate",
+      "source_quality": "multi-source but may disagree",
+      "weight_label": "multi-source",
+      "sources": [
+        {
+          "provider": "kayle_saneryus",
+          "url": "https://lolmatchups.gg/Kayle/matchups?lane=TOP"
+        },
+        {
+          "provider": "Wincon Shen Top high-elo matchup data",
+          "url": "https://wincon.app/shen/top/counters/"
+        }
+      ]
+    }
+  ]
+}

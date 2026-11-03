@@ -118,7 +118,12 @@
             : "Versus " + lane.enemy + ": no qualified counter data; keep the chosen plan"));
       }
       else if (options.length > 1) row.append(D.el("p", "fd-sc-reason", "Same-plan options" + (learning.size ? " · learning marked" : "")));
-      const source = scout[0]?.sources?.[0];
+      if (lane?.planned_risk) {
+        row.append(D.el("p", "fd-sc-risk",
+          primary + " into " + lane.enemy + ": adverse community matchup report · " +
+          lane.planned_risk.summary));
+      }
+      const source = scout[0]?.sources?.[0] || lane?.planned_risk?.sources?.[0];
       if (source?.url?.startsWith("https://")) {
         const link = D.el("a", "fd-sc-source-link", "Matchup source · " + (source.provider || "reference"));
         link.href = source.url;

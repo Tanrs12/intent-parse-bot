@@ -16,6 +16,7 @@ from league_source_stats import source_mtime_ns
 DATA = Path(__file__).with_name("data")
 ROLE_FILE = DATA / "league_role_champions.json"
 SCOUT_FILE = DATA / "league_curated_counter_scout.json"
+OTP_FILE = DATA / "league_otp_matchup_notes.json"
 ROLES = ("Top", "Jungle", "Mid", "ADC", "Support")
 
 
@@ -68,11 +69,17 @@ def _scout_catalog(path: str, stamp: int) -> dict:
 
 
 def scout_note(role: str, ours: str, enemy: str) -> dict:
-    try:
-        rows = _scout_catalog(str(SCOUT_FILE), source_mtime_ns(SCOUT_FILE))
-    except OSError:
-        return {}
-    return rows.get((role, _normalise(ours), _normalise(enemy)), {})
+    """Read reviewed signals; preserve the older multi-source curated rows first."""
+    key = (role, _normalise(ours), _normalise(enemy))
+    for path in (SCOUT_FILE, OTP_FILE):
+        try:
+            rows = _scout_catalog(str(path), source_mtime_ns(path))
+        except OSError:
+            continue
+        result = rows.get(key)
+        if result:
+            return result
+    return {}
 
 
 def matrix_coverage(matchups: dict) -> dict:

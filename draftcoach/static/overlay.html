@@ -614,6 +614,11 @@
     const now = SOURCES.includes(snap?.roster?.settings?.draft_source) ? snap.roster.settings.draft_source : "auto";
     const b = $("discord-drafts");
     b.textContent = LABEL[now]; b.setAttribute("aria-pressed", String(now !== "app"));
+    if (now === "auto" && panelControl?.chosen) {
+      b.title = (panelControl.chosen.label || "Team draft") +
+        " is selected and synced. Auto follows shared live ranking when the team is present; " +
+        "outside that lobby it previews this PC's local guidance. Choose Discord to force shared ranking.";
+    }
     b.onclick = async () => {
       b.disabled = true;
       try { await D.api("POST", "/api/roster/settings", { draft_source: SOURCES[(SOURCES.indexOf(now) + 1) % SOURCES.length] }); }

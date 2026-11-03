@@ -122,7 +122,8 @@ def test_gameplan_visuals_keep_rat_original_rendering_contract():
     assert 'for (const sideName of ["blue", "red"])' in html
     assert "gameplan-full-order" in html and "gameplan-ban-chip" in html
     assert '["B1", "R1", "R2", "B2", "B3", "R3", "R4", "B4", "B5", "R5"]' in html
-    assert "gameplan-enemy-placeholder" in html
+    assert "const ourSlots = fullSequence.filter" in html
+    assert '"Enemy pick"' not in html
     assert "accepted in the shared room" in html
 
 

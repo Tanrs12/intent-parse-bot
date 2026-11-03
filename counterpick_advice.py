@@ -106,6 +106,8 @@ def counter_advice(
                         "summary": note["summary"],
                         "patch": note["patch"],
                         "sources": note["sources"],
+                        "source_weight": min(3, len(note["sources"])),
+                        "source_quality": note.get("source_quality", "qualitative"),
                         "qualitative_only": True,
                         "historical_hint": (
                             {"games": n, "patch": edge.get("source_patch"),
@@ -160,13 +162,22 @@ def counter_advice(
         )
         playable = [x for x in eligible if x["type"] == "playable"][:2]
         learn = [x for x in eligible if x["type"] == "learn"][:2]
+        # An owned champion is a real option; an unsubmitted champion is an
+        # exploration idea. More independent sources break qualitative ties.
+        # This is presentation order, NOT a hidden bonus to the draft scorer.
         scouting.sort(key=lambda x: (
-            x["verdict"] == "favourable",
             x["type"] == "playable",
+            x["verdict"] == "favourable",
+            x["source_weight"],
             x["team_score_delta"],
         ), reverse=True)
+        risk_note = scout_note(role, original, enemy) if matchup_data is None else {}
+        risk = ({"summary": risk_note["summary"], "sources": risk_note["sources"],
+                 "patch": risk_note.get("patch")}
+                if risk_note.get("verdict") == "unfavourable" else None)
         rows.append({
             "role": role,
+            "planned_risk": risk,
             "player": str(((lead or {}).get("players") or {}).get(role, {}).get("display_name") or role),
             "enemy": enemy,
             "planned": original,

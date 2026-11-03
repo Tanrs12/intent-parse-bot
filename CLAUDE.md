@@ -25,8 +25,9 @@ Read this before changing the app, UI or relay. Preserve Rat's existing architec
 - Main Game Plan: side-by-side **Blue** and **Red** pick/ban plans, independent
   coloured borders, pick order BEFORE bans, champion portraits for all owned
   alternatives plus separately labelled learning options.
-- Full draft sequence for each side: B1,R1,R2,B2,B3,R3,R4,B4,B5,R5.
-  Opposing team's champions are UNREVEALED placeholders. No invented enemy picks.
+- Full draft order is B1,R1,R2,B2,B3,R3,R4,B4,B5,R5. The Game Plan
+  panels now show ONLY our five actual pick slots (B1..B5 or R1..R5),
+  not empty enemy placeholders or invented enemy champions.
   Additive CSS: `draftcoach/static/mm/gameplan-enhancements.css`.
 - Team-selected draft: `Send to team` checks returned control against the exact
   chosen five; do not claim all five PCs received it on HTTP 200 alone.
@@ -63,8 +64,32 @@ Read this before changing the app, UI or relay. Preserve Rat's existing architec
   quietly convert these notes into a guaranteed lane win.
 - `counterpick_advice.py` scans the entire role catalogue: owned options can be
   displayed as SCOUT, off-pool options as LEARN. Both show comp-fit tradeoffs.
+- `tools/intent_live_draft_bridge.py::_scouting_lead_with_pools()` MUST attach
+  the actual chosen players' submitted role pools by `player_ids` before
+  counter advice: the display cards have only names and omit pools. Without
+  this, Gnar for Cian Top was falsely marked LEARN and string player names
+  could crash live advice. Use Discord signup ownership, not match-history
+  inference. Never change the legal draft from this read-only enrichment.
   Do not move these options into the legal `picks` list unless the common
   engine has enough permitted numerical evidence and the player owns them.
+- Qualitative specialist collection: `data/league_otp_matchup_notes.json`
+  contains 51 short, attributed human/reviewed matchup opinions indexed
+  against 15 sources. `data/league_otp_video_chapters.json` contains 47
+  Gwen-specialist YouTube chapters with NO transcribed verdicts. The tier
+  opinions can reorder SCOUT and LEARN suggestions in the presentation layer
+  but never impersonate a current-patch win rate or override a player's pool.
+  See `docs/draftcoach/MATCHUP_EVIDENCE_COLLECTION_2026-11-03.md`.
+- `Drafts: Auto` controls which live ranking is displayed; it does not block
+  the relay selection. A chosen comp is displayed pre-lobby. A Send to team
+  action must receive the exact-five acknowledgement and update immediately;
+  do not treat a plain HTTP 200 as evidence of five-client delivery.
+- `league_opgg_mcp_reference.py` and `tools/collect_opgg_mcp_matchups.py`
+  support *small-scale private* collection via OP.GG's official MCP, under
+  the provider's written non-commercial attribution permission. Cache is
+  outside GitHub, under the PC's AppData; 24-hour freshness, 3s delay,
+  maximum 6 fresh requests per normal run. Do NOT assume rank/patch from
+  OP.GG lane-guide responses or translate them into statistical draft scores
+  without enough versioned metadata. See the collection report for examples.
 - `league_riot_ranked_sample.py` and `tools/collect_riot_ranked_matchups.py`
   support permissioned current-patch Riot Match-V5 EUW samples, IF a valid
   authorised API key and data collection exist. Keep credentials server-side.

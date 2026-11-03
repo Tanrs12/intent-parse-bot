@@ -12,7 +12,7 @@ It intentionally contains no Warcraft Logs/MoP functionality. League signup stat
 
 **Team guide:** [docs/draftcoach/ROLLOUT.md](docs/draftcoach/ROLLOUT.md) (install, first game, what to do if something looks wrong). How it was tested: [docs/draftcoach/PARTY_TEST.md](docs/draftcoach/PARTY_TEST.md).
 
-**Matchup database:** `python tools/matchup_coverage.py` reports coverage of all valid lane pairings; `league_matchup_universe.py` makes the complete champion-role universe eligible for scouting. Evidence with too little data remains clearly marked as scouting, not a statistical counter. See `CLAUDE.md` and `docs/riot-gold-rank-collector.md` for source requirements.
+**Matchup database:** `python tools/matchup_coverage.py` reports coverage of all valid lane pairings; `league_matchup_universe.py` makes the complete champion-role universe eligible for scouting. Specialist Reddit/guide notes and indexed YouTube chapters are documented in [the November 2026 matchup collection report](docs/draftcoach/MATCHUP_EVIDENCE_COLLECTION_2026-11-03.md). Evidence with too little data remains clearly marked as scouting, not a statistical counter. See `CLAUDE.md` and `docs/riot-gold-rank-collector.md` for source requirements.
 
 Unzip, open the folder, double-click `FlexersDraftCoach.exe` (or one of the `.bat`
 launchers) while League is open. No Python needed. The app lives in this repository
