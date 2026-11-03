@@ -133,6 +133,11 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--any-queue", action="store_true",
                         help="coach every champ select (customs, normals); default: Ranked Flex only (settings.queues)")
     parser.add_argument("--log-level", default="info")
+    wanted = list(sys.argv[1:] if argv is None else argv)
+    if sys.stdout is None and any(flag in ("-h", "--help") for flag in wanted):
+        # The windowed exe has nowhere to print: show the help as a dialog instead of exiting silently.
+        _alert(parser.format_help())
+        return
     args = parser.parse_args(argv)
     frozen = getattr(sys, "frozen", False)
     if frozen:
