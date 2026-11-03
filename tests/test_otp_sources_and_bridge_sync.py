@@ -43,8 +43,8 @@ def test_bridge_uses_actual_discord_owner_pools_not_ui_option_labels():
 def test_otp_catalog_has_sources_and_restricts_uncertified_statistics():
     info = json.loads((ROOT / "data/league_otp_matchup_notes.json").read_text(encoding="utf8"))
     assert info["schema_version"] == 1
-    assert len(info["sources"]) >= 15
-    assert len(info["entries"]) >= 50
+    assert len(info["sources"]) >= 23
+    assert len(info["entries"]) >= 61
     assert len({(x["role"], x["our"], x["enemy"]) for x in info["entries"]}) == len(info["entries"])
     assert all(len(row["sources"]) >= 1 for row in info["entries"])
     assert all(s["url"].startswith("https://") for row in info["entries"] for s in row["sources"])
@@ -90,3 +90,22 @@ def test_big_window_only_our_five_slots_and_shared_selection_ack():
     assert "ownSteps.slice(0, 5)" in html
     assert '"Enemy pick"' not in html
     assert "accepted in the shared room" in html
+
+
+def test_mid_otp_notes_separate_lane_risks_from_autopick_scores():
+    notes = json.loads((ROOT / "data/league_otp_matchup_notes.json").read_text(encoding="utf8"))
+    mid = [x for x in notes["entries"] if x["role"] == "Mid"]
+    assert len(mid) >= 10
+    assert scout_note("Mid", "Akali", "Vex")["verdict"] == "unfavourable"
+    assert scout_note("Mid", "Akali", "Lissandra")["verdict"] == "mixed"
+    assert scout_note("Mid", "Vex", "Qiyana")["verdict"] == "favourable"
+    assert scout_note("Mid", "Qiyana", "Vex")["verdict"] == "unfavourable"
+    assert all("win_rate" not in row and "draft_points" not in row for row in mid)
+    assert all(row["sources"] and row["source_quality"] for row in mid)
+    lead = sample_lead()
+    lead["champions"]["Mid"] = "Akali"
+    advice = counter_advice(lead, {"Mid": "Vex"})
+    lane = next(x for x in advice["lanes"] if x["role"] == "Mid")
+    assert lane["planned"] == "Akali"
+    assert "fear" in lane["planned_risk"]["summary"].lower()
+    assert "https://" in lane["planned_risk"]["sources"][0]["url"]

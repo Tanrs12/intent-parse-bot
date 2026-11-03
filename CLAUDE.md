@@ -73,8 +73,8 @@ Read this before changing the app, UI or relay. Preserve Rat's existing architec
   Do not move these options into the legal `picks` list unless the common
   engine has enough permitted numerical evidence and the player owns them.
 - Qualitative specialist collection: `data/league_otp_matchup_notes.json`
-  contains 51 short, attributed human/reviewed matchup opinions indexed
-  against 15 sources. `data/league_otp_video_chapters.json` contains 47
+  contains 61 short, attributed human/reviewed matchup opinions indexed
+  against 23 sources (Top and Mid). `data/league_otp_video_chapters.json` contains 47
   Gwen-specialist YouTube chapters with NO transcribed verdicts. The tier
   opinions can reorder SCOUT and LEARN suggestions in the presentation layer
   but never impersonate a current-patch win rate or override a player's pool.
@@ -104,6 +104,17 @@ Read this before changing the app, UI or relay. Preserve Rat's existing architec
   references per call. The results go into that same private cache,
   and must not be confused with calibrated current-patch data.
   Details and source limits are in the collection report.
+- Additional 3 Nov private OP.GG MCP scouting: 12 small, rate-limited
+  champion-summary requests added 72 reference pairs across Top, Jungle,
+  Mid, ADC and Support. Total private cache: 94 pair references, all
+  unversioned, and 14 summary metadata files. Never commit the cache or
+  let these rolling rates change automatic picks. Run
+  `python tools/opgg_cache_audit.py` to check local freshness/role counts
+  without contacting any provider.
+- The qualitative catalogue now also includes ten attributed Mid-specific
+  human matchup opinions (Akali, Vex, Sylas, Qiyana, Lissandra). Some are
+  deliberately labelled mixed due to disagreements about lane vs teamfight.
+  A planned unfavourable matchup is a warning, not a lock/hover instruction.
 - `league_riot_ranked_sample.py` and `tools/collect_riot_ranked_matchups.py`
   support permissioned current-patch Riot Match-V5 EUW samples, IF a valid
   authorised API key and data collection exist. Keep credentials server-side.

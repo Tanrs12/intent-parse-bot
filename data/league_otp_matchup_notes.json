@@ -152,6 +152,78 @@
       ],
       "status": "reference",
       "notes": "Community points to free but older Garen top/mid spreadsheet and newer subscription material; no scraping."
+    },
+    {
+      "title": "Akali mains — Vex lane 2025",
+      "url": "https://www.reddit.com/r/akalimains/comments/1lfstjk",
+      "champions": [
+        "Akali"
+      ],
+      "status": "individually reviewed discussion, qualitative",
+      "notes": "Multiple comments describe fear/passive dash punishment; 2025, player ranks unverified"
+    },
+    {
+      "title": "Akali mains — matchup counter discussion 2026",
+      "url": "https://www.reddit.com/r/akalimains/comments/1u6ijss",
+      "champions": [
+        "Akali"
+      ],
+      "status": "individually reviewed discussion, qualitative",
+      "notes": "Community player considers Vex and strong Twisted Fate difficult; Lissandra annoying; 2026"
+    },
+    {
+      "title": "Akali mains — Lissandra lane 2024",
+      "url": "https://www.reddit.com/r/akalimains/comments/1aqy79h",
+      "champions": [
+        "Akali"
+      ],
+      "status": "individually reviewed discussion, qualitative",
+      "notes": "Self-described ranked Akali player discusses Lissandra control and roaming; older patch"
+    },
+    {
+      "title": "Lissandra mains — Akali counter discussion",
+      "url": "https://www.reddit.com/r/LissandraMains/comments/1ocga0f",
+      "champions": [
+        "Lissandra"
+      ],
+      "status": "individually reviewed discussion, qualitative",
+      "notes": "2025 player and replies distinguish Akali lane trades from Lissandra teamfight lockdown"
+    },
+    {
+      "title": "Sylas mains — Vex lane question",
+      "url": "https://www.reddit.com/r/sylasmains/comments/1d8biua",
+      "champions": [
+        "Sylas"
+      ],
+      "status": "individually reviewed discussion, qualitative",
+      "notes": "2024 first-person matchup difficulty, not expert consensus"
+    },
+    {
+      "title": "Vex mains — Qiyana lane discussion 2026",
+      "url": "https://www.reddit.com/r/vexmains/comments/1vz9m9d",
+      "champions": [
+        "Vex"
+      ],
+      "status": "individually reviewed discussion, qualitative",
+      "notes": "Aug 2026 thread with Vex and Qiyana perspectives; discussion also mentions Sylas"
+    },
+    {
+      "title": "Sylas mains — Zed matchup discussion",
+      "url": "https://www.reddit.com/r/sylasmains/comments/s0d51b",
+      "champions": [
+        "Sylas"
+      ],
+      "status": "individually reviewed discussion, qualitative",
+      "notes": "2022 replies disagree whether Zed or Sylas controls lane; matchup mechanics only"
+    },
+    {
+      "title": "Qiyana mains — Vex lane question",
+      "url": "https://www.reddit.com/r/QiyanaMains/comments/1oeluuc",
+      "champions": [
+        "Qiyana"
+      ],
+      "status": "individually reviewed discussion, qualitative",
+      "notes": "2025 replies emphasize held fear and playing around Vex cooldowns; ranks generally unverified"
     }
   ],
   "entries": [
@@ -1078,6 +1150,222 @@
         {
           "provider": "Wincon Shen Top high-elo matchup data",
           "url": "https://wincon.app/shen/top/counters/"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Akali",
+      "enemy": "Vex",
+      "verdict": "unfavourable",
+      "summary": "Vex can punish Akali's dashes with fear and passive damage. Community advice is to respect held fear, farm safely and look for skirmishes or an opening after fear is spent.",
+      "patch": "community accounts from 2022–2026; not verified for patch 26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "champion-main discussion; qualitative matchup mechanics, not a measured win rate",
+      "source_quality": "multiple community discussions, participant ranks unverified",
+      "weight_label": "individual-opinions",
+      "sources": [
+        {
+          "provider": "Akali mains — Vex lane 2025",
+          "url": "https://www.reddit.com/r/akalimains/comments/1lfstjk"
+        },
+        {
+          "provider": "Akali mains — matchup counter discussion 2026",
+          "url": "https://www.reddit.com/r/akalimains/comments/1u6ijss"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Akali",
+      "enemy": "Lissandra",
+      "verdict": "mixed",
+      "summary": "Akali players report difficult teamfight access through Lissandra's lockdown, but a Lissandra-main discussion says Akali can win lane trades. Treat laning and later teamfights separately.",
+      "patch": "community accounts from 2022–2026; not verified for patch 26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "champion-main discussion; qualitative matchup mechanics, not a measured win rate",
+      "source_quality": "multiple community discussions, participant ranks unverified",
+      "weight_label": "individual-opinions",
+      "sources": [
+        {
+          "provider": "Akali mains — Lissandra lane 2024",
+          "url": "https://www.reddit.com/r/akalimains/comments/1aqy79h"
+        },
+        {
+          "provider": "Lissandra mains — Akali counter discussion",
+          "url": "https://www.reddit.com/r/LissandraMains/comments/1ocga0f"
+        },
+        {
+          "provider": "Akali mains — matchup counter discussion 2026",
+          "url": "https://www.reddit.com/r/akalimains/comments/1u6ijss"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Akali",
+      "enemy": "Twisted Fate",
+      "verdict": "unfavourable",
+      "summary": "A 2026 Akali player names a well-played Twisted Fate among the difficult mid opponents; this is an individual judgement without a measured sample.",
+      "patch": "community accounts from 2022–2026; not verified for patch 26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "champion-main discussion; qualitative matchup mechanics, not a measured win rate",
+      "source_quality": "single community discussion, participant rank unverified",
+      "weight_label": "individual-opinions",
+      "sources": [
+        {
+          "provider": "Akali mains — matchup counter discussion 2026",
+          "url": "https://www.reddit.com/r/akalimains/comments/1u6ijss"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Sylas",
+      "enemy": "Vex",
+      "verdict": "unfavourable",
+      "summary": "Sylas players report that Vex can keep her defensive spells for his E engage and punish the dash. A Vex-main thread echoes the difficulty; do not force the all-in while fear is available.",
+      "patch": "community accounts from 2022–2026; not verified for patch 26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "champion-main discussion; qualitative matchup mechanics, not a measured win rate",
+      "source_quality": "multiple community discussions, participant ranks unverified",
+      "weight_label": "individual-opinions",
+      "sources": [
+        {
+          "provider": "Sylas mains — Vex lane question",
+          "url": "https://www.reddit.com/r/sylasmains/comments/1d8biua"
+        },
+        {
+          "provider": "Vex mains — Qiyana lane discussion 2026",
+          "url": "https://www.reddit.com/r/vexmains/comments/1vz9m9d"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Sylas",
+      "enemy": "Zed",
+      "verdict": "mixed",
+      "summary": "Sylas-main accounts conflict on lane advantage. They agree the shadow and shuriken combo matters: avoid the double hit and pressure after Zed has used the shadow.",
+      "patch": "community accounts from 2022–2026; not verified for patch 26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "champion-main discussion; qualitative matchup mechanics, not a measured win rate",
+      "source_quality": "single community discussion, participant rank unverified",
+      "weight_label": "individual-opinions",
+      "sources": [
+        {
+          "provider": "Sylas mains — Zed matchup discussion",
+          "url": "https://www.reddit.com/r/sylasmains/comments/s0d51b"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Vex",
+      "verdict": "unfavourable",
+      "summary": "Both Qiyana and Vex players describe Vex's held fear as a deterrent to Qiyana's E engage; Qiyana players suggest safer wave positioning and punishing missed fear.",
+      "patch": "community accounts from 2022–2026; not verified for patch 26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "champion-main discussion; qualitative matchup mechanics, not a measured win rate",
+      "source_quality": "multiple community discussions, participant ranks unverified",
+      "weight_label": "individual-opinions",
+      "sources": [
+        {
+          "provider": "Qiyana mains — Vex lane question",
+          "url": "https://www.reddit.com/r/QiyanaMains/comments/1oeluuc"
+        },
+        {
+          "provider": "Vex mains — Qiyana lane discussion 2026",
+          "url": "https://www.reddit.com/r/vexmains/comments/1vz9m9d"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Vex",
+      "enemy": "Qiyana",
+      "verdict": "favourable",
+      "summary": "Vex-main reports and Qiyana-main replies point to fear and passive damage limiting Qiyana's dash entries. One Qiyana player calls it a favourable-but-playable matchup for Vex.",
+      "patch": "community accounts from 2022–2026; not verified for patch 26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "champion-main discussion; qualitative matchup mechanics, not a measured win rate",
+      "source_quality": "multiple community discussions, participant ranks unverified",
+      "weight_label": "individual-opinions",
+      "sources": [
+        {
+          "provider": "Vex mains — Qiyana lane discussion 2026",
+          "url": "https://www.reddit.com/r/vexmains/comments/1vz9m9d"
+        },
+        {
+          "provider": "Qiyana mains — Vex lane question",
+          "url": "https://www.reddit.com/r/QiyanaMains/comments/1oeluuc"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Vex",
+      "enemy": "Akali",
+      "verdict": "favourable",
+      "summary": "Akali-main discussions consistently warn that Vex punishes repeated dashes and can hold fear for the commit. This is matchup scouting, not patch-certified statistics.",
+      "patch": "community accounts from 2022–2026; not verified for patch 26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "champion-main discussion; qualitative matchup mechanics, not a measured win rate",
+      "source_quality": "multiple community discussions, participant ranks unverified",
+      "weight_label": "individual-opinions",
+      "sources": [
+        {
+          "provider": "Akali mains — Vex lane 2025",
+          "url": "https://www.reddit.com/r/akalimains/comments/1lfstjk"
+        },
+        {
+          "provider": "Akali mains — matchup counter discussion 2026",
+          "url": "https://www.reddit.com/r/akalimains/comments/1u6ijss"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Lissandra",
+      "enemy": "Akali",
+      "verdict": "mixed",
+      "summary": "Lissandra can provide reliable control in later fights, but a Lissandra-main discussion cautions that Akali may win trades in the lane itself. Do not equate teamfight counterplay with winning lane.",
+      "patch": "community accounts from 2022–2026; not verified for patch 26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "champion-main discussion; qualitative matchup mechanics, not a measured win rate",
+      "source_quality": "multiple community discussions, participant ranks unverified",
+      "weight_label": "individual-opinions",
+      "sources": [
+        {
+          "provider": "Lissandra mains — Akali counter discussion",
+          "url": "https://www.reddit.com/r/LissandraMains/comments/1ocga0f"
+        },
+        {
+          "provider": "Akali mains — Lissandra lane 2024",
+          "url": "https://www.reddit.com/r/akalimains/comments/1aqy79h"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Vex",
+      "enemy": "Sylas",
+      "verdict": "favourable",
+      "summary": "Sylas players describe having their E engage punished by Vex's held control, and Vex-main anecdotes agree. Qualitative advantage only; other lanes and team fit still matter.",
+      "patch": "community accounts from 2022–2026; not verified for patch 26.21",
+      "reviewed_on": "2026-11-03",
+      "evidence_kind": "champion-main discussion; qualitative matchup mechanics, not a measured win rate",
+      "source_quality": "multiple community discussions, participant ranks unverified",
+      "weight_label": "individual-opinions",
+      "sources": [
+        {
+          "provider": "Sylas mains — Vex lane question",
+          "url": "https://www.reddit.com/r/sylasmains/comments/1d8biua"
+        },
+        {
+          "provider": "Vex mains — Qiyana lane discussion 2026",
+          "url": "https://www.reddit.com/r/vexmains/comments/1vz9m9d"
         }
       ]
     }

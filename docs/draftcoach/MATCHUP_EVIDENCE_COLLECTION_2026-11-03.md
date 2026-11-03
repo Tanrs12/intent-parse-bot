@@ -30,11 +30,11 @@ picked or locked in League.
 - The user's private PocketPick EUW 16.16 sample contains **10,806** raw pair
   rows from **30,000** historical matches. Only a subset has sufficiently many
   games; do not commit that private dataset to GitHub.
-- **51 curated, short, individually attributed directional notes** stored in
+- **61 curated, short, individually attributed directional notes** stored in
   `data/league_otp_matchup_notes.json`, from Reddit specialist discussion,
-  public counter summaries and longer champion-main work. This is not a
-  licensed win-rate export.
-- **15 research index sources** (including LoLMatchups.GG OTP pages, Gnar/Kayle
+  public counter summaries and longer champion-main work (51 Top, 10 Mid).
+  This is not a licensed win-rate export.
+- **23 research index sources** (including LoLMatchups.GG OTP pages, Gnar/Kayle
   communities, Onetricks.gg, relevant YouTube and player-main guides).
 - **47 accurate Gwen tierlist video chapter pointers** in
   `data/league_otp_video_chapters.json`; explicitly **unreviewed**
@@ -178,3 +178,37 @@ a winning draft lane.
 Preserve Rat's champion legality checks, live action ID/game ID safeguards,
 Discord role assignments, the elected captain's control and existing
 `CLAUDE.md` source attribution policy.
+
+## Continuation: multi-role OP.GG and Mid specialist notes (3 November 2026)
+
+Official OP.GG MCP small-scale private champion-counter summaries were collected
+for Sylas, Akali, Vex and Lissandra Mid; Jax and Rumble Top; Lee Sin and Diana
+Jungle; Kaisa and Jinx ADC; and Lulu and Braum Support. The 12 new summaries
+returned 72 directional pairs. Combined with 22 previous pairs, the local
+24-hour cache contains 94 observations: 34 Top, 12 Jungle, 24 Mid, 12 ADC,
+12 Support, plus 14 summary metadata files. These numbers are local and
+temporary, not bundled statistical coverage or patch-qualified counters.
+
+Representative provider observations: Akali vs Lissandra Mid 42.4% (n=5339),
+Lissandra vs Akali Mid 57.6% (n=5339); Sylas vs Vex Mid 43.3% (n=2182);
+Lee Sin vs Gragas Jungle 44.3% (n=1447); Kaisa vs Ezreal ADC 55.1% (n=36731);
+Lulu vs Leona Support 46.0% (n=9520). All are ranked-mode provider summaries
+with rank, patch and exact population unverified. Do not use as draft scores.
+
+Ten additional, short attributed Mid-language qualitative entries were
+reviewed from r/akalimains, r/LissandraMains, r/sylasmains, r/QiyanaMains,
+and r/vexmains. Some opinions from 2022-2026 conflict (e.g. Akali can trade
+into Lissandra early while being limited later by crowd control), so the
+catalogue marks them mixed rather than forcing a positive/negative verdict.
+The full catalogue is now 61 directional notes and 23 source index entries.
+These are historical opinions, not patch-26.21 measurements.
+
+To audit local references without data export, network requests or game
+actions, run: python tools/opgg_cache_audit.py. It reports fresh/expired
+private sample counts and unversioned status by role. New unit test:
+tests/test_opgg_cache_audit.py. The scouting source and pool rules remain
+unchanged; known planned Mid risks can now appear in the read-only panel.
+
+Patch 26.21 is current on 3 November 2026; 26.22 is scheduled for
+4 November. Revalidate source freshness after the patch before suggesting
+current-patch numerical counter advantages.
