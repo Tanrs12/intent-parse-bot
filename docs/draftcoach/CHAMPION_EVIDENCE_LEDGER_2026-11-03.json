@@ -1,0 +1,1862 @@
+{
+  "schema_version": 1,
+  "snapshot_date": "2026-11-03",
+  "description": "Source-separated coverage counts, no raw provider data; historical is not current",
+  "champions_in_role_catalogue": 172,
+  "source_status": {
+    "opgg_current_16_21": true,
+    "pocketpick_historical_16_16": true,
+    "ordered_pro_historical_2026": true
+  },
+  "source_attribution": [
+    "OP.GG: https://op.gg (private small-scale cache)",
+    "PocketPick: https://pocketpick.gg/data/ (EUW Silver–Platinum, 16.16)",
+    "LoL-Draft: https://github.com/DeusExMachina1993/LoL-Draft (CC BY-SA 4.0)",
+    "Onetricks.gg: https://www.onetricks.gg/guides (authored guide opinions)"
+  ],
+  "roles": {
+    "Top": {
+      "role_champions": 60,
+      "possible_directed_pairs": 3540,
+      "current_26_21_100game_pairs": 753,
+      "historical_16_16_observed_pairs": 2206,
+      "historical_16_16_40game_pairs": 306,
+      "any_observed_current_or_old_pairs": 2330
+    },
+    "Jungle": {
+      "role_champions": 51,
+      "possible_directed_pairs": 2550,
+      "current_26_21_100game_pairs": 587,
+      "historical_16_16_observed_pairs": 1762,
+      "historical_16_16_40game_pairs": 330,
+      "any_observed_current_or_old_pairs": 1896
+    },
+    "Mid": {
+      "role_champions": 55,
+      "possible_directed_pairs": 2970,
+      "current_26_21_100game_pairs": 617,
+      "historical_16_16_observed_pairs": 1768,
+      "historical_16_16_40game_pairs": 308,
+      "any_observed_current_or_old_pairs": 1868
+    },
+    "ADC": {
+      "role_champions": 29,
+      "possible_directed_pairs": 812,
+      "current_26_21_100game_pairs": 311,
+      "historical_16_16_observed_pairs": 714,
+      "historical_16_16_40game_pairs": 310,
+      "any_observed_current_or_old_pairs": 731
+    },
+    "Support": {
+      "role_champions": 48,
+      "possible_directed_pairs": 2256,
+      "current_26_21_100game_pairs": 531,
+      "historical_16_16_observed_pairs": 1650,
+      "historical_16_16_40game_pairs": 394,
+      "any_observed_current_or_old_pairs": 1685
+    }
+  },
+  "totals": {
+    "possible_directed_pairs": 12128,
+    "current_26_21_100game_pairs": 2799,
+    "historical_16_16_observed_pairs": 8100,
+    "historical_16_16_40game_pairs": 1648,
+    "any_observed_current_or_old_pairs": 8510
+  },
+  "unobserved_champions": [
+    "Corki"
+  ],
+  "champions": {
+    "Aatrox": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 54,
+      "historical_16_16_observed_directions": 47,
+      "historical_16_16_40game_directions": 5,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 3
+    },
+    "Ahri": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 48,
+      "historical_16_16_observed_directions": 48,
+      "historical_16_16_40game_directions": 23,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 21
+    },
+    "Akali": {
+      "roles": [
+        "Top",
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 48,
+      "historical_16_16_observed_directions": 86,
+      "historical_16_16_40game_directions": 14,
+      "qualitative_scout_notes": 3,
+      "historical_pro_later_pick_pairs_at_least5": 21
+    },
+    "Akshan": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 39,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Alistar": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 41,
+      "historical_16_16_observed_directions": 39,
+      "historical_16_16_40game_directions": 6,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 28
+    },
+    "Ambessa": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 54,
+      "historical_16_16_observed_directions": 44,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 42
+    },
+    "Amumu": {
+      "roles": [
+        "Jungle",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 61,
+      "historical_16_16_40game_directions": 10,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Anivia": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 34,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 14
+    },
+    "Annie": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 35,
+      "historical_16_16_40game_directions": 1,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 10
+    },
+    "Aphelios": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 26,
+      "historical_16_16_40game_directions": 6,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Ashe": {
+      "roles": [
+        "ADC",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 26,
+      "historical_16_16_observed_directions": 57,
+      "historical_16_16_40game_directions": 16,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 9
+    },
+    "Aurelion Sol": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 34,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Aurora": {
+      "roles": [
+        "Top",
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 40,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 10
+    },
+    "Azir": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 31,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Bard": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 39,
+      "historical_16_16_40game_directions": 7,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 26
+    },
+    "Bel'Veth": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 44,
+      "historical_16_16_40game_directions": 11,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Blitzcrank": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 42,
+      "historical_16_16_40game_directions": 10,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Brand": {
+      "roles": [
+        "Jungle",
+        "Mid",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 75,
+      "historical_16_16_40game_directions": 9,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Braum": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 41,
+      "historical_16_16_observed_directions": 40,
+      "historical_16_16_40game_directions": 7,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 1
+    },
+    "Briar": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 50,
+      "historical_16_16_40game_directions": 19,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Caitlyn": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 26,
+      "historical_16_16_observed_directions": 27,
+      "historical_16_16_40game_directions": 25,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 20
+    },
+    "Camille": {
+      "roles": [
+        "Top",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 54,
+      "historical_16_16_observed_directions": 78,
+      "historical_16_16_40game_directions": 4,
+      "qualitative_scout_notes": 2,
+      "historical_pro_later_pick_pairs_at_least5": 20
+    },
+    "Cassiopeia": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 32,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 11
+    },
+    "Cho'Gath": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 54,
+      "historical_16_16_observed_directions": 44,
+      "historical_16_16_40game_directions": 2,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Corki": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 0,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 25
+    },
+    "Darius": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 54,
+      "historical_16_16_observed_directions": 53,
+      "historical_16_16_40game_directions": 25,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Diana": {
+      "roles": [
+        "Jungle",
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 46,
+      "historical_16_16_observed_directions": 83,
+      "historical_16_16_40game_directions": 17,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Dr. Mundo": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 51,
+      "historical_16_16_40game_directions": 10,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 1
+    },
+    "Draven": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 26,
+      "historical_16_16_observed_directions": 27,
+      "historical_16_16_40game_directions": 9,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Ekko": {
+      "roles": [
+        "Jungle",
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 82,
+      "historical_16_16_40game_directions": 15,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Elise": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 46,
+      "historical_16_16_observed_directions": 31,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Evelynn": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 41,
+      "historical_16_16_40game_directions": 3,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Ezreal": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 26,
+      "historical_16_16_observed_directions": 27,
+      "historical_16_16_40game_directions": 16,
+      "qualitative_scout_notes": 1,
+      "historical_pro_later_pick_pairs_at_least5": 26
+    },
+    "Fiddlesticks": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 39,
+      "historical_16_16_40game_directions": 3,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Fiora": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 46,
+      "historical_16_16_40game_directions": 2,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Fizz": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 48,
+      "historical_16_16_40game_directions": 20,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Galio": {
+      "roles": [
+        "Mid",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 48,
+      "historical_16_16_observed_directions": 65,
+      "historical_16_16_40game_directions": 5,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 30
+    },
+    "Gangplank": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 49,
+      "historical_16_16_40game_directions": 7,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Garen": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 55,
+      "historical_16_16_40game_directions": 29,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Gnar": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 54,
+      "historical_16_16_observed_directions": 43,
+      "historical_16_16_40game_directions": 3,
+      "qualitative_scout_notes": 6,
+      "historical_pro_later_pick_pairs_at_least5": 43
+    },
+    "Gragas": {
+      "roles": [
+        "Top",
+        "Jungle",
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 36,
+      "historical_16_16_observed_directions": 54,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 1,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Graves": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 49,
+      "historical_16_16_40game_directions": 20,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Gwen": {
+      "roles": [
+        "Top",
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 54,
+      "historical_16_16_observed_directions": 78,
+      "historical_16_16_40game_directions": 5,
+      "qualitative_scout_notes": 1,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Hecarim": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 43,
+      "historical_16_16_40game_directions": 3,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Heimerdinger": {
+      "roles": [
+        "Top",
+        "Mid",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 56,
+      "historical_16_16_40game_directions": 1,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Hwei": {
+      "roles": [
+        "Mid",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 57,
+      "historical_16_16_40game_directions": 8,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Illaoi": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 48,
+      "historical_16_16_40game_directions": 7,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Irelia": {
+      "roles": [
+        "Top",
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 54,
+      "historical_16_16_observed_directions": 82,
+      "historical_16_16_40game_directions": 3,
+      "qualitative_scout_notes": 4,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Ivern": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 20,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Janna": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 41,
+      "historical_16_16_observed_directions": 38,
+      "historical_16_16_40game_directions": 6,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Jarvan IV": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 41,
+      "historical_16_16_40game_directions": 10,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 16
+    },
+    "Jax": {
+      "roles": [
+        "Top",
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 54,
+      "historical_16_16_observed_directions": 90,
+      "historical_16_16_40game_directions": 17,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 9
+    },
+    "Jayce": {
+      "roles": [
+        "Top",
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 46,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 23
+    },
+    "Jhin": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 28,
+      "historical_16_16_40game_directions": 22,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 34
+    },
+    "Jinx": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 26,
+      "historical_16_16_observed_directions": 27,
+      "historical_16_16_40game_directions": 24,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "K'Sante": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 38,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 36
+    },
+    "Kai'Sa": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 26,
+      "historical_16_16_observed_directions": 27,
+      "historical_16_16_40game_directions": 24,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 19
+    },
+    "Kalista": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 22,
+      "historical_16_16_40game_directions": 2,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 2
+    },
+    "Karma": {
+      "roles": [
+        "Top",
+        "Mid",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 41,
+      "historical_16_16_observed_directions": 40,
+      "historical_16_16_40game_directions": 7,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 18
+    },
+    "Karthus": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 24,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Kassadin": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 36,
+      "historical_16_16_40game_directions": 1,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Katarina": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 48,
+      "historical_16_16_40game_directions": 22,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Kayle": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 53,
+      "historical_16_16_observed_directions": 45,
+      "historical_16_16_40game_directions": 5,
+      "qualitative_scout_notes": 33,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Kayn": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 49,
+      "historical_16_16_40game_directions": 25,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Kennen": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 36,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Kha'Zix": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 43,
+      "historical_16_16_40game_directions": 7,
+      "qualitative_scout_notes": 5,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Kindred": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 46,
+      "historical_16_16_observed_directions": 36,
+      "historical_16_16_40game_directions": 2,
+      "qualitative_scout_notes": 8,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Kled": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 37,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 2
+    },
+    "Kog'Maw": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 26,
+      "historical_16_16_observed_directions": 24,
+      "historical_16_16_40game_directions": 1,
+      "qualitative_scout_notes": 7,
+      "historical_pro_later_pick_pairs_at_least5": 2
+    },
+    "LeBlanc": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 41,
+      "historical_16_16_40game_directions": 5,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 2
+    },
+    "Lee Sin": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 46,
+      "historical_16_16_observed_directions": 47,
+      "historical_16_16_40game_directions": 11,
+      "qualitative_scout_notes": 1,
+      "historical_pro_later_pick_pairs_at_least5": 19
+    },
+    "Leona": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 41,
+      "historical_16_16_observed_directions": 46,
+      "historical_16_16_40game_directions": 29,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 21
+    },
+    "Lillia": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 46,
+      "historical_16_16_observed_directions": 41,
+      "historical_16_16_40game_directions": 6,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Lissandra": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 48,
+      "historical_16_16_observed_directions": 39,
+      "historical_16_16_40game_directions": 8,
+      "qualitative_scout_notes": 1,
+      "historical_pro_later_pick_pairs_at_least5": 1
+    },
+    "Lucian": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 26,
+      "historical_16_16_observed_directions": 27,
+      "historical_16_16_40game_directions": 12,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 20
+    },
+    "Lulu": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 41,
+      "historical_16_16_observed_directions": 43,
+      "historical_16_16_40game_directions": 13,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 12
+    },
+    "Lux": {
+      "roles": [
+        "Mid",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 92,
+      "historical_16_16_40game_directions": 43,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 1
+    },
+    "Malphite": {
+      "roles": [
+        "Top",
+        "Mid",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 54,
+      "historical_16_16_observed_directions": 83,
+      "historical_16_16_40game_directions": 15,
+      "qualitative_scout_notes": 6,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Malzahar": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 49,
+      "historical_16_16_40game_directions": 20,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Maokai": {
+      "roles": [
+        "Jungle",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 40,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 2
+    },
+    "Master Yi": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 45,
+      "historical_16_16_40game_directions": 20,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Mel": {
+      "roles": [
+        "Mid",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 78,
+      "historical_16_16_40game_directions": 10,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 3
+    },
+    "Milio": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 43,
+      "historical_16_16_40game_directions": 12,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 24
+    },
+    "Miss Fortune": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 27,
+      "historical_16_16_40game_directions": 23,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 2
+    },
+    "Mordekaiser": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 49,
+      "historical_16_16_40game_directions": 18,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Morgana": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 43,
+      "historical_16_16_40game_directions": 21,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Naafiri": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 37,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 27
+    },
+    "Nami": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 41,
+      "historical_16_16_observed_directions": 43,
+      "historical_16_16_40game_directions": 29,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Nasus": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 55,
+      "historical_16_16_40game_directions": 33,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 1
+    },
+    "Nautilus": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 41,
+      "historical_16_16_observed_directions": 45,
+      "historical_16_16_40game_directions": 27,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 32
+    },
+    "Neeko": {
+      "roles": [
+        "Mid",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 40,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 2
+    },
+    "Nidalee": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 28,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Nilah": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 20,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Nocturne": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 46,
+      "historical_16_16_observed_directions": 49,
+      "historical_16_16_40game_directions": 24,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 10
+    },
+    "Nunu & Willump": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 46,
+      "historical_16_16_observed_directions": 39,
+      "historical_16_16_40game_directions": 2,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Olaf": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 43,
+      "historical_16_16_40game_directions": 2,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 36
+    },
+    "Orianna": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 48,
+      "historical_16_16_observed_directions": 35,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 15
+    },
+    "Ornn": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 44,
+      "historical_16_16_40game_directions": 5,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 2
+    },
+    "Pantheon": {
+      "roles": [
+        "Top",
+        "Jungle",
+        "Mid",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 130,
+      "historical_16_16_40game_directions": 9,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 25
+    },
+    "Poppy": {
+      "roles": [
+        "Top",
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 28,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 8
+    },
+    "Pyke": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 41,
+      "historical_16_16_observed_directions": 43,
+      "historical_16_16_40game_directions": 15,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 1
+    },
+    "Qiyana": {
+      "roles": [
+        "Jungle",
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 93,
+      "historical_16_16_observed_directions": 69,
+      "historical_16_16_40game_directions": 1,
+      "qualitative_scout_notes": 25,
+      "historical_pro_later_pick_pairs_at_least5": 12
+    },
+    "Quinn": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 20,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Rakan": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 40,
+      "historical_16_16_observed_directions": 40,
+      "historical_16_16_40game_directions": 5,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 16
+    },
+    "Rammus": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 35,
+      "historical_16_16_40game_directions": 3,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Rek'Sai": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 12,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Rell": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 40,
+      "historical_16_16_observed_directions": 37,
+      "historical_16_16_40game_directions": 6,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 23
+    },
+    "Renata Glasc": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 41,
+      "historical_16_16_observed_directions": 24,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 1
+    },
+    "Renekton": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 48,
+      "historical_16_16_40game_directions": 9,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 27
+    },
+    "Rengar": {
+      "roles": [
+        "Top",
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 46,
+      "historical_16_16_40game_directions": 5,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Riven": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 40,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Rumble": {
+      "roles": [
+        "Top",
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 52,
+      "historical_16_16_observed_directions": 22,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 35
+    },
+    "Ryze": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 45,
+      "historical_16_16_observed_directions": 37,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 26
+    },
+    "Samira": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 27,
+      "historical_16_16_40game_directions": 13,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Sejuani": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 36,
+      "historical_16_16_40game_directions": 1,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Senna": {
+      "roles": [
+        "ADC",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 68,
+      "historical_16_16_40game_directions": 18,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Seraphine": {
+      "roles": [
+        "ADC",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 68,
+      "historical_16_16_40game_directions": 34,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 19
+    },
+    "Sett": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 54,
+      "historical_16_16_observed_directions": 52,
+      "historical_16_16_40game_directions": 21,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Shaco": {
+      "roles": [
+        "Jungle",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 79,
+      "historical_16_16_40game_directions": 16,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Shen": {
+      "roles": [
+        "Top",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 54,
+      "historical_16_16_observed_directions": 79,
+      "historical_16_16_40game_directions": 4,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 27
+    },
+    "Shyvana": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 46,
+      "historical_16_16_40game_directions": 20,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Singed": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 41,
+      "historical_16_16_40game_directions": 1,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Sion": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 45,
+      "historical_16_16_40game_directions": 3,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 2
+    },
+    "Sivir": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 26,
+      "historical_16_16_40game_directions": 8,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 26
+    },
+    "Skarner": {
+      "roles": [
+        "Top",
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 23,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 13
+    },
+    "Smolder": {
+      "roles": [
+        "Top",
+        "Mid",
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 35,
+      "historical_16_16_40game_directions": 13,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Sona": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 37,
+      "historical_16_16_40game_directions": 4,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Soraka": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 42,
+      "historical_16_16_40game_directions": 10,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Swain": {
+      "roles": [
+        "Mid",
+        "ADC",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 25,
+      "historical_16_16_observed_directions": 74,
+      "historical_16_16_40game_directions": 8,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Sylas": {
+      "roles": [
+        "Top",
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 48,
+      "historical_16_16_observed_directions": 54,
+      "historical_16_16_40game_directions": 11,
+      "qualitative_scout_notes": 2,
+      "historical_pro_later_pick_pairs_at_least5": 20
+    },
+    "Syndra": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 48,
+      "historical_16_16_observed_directions": 47,
+      "historical_16_16_40game_directions": 21,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 24
+    },
+    "Tahm Kench": {
+      "roles": [
+        "Top",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 86,
+      "historical_16_16_40game_directions": 10,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Taliyah": {
+      "roles": [
+        "Jungle",
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 91,
+      "historical_16_16_observed_directions": 23,
+      "historical_16_16_40game_directions": 0,
+      "qualitative_scout_notes": 5,
+      "historical_pro_later_pick_pairs_at_least5": 21
+    },
+    "Talon": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 40,
+      "historical_16_16_40game_directions": 9,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Taric": {
+      "roles": [
+        "Mid",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 29,
+      "historical_16_16_40game_directions": 1,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Teemo": {
+      "roles": [
+        "Top",
+        "Jungle",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 109,
+      "historical_16_16_40game_directions": 19,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Thresh": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 41,
+      "historical_16_16_observed_directions": 46,
+      "historical_16_16_40game_directions": 32,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Tristana": {
+      "roles": [
+        "Mid",
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 47,
+      "historical_16_16_40game_directions": 18,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 3
+    },
+    "Trundle": {
+      "roles": [
+        "Top",
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 63,
+      "historical_16_16_40game_directions": 2,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 14
+    },
+    "Tryndamere": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 48,
+      "historical_16_16_40game_directions": 9,
+      "qualitative_scout_notes": 1,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Twisted Fate": {
+      "roles": [
+        "Top",
+        "Mid",
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 41,
+      "historical_16_16_40game_directions": 1,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 11
+    },
+    "Twitch": {
+      "roles": [
+        "ADC",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 33,
+      "historical_16_16_40game_directions": 14,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Udyr": {
+      "roles": [
+        "Top",
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 47,
+      "historical_16_16_40game_directions": 1,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Urgot": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 47,
+      "historical_16_16_40game_directions": 4,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Varus": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 26,
+      "historical_16_16_observed_directions": 24,
+      "historical_16_16_40game_directions": 5,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 23
+    },
+    "Vayne": {
+      "roles": [
+        "Top",
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 67,
+      "historical_16_16_40game_directions": 16,
+      "qualitative_scout_notes": 19,
+      "historical_pro_later_pick_pairs_at_least5": 9
+    },
+    "Veigar": {
+      "roles": [
+        "Mid",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 60,
+      "historical_16_16_40game_directions": 16,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Vel'Koz": {
+      "roles": [
+        "Mid",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 69,
+      "historical_16_16_40game_directions": 7,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Vex": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 47,
+      "historical_16_16_observed_directions": 40,
+      "historical_16_16_40game_directions": 8,
+      "qualitative_scout_notes": 3,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Vi": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 44,
+      "historical_16_16_40game_directions": 12,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 12
+    },
+    "Viego": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 46,
+      "historical_16_16_observed_directions": 50,
+      "historical_16_16_40game_directions": 34,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Viktor": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 47,
+      "historical_16_16_40game_directions": 16,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 28
+    },
+    "Vladimir": {
+      "roles": [
+        "Top",
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 55,
+      "historical_16_16_40game_directions": 1,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Volibear": {
+      "roles": [
+        "Top",
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 80,
+      "historical_16_16_40game_directions": 7,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 1
+    },
+    "Warwick": {
+      "roles": [
+        "Top",
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 79,
+      "historical_16_16_40game_directions": 16,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Wukong": {
+      "roles": [
+        "Top",
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 46,
+      "historical_16_16_observed_directions": 64,
+      "historical_16_16_40game_directions": 14,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 17
+    },
+    "Xayah": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 27,
+      "historical_16_16_40game_directions": 10,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 8
+    },
+    "Xerath": {
+      "roles": [
+        "Mid",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 86,
+      "historical_16_16_40game_directions": 17,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Xin Zhao": {
+      "roles": [
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 46,
+      "historical_16_16_observed_directions": 37,
+      "historical_16_16_40game_directions": 1,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 26
+    },
+    "Yasuo": {
+      "roles": [
+        "Top",
+        "Mid",
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 48,
+      "historical_16_16_observed_directions": 122,
+      "historical_16_16_40game_directions": 32,
+      "qualitative_scout_notes": 4,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Yone": {
+      "roles": [
+        "Top",
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 100,
+      "historical_16_16_40game_directions": 30,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 6
+    },
+    "Yorick": {
+      "roles": [
+        "Top"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 48,
+      "historical_16_16_40game_directions": 13,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 16
+    },
+    "Yunara": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 26,
+      "historical_16_16_observed_directions": 25,
+      "historical_16_16_40game_directions": 10,
+      "qualitative_scout_notes": 3,
+      "historical_pro_later_pick_pairs_at_least5": 12
+    },
+    "Yuumi": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 40,
+      "historical_16_16_40game_directions": 7,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Zaahen": {
+      "roles": [
+        "Top",
+        "Jungle"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 54,
+      "historical_16_16_40game_directions": 1,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 6
+    },
+    "Zac": {
+      "roles": [
+        "Top",
+        "Jungle",
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 42,
+      "historical_16_16_40game_directions": 1,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Zed": {
+      "roles": [
+        "Jungle",
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 48,
+      "historical_16_16_observed_directions": 79,
+      "historical_16_16_40game_directions": 20,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Zeri": {
+      "roles": [
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 25,
+      "historical_16_16_40game_directions": 5,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Ziggs": {
+      "roles": [
+        "Mid",
+        "ADC"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 26,
+      "historical_16_16_observed_directions": 43,
+      "historical_16_16_40game_directions": 6,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 23
+    },
+    "Zilean": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 39,
+      "historical_16_16_40game_directions": 5,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Zoe": {
+      "roles": [
+        "Mid"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 39,
+      "historical_16_16_40game_directions": 1,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    },
+    "Zyra": {
+      "roles": [
+        "Support"
+      ],
+      "current_26_21_emerald_plus_100game_directions": 0,
+      "historical_16_16_observed_directions": 41,
+      "historical_16_16_40game_directions": 9,
+      "qualitative_scout_notes": 0,
+      "historical_pro_later_pick_pairs_at_least5": 0
+    }
+  }
+}

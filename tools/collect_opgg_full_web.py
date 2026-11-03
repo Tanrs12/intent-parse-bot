@@ -43,7 +43,7 @@ def normalise(value: str) -> str:
 
 def slug(champion: str) -> str:
     key = normalise(champion)
-    return {"wukong": "monkeyking", "nunuandwillump": "nunu"}.get(key, key)
+    return {"wukong": "monkeyking", "nunuandwillump": "nunu", "nunuwillump": "nunu", "renataglasc": "renata"}.get(key, key)
 
 def source_url(champion: str, role: str) -> str:
     if role not in ROLES or not re.fullmatch("[a-z0-9]{2,35}", slug(champion)):
@@ -60,7 +60,12 @@ def parse_full_page(raw_html: str, champion: str, role: str, *, url: str,
         raise ValueError("no source title")
     title_text = html.unescape(title.group(1))
     page = re.search(r"(.+?) Counters Patch (\d{1,2}\.\d{1,2}):", title_text)
-    if not page or normalise(page.group(1)) != normalise(champion):
+    title_aliases = {"nunu": "nunuandwillump", "nunuwillump": "nunuandwillump", "renata": "renataglasc"}
+    title_key = normalise(page.group(1)) if page else ""
+    title_key = title_aliases.get(title_key, title_key)
+    expected_key = normalise(champion)
+    expected_key = {"nunuwillump": "nunuandwillump"}.get(expected_key, expected_key)
+    if not page or title_key != expected_key:
         raise ValueError("OP.GG returned another champion or unversioned page")
     patch = page.group(2)
     # The public default URL shows Emerald+ / All Servers / Solo-Duo.
