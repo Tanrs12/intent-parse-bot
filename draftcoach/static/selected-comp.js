@@ -88,7 +88,9 @@
           (unavailable ? " unavailable" : ""));
         item.title = [champ, isScout ? "SCOUT ONLY · " + scoutEntry.summary +
           " · " + (scoutEntry.sources || []).map(s => s.provider).join(" / ") +
-          (scoutEntry.team_fit === "weakens_comp" ? " · weakens the current five" : "")
+          (scoutEntry.team_fit === "weakens_comp" ? " · weakens the current five" : "") +
+          (scoutEntry.historical_hint ? " · older " + scoutEntry.historical_hint.patch +
+            " sample: " + scoutEntry.historical_hint.games + " games, too few for a scored counter" : "")
           : isLearn ? "Learning suggestion" : isCounter ? "Quantitative matchup counter"
           : champ === primary ? "Selected plan" : "Same-plan owned option",
           unavailable ? "Unavailable" : isLocked ? "Locked in League" : ""].filter(Boolean).join(" · ");

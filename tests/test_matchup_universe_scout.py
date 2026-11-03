@@ -31,6 +31,22 @@ def test_every_position_can_search_full_champion_universe():
     assert not role_universe("WrongRole")
 
 
+def test_private_historical_coverage_is_explicit_and_sample_gated(tmp_path):
+    from tools.matchup_coverage import historical_coverage
+    metrics = {
+        "matches": 30000,
+        "patches": {"16.16": 30000},
+        "matchups": {
+            "Gwen|TOP|Shen": {"n": 16},
+            "Camille|TOP|Shen": {"n": 101},
+            "Shen|TOP|Shen": {"n": 999},
+        },
+    }
+    (tmp_path / "matchv5-metrics.json").write_text(json.dumps(metrics), encoding="utf8")
+    observed = historical_coverage(tmp_path)["Top"]
+    assert observed == {1: 2, 40: 1, 100: 1}
+
+
 def test_reports_actual_coverage_instead_of_claiming_full_data():
     summary = matrix_coverage(load_lane_matchups())
     assert sum(s["possible"] for s in summary.values()) >= 12_000

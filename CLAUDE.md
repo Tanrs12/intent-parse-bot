@@ -52,6 +52,10 @@ Read this before changing the app, UI or relay. Preserve Rat's existing architec
   `data/league_role_champions.json`, currently 12,128 valid ordered non-mirror
   same-role pairs. This does NOT create 12,128 statistical observations.
   Run `python tools/matchup_coverage.py` to measure the real evidence coverage.
+  For locally permitted PocketPick aggregates, also run the tool with
+  `--pocketpick-dir <private-folder>` to report patch-16.16 observed/40+/100+
+  pair counts. Never commit or publish the proprietary raw JSON files; the app
+  already reads them from its own `var/pocketpick/` if installed.
 - `data/league_curated_counter_scout.json` contains four manually reviewed
   Shen Top examples with two cited current-patch sources each. Their
   `favourable`/`mixed` verdicts are QUALITATIVE SCOUTING ONLY, not win rates

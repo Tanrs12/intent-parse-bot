@@ -107,6 +107,11 @@ def counter_advice(
                         "patch": note["patch"],
                         "sources": note["sources"],
                         "qualitative_only": True,
+                        "historical_hint": (
+                            {"games": n, "patch": edge.get("source_patch"),
+                             "confidence": edge.get("confidence", "low sample")}
+                            if n and edge.get("historical") else None
+                        ),
                         "team_score_delta": round(team_delta, 2),
                         "team_fit": "weakens_comp" if weak_fit else "fits_comp",
                     })
