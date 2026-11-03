@@ -9,6 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_full_page_evidence_is_pool_aware_and_does_not_change_ranked_picks(monkeypatch):
+    # This fixed-patch test must stay reproducible after 26.22 launches.
+    monkeypatch.setattr(counterpick_advice, "live_patch_active", lambda: True)
     champions = {"Top": "Malphite", "Jungle": "Lee Sin", "Mid": "Sylas",
                  "ADC": "Yunara", "Support": "Lulu"}
     lead = {**score_comp(champions), "champions": champions,

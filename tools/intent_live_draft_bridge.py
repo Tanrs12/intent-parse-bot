@@ -1935,10 +1935,10 @@ def build_response():
                 backend=recommend_live_drafts,
                 champion_traits=league_comp_engine.load_meta().get("champion_traits") or {},
                 global_counter_rules=league_comp_engine.DRAFT_SPECIFIC_COUNTERS,
-                statistical_evidence={
+                statistical_evidence=({
                     role: full_for_enemy(role, enemy, patch=league_comp_engine.LIVE_PATCH).get("rows") or []
                     for role, enemy in known_enemy_lanes.items()
-                },
+                } if league_comp_engine.live_patch_active() else {}),
             )
             if completed is not None:
                 result = completed
@@ -1977,9 +1977,15 @@ def build_response():
         # five clients could multiply a nominally small request budget.
         can_fetch = (
             not testing and known_enemy_lanes
+            and league_comp_engine.live_patch_active()
             and (_cloud_mode not in ("auto", "follow") or _auto_is_host)
             and not _upstream_base
         )
+        if known_enemy_lanes and not league_comp_engine.live_patch_active():
+            guidance["counter_advice"]["live_fetch"] = {
+                "state": "patch_expired",
+                "reason": "26.21 source data expired; research refresh required for 26.22",
+            }
         if can_fetch:
             guidance["counter_advice"]["live_fetch"] = request_live_counters(
                 game_key, known_enemy_lanes,

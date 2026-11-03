@@ -15,7 +15,7 @@ from league_pocketpick_history import historical_for_enemy
 from league_pro_order_context import selected_after as pro_selected_after
 
 from league_comp_engine import (
-    ROLES, LIVE_PATCH, load_meta, load_lane_matchups, load_solo_queue_winrates,
+    ROLES, LIVE_PATCH, live_patch_active, load_meta, load_lane_matchups, load_solo_queue_winrates,
     live_lane_matchup_adjustment, score_comp,
 )
 
@@ -137,7 +137,9 @@ def counter_advice(
         # Unlike the MCP top-three summaries, the public OP.GG web page
         # exposes the full visible opponent list. Keep filtered same-patch
         # Emerald+ observations separate from the legal draft's score.
-        full_page = full_for_enemy(role, enemy, patch=LIVE_PATCH) if matchup_data is None else {"rows": []}
+        full_page = (full_for_enemy(role, enemy, patch=LIVE_PATCH)
+                     if matchup_data is None and live_patch_active()
+                     else {"rows": [], "status": "patch_expired_or_fixture"})
         full_base = None
         full_alternatives = []
         for observed in full_page.get("rows") or []:

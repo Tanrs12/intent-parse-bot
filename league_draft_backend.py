@@ -18,6 +18,7 @@ from league_flex_core import (
 from league_comp_engine import (
     ROLES,
     LIVE_PATCH,
+    live_patch_active,
     attach_learn_suggestions,
     counter_ban_recommendations,
     load_meta,
@@ -325,11 +326,11 @@ def recommend_live_drafts(
             identity=identity, limit=limit,
             champion_traits=load_meta().get("champion_traits") or {},
             global_counter_rules=DRAFT_SPECIFIC_COUNTERS,
-            statistical_evidence={
+            statistical_evidence=({
                 role: full_for_enemy(role, enemy, patch=LIVE_PATCH).get("rows") or []
                 for role, enemy in (enemy_roles or {}).items()
                 if role in ROLES and enemy
-            },
+            } if live_patch_active() else {}),
         )
         candidates = selected + [r for r in candidates if r not in selected]
     # Preserve the captain's planned five if still legal and objectively close

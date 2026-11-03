@@ -55,6 +55,10 @@
     } else if (liveFetch?.state === "access_restricted") {
       root.append(D.el("p", "fd-sc-reference",
         "OP.GG access restricted; live lookup paused. Cached scouting remains available."));
+    } else if (liveFetch?.state === "patch_expired") {
+      root.append(D.el("p", "fd-sc-reference",
+        "Patch changed: 26.21 OP.GG numbers are historical, not current counters. " +
+        "Automatic current-patch matchup scoring paused until verified 26.22 data is available."));
     }
     const compensation = guidance?.compensation_search;
     if (compensation?.state === "evaluating" ||
