@@ -5,8 +5,10 @@ from adaptive_draft import select_adaptive_comp
 import copy
 from typing import Iterable, Mapping
 
+import team_sync
 from league_flex_core import (
     _attach_role_alternatives,
+    _conditional_ban_branches,
     _filter_unavailable,
     _pro_pick_order,
     _select_diverse_recommendations,
@@ -22,6 +24,7 @@ from league_comp_engine import (
     _champion_history_for,
     load_recent_match_index,
 )
+from league_source_stats import source_stat_scope
 
 
 def _verified_champion_experience(uid: int, champion: str, role: str) -> bool:
@@ -183,6 +186,7 @@ def _signature(champions: Mapping[str, str] | None) -> str:
     return "|".join(str(champions.get(role) or "?") for role in ROLES)
 
 
+@source_stat_scope  # FLEXERS: one live calculation stats each source file once, not per pairing
 def recommend_live_drafts(
     signups: list[dict],
     *,
@@ -368,3 +372,139 @@ def recommend_live_drafts(
         "identity": identity,
         "identities": {key: sum(1 for rec in recommendations if rec.get("identity") == key) for key in IDENTITIES},
     }
+
+
+def _jsonable(value):
+    """Engine rows carry tuples/sets (e.g. pick orders); the app serialises them over HTTP."""
+    if isinstance(value, dict):
+        return {str(key): _jsonable(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(item) for item in value]
+    if isinstance(value, (set, frozenset)):
+        return sorted((_jsonable(item) for item in value), key=repr)
+    return value
+
+
+def _playable_roles(signup: Mapping) -> list[str]:
+    return [role for role in signup.get("roles", []) if signup.get("champions", {}).get(role)]
+
+
+@source_stat_scope  # FLEXERS: the whole pre-game board stats each source file once
+def plan_game(
+    signups: list[dict],
+    *,
+    unavailable: Iterable[str] | None = None,
+    rotation_token: str | None = None,
+    limit: int = 10,
+) -> dict:
+    """Build the pre-game draft board for five players, exactly as ``/league game`` does.
+
+    This is the Discord cog's ``send_draft_comps`` + ``_build_draft_visuals`` pipeline
+    (same functions, same arguments) so the desktop app can plan a game without the
+    bot: layouts, scored pool, diverse selection, role alternatives, learn
+    suggestions, then both sides' pick orders, bans and pick-conditional bans.
+    Every draft also carries the relay ``control`` body that makes every app follow it.
+    """
+    if len(signups) != 5:
+        raise ValueError("plan_game needs exactly five signed-up players")
+    unavailable_set = {str(champion) for champion in (unavailable or set()) if str(champion).strip()}
+
+    signups = _filter_unavailable(signups, unavailable_set)
+    # Ten visible drafts need enough legal role layouts before scoring.
+    assignments = generate_team_options(signups, limit=24, require_pools=True)
+    coverage = {
+        "missing_pools": [
+            f"{s['display_name']} {role}"
+            for s in signups
+            for role in s.get("roles", [])
+            if not s.get("champions", {}).get(role)
+        ],
+        "single_role": [
+            s["display_name"] + " (" + ", ".join(_playable_roles(s)) + ")"
+            for s in signups
+            if len(_playable_roles(s)) == 1
+        ],
+    }
+    if not assignments:
+        counts = {role: sum(role in s.get("roles", []) for s in signups) for role in ROLES}
+        return {
+            "recommendations": [],
+            "missing": [],
+            "layouts": 0,
+            "coverage": {**coverage, "role_counts": counts},
+            "side_notes": None,
+            "reason": "I can't build a legal five-player role assignment yet. Coverage: "
+                      + " • ".join(f"{role}: {counts[role]}" for role in ROLES),
+        }
+
+    candidate_pool, missing = recommend_comps(
+        assignments,
+        limit=300,
+        pool_limit=10,
+        # The pre-game FLEX gallery can trial deliberately submitted off-role champions.
+        prepared_flex_gallery=True,
+        rotation_token=rotation_token,
+    )
+    recommendations = _select_diverse_recommendations(
+        candidate_pool,
+        limit=limit,
+        core_limit=4,
+        role_mix_slots=6,
+        rotation_token=rotation_token,
+    )
+    recommendations = _attach_role_alternatives(recommendations, candidate_pool)
+    recommendations = attach_learn_suggestions(recommendations)
+    if not recommendations:
+        return {
+            "recommendations": [],
+            "missing": list(missing),
+            "layouts": 0,
+            "coverage": coverage,
+            "side_notes": None,
+            "reason": "I have legal role assignments, but not enough role-specific champion "
+                      "picks to build a five-champion draft yet.",
+        }
+
+    meta = load_meta()
+    drafts: list[dict] = []
+    for index, source in enumerate(recommendations, start=1):
+        rec = copy.deepcopy(source)
+        rec["index"] = index
+        rec["label"] = f"Draft {index}"
+        rec["identity"] = draft_identity(rec)
+        sides: dict[str, dict] = {}
+        for side in ("blue", "red"):
+            order = _pro_pick_order(rec, meta, side)
+            bans = counter_ban_recommendations(
+                rec["champions"], order, side, unavailable=unavailable_set, meta=meta, limit=5
+            )
+            sides[side] = {
+                "pick_order": [
+                    {
+                        "slot": slot + 1,
+                        "role": role,
+                        "champion": champion,
+                        **_pick_group_meta(side, slot + 1),
+                    }
+                    for slot, (role, champion) in enumerate(order)
+                ],
+                "bans": bans,
+                "conditional_bans": _conditional_ban_branches(rec, meta, side, unavailable_set, bans),
+            }
+        rec["sides"] = sides
+        rec["control"] = team_sync.draft_control_payload(rec, label=rec["label"], source="app")
+        drafts.append(rec)
+
+    # A player may select an off-role without submitting champions for it; the
+    # scorer cannot invent that pool, so the distinct layout count is worth showing.
+    layouts = {
+        tuple(int(rec["players"][role]["user_id"]) for role in ROLES)
+        for rec in drafts
+    }
+    return _jsonable({
+        "recommendations": drafts,
+        "missing": list(missing),
+        "layouts": len(layouts),
+        "coverage": coverage,
+        "side_notes": None,
+    })

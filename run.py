@@ -9,8 +9,8 @@ python run.py --simulate                    # no client needed: replays a script
 python run.py --no-lcu                      # manual board / REST only
 python run.py --any-queue                   # also coach customs / normals (default: Ranked Flex only)
 python run.py --reset-roster                # ignore var/roster.json and rebuild from config.json
-python run.py --window                      # also open the always-on-top overlay window
-python run.py --window-only                 # just the window, against a server that is already running
+python run.py --window                      # also open the app windows: the coach window and the always-on-top panel
+python run.py --window-only                 # just the windows, against a server that is already running
 python run.py --hud                         # in-client HUD: drawn over the League client itself
 python run.py --window --sync http://COACH-PC:8765   # a player's machine: own client, roster from the coach
 python run.py --host 0.0.0.0                # the coach's machine: lets the players' copies sync from it
@@ -40,6 +40,63 @@ import uvicorn  # noqa: E402
 from draftcoach import LOADFILE_DIR, VAR_DIR  # noqa: E402
 from draftcoach.server import create_app, load_config  # noqa: E402
 
+LOG_FORMAT = "%(asctime)s %(name)s %(levelname)s %(message)s"
+
+
+def configure_logging(level: str = "info", log_file: Path | None = None) -> list[logging.Handler]:
+    """Root logging: var/draftcoach.log when asked for, the terminal only when there is one.
+
+    The packaged exe is a windowed (no console) build: sys.stdout / sys.stderr are None there, and
+    a StreamHandler on a None stream raises on every record. uvicorn gets log_config=None, so this
+    is the only place handlers are installed.
+    """
+    root = logging.getLogger()
+    formatter = logging.Formatter(LOG_FORMAT)
+    handlers: list[logging.Handler] = []
+    if log_file is not None:
+        try:
+            log_file.parent.mkdir(parents=True, exist_ok=True)
+            handlers.append(logging.FileHandler(log_file, encoding="utf-8"))
+        except OSError:
+            pass
+    if sys.stderr is not None:
+        handlers.append(logging.StreamHandler(sys.stderr))
+    for handler in handlers:
+        handler.setFormatter(formatter)
+        root.addHandler(handler)
+    root.setLevel(level.upper())
+    return handlers
+
+
+def local_url(host: str, port: int) -> str:
+    """The URL this machine's own windows/HUD open the server on.
+
+    ``--host 0.0.0.0`` (the LAN coach launcher) and ``::`` are listen-on-everything addresses: a
+    WebView cannot connect to them, so they map to the matching loopback address. Any concrete
+    host (127.0.0.1, a LAN IP, a name) is used as given.
+    """
+    if host in ("0.0.0.0", ""):
+        connect_host = "127.0.0.1"
+    elif host == "::":
+        connect_host = "::1"
+    else:
+        connect_host = host
+    if ":" in connect_host and not connect_host.startswith("["):
+        connect_host = f"[{connect_host}]"      # an IPv6 literal needs brackets in a URL
+    return f"http://{connect_host}:{port}"
+
+
+def _alert(text: str, *, error: bool = False) -> None:
+    """Tell the user something when there may be no console to print to (the windowed exe)."""
+    print(text, file=sys.stderr)
+    if sys.platform == "win32" and sys.stderr is None:
+        try:
+            import ctypes
+
+            ctypes.windll.user32.MessageBoxW(0, text, "Flexers Draft Coach", 0x10 if error else 0x30)
+        except Exception:  # noqa: BLE001
+            pass
+
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -62,9 +119,9 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--no-update", action="store_true", help="skip the packaged GitHub release update check")
     parser.add_argument("--cloud-sync-url", default=os.environ.get("INTENT_SYNC_RELAY", ""), help="public draft relay base URL")
     parser.add_argument("--cloud-sync-key", default=os.environ.get("INTENT_SYNC_KEY", ""), help="shared 16+ character draft session key")
-    parser.add_argument("--window", action="store_true", help="open the always-on-top overlay window as well")
-    parser.add_argument("--window-only", action="store_true", help="only open the overlay window (server already running)")
-    parser.add_argument("--parent-pid", type=int, help=argparse.SUPPRESS)   # the server that started this window
+    parser.add_argument("--window", action="store_true", help="open the app windows (coach window + always-on-top panel) as well")
+    parser.add_argument("--window-only", action="store_true", help="only open the app windows (server already running)")
+    parser.add_argument("--parent-pid", type=int, help=argparse.SUPPRESS)   # the server that started these windows
     parser.add_argument("--hud", action="store_true", help="draw the in-client HUD over the League client (Windows)")
     parser.add_argument("--hud-only", action="store_true", help="only the HUD, against a server that is already running")
     parser.add_argument("--comp-overlay", dest="comp_overlay", action="store_true", default=None,
@@ -97,8 +154,9 @@ def main(argv: list[str] | None = None) -> None:
     if frozen and not any((args.window, args.window_only, args.hud, args.hud_only, args.simulate, args.no_lcu)):
         # Double-clicked exe: behave like the live-client launcher.
         args.window = True
-        print("Opening the floating panel (run with --help for other modes; --hud adds the in-client HUD).")
+        print("Opening the coach window and the floating panel (the launcher .bat files pick other modes; --hud adds the in-client HUD).")
 
+    app_url = local_url(args.host, args.port)     # what this machine's own windows connect to
     if args.window_only:
         # First thing, before the window loads: leave as soon as the server that started us is gone.
         from draftcoach.window_supervisor import watch_parent
@@ -106,15 +164,18 @@ def main(argv: list[str] | None = None) -> None:
         watch_parent(args.parent_pid, lambda: os._exit(0))
         from draftcoach import window
 
-        window.run(f"http://{args.host}:{args.port}")
+        window.run(app_url)
         return
     if args.hud_only:
         from draftcoach import hud
 
-        hud.run(f"http://{args.host}:{args.port}")
+        hud.run(app_url)
         return
 
-    logging.basicConfig(level=args.log_level.upper(), format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    if logging.getLogger().handlers:        # _entry() already logs to var/draftcoach.log
+        logging.getLogger().setLevel(args.log_level.upper())
+    else:
+        configure_logging(args.log_level)
     # Reserve the app listener before starting the bridge, relay heartbeat, or roster writes.
     # A losing double launch must never become a sixth relay participant. On Windows,
     # SO_REUSEADDR can allow two listeners to bind the same port; require exclusive ownership.
@@ -129,7 +190,8 @@ def main(argv: list[str] | None = None) -> None:
         listener.setblocking(False)
     except OSError as exc:
         listener.close()
-        print(f"Cannot start Draft Coach on {args.host}:{args.port}: {exc}", file=sys.stderr)
+        # Usually a second copy of the app: with no console, a dialog is the only sign of it.
+        _alert(f"Cannot start Draft Coach on {args.host}:{args.port}: {exc}\n\nIs Flexers Draft Coach already running?")
         raise SystemExit(1) from exc
     config = load_config(args.config)
     config.setdefault("bridge_url", f"http://127.0.0.1:{args.port + 1}")   # FLEXERS: bridge = app port + 1
@@ -147,7 +209,8 @@ def main(argv: list[str] | None = None) -> None:
         _start_hud_proxy()       # Rat-style native HUD reads the same INTent guidance via 8767
     if args.comp_overlay or (args.comp_overlay is None and frozen and args.hud):
         _start_comp_overlay()
-    print(f"Coach panel: http://{args.host}:{args.port}/    Overlay: http://{args.host}:{args.port}/overlay    HUD demo: /demo")
+    listening = f" (listening on {args.host}:{args.port})" if app_url != f"http://{args.host}:{args.port}" else ""
+    print(f"Coach panel: {app_url}/    Overlay: {app_url}/overlay    HUD demo: /demo{listening}")
     server = uvicorn.Server(uvicorn.Config(app, host=args.host, port=args.port, log_level=args.log_level, access_log=False, log_config=None))
     if not args.window and not args.hud:
         try:
@@ -160,19 +223,21 @@ def main(argv: list[str] | None = None) -> None:
 
     from draftcoach.window_supervisor import WindowSupervisor, window_command
 
-    # The server owns the main thread and outlives the overlay: a closed or crashed window (its own
-    # process, see window_supervisor) never stops the client watcher or a champion select in progress.
+    # The server owns the main thread. The windows (coach window + panel, see window.py) run in their own
+    # process (window_supervisor): a WebView2 crash reopens them without touching the client watcher or a
+    # champion select in progress; closing them on purpose quits the app, as before.
     supervisor = None
     if args.window:
-        supervisor = WindowSupervisor(window_command(args.host, args.port, ROOT / "run.py"), VAR_DIR / "window.log")
+        supervisor = WindowSupervisor(window_command(args.host, args.port, ROOT / "run.py"), VAR_DIR / "window.log",
+                                      on_closed=lambda: setattr(server, "should_exit", True))
         app.state.window_supervisor = supervisor
-        threading.Thread(target=lambda: (_wait_listening(args.host, args.port), supervisor.open()), daemon=True).start()
+        threading.Thread(target=lambda: (_wait_listening(app_url), supervisor.open()), daemon=True).start()
     if args.hud:
         if intent_live:
             from draftcoach import hud_intent as hud
         else:
             from draftcoach import hud
-        hud_url = "http://127.0.0.1:8767" if intent_live else f"http://{args.host}:{args.port}"
+        hud_url = "http://127.0.0.1:8767" if intent_live else app_url
         threading.Thread(target=hud.run, args=(hud_url,), daemon=True, name="hud").start()
     try:
         server.run(sockets=[listener])
@@ -182,13 +247,13 @@ def main(argv: list[str] | None = None) -> None:
         listener.close()
 
 
-def _wait_listening(host: str, port: int, timeout: float = 20.0) -> None:
+def _wait_listening(url: str, timeout: float = 20.0) -> None:
     import urllib.request
 
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://{host}:{port}/api/config", timeout=2):
+            with urllib.request.urlopen(f"{url}/api/config", timeout=2):
                 return
         except Exception:  # noqa: BLE001
             time.sleep(0.3)
@@ -350,17 +415,7 @@ def _entry() -> None:
         except Exception as exc:  # noqa: BLE001
             print(f"Update check skipped: {exc}")
 
-    try:
-        VAR_DIR.mkdir(parents=True, exist_ok=True)
-        handler = logging.FileHandler(VAR_DIR / "draftcoach.log", encoding="utf-8")
-        handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s"))
-        logging.getLogger().addHandler(handler)
-        console = logging.StreamHandler()
-        console.setFormatter(handler.formatter)
-        logging.getLogger().addHandler(console)
-        logging.getLogger().setLevel(logging.INFO)
-    except OSError:
-        pass
+    configure_logging(log_file=VAR_DIR / "draftcoach.log")
     try:
         main()
     except SystemExit:
@@ -374,7 +429,7 @@ def _entry() -> None:
             where = "(could not write var/crash.log)"
         print(text, file=sys.stderr)
         print(f"Flexers Draft Coach stopped. Details: {where}", file=sys.stderr)
-        if sys.platform == "win32":
+        if sys.platform == "win32":   # always a dialog, console or not: the windowed exe has nothing else
             try:
                 import ctypes
 

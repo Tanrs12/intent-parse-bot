@@ -252,9 +252,9 @@
       box.replaceChildren();
       box.append(D.el("b", "", chosen
         ? (chosen.source === "discord" ? "Discord comp: " : "Team comp: ") + (chosen.label || "Team draft")
-        : "No Discord comp synced"));
+        : "No team draft chosen"));
       if (!chosen) box.append(D.el("small", "", panelControl
-        ? "Select a comp in Discord to load the team plan."
+        ? "Open Coach → Game plan: pick five, build drafts, send one to everyone."
         : "Shared control connection unavailable."));
       else box.append(D.el("small", "", chosen.mode === "adaptive"
         ? "Adaptive: roles fixed; unpicked champions may counter."

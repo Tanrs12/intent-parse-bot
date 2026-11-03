@@ -422,6 +422,28 @@ button.card:hover:not(:disabled) .champ { color: var(--mm-blue); }
 .team-draft-seats select { width: 100%; min-width: 0; min-height: 40px; }
 .team-draft-seats small { margin-top: 0; line-height: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* The game plan: five players -> ranked drafts, built in the app before champion select. */
+.coach-gameplan { margin-bottom: 16px; }
+.gameplan-players { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 12px; }
+.gameplan-player { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 120px; padding: 8px 12px; border: 1px solid var(--mm-line); border-radius: 4px; background: var(--mm-surface); color: var(--mm-ink); font: inherit; text-align: left; cursor: pointer; }
+.gameplan-player b { font-size: 14px; font-weight: 600; }
+.gameplan-player small { color: var(--mm-secondary); font: 10px var(--mm-mono); letter-spacing: .05em; text-transform: uppercase; }
+.gameplan-player:hover { border-color: var(--mm-blue); }
+.gameplan-player.on { border-color: var(--mm-blue); background: var(--mm-pale); box-shadow: inset 0 0 0 1px var(--mm-blue); }
+.gameplan-player.here .gameplan-here { color: var(--mm-blue); font: 600 10px/1.2 var(--mm-sans); }
+.gameplan-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.gameplan-unavailable { flex: 1 1 260px; min-width: 200px; }
+.gameplan-side { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.gameplan-side .fd-button[aria-pressed="true"] { border-color: var(--mm-blue); color: var(--mm-blue); background: var(--mm-pale); }
+.gameplan-drafts { margin-top: 12px; }
+.gameplan-draft .captain-rank { color: var(--mm-secondary); font: 600 12px var(--mm-mono); letter-spacing: .04em; text-transform: uppercase; }
+.gameplan-alts { color: var(--mm-secondary); font: 11px/1.4 var(--mm-sans); letter-spacing: 0; text-transform: none; white-space: normal; }
+.gameplan-order { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.gameplan-order .chip { border: 1px solid var(--mm-line); border-radius: 99px; padding: 2px 8px 2px 3px; font-size: 12px; }
+.gameplan-order .portrait { width: 20px; height: 20px; }
+.gameplan-order .chip small { font: 9px var(--mm-mono); letter-spacing: .05em; text-transform: uppercase; color: var(--mm-secondary); }
+#gameplan-edit { margin-top: 12px; }
+
 /* Any-queue seat assistance */
 .assist-swaps { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
 .assist-enemy { display: grid; gap: 6px; }

@@ -1,10 +1,10 @@
 """Run the overlay window in its own process, so a window problem never stops the coach.
 
-The server (and the League client watcher, bridge and auto-swaps) used to share a process with the
-WebView2 window: closing or crashing the window shut everything down mid champion select. Now the
-window is a child process (``run.py --window-only``). If it crashes it is restarted (at most a few
-times in a short spell); if the player closes it, it stays closed until ``open()`` (the coach page's
-"Open overlay" button, ``POST /api/window/open``). Its output goes to ``var/window.log``.
+The server (League client watcher, bridge, auto-swaps) used to share a process with the WebView2
+windows: a WebView2 crash shut everything down mid champion select. Now the windows (coach window +
+panel, see window.py) are a child process (``run.py --window-only``). If it crashes it is restarted (at
+most a few times in a short spell); when the player closes the windows, ``on_closed`` quits the app.
+Its output goes to ``var/window.log``.
 """
 
 from __future__ import annotations
@@ -32,8 +32,11 @@ def window_command(host: str, port: int, script: Path | None = None) -> list[str
 
 
 class WindowSupervisor:
-    def __init__(self, command: list[str], log_path: Path):
+    def __init__(self, command: list[str], log_path: Path, on_closed=None):
+        """``on_closed`` runs when the player closes the windows (exit code 0): the app quits then, since a
+        windowed build has no console to stop it from."""
         self.command = command
+        self.on_closed = on_closed
         self.log_path = log_path
         self.proc: subprocess.Popen | None = None
         self.crashes: list[float] = []
@@ -72,7 +75,9 @@ class WindowSupervisor:
         if self._stopped:
             return
         if code == 0:
-            log.info("overlay window closed; the coach keeps running (reopen from the coach page)")
+            log.info("app windows closed")
+            if self.on_closed is not None:
+                self.on_closed()
             return
         now = time.time()
         self.crashes = [t for t in self.crashes if now - t < RESTART_WINDOW] + [now]

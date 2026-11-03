@@ -818,7 +818,7 @@ class DraftChoiceSelect(discord.ui.Select):
                     "Each connected app should now show **Discord comp: " + label + "**. "
                     "This is an adaptive starting plan, **not five champion locks**: roles stay assigned, "
                     "and unpicked champions can change for proven counters. "
-                    "If the app says **No Discord comp synced**, retry the selection or check its update/sync status. "
+                    "If the app still says **No team draft chosen**, retry the selection or check its update/sync status. "
                     "Use **Release draft** to return to automatic drafts.")
         else:
             note = (f"🔒 **{label} roles locked here**, but the Draft Coach relay could not be reached, so the apps "

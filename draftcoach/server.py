@@ -51,7 +51,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
 
-from . import ENGINE_DIR, LOADFILE_DIR, ROOT, VAR_DIR, __version__, champions, loadfiles
+from . import ENGINE_DIR, LOADFILE_DIR, ROOT, VAR_DIR, __version__, champions, gameplan, loadfiles
 from .draft_order import ManualDraft
 from . import assist, identity, my_champs
 
@@ -228,6 +228,9 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
     splash_paths: dict[int, dict] = {}
     app.state.hub = hub
     app.state.roster = roster
+    # FLEXERS: pre-game drafts built here, from the same signup pools and engine as /league game.
+    planner = gameplan.GamePlanner()
+    app.state.planner = planner
     # FLEXERS: the INTent bridge serves on app port + 1 (8766 for the default 8765); several app
     # instances on one PC (the party test) each get their own pair.
     app.state.bridge_url = str(config.get("bridge_url") or os.environ.get("INTENT_BRIDGE_URL") or "http://127.0.0.1:8766")
@@ -241,9 +244,29 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
         if session is None and hub.state is None:
             await hub.ingest_manual()
 
+    async def _local_account(rest) -> dict | None:
+        """Who is signed in to the League client, matched to the roster: lets the team room name this
+        player (and the Game plan tick them) before champion select, instead of showing the PC's name."""
+        def fetch() -> str:
+            me = rest.get("/lol-summoner/v1/current-summoner") or {}
+            return f"{me.get('gameName') or ''}#{me.get('tagLine') or ''}".strip("#")
+        try:
+            riot_id = await asyncio.to_thread(fetch)
+        except Exception:  # noqa: BLE001 - the client is not ready for REST yet; the next status will try again
+            return None
+        if not riot_id:
+            return None
+        user_id = roster.profile_user_id_for(riot_id)
+        player = roster.find_player(user_id=user_id) if user_id else None
+        return {"riot_id": riot_id, "user_id": str(user_id) if user_id else None,   # a string: beyond JavaScript's exact integers
+                "display_name": player.name if player is not None else None}
+
     async def on_status(state: str, detail: str) -> None:
         hub.rest = watcher.rest if (watcher and state == "connected") else None
+        hub.status["local_account"] = await _local_account(hub.rest) if hub.rest is not None else None
         await hub.set_status(state, detail)
+
+    app.state.local_account = _local_account      # exposed for tests
 
     # ---- pages --------------------------------------------------------------
     @app.get("/", response_class=HTMLResponse)
@@ -577,6 +600,28 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
         await hub.settle()
         hub.log_event(f"plan: going with {wanted}" if wanted else "plan: released", "board")
         return JSONResponse({"result": result.to_dict(), "committed_plan": wanted or None})
+
+    # ---- the game plan: five players -> ranked drafts, built in this app, no Discord needed -------
+    @app.get("/api/gameplan")
+    async def get_gameplan() -> JSONResponse:
+        """The players this app can draft for and the last plan it built."""
+        return JSONResponse(planner.snapshot(roster))
+
+    @app.post("/api/gameplan")
+    async def build_gameplan(request: Request) -> JSONResponse:
+        """Build the drafts for ``{"players": [five Discord ids], "unavailable": [...], "token": N}``."""
+        payload = await _json(request) if int(request.headers.get("content-length") or 0) else {}
+        try:
+            result = await planner.build(roster, payload.get("players") or [],
+                                         unavailable=payload.get("unavailable"), token=payload.get("token"))
+        except gameplan.PlanError as exc:
+            raise HTTPException(400, str(exc))
+        except Exception as exc:  # noqa: BLE001 - the engine raised: say so instead of a bare 500
+            log.exception("game plan failed")
+            raise HTTPException(500, f"The draft engine hit an error: {exc.__class__.__name__}: {str(exc)[:200]}")
+        hub.log_event(f"game plan: {len(result.get('recommendations') or [])} drafts for "
+                      + ", ".join(str(p.get('display_name')) for p in result.get('players') or []), "info")
+        return JSONResponse(result)
 
     @app.post("/api/roster/settings")
     async def set_settings(request: Request) -> JSONResponse:
