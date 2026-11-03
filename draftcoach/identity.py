@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 import time
 import uuid
@@ -40,7 +41,10 @@ def _machine_secret() -> str:
 
 
 def device_id() -> str:
-    return hashlib.sha256(SALT + _machine_secret().encode("utf-8")).hexdigest()[:20]
+    # DRAFTCOACH_DEVICE_TAG: harnesses that run several apps on one PC give each its own device.
+    tag = os.environ.get("DRAFTCOACH_DEVICE_TAG", "")
+    secret = _machine_secret() + (f"|{tag}" if tag else "")
+    return hashlib.sha256(SALT + secret.encode("utf-8")).hexdigest()[:20]
 
 
 def _path(var_dir: Path | None = None) -> Path:

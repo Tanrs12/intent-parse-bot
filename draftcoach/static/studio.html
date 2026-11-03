@@ -19,7 +19,8 @@
     </div>
   </div>
   <nav class="studio-nav"><button class="fd-text-button" id="refresh-data" type="button" title="Pull the latest shared drafting data (histories, matchups, pro pairs)">Refresh data</button>
-    <a class="fd-text-button" href="/">Coach</a>
+    <a class="fd-text-button" id="back-to-coach" href="/">Coach</a>
+    <a class="fd-text-button" id="to-stats" href="/stats">Stats</a>
     <button class="fd-text-button" id="theme" type="button" aria-pressed="false">Dark</button></nav>
 </header>
 
@@ -153,7 +154,34 @@
     if ((d.strengths || []).length) card.append(D.el("p", "studio-why", "+ " + d.strengths.slice(0, 2).join(" · ")));
     if ((d.gaps || []).length) card.append(D.el("p", "studio-why gap", "− " + d.gaps.slice(0, 2).join(" · ")));
     if ((d.pick_order || []).length) card.append(D.el("p", "mm-meta", "Pick order: " + d.pick_order.map((p) => ROLE_LONG[p.role] || p.role).join(" → ")));
+    if (d.control) {
+      const use = D.el("button", "fd-button primary studio-use", chosenSignature === d.signature ? "Team draft \u2713" : "Use this draft");
+      use.type = "button";
+      use.title = "Send to everyone's Draft Coach, like Coach \u2192 Game plan: champion select follows it (open seats are not pinned to anyone).";
+      use.onclick = () => useDraft(d, use);
+      card.append(use);
+    }
     return card;
+  }
+
+  // "Use this draft": the team payload goes to this PC's bridge, which shares it with the team room.
+  const BRIDGE = "http://127.0.0.1:" + (Number(location.port || 8765) + 1);
+  let chosenSignature = null;
+  async function useDraft(d, button) {
+    button.disabled = true;
+    status("Sending this draft to the team\u2026");
+    try {
+      const body = d.control || {};
+      const r = await fetch(BRIDGE + "/api/control", { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signature: body.signature || null, ...(body.control || {}) }) });
+      if (!r.ok) throw new Error("the team link answered " + r.status);
+      chosenSignature = d.signature;
+      document.querySelectorAll(".studio-use").forEach((b) => { b.textContent = "Use this draft"; });
+      button.textContent = "Team draft \u2713";
+      const pinned = Object.keys((body.control || {}).role_locks || {}).length;
+      status("Sent. Everyone's Draft Coach follows it into champion select" + (pinned < 5 ? " (" + (5 - pinned) + " open seat" + (5 - pinned === 1 ? "" : "s") + " not pinned to a player)." : "."));
+    } catch (e) { status("Couldn't send the draft: " + e.message + ". Is the app's team link running?", true); }
+    finally { button.disabled = false; }
   }
 
   function laneRow(card, d, role) {
@@ -234,6 +262,13 @@
   $("insight").onclick = insight;
   init();
 })();
+</script>
+<script>
+  // Inside the app's coach window, going back keeps the app's own controls (Show panel).
+  if (new URLSearchParams(location.search).get("host") === "webview") {
+    document.getElementById("back-to-coach").href = "/?host=webview";
+    document.getElementById("to-stats").href = "/stats?host=webview";
+  }
 </script>
 </body>
 </html>

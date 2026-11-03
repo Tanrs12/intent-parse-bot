@@ -117,6 +117,10 @@ body.fd-overlay.embedded { height: auto; min-height: 100%; padding: 12px; overfl
 .ov-swap-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .ov-swap-row .fd-button { flex: 1 1 auto; min-height: 36px; text-align: left; }
 .ov-swap-row.incoming .fd-button.primary { flex: 3 1 auto; }
+.ov-swap-main { width: 100%; min-height: 40px; }
+.ov-swap-done { margin: 0; font-weight: 600; color: var(--mm-blue); }
+.ov-swap-manual > summary { cursor: pointer; padding: 4px 0; font-size: 0.85em; color: var(--mm-secondary); }
+.ov-swap-manual[open] { display: grid; gap: 6px; }
 
 /* Tabs: Draft / My champs / Stats */
 .ov-tabs { display: flex; align-items: stretch; gap: 2px; flex: none; padding: 0 10px; border-bottom: 1px solid var(--mm-line); background: var(--mm-paper); }

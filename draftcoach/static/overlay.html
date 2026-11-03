@@ -31,7 +31,6 @@
     <nav class="ov-tabs" role="tablist" aria-label="Overlay views">
       <button class="ov-tab" role="tab" id="tab-draft" aria-controls="pane-draft" aria-selected="true" data-pane="draft" type="button">Draft</button>
       <button class="ov-tab" role="tab" id="tab-champs" aria-controls="pane-champs" aria-selected="false" data-pane="champs" type="button" tabindex="-1">My champs</button>
-      <button class="ov-tab" role="tab" id="tab-stats" aria-controls="pane-stats" aria-selected="false" data-pane="stats" type="button" tabindex="-1">Stats</button>
       <button class="fd-text-button ov-discord" id="discord-drafts" type="button" aria-pressed="false"
               title="Auto: follow the team's shared drafts when three or more of the team are in your lobby, otherwise this app ranks on its own. App: always rank here. Discord: always follow the shared drafts.">Drafts: Auto</button>
     </nav>
@@ -168,13 +167,6 @@
       </div>
     </section>
 
-    <section class="ov-pane" id="pane-stats" role="tabpanel" aria-labelledby="tab-stats" hidden>
-      <div class="ov-pane-scroll">
-        <div class="ov-stats-head"><p class="mm-meta" id="stats-account">Your recent games</p>
-          <button class="fd-text-button" id="stats-refresh" type="button">Refresh</button></div>
-        <div id="stats-body"><p class="fd-note">Loading your games…</p></div>
-      </div>
-    </section>
 
     <footer class="ov-foot">
       <div class="ov-foot-meta">
@@ -183,6 +175,7 @@
       </div>
       <ol class="ov-seats" id="lobby" aria-label="Our five lobby seats"></ol>
       <span class="ov-foot-links">
+        <a class="fd-link ov-open-coach" id="open-stats" href="/stats" target="_blank" rel="noopener">Stats <span class="mm-icon" data-icon="arrow-up-right" aria-hidden="true"></span></a>
         <a class="fd-link ov-open-coach" id="open-studio" href="/studio" target="_blank" rel="noopener">Draft Studio <span class="mm-icon" data-icon="arrow-up-right" aria-hidden="true"></span></a>
         <a class="fd-link ov-open-coach" id="open-coach" href="/" target="_blank" rel="noopener">Open Coach <span class="mm-icon" data-icon="arrow-up-right" aria-hidden="true"></span></a>
       </span>
@@ -222,6 +215,7 @@
   $("minimize").onclick = () => { const api = window.pywebview && window.pywebview.api; if (api && api.minimize) api.minimize(); };
   $("close").onclick = () => { const api = window.pywebview && window.pywebview.api; if (api && api.close) api.close(); else window.close(); };
   if (!hosted) { $("minimize").hidden = true; $("close").hidden = true; }
+  $("open-stats").addEventListener("click", (event) => { const api = window.pywebview && window.pywebview.api; if (!api || !api.open_stats) return; event.preventDefault(); api.open_stats(); });
   $("open-studio").addEventListener("click", (event) => { const api = window.pywebview && window.pywebview.api; if (!api || !api.open_studio) return; event.preventDefault(); api.open_studio(); });
   $("open-coach").addEventListener("click", (event) => { const api = window.pywebview && window.pywebview.api; if (!api || !api.open_coach) return; event.preventDefault(); api.open_coach(); });
   D.hydrateIcons(document);
@@ -585,7 +579,7 @@
   }
 
   // ---- tabs: Draft / My champs / Stats ------------------------------------------------------------
-  const PANES = { draft: document.querySelector("main.ov-body"), champs: $("pane-champs"), stats: $("pane-stats") };
+  const PANES = { draft: document.querySelector("main.ov-body"), champs: $("pane-champs") };
   let activePane = "draft";
   function showPane(name) {
     activePane = name;
@@ -595,7 +589,6 @@
       tab.setAttribute("aria-selected", String(on)); tab.tabIndex = on ? 0 : -1;
     }
     if (name === "champs") loadMe();
-    if (name === "stats") loadStats(false);
   }
   for (const tab of document.querySelectorAll(".ov-tab")) {
     tab.onclick = () => showPane(tab.dataset.pane);
@@ -723,45 +716,9 @@
     }
   }
 
-  // Stats: this account's recent games (the same review as the coach page).
-  async function loadStats(refresh) {
-    const body = $("stats-body");
-    if (refresh) body.prepend(D.el("p", "fd-note", "Refreshing from the League client…"));
-    let data;
-    try { data = await D.api("GET", "/api/stats/me" + (refresh ? "?refresh=1" : "")); }
-    catch (e) { body.replaceChildren(D.el("p", "fd-note", e.message)); return; }
-    const r = data.review;
-    if (!r) { body.replaceChildren(D.el("p", "fd-note", data.error || (data.refreshing ? "Loading your games…" : "No games found yet."))); return; }
-    $("stats-account").textContent = (r.account && r.account.name) || "Your recent games";
-    const out = [];
-    const ranked = D.el("div", "ov-stat-row");
-    for (const q of r.ranked || []) ranked.append(D.el("span", "ov-rank", q.queue + ": " + (q.tier === "Unranked" ? "Unranked" : q.tier + " " + q.division + " \u00b7 " + q.lp + " LP") + (q.winrate != null ? " \u00b7 " + q.winrate + "%" : "")));
-    out.push(ranked);
-    const o = r.overview || {};
-    const grid = D.el("dl", "ov-stat-grid");
-    for (const [k, v] of [["Games", o.games], ["Win rate", o.winrate != null ? o.winrate + "%" : "\u2013"], ["KDA", o.kda], ["CS/min", o.cs_per_min], ["Kill part.", o.kp != null ? o.kp + "%" : "\u2013"], ["Main role", o.main_role || "\u2013"]]) {
-      const cell = D.el("div"); cell.append(D.el("dt", "mm-meta", k), D.el("dd", "", String(v ?? "\u2013"))); grid.append(cell);
-    }
-    out.push(grid);
-    if (o.form) { const f = D.el("p", "ov-form"); for (const ch of o.form) f.append(D.el("span", "ov-form-" + ch.toLowerCase(), ch)); out.push(f); }
-    out.push(D.el("p", "ov-list-label mm-meta", "Champions"));
-    const table = D.el("table", "ov-stat-table");
-    const thead = D.el("tr"); for (const h of ["Champion", "Games", "Win", "KDA"]) thead.append(D.el("th", "", h)); table.append(thead);
-    for (const c of (r.champions || []).slice(0, 8)) {
-      const tr = D.el("tr"); const name = D.el("td"); name.append(D.portrait(c.label, "tiny"), D.el("span", "", c.label));
-      tr.append(name, D.el("td", "", String(c.games)), D.el("td", "", c.winrate + "%"), D.el("td", "", String(c.kda))); table.append(tr);
-    }
-    out.push(table);
-    if ((r.insights || []).length) {
-      out.push(D.el("p", "ov-list-label mm-meta", "What stands out"));
-      const ul = D.el("ul", "ov-insights"); for (const i of r.insights.slice(0, 5)) ul.append(D.el("li", "ov-insight-" + i.level, i.text)); out.push(ul);
-    }
-    body.replaceChildren(...out);
-  }
-  $("stats-refresh").onclick = () => loadStats(true);
 
-  // ---- role / pick-order swaps: one button per offer the client makes this seat --------------------
-  let swapActing = false;
+  // ---- role / pick-order swaps: one button to the planned role and pick slot; offers by hand underneath --
+  let swapActing = false, manualSwapsOpen = false;
   const SWAP_ROLE = { Top: "Top", Jungle: "Jungle", Mid: "Mid", ADC: "Bot", Support: "Support" };
   function swapLabel(row, verb) {
     const role = row.family === "position-swaps";
@@ -772,6 +729,9 @@
     if (verb === "accept") return "Accept " + row.name + "\u2019s " + what + " swap (take " + theirs + ")";
     return "Decline";
   }
+  function seatText(role, slot) {
+    return (SWAP_ROLE[role] || role || "?") + (slot != null ? " \u00b7 pick " + (slot + 1) : "");
+  }
   async function seatSwap(row, verb) {
     if (swapActing) return;
     swapActing = true; $("swap-note").textContent = swapLabel(row, verb) + "\u2026";
@@ -781,6 +741,27 @@
       $("swap-note").textContent = { request: "Request sent", cancel: "Request cancelled", accept: "Swap accepted", decline: "Declined" }[verb];
     } catch (e) { $("swap-note").textContent = "Client refused: " + e.message; }
     finally { swapActing = false; if (lastSnapshot) renderSwaps(lastSnapshot); }
+  }
+  async function swapToPlan(want) {
+    if (swapActing) return;
+    swapActing = true; $("swap-note").textContent = "Asking for " + want + "\u2026";
+    if (lastSnapshot) renderSwaps(lastSnapshot);
+    try {
+      const local = (lastSnapshot && lastSnapshot.local) || {};
+      await D.api("POST", "/api/client/swap_to_plan", { game_id: local.game_id, cell_id: local.cell_id, draft_token: local.draft_token });
+      $("swap-note").textContent = "Requested. Teammates\u2019 apps accept; the rest follows on its own.";
+    } catch (e) { $("swap-note").textContent = "Couldn\u2019t swap: " + e.message; }
+    finally { swapActing = false; if (lastSnapshot) renderSwaps(lastSnapshot); }
+  }
+  function swapRow(row) {
+    const line = D.el("div", "ov-swap-row" + (row.state === "RECEIVED" ? " incoming" : ""));
+    for (const verb of row.verbs) {
+      const b = D.el("button", "fd-button" + (verb === "accept" ? " primary" : ""), swapLabel(row, verb));
+      b.type = "button"; b.disabled = swapActing;
+      b.onclick = () => seatSwap(row, verb);
+      line.append(b);
+    }
+    return line;
   }
   function renderSwaps(snap) {
     const box = $("swaps"), list = $("swap-list"), a = snap && snap.assist;
@@ -796,22 +777,38 @@
       catch (e) { $("swap-note").textContent = "Could not change: " + e.message; }
       finally { auto.disabled = false; }
     };
-    const key = JSON.stringify([a.offers, swapActing]);
+    const plan = a.swaps || {};
+    const key = JSON.stringify([a.offers, plan, swapActing]);
     if (list.dataset.model === key) return;
     list.dataset.model = key;
     list.replaceChildren();
-    const rows = a.offers.slice().sort((x, y) => (y.state === "RECEIVED") - (x.state === "RECEIVED"));
-    for (const row of rows) {
-      const line = D.el("div", "ov-swap-row" + (row.state === "RECEIVED" ? " incoming" : ""));
-      for (const verb of row.verbs) {
-        const b = D.el("button", "fd-button" + (verb === "accept" ? " primary" : ""), swapLabel(row, verb));
-        b.type = "button"; b.disabled = swapActing;
-        b.onclick = () => seatSwap(row, verb);
-        line.append(b);
-      }
-      list.append(line);
+    const rows = a.offers || [];
+    const target = plan.target_role, slot = plan.target_pick_slot;
+    const want = target ? seatText(target, slot) : "";
+    const inPlace = target && plan.current_role === target && (slot == null || plan.current_pick_slot === slot);
+    if (!target) {
+      list.append(D.el("p", "fd-note", "No planned role yet: send a team draft from Coach \u2192 Game plan."));
+    } else if (inPlace) {
+      list.append(D.el("p", "ov-swap-done", "\u2713 In place: " + want));
+    } else {
+      const waiting = rows.some((r) => r.state === "SENT");
+      const b = D.el("button", "fd-button primary ov-swap-main", waiting ? "Waiting for a teammate\u2026 (" + want + ")" : "Swap to " + want);
+      b.type = "button"; b.disabled = swapActing || waiting;
+      b.title = "Requests the role swap, then the pick-order swap, that put you on " + want + "; teammates\u2019 apps accept them.";
+      b.onclick = () => swapToPlan(want);
+      list.append(b, D.el("p", "fd-note", "Now " + seatText(plan.current_role, plan.current_pick_slot) + " \u00b7 the team draft puts you on " + want + "."));
     }
-    if (!rows.length) list.append(D.el("p", "fd-note", "No swaps on offer right now."));
+    // A teammate's request always gets its own Accept / Decline: it is theirs to make, not ours to hide.
+    for (const row of rows.filter((r) => r.state === "RECEIVED")) list.append(swapRow(row));
+    const manual = rows.filter((r) => r.state !== "RECEIVED");
+    if (manual.length) {
+      const more = D.el("details", "ov-swap-manual");
+      more.open = manualSwapsOpen;
+      more.ontoggle = () => { manualSwapsOpen = more.open; };
+      more.append(D.el("summary", "", "Manual swaps (" + manual.length + ")"));
+      for (const row of manual) more.append(swapRow(row));
+      list.append(more);
+    }
   }
 
   function renderActions(snap) {
@@ -1013,7 +1010,20 @@
   }
 
   // ---- render --------------------------------------------------------------------
+  // In game the always-on-top panel steps aside; it comes back after the game (League's own phases).
+  const IN_GAME = new Set(["GameStart", "InProgress", "Reconnect", "WaitingForStats", "PreEndOfGame"]);
+  let inGame = false;
+  function followGamePhase(phase) {
+    const api = window.pywebview && window.pywebview.api;
+    if (!api || !api.game_started || phase == null) return;
+    const now = IN_GAME.has(phase);
+    if (now === inGame) return;
+    inGame = now;
+    if (now) api.game_started(); else api.game_ended();
+  }
+
   function render(snap) {
+    followGamePhase((snap.status || {}).gameflow);
     lastSnapshot = snap;
     snap = D.Review.liveSnapshot(snap, panelBridge);
     const st = snap.status || {}, s = snap.state, g = snap.guidance;

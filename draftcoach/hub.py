@@ -74,6 +74,7 @@ class Hub:
         self.comfort: dict[str, dict] = {}
         self._comfort_game: object = None
         self._swaps_done: set[tuple] = set()
+        self._chase_game: tuple | None = None   # (game id, puuid) the one-button swap was pressed for
         self._swap_task: asyncio.Task | None = None
         self._tierlist: dict | None = None
         from .profile_sync import ProfileStore
@@ -179,6 +180,11 @@ class Hub:
     async def _ingest_lcu_session(self, session: dict | None, gameflow_phase: str | None, queue: dict | None,
                                   source: str) -> None:
         allowed = self.allowed_queues() if source == "lcu" else None
+        if source == "lcu" and self.status.get("gameflow") != gameflow_phase:
+            # The panel hides itself while a game is loading or in progress (see overlay.html).
+            self.status["gameflow"] = gameflow_phase
+            if not session:
+                await self._push()
         self.status["queue"] = queue
         qtext = " ".join(str((queue or {}).get(k) or "") for k in ("name", "shortName", "description", "type", "category")).casefold()
         is_custom = queue is not None and (int(queue.get("id", -1)) == 0 or "custom" in qtext or "practice tool" in qtext)
@@ -202,6 +208,8 @@ class Hub:
             return
         self.last_session = session
         if not session:
+            self._chase_game = None          # the one-button swap covered that champion select only
+            self._swaps_done.clear()         # a re-entered lobby can reuse the game id: its swaps start fresh
             self.status["lcu_in_champ_select"] = False
             live_input = self._last_input is not None and self._last_input[0] == "lcu"
             if self.state is not None and self.state.source in ("lcu", "simulation"):
@@ -566,7 +574,7 @@ class Hub:
         # FLEXERS: the scripted simulation stands in for the League client, so the panel's Hover / Lock
         # buttons can be tried in demo mode; the action lands on the simulated session (see client_act).
         simulated = state.source == "simulation"
-        view: dict = {"cell_id": slot.cell_id, "game_id": state.game_id, "name": slot.display_name, "role": slot.role, "locked": slot.locked,
+        view: dict = {"cell_id": slot.cell_id, "game_id": state.game_id, "draft_token": self._draft_token(), "name": slot.display_name, "role": slot.role, "locked": slot.locked,
                       "hover": slot.hover, "kind": None, "can_act": False, "suggestion": None, "swap": None,
                       "incoming_swap": None, "client": simulated or (not self.status.get("stale") and self.client_rest() is not None),
                       "simulated": simulated}
@@ -580,10 +588,44 @@ class Hub:
                 # FLEXERS: never suggest a champion that is already banned or picked (the shared ranking can
                 # lag a ban that landed a moment ago).
                 gone = set(state.our_bans) | set(state.enemy_bans) | set(state.our_locked().values()) | set(state.enemy_locked().values())
-                best = next((b for b in g.get("bans") or [] if b.get("champion") not in gone), None)
+                # Simultaneous bans (ranked / normal draft): every teammate's app ranks the same list, so each
+                # seat takes the next one down in seat order, skipping what a teammate already hovered or
+                # locked; otherwise five clicks ban one champion and waste four bans.
+                ranked = [b for b in g.get("bans") or [] if b.get("champion") not in gone]
+                seats = sorted((a for grp in session.get("actions") or [] for a in grp or []
+                                if isinstance(a, dict) and a.get("type") == "ban" and a.get("isAllyAction")
+                                and a.get("isInProgress") and not a.get("completed")),
+                               key=lambda a: int(a.get("actorCellId", 99)))
+                mine = next((a for a in seats if a.get("actorCellId") == slot.cell_id), None)
+                hovered = champ_map.name_for(int((mine or {}).get("championId") or 0))
+                if len(seats) > 1:
+                    # One allocation every seat's app computes alike: a hover reserves its ban for the lowest
+                    # seat hovering it; every other seat (no hover, or a duplicate) takes the next free ban
+                    # in seat order. Nobody is offered a ban another seat holds.
+                    owner: dict[str, int] = {}
+                    for a in seats:
+                        name = champ_map.name_for(int(a.get("championId") or 0))
+                        if name and name not in gone and name not in owner:
+                            owner[name] = int(a.get("actorCellId", 99))
+                    if hovered and owner.get(hovered) == slot.cell_id:
+                        best = next((b for b in ranked if b.get("champion") == hovered), None) \
+                            or {"champion": hovered, "champion_id": champ_map.id_for(hovered), "reasons": []}
+                    else:
+                        free = [b for b in ranked if b.get("champion") not in owner]
+                        undecided = [int(a.get("actorCellId", 99)) for a in seats if int(a.get("actorCellId", 99)) not in owner.values()]
+                        k = undecided.index(slot.cell_id) if slot.cell_id in undecided else len(free)
+                        best = free[k] if k < len(free) else None
+                else:
+                    best = ranked[0] if ranked else None
                 if best:
+                    reason = (best.get("reasons") or [""])[0]
+                    if isinstance(reason, dict):        # the shared backend's reasons are objects, the advisor's text
+                        edge = reason.get("counter_edge")
+                        reason = (f"beats our {reason.get('our_champion')} {reason.get('role')}"
+                                  + (f" by {float(edge):+.1f}" if isinstance(edge, (int, float)) else "")
+                                  if reason.get("our_champion") else str(reason.get("reason") or ""))
                     view["suggestion"] = {"kind": "ban", "champion": best["champion"], "champion_id": best.get("champion_id"),
-                                          "reason": (best.get("reasons") or [""])[0]}
+                                          "reason": reason}
             else:
                 # A teammate may have locked a champion for this seat's role; then this seat picks the vacated role.
                 picking_role = slot.role
@@ -842,6 +884,22 @@ class Hub:
             holder.role = slot.role
         slot.role, slot.role_source = wanted, "wanted"
 
+    def _team_targets(self, state: ds.DraftState | None) -> dict[int, tuple]:
+        """{cell: (planned role, planned pick slot)} for every seat the team draft pins (verified ids only)."""
+        locks = ((self.shared_guidance() or {}).get("control") or {}).get("role_locks") or {}
+        out: dict[int, tuple] = {}
+        for slot in (state.our_team if state is not None else []):
+            if not slot.user_id or not slot.player_key:
+                continue
+            for role, uid in locks.items():
+                try:
+                    same = int(uid) == int(slot.user_id)
+                except (TypeError, ValueError):
+                    same = False
+                if role in assist.ROLES and same:
+                    out[slot.cell_id] = (role, self.wanted_pick_slot(role))
+        return out
+
     def wanted_pick_slot(self, role: str | None) -> int | None:
         """Our 0-based pick slot in the leading draft's reveal order (counter-pick roles go last)."""
         if role not in assist.ROLES:
@@ -873,7 +931,8 @@ class Hub:
                     pool=slot.pool.get(role, []), enemy_laner=enemy, avoid=set(slot.avoid), limit=12)
                     if self.can_pick(p["champion"])][:6] if role else []
                 target = self.wanted_role()
-                out["swaps"] = assist.swap_plan(self.last_session or {}, target, self.wanted_pick_slot(target))
+                out["swaps"] = assist.swap_plan(self.last_session or {}, target, self.wanted_pick_slot(target),
+                                                self._team_targets(state))
                 out["comfort_known"] = bool(self.comfort)
                 current = self._offers if self._offers_epoch == self._epoch(self.last_session) else {}
                 names = {p.cell_id: p.display_name for p in state.our_team}
@@ -883,6 +942,13 @@ class Hub:
         except Exception as exc:  # noqa: BLE001 - assistance must never break the snapshot
             log.exception("assist failed")
             return {"error": str(exc)}
+
+    def _draft_token(self) -> str:
+        """Names this champion select for this account and scoring generation (a dodge or a new queue
+        bumps the generation), so a click drawn for an earlier screen cannot act on a later one even
+        when the client reuses game ids or cells."""
+        import hashlib
+        return hashlib.sha256(repr(self._epoch(self.last_session)).encode("utf-8")).hexdigest()[:16]
 
     def _epoch(self, session: dict | None) -> tuple:
         """What a background client action was decided for: scoring generation, game, our cell, us."""
@@ -905,7 +971,7 @@ class Hub:
             self.comfort = {}
             self._swaps_done.clear()
             loop.create_task(self._load_comfort(game))
-        if self.roster.settings.get("auto_swap", True) and (self._swap_task is None or self._swap_task.done()):
+        if self._swap_wanted(epoch) and (self._swap_task is None or self._swap_task.done()):
             self._swap_task = loop.create_task(self._auto_swap(session, state, epoch))
         self.refresh_offers(epoch)
 
@@ -990,6 +1056,37 @@ class Hub:
         self.comfort = assist.comfort_from_mastery(rows if isinstance(rows, list) else [])
         await self._push()
 
+    def _swap_wanted(self, epoch: tuple) -> bool:
+        """Chase the planned role and pick slot: always with Auto on, else only for the game in which the
+        player pressed the one-button swap (a new game goes back to hands-off)."""
+        return bool(self.roster.settings.get("auto_swap", True)) or self._chase_game == (epoch[1], epoch[3])
+
+    async def chase_plan(self, game_id: object = MISSING, cell_id: object = MISSING, token: object = MISSING) -> dict:
+        """The overlay's one swap button: request / accept every swap that moves this seat to the team
+        draft's role and pick slot, now and for the rest of this champion select.
+
+        ``game_id`` / ``cell_id`` are the screen the button was drawn for: a click from before a dodge
+        or on another seat is refused rather than applied to whatever draft is current now."""
+        session, state = self.last_session, self.state
+        if not session or state is None or state.source != "lcu":
+            raise RuntimeError("this machine is not in champion select")
+        if game_id is MISSING or cell_id is MISSING or token is MISSING or str(game_id) != str(session.get("gameId")) \
+                or str(cell_id) != str(session.get("localPlayerCellId")) or str(token) != self._draft_token():
+            raise RuntimeError("that button is from an older screen: the draft has moved on")
+        if self.client_rest() is None:
+            raise RuntimeError("no League client connected on this machine")
+        target = self.wanted_role(state)
+        if target is None:
+            raise RuntimeError("no planned role for this seat: send a team draft or choose your role first")
+        epoch = self._epoch(session)
+        self._chase_game = (epoch[1], epoch[3])
+        if self._swap_task is None or self._swap_task.done():   # one worker at a time
+            self._swap_task = asyncio.get_running_loop().create_task(self._auto_swap(session, state, epoch))
+            await asyncio.wait({self._swap_task}, timeout=10)
+        self.refresh_offers(force=True)
+        return {"target_role": target, "target_pick_slot": self.wanted_pick_slot(target),
+                "pending": self._swap_task is not None and not self._swap_task.done()}
+
     async def _auto_swap(self, session: dict, state: ds.DraftState, epoch: tuple) -> None:
         """Request the swap towards the wanted role / pick slot and accept offers that move us there.
 
@@ -1010,9 +1107,10 @@ class Hub:
         except Exception as exc:  # noqa: BLE001
             log.debug("swap offers unavailable: %s", exc)
             return
-        if not self._epoch_current(epoch) or not self.roster.settings.get("auto_swap", True):
+        if not self._epoch_current(epoch) or not self._swap_wanted(epoch):
             return
-        plan = assist.swap_plan(session, target, self.wanted_pick_slot(target))
+        plan = assist.swap_plan(session, target, self.wanted_pick_slot(target), self._team_targets(state))
+        goal = (target, self.wanted_pick_slot(target))      # a move tried for one plan may be retried for another
         todo = [(row["family"], row["swap_id"], "accept", row["with_cell"]) for row in plan["accept"]]
         pending = any(str((o or {}).get("state") or "").upper() == "SENT"
                       for o in list(session.get("positionSwaps") or []) + list(session.get("pickOrderSwaps") or [])
@@ -1021,14 +1119,14 @@ class Hub:
             for kind in ("position", "pick_order"):   # one outgoing request at a time; the role swap first
                 row = plan.get(kind)
                 if row and row["state"] == "AVAILABLE" and row["swap_id"] is not None \
-                        and (row["family"], row["swap_id"], "request") not in self._swaps_done:
+                        and (row["family"], row["swap_id"], "request", row["with_cell"], goal) not in self._swaps_done:
                     todo.append((row["family"], row["swap_id"], "request", row["with_cell"]))
                     break
         for family, swap_id, verb, cell in todo:
-            key = (family, swap_id, verb)
+            key = (family, swap_id, verb, cell, goal)
             if swap_id is None or key in self._swaps_done:
                 continue
-            if not self._epoch_current(epoch) or not self.roster.settings.get("auto_swap", True) \
+            if not self._epoch_current(epoch) or not self._swap_wanted(epoch) \
                     or self.wanted_role(self.state) != target:
                 return   # the game, our seat, the setting or the wanted role changed while we waited
             try:
@@ -1036,11 +1134,24 @@ class Hub:
             except Exception as exc:  # noqa: BLE001
                 log.debug("swap offers unavailable: %s", exc)
                 return
-            if not self._epoch_current(epoch) or not self.roster.settings.get("auto_swap", True)                     or self.wanted_role(self.state) != target:
+            if not self._epoch_current(epoch) or not self._swap_wanted(epoch) or self.wanted_role(self.state) != target:
                 return
             offer = next((o for o in fresh.get(family) or [] if isinstance(o, dict) and o.get("id") == swap_id), None)
             wanted_state = "AVAILABLE" if verb == "request" else "RECEIVED"
-            if offer is None or str(offer.get("state") or "").upper() != wanted_state:
+            if offer is None or str(offer.get("state") or "").upper() != wanted_state \
+                    or str(offer.get("cellId")) != str(cell):
+                continue
+            # The team draft (and so every seat's planned slot) can change while we waited: decide again
+            # from the latest session and these fresh offers, and act only if the same move still stands.
+            latest = dict(self.last_session or session)
+            latest["positionSwaps"], latest["pickOrderSwaps"] = fresh.get("position-swaps") or [], fresh.get("pick-order-swaps") or []
+            again = assist.swap_plan(latest, target, self.wanted_pick_slot(target), self._team_targets(self.state))
+            if verb == "accept":
+                still = any(r["family"] == family and r["swap_id"] == swap_id and r["with_cell"] == cell for r in again["accept"])
+            else:
+                still = any((again.get(k) or {}).get("swap_id") == swap_id and (again.get(k) or {}).get("family") == family
+                            for k in ("position", "pick_order"))
+            if not still:
                 continue
             if verb == "request" and any(str((o or {}).get("state") or "").upper() == "SENT"
                                          for rows in fresh.values() for o in rows or [] if isinstance(o, dict)):

@@ -311,11 +311,14 @@ def test_app_ranks_its_own_drafts_unless_discord_is_switched_on(roster, monkeypa
     assert 'if ((snapshot.draft_source || {}).effective !== "discord") return snapshot;' in review
 
 
-def test_overlay_has_the_three_tabs():
+def test_overlay_has_its_tabs_and_stats_lives_in_the_app():
     html = (STATIC / "overlay.html").read_text(encoding="utf-8")
-    for needle in ('id="tab-draft"', 'id="tab-champs"', 'id="tab-stats"', 'id="pane-champs"', 'id="pane-stats"',
-                   "/api/me/pool", "/api/me/owner", "/api/stats/me", 'id="discord-drafts"'):
+    for needle in ('id="tab-draft"', 'id="tab-champs"', 'id="pane-champs"', 'id="open-stats"',
+                   "/api/me/pool", "/api/me/owner", 'id="discord-drafts"'):
         assert needle in html, needle
+    assert 'id="tab-stats"' not in html and 'id="pane-stats"' not in html      # Will, 3 Nov: stats get a page in the app
+    stats = (STATIC / "stats.html").read_text(encoding="utf-8")
+    assert "/api/stats/me" in stats
 
 
 def test_run_py_starts_and_serves(tmp_path):

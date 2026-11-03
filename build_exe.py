@@ -85,7 +85,7 @@ START_HERE = """FLEXERS DRAFT COACH
 Unzip the whole folder anywhere (keep FlexersDraftCoach.exe next to the _internal folder).
 
 Double-click FlexersDraftCoach.exe: it opens as a normal application (its own taskbar button) with two
-windows, the coach window and the small always-on-top panel, plus the in-client HUD once League is open.
+windows, the coach window and the small always-on-top panel that sits beside champion select.
 There is no console window. Closing one window keeps the other; the panel's "Open coach" button and
 the coach window's "Show panel" bring a closed one back. Closing both windows stops the app.
 
@@ -97,7 +97,8 @@ Or double-click one of these launchers for another mode:
   Draft Coach (practice, no client).bat  Replays a scripted draft so you can see how it works.
                                          In the outside-left overlay, PgDn/PgUp switches between
                                          drafts 1-5 and 6-10 while in champion select.
-  Draft Coach (any queue).bat            Also coaches normals / solo queue (default: Ranked Flex + customs).
+  Draft Coach (any queue).bat            Same as the normal launcher: every queue except ARAM and Arena is
+                                         coached by default now. Kept for old habits.
   Player (sync from coach PC).bat        LAN-only alternative: type the coach PC's local IP.
   Coach PC (share roster on the LAN).bat LAN-only host for the above.
 

@@ -53,9 +53,9 @@ def load_scale() -> float:
     return min(SCALES, key=lambda s: abs(s - scale))
 
 
-def main_window_options(url: str) -> dict:
+def main_window_options(url: str, page: str = "/") -> dict:
     """create_window keyword arguments for the coach window (shared by first start and reopen)."""
-    return dict(url=f"{url}/?host=webview", width=MAIN_WIDTH, height=MAIN_HEIGHT, min_size=MAIN_MIN_SIZE,
+    return dict(url=f"{url}{page}?host=webview", width=MAIN_WIDTH, height=MAIN_HEIGHT, min_size=MAIN_MIN_SIZE,
                 resizable=True, frameless=False, on_top=False, text_select=True)
 
 
@@ -82,6 +82,7 @@ class Api:
         self._panel = None
         self._panel_pos = (x, y)
         self._theme = theme
+        self._hidden_for_game = False
         self.scale = load_scale()
 
     # -- window bookkeeping ---------------------------------------------------------------------
@@ -99,8 +100,8 @@ class Api:
     def _panel_closed(self) -> None:
         self._panel = None
 
-    def _create_main(self):
-        window = self._webview.create_window(MAIN_TITLE, js_api=self, **main_window_options(self.url))
+    def _create_main(self, page: str = "/"):
+        window = self._webview.create_window(MAIN_TITLE, js_api=self, **main_window_options(self.url, page))
         self._track_main(window)
         return window
 
@@ -175,8 +176,46 @@ class Api:
             pass
         return scale
 
+    def _open_in_coach(self, page: str) -> None:
+        """App pages (Draft Studio, Stats) open inside the app: in the coach window, whose Coach link leads back."""
+        if self._webview is None:
+            webbrowser.open(self.url + page)
+            return
+        if self._main is None:
+            self._create_main(page)
+            style_windows_window(MAIN_TITLE, round_corners=False)
+            return
+        try:
+            self._main.load_url(f"{self.url}{page}?host=webview")
+        except Exception:  # noqa: BLE001 - a window that is going away: open a fresh one on the page
+            self._create_main(page)
+            style_windows_window(MAIN_TITLE, round_corners=False)
+            return
+        self._bring_to_front(self._main, MAIN_TITLE)
+
     def open_studio(self) -> None:
-        webbrowser.open(self.url + "/studio")
+        self._open_in_coach("/studio")
+
+    def open_stats(self) -> None:
+        self._open_in_coach("/stats")
+
+    def game_started(self) -> None:
+        """League is loading or playing a game: the always-on-top panel gets out of the way."""
+        if self._panel is not None and not self._hidden_for_game:
+            self._hidden_for_game = True
+            try:
+                self._panel.hide()
+            except Exception:  # noqa: BLE001 - a window that is going away
+                pass
+
+    def game_ended(self) -> None:
+        """Back in the client (post-game, lobby, champion select): the panel returns where it was."""
+        if self._panel is not None and self._hidden_for_game:
+            self._hidden_for_game = False
+            try:
+                self._panel.show()
+            except Exception:  # noqa: BLE001
+                pass
 
 
 def set_app_id() -> None:

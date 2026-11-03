@@ -565,3 +565,17 @@ def test_a_window_started_after_its_server_died_exits_at_once():
             "watch_parent(int(sys.argv[1]), lambda: os._exit(7)); time.sleep(30)") % root
     child = subprocess.Popen([sys.executable, "-c", code, str(dead.pid)])
     assert child.wait(timeout=15) == 7
+
+
+def test_a_studio_draft_carries_the_send_to_team_payload_for_real_players_only(team, tier, lineup):
+    """Will, 3 Nov: pick a Studio draft for the team. Seats left open in the lineup pin nobody."""
+    open_top = dict(lineup, Top=None)
+    draft = studio.generate(team, tier, lineup=open_top, count=1)["drafts"][0]
+    control = draft["control"]
+    assert control["signature"] == draft["signature"]
+    chosen = control["control"]["chosen"]
+    assert chosen["mode"] == "adaptive" and chosen["champions"] == draft["champions"]
+    locks = control["control"]["role_locks"]
+    assert "Top" not in locks                                     # the open seat is not pinned to a placeholder
+    expected = {r: int(team.players[k].user_id) for r, k in open_top.items() if k and team.players[k].user_id}
+    assert locks == expected and len(locks) == 4 and not any(studio.is_placeholder(uid) for uid in locks.values())

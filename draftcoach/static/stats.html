@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flexers Stats</title>
+<link rel="stylesheet" href="/static/mm/tokens.css">
+<link rel="stylesheet" href="/static/mm/draft-ui.css">
+<link rel="stylesheet" href="/static/mm/draft-coach.css">
+<link rel="stylesheet" href="/static/mm/stats.css">
+</head>
+<body class="coach-page stats-page">
+<header class="coach-mast">
+  <div class="coach-brand">
+    <svg class="ov-mark" viewBox="0 0 36 30" aria-hidden="true"><path fill="currentColor" d="M4 28V2h26v6H11v5h16v6H11v9z"/></svg>
+    <div>
+      <div class="coach-wordmark">FLEXERS STATS</div>
+      <div class="mm-meta" id="account">Your recent games</div>
+    </div>
+  </div>
+  <nav class="stats-nav">
+    <button class="fd-text-button" id="refresh" type="button" title="Read your latest games from the League client">Refresh</button>
+    <a class="fd-text-button" id="to-coach" href="/">Coach</a>
+    <a class="fd-text-button" id="to-studio" href="/studio">Draft Studio</a>
+    <button class="fd-text-button" id="theme" type="button" aria-pressed="false">Dark</button>
+  </nav>
+</header>
+
+<main class="stats-main" id="main">
+  <p class="fd-note" id="status" role="status" aria-live="polite">Loading your games…</p>
+</main>
+
+<script src="/static/common.js"></script>
+<script>
+(() => {
+  const D = window.Draft, $ = (id) => document.getElementById(id);
+  D.themeControl($("theme"), "fd-stats-theme");
+  if (new URLSearchParams(location.search).get("host") === "webview") {
+    // Inside the app's coach window: keep the app's own controls when moving between pages.
+    $("to-coach").href = "/?host=webview"; $("to-studio").href = "/studio?host=webview";
+  }
+  const pct = (v) => (v == null ? "–" : v + "%");
+  const num = (v) => (v == null ? "–" : String(v));
+
+  function card(title, meta, cls) {
+    const c = D.el("section", "mm-card stats-card" + (cls ? " " + cls : ""));
+    const head = D.el("header", "fd-card-head");
+    head.append(D.el("h2", "", title));
+    if (meta) head.append(D.el("span", "mm-meta", meta));
+    c.append(head);
+    return c;
+  }
+  function table(headers, rows, numericFrom = 1) {
+    const t = D.el("table", "stats-table");
+    const tr = D.el("tr");
+    headers.forEach((h, i) => tr.append(D.el("th", i >= numericFrom ? "num" : "", h)));
+    const thead = D.el("thead"); thead.append(tr); t.append(thead);
+    const body = D.el("tbody");
+    for (const r of rows) {
+      const row = D.el("tr", r.cls || "");
+      r.cells.forEach((cell, i) => {
+        const td = D.el("td", i >= numericFrom ? "num" : "");
+        if (cell instanceof Node) td.append(cell); else td.textContent = cell;
+        row.append(td);
+      });
+      body.append(row);
+    }
+    t.append(body);
+    const wrap = D.el("div", "stats-table-wrap"); wrap.append(t);
+    return wrap;
+  }
+  function champ(name) {
+    const s = D.el("span", "stats-champ");
+    s.append(D.portrait(name, "tiny"), D.el("span", "", name));
+    return s;
+  }
+
+  function render(r) {
+    $("account").textContent = (r.account && r.account.name) || "Your recent games";
+    const out = [];
+    const o = r.overview || {};
+
+    const top = D.el("section", "stats-top");
+    const ranks = D.el("div", "stats-ranks");
+    for (const q of r.ranked || []) {
+      const chip = D.el("div", "stats-rank");
+      chip.append(D.el("span", "mm-meta", q.queue),
+        D.el("b", "", q.tier === "Unranked" ? "Unranked" : q.tier + " " + q.division + " · " + q.lp + " LP"),
+        D.el("small", "", q.winrate != null ? q.winrate + "% win" : ""));
+      ranks.append(chip);
+    }
+    top.append(ranks);
+    const tiles = D.el("dl", "stats-tiles");
+    for (const [k, v] of [["Games", num(o.games)], ["Win rate", pct(o.winrate)], ["KDA", num(o.kda)], ["CS / min", num(o.cs_per_min)],
+                          ["Damage / min", num(o.damage_per_min)], ["Kill part.", pct(o.kp)], ["Vision / min", num(o.vision_per_min)],
+                          ["Main role", o.main_role || "–"]]) {
+      const cell = D.el("div"); cell.append(D.el("dt", "mm-meta", k), D.el("dd", "", v)); tiles.append(cell);
+    }
+    top.append(tiles);
+    if (o.form) {
+      const form = D.el("p", "stats-form"); form.append(D.el("span", "mm-meta", "Last " + o.form.length));
+      for (const ch of o.form) form.append(D.el("span", "stats-form-" + ch.toLowerCase(), ch));
+      top.append(form);
+    }
+    out.push(top);
+
+    const grid = D.el("div", "stats-grid");
+    if ((r.insights || []).length) {
+      const c = card("What stands out", "", "stats-wide");
+      const ul = D.el("ul", "stats-insights");
+      for (const i of r.insights) ul.append(D.el("li", "stats-insight-" + (i.level || "info"), i.text));
+      c.append(ul); grid.append(c);
+    }
+    const champs = card("Champions", (r.champions || []).length + " played");
+    champs.append(table(["Champion", "Games", "W–L", "Win", "KDA", "CS/min"],
+      (r.champions || []).map((c) => ({ cls: c.low_sample ? "low" : "",
+        cells: [champ(c.label), c.games, c.wins + "–" + c.losses, pct(c.winrate), num(c.kda), num(c.cs_per_min)] }))));
+    grid.append(champs);
+    const roles = card("Roles");
+    roles.append(table(["Role", "Games", "Win", "KDA", "Share"],
+      (r.roles || []).map((x) => ({ cls: x.low_sample ? "low" : "", cells: [x.label, x.games, pct(x.winrate), num(x.kda), pct(x.share)] }))));
+    if ((r.queues || []).length) {
+      roles.append(D.el("p", "ov-list-label mm-meta", "Queues"));
+      roles.append(table(["Queue", "Games", "Win"], r.queues.map((x) => ({ cells: [x.label, x.games, pct(x.winrate)] }))));
+    }
+    grid.append(roles);
+    const recent = card("Recent games", (r.recent || []).length + " games", "stats-wide");
+    recent.append(table(["", "Champion", "Role", "K / D / A", "KDA", "CS/min", "Kill part.", "Against", "Date"],
+      (r.recent || []).map((g) => ({ cls: g.win ? "win" : g.win === false ? "loss" : "",
+        cells: [g.win ? "W" : g.win === false ? "L" : "?", champ(g.champion), g.role, g.kills + " / " + g.deaths + " / " + g.assists,
+                num(g.kda), num(g.cs_per_min), pct(g.kp), g.opponent || "–", g.date ? String(g.date).slice(0, 10) : ""] })), 3));
+    grid.append(recent);
+    if ((r.matchups || []).length) {
+      const m = card("Lane opponents", "same-role enemies across your games");
+      m.append(table(["Against", "Games", "Won", "Win"], r.matchups.map((x) => ({ cls: x.games < 3 ? "low" : "",
+        cells: [champ(x.label), x.games, x.wins, pct(x.winrate)] }))));
+      grid.append(m);
+    }
+    if ((r.compare || []).length) {
+      const c = card("Against players in your role", "percentile among them");
+      c.append(table(["", "You", "Them", "Percentile"], r.compare.map((x) => ({
+        cells: [x.label + (x.lower_is_better ? " (lower is better)" : ""), num(x.you), num(x.peers), x.percentile == null ? "–" : x.percentile + "th"] }))));
+      grid.append(c);
+    }
+    out.push(grid);
+    out.push(D.el("p", "fd-note stats-foot", "Light grey rows have fewer than 5 games (3 for opponents): read them as hints, not verdicts."));
+    $("main").replaceChildren(...out);
+  }
+
+  async function load(refresh) {
+    if (refresh) $("refresh").textContent = "Refreshing…";
+    try {
+      for (let tries = 0; tries < 30; tries++) {
+        const data = await D.api("GET", "/api/stats/me" + (refresh && tries === 0 ? "?refresh=1" : ""));
+        if (data.review) { render(data.review); return; }
+        const status = $("status") || D.el("p", "fd-note");
+        status.id = "status";
+        status.textContent = data.error || (data.refreshing ? "Reading your games from the League client…" : "No games found yet.");
+        if (!status.isConnected) $("main").replaceChildren(status);
+        if (!data.refreshing) return;
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    } catch (e) {
+      $("main").replaceChildren(D.el("p", "fd-note", "Stats unavailable: " + e.message));
+    } finally { $("refresh").textContent = "Refresh"; }
+  }
+  $("refresh").onclick = () => load(true);
+  // Champion ids first, so the tables show portraits rather than initials.
+  fetch("/api/champions").then((r) => r.json()).then((d) => D.learnIds(d.champions)).catch(() => {}).finally(() => load(false));
+})();
+</script>
+</body>
+</html>

@@ -630,7 +630,7 @@ def test_a_tried_request_does_not_block_the_other_family(roster, monkeypatch, tm
     # Seat 4 wants Top (held by seat 0) and the first pick slot (also seat 0's).
     hub.intent_guidance = {"comps": [{"pick_order": [{"role": r} for r in ("Top", "Jungle", "Mid", "ADC", "Support")]}]}
     hub._comfort_game = (4242, "p4")                                         # same game: keep the record
-    hub._swaps_done.add(("position-swaps", 11, "request"))                  # already asked once, refused
+    hub._swaps_done.add(("position-swaps", 11, "request", 0, ("Top", 0)))   # already asked once for this plan, refused
 
     async def go():
         await hub.ingest_lcu_session(_session(local=4), "ChampSelect", {"id": 420})
@@ -764,3 +764,159 @@ def test_native_hud_clicks_carry_the_token_they_were_drawn_with(rel):
     assert "(bx, by, bw, bh, what, champion, dict(self._drawn_token))" in text
     assert "self._act(hit[4], hit[5], hit[6] if len(hit) > 6 else None)" in text
     assert "(self.snapshot or {}).get(\"local\")" not in text.split("def _act", 1)[1].split("def ", 1)[0]
+
+
+def test_one_button_swap_works_with_auto_off_for_this_game_only(roster, monkeypatch, tmp_path):
+    """Auto off: nothing moves until the player presses "Swap to …"; then this game is chased, the next is not."""
+    rest = FakeRest(offers={"position-swaps": [{"id": 11, "cellId": 0, "state": "AVAILABLE"}], "pick-order-swaps": []})
+    hub = _live_hub(roster, rest, monkeypatch, tmp_path)
+    roster.settings["auto_swap"] = False
+    sess = _session(local=4)
+
+    async def ingest(session):
+        await hub.ingest_lcu_session(session, "ChampSelect", {"id": 420})
+        await hub.settle()
+        if hub._swap_task:
+            await hub._swap_task
+
+    _run(ingest(sess))
+    assert not [c for c in rest.calls if c[0] == "POST"]
+    result = _run(hub.chase_plan(sess["gameId"], 4, hub._draft_token()))
+    assert result["target_role"] == "Top"
+    assert ("POST", "/lol-champ-select/v1/session/position-swaps/11/request", None) in rest.calls
+    # The teammate answers with their own request back: still this game, so it is accepted.
+    rest.offers["position-swaps"] = [{"id": 13, "cellId": 0, "state": "RECEIVED"}]
+    _run(ingest(sess))
+    assert ("POST", "/lol-champ-select/v1/session/position-swaps/13/accept", None) in rest.calls
+    # A new game: back to hands-off.
+    rest.calls.clear()
+    rest.offers["position-swaps"] = [{"id": 21, "cellId": 0, "state": "AVAILABLE"}]
+    _run(ingest({**sess, "gameId": int(sess.get("gameId") or 0) + 1}))
+    assert not [c for c in rest.calls if c[0] == "POST"]
+
+
+def test_one_button_swap_refuses_without_a_planned_role(roster, monkeypatch, tmp_path):
+    rest = FakeRest(offers={"position-swaps": [{"id": 11, "cellId": 0, "state": "AVAILABLE"}]})
+    hub = _live_hub(roster, rest, monkeypatch, tmp_path, role=None)
+
+    async def go():
+        await hub.ingest_lcu_session(_session(local=4), "ChampSelect", {"id": 420})
+        await hub.settle()
+        return await hub.chase_plan(4242, 4, hub._draft_token())
+    with pytest.raises(RuntimeError, match="no planned role"):
+        _run(go())
+    assert not [c for c in rest.calls if c[0] == "POST"]
+
+
+def test_one_button_swap_from_an_older_screen_is_refused(roster, monkeypatch, tmp_path):
+    """A click drawn for the last champion select (dodge, new game) or another seat must not authorise this one."""
+    rest = FakeRest(offers={"position-swaps": [{"id": 11, "cellId": 0, "state": "AVAILABLE"}]})
+    hub = _live_hub(roster, rest, monkeypatch, tmp_path)
+    roster.settings["auto_swap"] = False
+
+    async def go(game_id, cell):
+        await hub.ingest_lcu_session(_session(local=4, game_id=5555), "ChampSelect", {"id": 420})
+        await hub.settle()
+        return await hub.chase_plan(game_id, cell, hub._draft_token())
+    for game_id, cell in ((4242, 4), (5555, 3)):
+        with pytest.raises(RuntimeError, match="older screen"):
+            _run(go(game_id, cell))
+    assert hub._chase_game is None
+    assert not [c for c in rest.calls if c[0] == "POST"]
+
+
+def test_leaving_champion_select_ends_the_one_button_authorisation(roster, monkeypatch, tmp_path):
+    rest = FakeRest(offers={"position-swaps": [{"id": 11, "cellId": 0, "state": "AVAILABLE"}]})
+    hub = _live_hub(roster, rest, monkeypatch, tmp_path)
+    roster.settings["auto_swap"] = False
+
+    async def go():
+        await hub.ingest_lcu_session(_session(local=4), "ChampSelect", {"id": 420})
+        await hub.settle()
+        await hub.chase_plan(4242, 4, hub._draft_token())
+        await hub.ingest_lcu_session(None, "Lobby", None)
+        await hub.settle()
+    _run(go())
+    assert hub._chase_game is None
+
+
+def test_swap_decision_is_rechecked_against_fresh_offers_before_acting(roster, monkeypatch, tmp_path):
+    """The offer seen first no longer matches what a fresh read shows (another seat now holds that id):
+    nothing is posted."""
+    class Moving(FakeRest):
+        reads = 0
+
+        def get(self, path, **kw):
+            out = super().get(path, **kw)
+            if path.endswith("/position-swaps"):
+                Moving.reads += 1
+                if Moving.reads > 1:      # the fresh read just before acting
+                    return [{"id": 11, "cellId": 2, "state": "AVAILABLE"}]
+            return out
+    rest = Moving(offers={"position-swaps": [{"id": 11, "cellId": 0, "state": "AVAILABLE"}], "pick-order-swaps": []})
+    hub = _live_hub(roster, rest, monkeypatch, tmp_path)
+
+    async def go():
+        await hub.ingest_lcu_session(_session(local=4), "ChampSelect", {"id": 420})
+        await hub.settle()
+        if hub._swap_task:
+            await hub._swap_task
+    _run(go())
+    assert not [c for c in rest.calls if c[0] == "POST"]
+
+
+def test_a_reused_game_id_and_cell_from_an_older_screen_is_refused(roster, monkeypatch, tmp_path):
+    """Same game id and cell, but a new champion select (the scoring generation moved on): the token differs."""
+    rest = FakeRest(offers={"position-swaps": [{"id": 11, "cellId": 0, "state": "AVAILABLE"}]})
+    hub = _live_hub(roster, rest, monkeypatch, tmp_path)
+    roster.settings["auto_swap"] = False
+
+    async def go():
+        await hub.ingest_lcu_session(_session(local=4, game_id=0), "ChampSelect", {"id": 420})
+        await hub.settle()
+        old = hub._draft_token()
+        hub._generation += 1                       # a dodge / requeue
+        return await hub.chase_plan(0, 4, old)
+    with pytest.raises(RuntimeError, match="older screen"):
+        _run(go())
+    assert not [c for c in rest.calls if c[0] == "POST"]
+
+
+def test_re_entering_champion_select_with_a_reused_game_id_can_request_again(roster, monkeypatch, tmp_path):
+    rest = FakeRest(offers={"position-swaps": [{"id": 11, "cellId": 0, "state": "AVAILABLE"}], "pick-order-swaps": []})
+    hub = _live_hub(roster, rest, monkeypatch, tmp_path)
+
+    async def enter():
+        await hub.ingest_lcu_session(_session(local=4), "ChampSelect", {"id": 420})
+        await hub.settle()
+        if hub._swap_task:
+            await hub._swap_task
+
+    async def leave():
+        await hub.ingest_lcu_session(None, "Lobby", None)
+        await hub.settle()
+    _run(enter())
+    _run(leave())
+    _run(enter())
+    requests = [c for c in rest.calls if c == ("POST", "/lol-champ-select/v1/session/position-swaps/11/request", None)]
+    assert len(requests) == 2
+
+
+def test_the_game_phase_reaches_the_overlay_so_it_can_hide_in_game(roster, monkeypatch, tmp_path):
+    hub = _live_hub(roster, FakeRest(), monkeypatch, tmp_path)
+    pushed = []
+
+    async def broadcast(snapshot):
+        pushed.append(snapshot["status"].get("gameflow"))
+    hub.broadcast = broadcast
+
+    async def go():
+        await hub.ingest_lcu_session(_session(local=4), "ChampSelect", {"id": 420})
+        await hub.settle()
+        await hub.ingest_lcu_session(None, "InProgress", None)
+        await hub.settle()
+        await hub.ingest_lcu_session(None, "EndOfGame", None)
+        await hub.settle()
+    _run(go())
+    assert hub.status["gameflow"] == "EndOfGame"
+    assert "InProgress" in pushed and pushed[-1] == "EndOfGame"

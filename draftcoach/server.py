@@ -274,6 +274,10 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
     async def coach_page() -> FileResponse:
         return FileResponse(STATIC / "coach.html", media_type="text/html")
 
+    @app.get("/stats", response_class=HTMLResponse)
+    async def stats_page() -> FileResponse:
+        return FileResponse(STATIC / "stats.html", media_type="text/html")
+
     @app.get("/studio", response_class=HTMLResponse)
     async def studio_page() -> FileResponse:
         return FileResponse(STATIC / "studio.html", media_type="text/html")
@@ -518,6 +522,14 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
     @app.post("/api/client/{what}")
     async def client_act(what: str, request: Request) -> JSONResponse:
         payload = await _json(request) if int(request.headers.get("content-length") or 0) else {}
+        if what == "swap_to_plan":
+            try:
+                return JSONResponse({"ok": True, "result": await hub.chase_plan(
+                    payload["game_id"] if "game_id" in payload else MISSING,
+                    payload["cell_id"] if "cell_id" in payload else MISSING,
+                    payload["draft_token"] if "draft_token" in payload else MISSING)})
+            except RuntimeError as exc:
+                raise HTTPException(409, str(exc))
         if what not in ("hover", "lock", "swap_request", "swap_accept", "swap_decline", "seat_swap"):
             raise HTTPException(404, "unknown client action")
         try:

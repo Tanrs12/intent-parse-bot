@@ -214,8 +214,14 @@ def _state_of(entry: dict | None) -> str:
     return str((entry or {}).get("state") or "").upper()
 
 
-def swap_plan(session: dict, target_role: str | None, target_pick_slot: int | None) -> dict:
+def swap_plan(session: dict, target_role: str | None, target_pick_slot: int | None,
+              team_targets: dict[int, tuple] | None = None) -> dict:
     """What this client should do to reach ``target_role`` and pick slot ``target_pick_slot``.
+
+    ``team_targets`` ({cell: (planned role, planned pick slot)} for teammates, from the team draft)
+    lets this seat also accept a request that puts the requester in THEIR planned place while we are
+    not yet in ours. Without it a three-way rotation deadlocks: each seat only accepts the one swap
+    that lands it exactly, and none exists. Every such accept seats one player for good, so it ends.
 
     ``session`` is the raw champ-select session. ``target_pick_slot`` is the 0-based index among our
     team's picks (0 = first pick). Returns {"position": {...}|None, "pick_order": {...}|None,
@@ -276,12 +282,15 @@ def swap_plan(session: dict, target_role: str | None, target_pick_slot: int | No
                 cell = int(entry.get("cellId", -1))
             except (TypeError, ValueError):
                 continue
+            their_role, their_slot = (team_targets or {}).get(cell, (None, None))
             if family == "position-swaps":
                 wanted, has_target = role_of.get(cell) == target_role, target_role in ROLES
+                helps = has_target and current_role != target_role and their_role is not None and their_role == current_role
             else:
                 wanted = cell in pick_cells and pick_cells.index(cell) == target_pick_slot
                 has_target = target_pick_slot is not None
-            if wanted:
+                helps = has_target and current_slot != target_pick_slot and their_slot is not None and their_slot == current_slot
+            if wanted or helps:
                 plan["accept"].append({"family": family, "swap_id": entry.get("id"), "with_cell": cell})
             elif has_target:
                 plan["decline"].append({"family": family, "swap_id": entry.get("id"), "with_cell": cell})
