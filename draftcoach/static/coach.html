@@ -245,6 +245,14 @@
   <details class="fd-details"><summary>Ban policy and exclusions</summary><div class="data-card" id="policy"></div></details>
   <details class="fd-details"><summary>Import results</summary><div class="imports" id="imports"></div></details>
   <details class="fd-details"><summary>Diagnostics</summary><div class="data-card" id="engine-data"></div></details>
+  <section id="update-section">
+    <h3>App update</h3>
+    <p class="fd-note" id="update-status">Checking the team build…</p>
+    <div class="coach-inline-actions">
+      <button class="fd-button" id="update-check" type="button">Check for updates</button>
+      <button class="fd-button primary" id="update-now" type="button" hidden>Update now</button>
+    </div>
+  </section>
 </dialog>
 <div class="sr-only" id="app-announcement" role="status" aria-live="polite" aria-atomic="true"></div>
 
@@ -1497,6 +1505,33 @@
 
   setInterval(() => { const t = $("timer"); if (!deadline) { t.textContent = ""; return; } const left = Math.max(0, deadline - Date.now()); t.textContent = String(Math.ceil(left / 1000)).padStart(2, "0") + "s"; t.dataset.urgent = String(left > 0 && left < 8000); }, 250);
   fetch("/api/config").then((r) => r.json()).then((c) => { if (c.watch_dir) $("watch-dir").textContent = c.watch_dir; }).catch(() => {});
+
+  // App update: the same GitHub release check the app runs at startup, on demand.
+  let updateChecked = false;
+  function whenText(iso) { if (!iso) return ""; const d = new Date(iso); return isNaN(d) ? "" : " · " + d.toLocaleDateString(undefined, { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); }
+  async function checkUpdate() {
+    const status = $("update-status"), now = $("update-now"), check = $("update-check");
+    check.disabled = true; status.textContent = "Checking the team build…"; now.hidden = true;
+    try {
+      const u = await D.api("GET", "/api/update");
+      const mine = u.build_commit ? "This build: " + u.build_commit + whenText(u.built_at) : "This build: unknown";
+      if (!u.packaged) status.textContent = "Running from source. Update with git pull; the packaged app updates itself from the team release.";
+      else if (u.error) status.textContent = mine + ". " + u.error;
+      else if (u.available) { status.textContent = mine + ". Newer team build " + u.release_commit + whenText(u.release_at) + " is ready."; now.hidden = false; }
+      else status.textContent = mine + ". Up to date with the team release" + (u.release_commit ? " (" + u.release_commit + ")" : "") + ".";
+      if (u.last_failure) status.textContent += " Last update failed: " + u.last_failure + " (see var\\updater.log or run Repair Draft Coach Update.bat).";
+    } catch (e) { status.textContent = "Could not check: " + e.message; }
+    check.disabled = false; updateChecked = true;
+  }
+  $("update-check").onclick = checkUpdate;
+  $("update-now").onclick = async () => {
+    if (!confirm("Download the latest team build and restart Draft Coach now?\n\nYour roster, settings and team sync are kept. Do not do this during champion select.")) return;
+    const status = $("update-status"), now = $("update-now");
+    now.disabled = true; $("update-check").disabled = true; status.textContent = "Downloading the new build… the app will close and reopen by itself.";
+    try { const r = await D.api("POST", "/api/update"); status.textContent = "Build " + r.commit + " downloaded. Restarting…"; }
+    catch (e) { status.textContent = "Update did not start: " + e.message; now.disabled = false; $("update-check").disabled = false; }
+  };
+  $("open-roster").addEventListener("click", () => { if (!updateChecked) checkUpdate(); });
   D.connect((snapshot) => {
     coachStreamOpen = true;
     render(snapshot);

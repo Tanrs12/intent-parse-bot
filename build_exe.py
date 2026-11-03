@@ -102,6 +102,9 @@ Or double-click one of these launchers for another mode:
   Player (sync from coach PC).bat        LAN-only alternative: type the coach PC's local IP.
   Coach PC (share roster on the LAN).bat LAN-only host for the above.
 
+Updates: the app checks the team release every time it opens and offers to update. To
+check or update while it is open: Roster & imports -> App update -> Check for updates.
+
 If the in-app updater keeps requesting the same update, close Draft Coach, then
 double-click "Repair Draft Coach Update.bat" in this folder. It independently downloads
 and verifies the latest GitHub build without depending on the old executable. Your

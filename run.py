@@ -217,11 +217,15 @@ def main(argv: list[str] | None = None) -> None:
     listening = f" (listening on {args.host}:{args.port})" if app_url != f"http://{args.host}:{args.port}" else ""
     print(f"Coach panel: {app_url}/    Overlay: {app_url}/overlay    HUD demo: /demo{listening}")
     server = uvicorn.Server(uvicorn.Config(app, host=args.host, port=args.port, log_level=args.log_level, access_log=False, log_config=None))
+    # "Update now" in the app: the server stops itself and the process exits like the startup
+    # prompt does, so the replacer (draftcoach.updater) can swap the files and restart the app.
+    app.state.request_exit = lambda: setattr(server, "should_exit", True)
     if not args.window and not args.hud:
         try:
             server.run(sockets=[listener])
         finally:
             listener.close()
+        _exit_for_update(app)
         return
 
     import threading
@@ -250,6 +254,14 @@ def main(argv: list[str] | None = None) -> None:
         if supervisor is not None:
             supervisor.stop()
         listener.close()
+    _exit_for_update(app)
+
+
+def _exit_for_update(app) -> None:
+    """After the server stops: leave with the updater's exit code when "Update now" launched the replacer."""
+    if getattr(app.state, "update_launched", False):
+        from draftcoach.updater import UPDATE_EXIT_CODE
+        raise SystemExit(UPDATE_EXIT_CODE)
 
 
 def _wait_listening(url: str, timeout: float = 20.0) -> None:

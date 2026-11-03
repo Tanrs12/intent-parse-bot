@@ -662,6 +662,29 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
                              "champions_known": len(champions.all_names()), "watch_dir": str(watch_dir) if watch_dir else None,
                              "roster_path": str(roster_path) if roster_path else None, "art_dir": str(art_dir) if art_dir else None})
 
+    # ---- app update: the startup check, on demand from the Roster & imports drawer ----------------
+    @app.get("/api/update")
+    async def update_status() -> JSONResponse:
+        from . import updater
+        return JSONResponse(await asyncio.to_thread(updater.status, ROOT))
+
+    @app.post("/api/update")
+    async def update_now() -> JSONResponse:
+        """Download the published build and hand over to the replacer; the server then shuts down and
+        the replacer restarts the app on the new build (same flow as the startup prompt)."""
+        from . import updater
+        try:
+            result = await asyncio.to_thread(updater.start, ROOT)
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(409, str(exc)) from exc
+        app.state.update_launched = True
+        request_exit = getattr(app.state, "request_exit", None)
+        if request_exit is not None:
+            # Give the response time to leave before the listener closes.
+            asyncio.get_running_loop().call_later(0.5, request_exit)
+        log.info("update to %s launched from the app; shutting down for the replacer", result["commit"])
+        return JSONResponse({"ok": True, **result})
+
     # ---- player review: this machine's own account, through its own client ----------------------
     stats_lock = asyncio.Lock()
     stats_state: dict = {"review": None, "error": None, "refreshing": False, "refreshed_at": None}

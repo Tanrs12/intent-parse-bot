@@ -315,3 +315,59 @@ def maybe_update(root: Path) -> bool:
         # An offline GitHub check or updater failure must never prevent the player from opening League.
         print(f"Update check skipped: {exc}")
         return False
+
+
+# ---- in-app "Check for updates" (Roster & imports drawer) -------------------------------------
+# The startup prompt above runs before the server exists. These two functions give the running app
+# the same check and the same replacer, so a player can update from inside the app instead of
+# restarting it and hoping for the dialog.
+
+def _short(commit: str | None) -> str:
+    return (commit or "")[:7]
+
+
+def status(root: Path, *, frozen: bool | None = None, fetch=None) -> dict:
+    """What the page shows: this build, the published build, and whether an update can be applied.
+
+    Never raises: an offline GitHub check is reported in ``error`` so the page can say so."""
+    frozen = bool(getattr(sys, "frozen", False)) if frozen is None else frozen
+    build = _load_build_info(root)
+    out: dict = {
+        "packaged": frozen,
+        "build_commit": _short(build.get("commit")),
+        "built_at": build.get("built_at"),
+        "release_commit": None,
+        "release_at": None,
+        "available": False,
+        "error": None,
+        "last_failure": None,
+    }
+    try:
+        record = json.loads((root / "var" / "update-failed.json").read_text(encoding="utf-8-sig"))
+        if isinstance(record, dict) and record.get("message"):
+            out["last_failure"] = str(record["message"])[:200]
+    except (OSError, ValueError):
+        pass
+    try:
+        release = (fetch or _fetch_release)()
+    except Exception as exc:  # noqa: BLE001 - offline, rate limited, GitHub down: all just "could not check"
+        out["error"] = f"Could not reach GitHub: {type(exc).__name__}: {str(exc)[:120]}"
+        return out
+    out["release_commit"] = _short(release.commit)
+    out["release_at"] = release.asset_updated.isoformat() if release.asset_updated else None
+    out["available"] = frozen and _is_update_available(build, release)
+    return out
+
+
+def start(root: Path, *, fetch=None, download=None, launch=None) -> dict:
+    """Download the published build and launch the replacer. The caller must then exit the process
+    (``UPDATE_EXIT_CODE``): the replacer waits for it before swapping the files and restarting."""
+    if not getattr(sys, "frozen", False) and launch is None:
+        raise RuntimeError("Running from source: update with git pull instead")
+    build = _load_build_info(root)
+    release = (fetch or _fetch_release)()
+    if not _is_update_available(build, release):
+        raise RuntimeError("Already on the latest build")
+    temp_root, package = (download or _download_release)(release)
+    (launch or _launch_replacer)(root, package, temp_root)
+    return {"commit": _short(release.commit), "release_at": release.asset_updated.isoformat() if release.asset_updated else None}
