@@ -22,8 +22,18 @@ def source_mtime_ns(path: Path) -> int:
         return path.stat().st_mtime_ns
     key = str(path)
     if key not in cache:
-        cache[key] = path.stat().st_mtime_ns
-    return cache[key]
+        # FLEXERS: an absent optional source (e.g. the OP.GG lane cache) is
+        # consulted for every scored pairing; remember the miss for this one
+        # calculation too, so it is not re-statted hundreds of times. The
+        # OSError is still raised to every caller exactly as before.
+        try:
+            cache[key] = path.stat().st_mtime_ns
+        except OSError as exc:
+            cache[key] = exc
+    value = cache[key]
+    if isinstance(value, OSError):
+        raise value
+    return value
 
 
 def source_stat_scope(func):

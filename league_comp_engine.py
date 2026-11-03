@@ -813,8 +813,11 @@ def load_recent_pro(path: str | None = None) -> dict:
         mtime = source_mtime_ns(target)
     except OSError:
         return {}
-    if path is None and _RECENT_PRO_CACHE[0] == mtime:
-        return _RECENT_PRO_CACHE[1]
+    # FLEXERS: bind the (mtime, data) pair once so a concurrent reload between
+    # the comparison and the return cannot hand back data from another mtime.
+    cached_mtime, cached_data = _RECENT_PRO_CACHE
+    if path is None and cached_mtime == mtime:
+        return cached_data
     try:
         data = json.loads(target.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
@@ -824,12 +827,31 @@ def load_recent_pro(path: str | None = None) -> dict:
     return data
 
 
+# FLEXERS: one draft calculation asks for the patch minor / Worlds bridge factor
+# thousands of times (every _meta_value call), and each call walked every recent
+# pro game. Both values are pure functions of the loaded recent-pro dataset, so
+# they are memoised on the identity of the dict load_recent_pro() returned plus
+# the mtime _RECENT_PRO_CACHE loaded it from. A reloaded file, a reset cache or
+# a monkeypatched loader hands back a different object and recomputes; the memo
+# keeps a reference to the dict so its id can never be recycled by another one.
+_RECENT_PRO_MINOR_MEMO: tuple[dict | None, int | None, int | None] = (None, None, None)
+_WORLDS_BRIDGE_MEMO: tuple[dict | None, int | None, float] = (None, None, 1.0)
+
+
 def _recent_pro_patch_minor() -> int | None:
-    raw = str(load_recent_pro().get("latest_patch", "")).strip()
+    global _RECENT_PRO_MINOR_MEMO
+    recent = load_recent_pro()
+    cached_mtime = _RECENT_PRO_CACHE[0]
+    memo = _RECENT_PRO_MINOR_MEMO
+    if memo[0] is recent and memo[1] == cached_mtime:
+        return memo[2]
+    raw = str(recent.get("latest_patch", "")).strip()
     try:
-        return int(raw.rsplit(".", 1)[-1])
+        minor: int | None = int(raw.rsplit(".", 1)[-1])
     except (TypeError, ValueError):
-        return None
+        minor = None
+    _RECENT_PRO_MINOR_MEMO = (recent, cached_mtime, minor)
+    return minor
 
 
 def _worlds_patch_bridge_factor() -> float:
@@ -839,7 +861,18 @@ def _worlds_patch_bridge_factor() -> float:
     patch-direction information. Fade the bridge across 20 completed current-patch
     Worlds games, then let live tournament evidence stand on its own.
     """
+    global _WORLDS_BRIDGE_MEMO
     recent = load_recent_pro()
+    cached_mtime = _RECENT_PRO_CACHE[0]
+    memo = _WORLDS_BRIDGE_MEMO
+    if memo[0] is recent and memo[1] == cached_mtime:
+        return memo[2]
+    factor = _compute_worlds_patch_bridge_factor(recent)
+    _WORLDS_BRIDGE_MEMO = (recent, cached_mtime, factor)
+    return factor
+
+
+def _compute_worlds_patch_bridge_factor(recent: dict) -> float:
     minor = _recent_pro_patch_minor()
     if minor is None or minor < 20:
         return 1.0
@@ -3359,6 +3392,7 @@ def _same_job_candidate(role: str, base: str, candidate: str, meta: dict) -> boo
     return True
 
 
+@source_stat_scope  # FLEXERS: hundreds of shell re-scores per board must stat each source once
 def attach_learn_suggestions(recommendations: list[dict], meta: dict | None = None, max_per_role: int = 1) -> list[dict]:
     """Attach low-ownership champions worth learning when they preserve the exact draft shell.
 
@@ -3367,12 +3401,39 @@ def attach_learn_suggestions(recommendations: list[dict], meta: dict | None = No
     """
     meta = meta or load_meta()
     role_index = load_solo_queue_winrates()
+    # FLEXERS: the candidate universe per role and the pure per-champion checks
+    # below do not depend on the draft being annotated, so compute them once per
+    # call instead of once per draft. The memos live only for this call: nothing
+    # outlives it, so a refreshed dataset is seen by the next calculation.
+    role_candidate_names = {
+        role: set(meta.get("role_stats", {}).get(role, {})) | set(role_index.get(role, {}))
+        for role in ROLES
+    }
+    ownership_memo: dict[tuple[int, str, str], float] = {}
+    same_job_memo: dict[tuple[str, str, str], bool] = {}
+    score_memo: dict[tuple[tuple[str, str], ...], dict] = {}
+    mix_memo: dict[tuple[tuple[str, str], ...], float] = {}
+
+    def _scored_shell(champions: dict[str, str]) -> dict:
+        key = tuple(champions.items())
+        scored = score_memo.get(key)
+        if scored is None:
+            scored = score_memo[key] = score_comp(champions, meta)
+        return scored
+
+    def _mix_of(champions: dict[str, str]) -> float:
+        key = tuple(champions.items())
+        mix = mix_memo.get(key)
+        if mix is None:
+            mix = mix_memo[key] = _damage_mix(champions, meta)[0]
+        return mix
+
     for rec in recommendations:
         base_champions = dict(rec.get("champions", {}))
         base_plan = rec.get("team_plan", "balanced")
         base_plan_score = float(rec.get("team_plan_score", 5.0) or 5.0)
         base_comp_score = float(rec.get("composition_score", rec.get("score", 0.0)) or 0.0)
-        base_mix_score, _ = _damage_mix(base_champions, meta)
+        base_mix_score = _mix_of(base_champions)
         base_carry_role = (rec.get("carry_plan") or {}).get("role")
         assignment = {
             role: {
@@ -3398,31 +3459,40 @@ def attach_learn_suggestions(recommendations: list[dict], meta: dict | None = No
             base = base_champions[role]
             owned = set(submitted.get(role, [])) | set(known_history.get(role, [])) | {base}
             candidate_rows = []
-            candidate_names = set(meta.get("role_stats", {}).get(role, {})) | set(role_index.get(role, {}))
-            for candidate in candidate_names:
+            for candidate in role_candidate_names[role]:
                 if candidate in DISPLAY_EXCLUDED_CHAMPIONS:
                     continue
                 if candidate in owned or candidate in base_champions.values():
                     continue
-                # If they already have meaningful ownership, this is not a "learn" pick.
-                if _champion_ownership(uid, candidate, role) >= 4.0:
-                    continue
+                # FLEXERS: the cheap sample-size gate runs before the ownership
+                # lookup; both are pure and independent, so the outcome is the same.
                 solo = role_index.get(role, {}).get(candidate, {})
                 solo_weight = int(solo.get("weight", 0) or 0)
                 pro_games = int(meta.get("role_stats", {}).get(role, {}).get(candidate, {}).get("games", 0) or 0)
                 if pro_games < 5 and solo_weight < 4000:
                     continue
-                if not _same_job_candidate(role, base, candidate, meta):
+                # If they already have meaningful ownership, this is not a "learn" pick.
+                ownership_key = (uid, candidate, role)
+                ownership = ownership_memo.get(ownership_key)
+                if ownership is None:
+                    ownership = ownership_memo[ownership_key] = _champion_ownership(uid, candidate, role)
+                if ownership >= 4.0:
+                    continue
+                same_job_key = (role, base, candidate)
+                same_job = same_job_memo.get(same_job_key)
+                if same_job is None:
+                    same_job = same_job_memo[same_job_key] = _same_job_candidate(role, base, candidate, meta)
+                if not same_job:
                     continue
 
                 swapped = dict(base_champions)
                 swapped[role] = candidate
-                scored = score_comp(swapped, meta)
+                scored = _scored_shell(swapped)
                 if scored.get("team_plan") != base_plan:
                     continue
                 if float(scored.get("team_plan_score", 5.0)) < base_plan_score - 0.6:
                     continue
-                mix_score, _ = _damage_mix(swapped, meta)
+                mix_score = _mix_of(swapped)
                 # Damage profile is part of the champion's job in the shell. This is what
                 # prevents e.g. Sejuani -> Skarner when Sejuani is supplying needed AP.
                 if mix_score < base_mix_score - 1.0:
