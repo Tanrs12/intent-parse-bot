@@ -163,6 +163,7 @@ def main() -> int:
         "--add-data", f"{ROOT / 'league_flex_core.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_draft_backend.py'}{sep}engine",
         "--add-data", f"{ROOT / 'adaptive_draft.py'}{sep}engine",
+        "--add-data", f"{ROOT / 'adaptive_compensation_search.py'}{sep}engine",
         "--add-data", f"{ROOT / 'counterpick_advice.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_matchup_universe.py'}{sep}engine",
         "--add-data", f"{ROOT / 'league_opgg_mcp_reference.py'}{sep}engine",
