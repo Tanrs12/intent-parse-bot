@@ -56,6 +56,11 @@
       const playable = lane?.playable?.[0];
       const learn = lane?.learn?.[0];
       const scout = (lane?.scout || []).slice(0, 2);
+      const rolling = lane?.opgg_reference || null;
+      const rollingOptions = (rolling?.alternatives || []).slice(0, 3);
+      for (const entry of rollingOptions) {
+        if (entry.champion && !options.includes(entry.champion)) options.push(entry.champion);
+      }
       for (const entry of scout) {
         if (entry.champion && !options.includes(entry.champion)) options.push(entry.champion);
       }
@@ -74,6 +79,8 @@
         const isCounter = ((!!rec && champ === rec.now && champ !== primary)
           || (!!playable && champ === playable.champion));
         const scoutEntry = scout.find(entry => entry.champion === champ);
+        const referenceEntry = rollingOptions.find(entry => entry.champion === champ) ||
+          (rolling?.original?.champion === champ ? rolling.original : null);
         const isScout = !!scoutEntry;
         const isLearn = learning.has(champ) || (!!learn && champ === learn.champion) ||
           (isScout && scoutEntry.type === "learn");
@@ -84,6 +91,7 @@
           (isLearn ? " learn" : "") +
           (isCounter ? " counter" : "") +
           (isScout ? " scout" : "") +
+          (referenceEntry ? " reference" : "") +
           (isLocked ? " locked" : "") +
           (unavailable ? " unavailable" : ""));
         item.title = [champ, isScout ? "SCOUT ONLY · " + scoutEntry.summary +
@@ -91,8 +99,10 @@
           (scoutEntry.team_fit === "weakens_comp" ? " · weakens the current five" : "") +
           (scoutEntry.historical_hint ? " · older " + scoutEntry.historical_hint.patch +
             " sample: " + scoutEntry.historical_hint.games + " games, too few for a scored counter" : "")
-          : isLearn ? "Learning suggestion" : isCounter ? "Quantitative matchup counter"
+          : isLearn ? "Learning suggestion" : isCounter ? "Qualified matchup counter"
           : champ === primary ? "Selected plan" : "Same-plan owned option",
+          referenceEntry ? "OP.GG observed " + referenceEntry.head_to_head_win_rate +
+            "% in " + referenceEntry.games + " games · rank/patch unknown · never an automatic pick" : "",
           unavailable ? "Unavailable" : isLocked ? "Locked in League" : ""].filter(Boolean).join(" · ");
         item.append(D.portrait(champ, "small"));
         item.append(D.el("span", "fd-sc-name", champ));
@@ -100,6 +110,8 @@
           scoutEntry.type === "learn" ? "LEARN" : "SCOUT"));
         else if (learn?.champion === champ) item.append(D.el("span", "fd-sc-idea-badge", "LEARN"));
         else if (playable?.champion === champ) item.append(D.el("span", "fd-sc-idea-badge", "COUNTER"));
+        else if (referenceEntry) item.append(D.el("span", "fd-sc-idea-badge",
+          referenceEntry.type === "learn" ? "LEARN" : "OP.GG"));
         if (isLocked) item.append(D.el("span", "fd-sc-lock", "✓"));
         picks.append(item);
       }
@@ -115,15 +127,28 @@
               x.champion + " (" + (x.type === "learn" ? "LEARN only" : "in pool") +
               (x.team_fit === "weakens_comp" ? ", weaker team fit" : "") + ")").join(" / ") +
               " · reviewed " + scout[0].patch + " scouting, not proven ranked stats"
-            : "Versus " + lane.enemy + ": no qualified counter data; keep the chosen plan"));
+            : (rolling?.original || rollingOptions.length)
+              ? "Versus " + lane.enemy + ": rolling OP.GG references below; no patch/rank-qualified automatic counter"
+              : "Versus " + lane.enemy + ": no qualified counter data; keep the chosen plan"));
       }
       else if (options.length > 1) row.append(D.el("p", "fd-sc-reason", "Same-plan options" + (learning.size ? " · learning marked" : "")));
+      if (rolling?.original || rollingOptions.length) {
+        const observed = [rolling.original, ...rollingOptions]
+          .filter(Boolean).slice(0, 4);
+        row.append(D.el("p", "fd-sc-reference",
+          "OP.GG observed (patch/rank unknown): " + observed.map(entry =>
+            entry.champion + " " + entry.head_to_head_win_rate.toFixed(1) +
+            "% (n=" + entry.games + ")").join(" · ")));
+      }
       if (lane?.planned_risk) {
         row.append(D.el("p", "fd-sc-risk",
           primary + " into " + lane.enemy + ": adverse community matchup report · " +
           lane.planned_risk.summary));
       }
-      const source = scout[0]?.sources?.[0] || lane?.planned_risk?.sources?.[0];
+      const source = scout[0]?.sources?.[0] || lane?.planned_risk?.sources?.[0] ||
+        (rollingOptions[0]?.source_url
+          ? {url: rollingOptions[0].source_url, provider: "OP.GG MCP"}
+          : null);
       if (source?.url?.startsWith("https://")) {
         const link = D.el("a", "fd-sc-source-link", "Matchup source · " + (source.provider || "reference"));
         link.href = source.url;

@@ -31,6 +31,32 @@ def test_extracts_attributed_unversioned_observation_without_fake_patch():
     assert "OP.GG" in row["source"]
 
 
+def test_provider_champion_identifiers_are_normalised_correctly():
+    assert m._api_name("Cho'Gath") == "CHOGATH"
+    assert m._api_name("Dr. Mundo") == "DR_MUNDO"
+    assert m._api_name("Kai'Sa") == "KAISA"
+    assert m._api_name("Gnar") == "GNAR"
+
+
+def test_cached_enemy_reader_never_makes_http_calls(tmp_path, monkeypatch):
+    monkeypatch.setattr(m, "request_pair", lambda *args: (_ for _ in ()).throw(
+        AssertionError("reader must not make remote calls")))
+    for own in ("Gnar", "Gwen"):
+        row = m.extract_record({
+            "position": "top", "my_champion": own, "opponent_champion": "Shen",
+            "data": {
+                "counters": [{"champion_name": "Shen", "play": 800, "win": 418}],
+                "summary": {"positions": [{"name": "TOP", "stats": {"win_rate": 0.50}}]},
+            },
+        }, "Top", own, "Shen")
+        (tmp_path / m._filename("Top", own, "Shen")).write_text(
+            json.dumps(row), encoding="utf8")
+    found = m.cached_for_enemy("Top", "Shen", folder=tmp_path)
+    assert set(found) == {"gnar", "gwen"}
+    assert all(row["source_patch"] is None for row in found.values())
+    assert m.cached_for_enemy("Top", "Cho'Gath", folder=tmp_path) == {}
+
+
 def test_rejects_wrong_lane_or_invalid_aggregate():
     with pytest.raises(ValueError, match="different"):
         m.extract_record(payload(), "Mid", "Camille", "Shen")

@@ -33,6 +33,7 @@ def main() -> int:
     gap = max(MIN_REQUEST_GAP_SECONDS, args.delay)
     unique = list(dict.fromkeys(args.ours))
     new_calls = 0
+    successful = 0
     for ours in unique:
         cached = get_cached(args.role, ours, args.enemy)
         if cached:
@@ -52,12 +53,13 @@ def main() -> int:
                 continue
             mode = "new"
             new_calls += 1
+        successful += 1
         print(f"{mode:>5} {args.role} {ours} vs {args.enemy}: "
               f"{row['wins']}/{row['games']} ({row['head_to_head_win_rate']:.1f}%) "
               f"baseline={row['role_baseline_win_rate']}%, residual={row['residual_pp']}pp"
               " (OP.GG rolling; patch/rank unverified)", flush=True)
     print(f"Finished: {new_calls} new requests, <= {max_new} allowed this invocation.")
-    return 0
+    return 2 if new_calls and not successful else 0
 
 
 if __name__ == "__main__":

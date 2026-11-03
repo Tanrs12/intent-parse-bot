@@ -87,9 +87,23 @@ Read this before changing the app, UI or relay. Preserve Rat's existing architec
   support *small-scale private* collection via OP.GG's official MCP, under
   the provider's written non-commercial attribution permission. Cache is
   outside GitHub, under the PC's AppData; 24-hour freshness, 3s delay,
-  maximum 6 fresh requests per normal run. Do NOT assume rank/patch from
-  OP.GG lane-guide responses or translate them into statistical draft scores
-  without enough versioned metadata. See the collection report for examples.
+  maximum 6 fresh requests per normal run. `cached_for_enemy()` is
+  explicitly **read only** (never issues an HTTP request from the app).
+  `counterpick_advice.py` returns a separate `opgg_reference` with owned
+  or learning candidates; `selected-comp.js` shows observed win rates,
+  sample sizes, and a patch/rank unknown warning.
+  Do NOT assume rank/patch from OP.GG lane-guide responses or translate
+  them into statistical draft scores without enough versioned metadata.
+  The 3 Nov Cho'Gath collection has Malphite, Dr. Mundo, Aatrox, Vayne,
+  Gnar and Gwen, while Shen has Camille, Gnar, Gwen and Kayle.
+  Keep these **private**, never commit raw provider cache data. The separate
+  `league_opgg_mcp_champion_counters.py` parses OP.GG's top-three
+  strong/weak per-champion lists **without eval** and the
+  `tools/collect_opgg_mcp_champion_counters.py` collects at most two
+  summaries in its normal run, three max. This yields six matchup
+  references per call. The results go into that same private cache,
+  and must not be confused with calibrated current-patch data.
+  Details and source limits are in the collection report.
 - `league_riot_ranked_sample.py` and `tools/collect_riot_ranked_matchups.py`
   support permissioned current-patch Riot Match-V5 EUW samples, IF a valid
   authorised API key and data collection exist. Keep credentials server-side.

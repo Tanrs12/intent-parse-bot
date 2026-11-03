@@ -114,10 +114,57 @@ potentially licensed raw data must not be committed to GitHub.
 
 Example: `python tools/collect_opgg_mcp_matchups.py --role Top --enemy Shen --ours Camille Gnar Gwen Kayle`
 
-First cached Shen Top observations (not patch-labelled): Camille 819/1714,
-Gnar 727/1440, Gwen 631/1267, Kayle 506/995. These must be interpreted
-against champ-level base win rates and source uncertainty; 50+% head-to-head
-alone is not proof of a winning draft lane.
+Cached Shen Top observations (not patch-labelled): Camille 819/1714,
+Gnar 727/1440, Gwen 631/1267, Kayle 506/995.
+
+The 3 November additional Cho'Gath Top collection (same unknown patch/rank):
+- Malphite 1162/2544 (45.68%, versus 51.55% Malphite Top baseline)
+- Dr. Mundo 688/1277 (53.88%, versus 50.04% baseline)
+- Aatrox 859/1608 (53.42%, versus 50.03% baseline)
+- Vayne 229/415 (55.18%, versus 48.62% baseline)
+- Gnar 503/984 (51.12%, versus 49.11% baseline)
+- Gwen 569/1078 (52.78%, versus 50.63% baseline)
+
+These ten matchups exist only in the user's **private 24-hour local cache**;
+do not commit provider samples as a bulk redistributed database. Viewing
+past-the-expiry records is not the same as having current data.
+
+**Actual app integration:** `league_opgg_mcp_reference.cached_for_enemy()`
+reads the private cache **without making any network calls**. The existing
+`counterpick_advice.py` attaches `opgg_reference` to verified enemy-lane
+scouting, tagging in-pool versus learning choices. The selected-comp cards
+show sample sizes and the warning "patch/rank unknown". This data NEVER
+enters the `league_comp_engine` scorer or auto-pick decision until the
+provider supplies compatible patch/rank/queue metadata and source usage
+permits automated ranking.
+
+**High-efficiency OP.GG official counter summaries:** the tool
+`lol_get_champion_analysis` exposes a champion's three strongest and three
+weakest sampled matchups with wins and game counts. We implemented a *strict
+non-executable parser* for the official MCP's class-like compact output in
+`league_opgg_mcp_champion_counters.py`, and
+`tools/collect_opgg_mcp_champion_counters.py` limits use to two champion
+summaries per normal run (three absolute maximum, 3s apart). Results populate
+the same private, read-only pair cache as the per-opponent collector.
+No bulk mirroring, and no unverified automatic matchup scoring.
+
+Two 3 Nov ranked-mode requests yielded **12 additional reference pairs**:
+Malphite Top vs Vayne (643/1026), Quinn (361/624), Jayce (4644/8197),
+Aurora (177/402), Ornn (1050/2319), Singed (470/1053).
+Camille Top vs Ambessa (1368/2456), Malzahar (91/163), Yasuo (755/1375),
+Zac (108/241), Illaoi (559/1184), Kennen (321/681).
+These are provider-returned directional samples, not patch/rank-certified
+matchups. The second page includes niche/low-usage Top enemies; do not
+promote a 163-game Malzahar lane to a reliable global counter.
+
+**Identifier bug:** OP.GG expects `CHOGATH` rather than `CHO_GATH`, and
+`DR_MUNDO` rather than `DRMUNDO`. The collector now normalises both.
+All six attempted Cho'Gath requests initially failed before this repair,
+with no bad rows saved.
+
+These samples must be interpreted against each champion's baseline and
+source uncertainty; a raw 50+% head-to-head rate alone is not proof of
+a winning draft lane.
 
 ## Testing
 

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Mapping
 from league_matchup_universe import role_universe, scout_note
+from league_opgg_mcp_reference import cached_for_enemy
 
 from league_comp_engine import (
     ROLES, load_meta, load_lane_matchups, load_solo_queue_winrates,
@@ -59,6 +60,34 @@ def counter_advice(
         original_points = float(original_edge.get("points") or 0)
         pool = [str(c) for c in submitted.get(role, []) if c and c not in unavailable]
         pool_set = set(pool) | {original}
+        # Local-only, rate-limited OP.GG MCP references do not have validated
+        # patch, rank or queue. Show as evidence links, never score auto-picks.
+        opgg_cache = cached_for_enemy(role, enemy) if matchup_data is None else {}
+        base_opgg = opgg_cache.get("".join(c for c in original.casefold() if c.isalnum()))
+        opgg_alternatives = []
+        for _key, row in opgg_cache.items():
+            name = row.get("ours")
+            if (not name or name == original or name in unavailable or
+                name in champions.values()):
+                continue
+            opgg_alternatives.append({
+                "champion": name,
+                "enemy": enemy,
+                "type": "playable" if name in pool_set else "learn",
+                "games": row["games"],
+                "head_to_head_win_rate": row["head_to_head_win_rate"],
+                "role_baseline_win_rate": row.get("role_baseline_win_rate"),
+                "residual_pp": row.get("residual_pp"),
+                "source_url": row["source_url"],
+                "retrieved_at": row.get("retrieved_at"),
+                "source_patch": None,
+                "evidence_limit": "rolling_unversioned_reference_only",
+            })
+        opgg_alternatives.sort(
+            key=lambda row: (row["type"] == "playable",
+                             row["residual_pp"] if row["residual_pp"] is not None else -100,
+                             row["games"]), reverse=True
+        )
         # Only candidates with actual evidence or a submitted champion are evaluated.
         # Role stats contribute possible learning candidates, never automatic picks.
         recorded = (samples.get("matchups") or {}).get(role, {}).get(enemy, {}).get("responses") or {}
@@ -184,6 +213,19 @@ def counter_advice(
             "playable": playable,
             "learn": learn,
             "scout": scouting[:4],
+            "opgg_reference": {
+                "original": ({
+                    "champion": original,
+                    "games": base_opgg["games"],
+                    "head_to_head_win_rate": base_opgg["head_to_head_win_rate"],
+                    "role_baseline_win_rate": base_opgg.get("role_baseline_win_rate"),
+                    "residual_pp": base_opgg.get("residual_pp"),
+                    "source_url": base_opgg["source_url"],
+                } if base_opgg else None),
+                "alternatives": opgg_alternatives[:3],
+                "source": "OP.GG official MCP",
+                "label": "rolling reference; rank, patch and queue not attested",
+            },
             "candidates_searched": len(candidates),
             "base_evidence_games": int(original_edge.get("games") or 0),
             "coverage": ("verified" if playable or learn else

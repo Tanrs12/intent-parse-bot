@@ -32,7 +32,17 @@ def _key(value: str) -> str:
 
 
 def _api_name(value: str) -> str:
-    return re.sub(r"[^A-Z0-9]+", "_", value.upper()).strip("_")
+    # OP.GG's MCP champion keys follow compact Riot champion IDs for
+    # punctuation-heavy names. CHO_GATH was silently rejected by its service.
+    compact = _key(value)
+    aliases = {
+        "chogath": "CHOGATH", "drmundo": "DR_MUNDO",
+        "kogmaw": "KOGMAW", "kaisa": "KAISA",
+        "reksai": "REKSAI", "khazix": "KHAZIX",
+        "ksante": "KSANTE", "velkoz": "VELKOZ",
+        "missfortune": "MISSFORTUNE",
+    }
+    return aliases.get(compact, re.sub(r"[^A-Z0-9]+", "_", value.upper()).strip("_"))
 
 
 def _filename(role: str, ours: str, enemy: str) -> str:
@@ -55,6 +65,35 @@ def get_cached(role: str, ours: str, enemy: str, *,
         return row
     except (ValueError, OSError, TypeError):
         return {}
+
+
+def cached_for_enemy(role: str, enemy: str, *,
+                     folder: Path | None = None, max_age: int = TTL_SECONDS) -> dict[str, dict]:
+    """Read locally cached OP.GG references, NEVER make HTTP requests.
+
+    Returned keys are normalized champion names. These rolling, unversioned
+    references are permitted only in the advice presentation, not the scorer.
+    """
+    if role not in ROLES or not enemy:
+        return {}
+    folder = Path(folder) if folder else CACHE_PATH
+    rows = {}
+    try:
+        paths = sorted(folder.glob(f"{_key(role)}-*-{_key(enemy)}.json"))
+    except OSError:
+        return {}
+    for path in paths[:300]:
+        try:
+            content = json.loads(path.read_text(encoding="utf8"))
+            name = str(content.get("ours") or "")
+            if not name:
+                continue
+            verified = get_cached(role, name, enemy, folder=folder, max_age=max_age)
+            if verified:
+                rows[_key(name)] = verified
+        except (OSError, ValueError, TypeError):
+            continue
+    return rows
 
 
 def extract_record(payload: dict, role: str, ours: str, enemy: str) -> dict:
@@ -111,10 +150,13 @@ def request_pair(role: str, ours: str, enemy: str, *, timeout: int = 25) -> dict
                  "User-Agent": "INTentDraftCoach-PrivateNonCommercial/1"})
     with urllib.request.urlopen(req, timeout=timeout) as response:
         result = json.loads(response.read(2_000_000))
-    contents = ((result.get("result") or {}).get("content") or [])
+    response = result.get("result") or {}
+    contents = response.get("content") or []
     text = next((r.get("text") for r in contents if r.get("type") == "text"), None)
     if not text:
-        raise ValueError("OP.GG MCP returned no matchup result")
+        message = str((result.get("error") or {}).get("message")
+                      or response.get("message") or "empty MCP content")[:140]
+        raise ValueError("OP.GG MCP returned no matchup result: " + message)
     payload = json.loads(text)
     return extract_record(payload, role, ours, enemy)
 
