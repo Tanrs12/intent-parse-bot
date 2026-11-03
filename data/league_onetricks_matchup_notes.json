@@ -1,0 +1,936 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-11-03",
+  "notes_policy": "Original concise summaries of already-reviewed public high-Elo author matchup judgments; attributed, source links retained. Not licensed statistics, not automatic champion selection, and not guide text republication.",
+  "source_guides": [
+    {
+      "champion": "Qiyana",
+      "role": "Mid",
+      "author": "Kaitania",
+      "rank": "Challenger; published #1 Qiyana",
+      "source_url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+      "updated": "2026-10-24"
+    },
+    {
+      "champion": "Vayne",
+      "role": "Top",
+      "author": "ATUMOWY",
+      "rank": "Master peak; published Vayne specialist",
+      "source_url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+      "updated": "2026-10-29"
+    },
+    {
+      "champion": "Tryndamere",
+      "role": "Top",
+      "author": "Kostas",
+      "rank": "Master; authored Tryndamere guide",
+      "source_url": "https://www.onetricks.gg/guide/jadx5hm/in-depth-tryndamere-top-guide-matchup-sheet-2621",
+      "updated": "2026-10-21"
+    }
+  ],
+  "entries": [
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Diana",
+      "verdict": "unfavourable",
+      "summary": "Her early shield and defensive rune choices blunt burst; prioritise surviving and finding map plays.",
+      "guide_tier": "S+",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Zoe",
+      "verdict": "unfavourable",
+      "summary": "Long-range sleep and poke make lane exceptionally unforgiving; cleanse may be needed.",
+      "guide_tier": "S+",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Kennen",
+      "verdict": "unfavourable",
+      "summary": "Avoid committing into his available spells or ultimate; look for windows after waveclear.",
+      "guide_tier": "S+",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Tryndamere",
+      "verdict": "unfavourable",
+      "summary": "Sustain and sustained melee damage make extended fighting unattractive.",
+      "guide_tier": "S+",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Jayce",
+      "verdict": "unfavourable",
+      "summary": "Early ranged pressure and hammer-form trading create a demanding lane.",
+      "guide_tier": "S+",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Akali",
+      "verdict": "unfavourable",
+      "summary": "Her level-six all-in remains threatening even if Qiyana has an early lead.",
+      "guide_tier": "S",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Aurora",
+      "verdict": "unfavourable",
+      "summary": "Bait her poke and control before choosing an all-in.",
+      "guide_tier": "S",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Hwei",
+      "verdict": "unfavourable",
+      "summary": "Wait for his defensive crowd control to be unavailable before engaging.",
+      "guide_tier": "S",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Vex",
+      "verdict": "unfavourable",
+      "summary": "Respect her fear setup; take trades only after she has expended the key spell.",
+      "guide_tier": "S",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Ryze",
+      "verdict": "unfavourable",
+      "summary": "Phase Rush and short range make spacing and defensive-rune trades critical.",
+      "guide_tier": "S",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Viktor",
+      "verdict": "unfavourable",
+      "summary": "Avoid repeating his empowered Q trade pattern; preserve health.",
+      "guide_tier": "S",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "LeBlanc",
+      "verdict": "unfavourable",
+      "summary": "Trading into her burst is difficult; surviving lane can be more valuable than chasing kills.",
+      "guide_tier": "S",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Sylas",
+      "verdict": "unfavourable",
+      "summary": "Short grass-element trades can deny part of Sylas's healing window.",
+      "guide_tier": "A",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Yasuo",
+      "verdict": "unfavourable",
+      "summary": "Respect shield and defensive setup; avoid wasting your main burst into Wind Wall interactions.",
+      "guide_tier": "A",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Gragas",
+      "verdict": "unfavourable",
+      "summary": "His dash and sustain punish all-ins; seeking roams or jungle assistance is safer.",
+      "guide_tier": "A",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Anivia",
+      "verdict": "mixed",
+      "summary": "Hold mobility to escape her wall; avoid overcommitting just to break her passive.",
+      "guide_tier": "B",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Fizz",
+      "verdict": "favourable",
+      "summary": "The author's defensive setup reduces his burst threat; execute trades around mobility cooldowns.",
+      "guide_tier": "C",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Zed",
+      "verdict": "favourable",
+      "summary": "The first ultimate committed can be punished; manage defensive mobility during his all-in.",
+      "guide_tier": "C",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Yone",
+      "verdict": "favourable",
+      "summary": "Use brief stealth trades and avoid giving him a long chase with E.",
+      "guide_tier": "C",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Ahri",
+      "verdict": "favourable",
+      "summary": "Avoid early basic attack plus W poke; grass-element trades can prevent easy retaliation.",
+      "guide_tier": "D",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Akshan",
+      "verdict": "favourable",
+      "summary": "Grass-element trading and interrupt tools can disrupt his extended-ranged patterns.",
+      "guide_tier": "D",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Ekko",
+      "verdict": "favourable",
+      "summary": "Short trades that deny his passive trigger are favoured.",
+      "guide_tier": "D",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Mid",
+      "our": "Qiyana",
+      "enemy": "Talon",
+      "verdict": "favourable",
+      "summary": "Avoid both parts of his return blade, then use stealth to prevent his bleed.",
+      "guide_tier": "D",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Challenger; published #1 Qiyana; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kaitania · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/dhsyzn3/kaitanias-ultimate-challenger-qiyana-guide",
+          "updated": "2026-10-24"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Malphite",
+      "verdict": "unfavourable",
+      "summary": "Armor stacking and repeatable poke make this a very hard Vayne lane; early team assistance may be necessary.",
+      "guide_tier": "S+",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Akali",
+      "verdict": "unfavourable",
+      "summary": "Vayne can pressure level one, but the lane becomes dangerous when Akali obtains more tools.",
+      "guide_tier": "S",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Cassiopeia",
+      "verdict": "unfavourable",
+      "summary": "Her sustained magic damage and grounding create strong anti-kiting pressure.",
+      "guide_tier": "S",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Jayce",
+      "verdict": "unfavourable",
+      "summary": "Range switching and burst require extremely accurate spacing.",
+      "guide_tier": "S",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Teemo",
+      "verdict": "unfavourable",
+      "summary": "Blind and mushroom control heavily constrain Vayne; cleanse timing is important.",
+      "guide_tier": "S",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Pantheon",
+      "verdict": "unfavourable",
+      "summary": "Point-and-click stun threatens all-ins; play around his commitment cooldown.",
+      "guide_tier": "S",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Ryze",
+      "verdict": "unfavourable",
+      "summary": "Root and burst require excellent spacing; all-ins depend on dodging his follow-up.",
+      "guide_tier": "S",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Varus",
+      "verdict": "unfavourable",
+      "summary": "Long-range poke and control make standard auto-trading difficult.",
+      "guide_tier": "S",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Gangplank",
+      "verdict": "unfavourable",
+      "summary": "Barrel spacing and timing are central; do not walk into his combo.",
+      "guide_tier": "A",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Yasuo",
+      "verdict": "unfavourable",
+      "summary": "Minion-dash angles make spacing dangerous; Vayne must respect his engage reach.",
+      "guide_tier": "A",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Jax",
+      "verdict": "unfavourable",
+      "summary": "Counter Strike creates a dangerous commitment window for a short-range marksman.",
+      "guide_tier": "A",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Singed",
+      "verdict": "mixed",
+      "summary": "Even matchup according to the guide; protect minion waves from proxies.",
+      "guide_tier": "B",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Fiora",
+      "verdict": "mixed",
+      "summary": "Wave and weak-point positioning matter more than a simple range advantage.",
+      "guide_tier": "B",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Sion",
+      "verdict": "mixed",
+      "summary": "Durability and waveclear prevent easy snowballing; prioritise reliable farm.",
+      "guide_tier": "B",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Gragas",
+      "verdict": "mixed",
+      "summary": "He depends on dash timing; punish missed engage rather than starting long trades.",
+      "guide_tier": "B",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Ornn",
+      "verdict": "mixed",
+      "summary": "The author rates the lane even rather than an automatic Vayne counter.",
+      "guide_tier": "B",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Rumble",
+      "verdict": "mixed",
+      "summary": "The power balance changes sharply across early levels and level six.",
+      "guide_tier": "B",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Nasus",
+      "verdict": "favourable",
+      "summary": "Favourable in active lanes where Vayne can pressure and get support; weak-side can still be rough.",
+      "guide_tier": "C",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Vayne",
+      "enemy": "Irelia",
+      "verdict": "favourable",
+      "summary": "Vayne can space her if she avoids dash reset angles and uses defensive runes.",
+      "guide_tier": "C",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master peak; published Vayne specialist; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "ATUMOWY · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jq03lt5/2621-1200lp-euw-vayne-top-guide-builds-matchups",
+          "updated": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Tryndamere",
+      "enemy": "Malphite",
+      "verdict": "unfavourable",
+      "summary": "Armor scaling can shut down the split-push duelist if Tryndamere fails to gain an early advantage.",
+      "guide_tier": "S+",
+      "reviewed_on": "2026-11-03",
+      "patch": "26.21 guide revision; author opinion, not match statistics",
+      "evidence_kind": "single high-Elo one-trick matchup guide",
+      "source_quality": "Master; authored Tryndamere guide; individual author; subjective",
+      "weight_label": "one high-Elo author; not a counterpick score",
+      "draft_points": 0,
+      "sources": [
+        {
+          "provider": "Kostas · Onetricks.gg",
+          "url": "https://www.onetricks.gg/guide/jadx5hm/in-depth-tryndamere-top-guide-matchup-sheet-2621",
+          "updated": "2026-10-21"
+        }
+      ]
+    }
+  ]
+}

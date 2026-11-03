@@ -23,7 +23,7 @@ ROLES = {"Top": "TOP", "Jungle": "JUNGLE", "Mid": "MID", "ADC": "ADC", "Support"
 # This sample is five patches old and from below our team's rank. Keep it
 # historically informative, not a substitute for current high-elo evidence.
 MIN_GAMES_TO_SCORE = 40
-KNOWN_ALIASES = {"monkeyking": "wukong", "nunu": "nunuandwillump"}
+KNOWN_ALIASES = {"monkeyking": "wukong", "nunu": "nunuandwillump", "nunuwillump": "nunuandwillump", "renata": "renataglasc"}
 
 
 def storage_dir() -> Path:
@@ -143,4 +143,85 @@ def archive_summary() -> dict:
         "patch": SOURCE_PATCH,
         "rank": SOURCE_RANK,
         "source_url": SOURCE_URL,
+    }
+
+
+
+@lru_cache(maxsize=4)
+def _enemy_catalog(path: str, stamp: int) -> dict:
+    """Complete *historical* opponent reference catalogue, including thin rows."""
+    from league_matchup_universe import role_universe
+    lanes, baselines = _index(path, stamp)
+    names_by_role = {
+        role: {_norm(name): name for name in role_universe(role)}
+        for role in ROLES
+    }
+    catalog = {}
+    for (ours, old_role, enemy), row in lanes.items():
+        role = next((role for role, code in ROLES.items()
+                     if code == old_role), None)
+        if not role:
+            continue
+        baseline = baselines.get((ours, old_role))
+        if not baseline or not isinstance(row, dict):
+            continue
+        n = int(row.get("n") or 0)
+        if not n or row.get("wr") is None or baseline.get("wr") is None:
+            continue
+        # Include only champion-role pairs in the supported lane catalogue.
+        # This is a reference index, not a permission to put an off-pool
+        # champion into an active player's draft.
+        champ = names_by_role[role].get(ours)
+        opp = names_by_role[role].get(enemy)
+        if not champ or not opp or ours == enemy:
+            continue
+        observed_wr = float(row["wr"]) * 100.0
+        baseline_wr = float(baseline["wr"]) * 100.0
+        if not (0 <= observed_wr <= 100 and 0 <= baseline_wr <= 100):
+            continue
+        item = {
+            "champion": champ, "enemy": opp, "role": role,
+            "games": n,
+            "head_to_head_win_rate": round(observed_wr, 2),
+            "role_baseline_win_rate": round(baseline_wr, 2),
+            "adjusted_matchup_lift_pp": round(observed_wr - baseline_wr, 2),
+            "overall_games": int(baseline.get("games") or 0),
+            "gold_diff_15": (round(float(row["gd15"]), 1)
+                             if row.get("gd15") is not None else None),
+            "source": "PocketPick", "source_url": SOURCE_URL,
+            "source_patch": SOURCE_PATCH, "rank_filter": SOURCE_RANK,
+            "region_filter": SOURCE_REGION, "queue_filter": "Ranked Solo/Duo",
+            "source_kind": "historical_reference_only",
+            "usable_for_current_patch_autopick": False,
+            "sample_grade": ("thin" if n < 40 else
+                             "moderate-historical" if n < 100 else
+                             "observed-historical"),
+        }
+        catalog.setdefault((role, enemy), []).append(item)
+    for values in catalog.values():
+        values.sort(key=lambda row: row["games"], reverse=True)
+    return catalog
+
+
+def historical_for_enemy(role: str, enemy: str) -> dict:
+    """Read all sampled lanes for an enemy, with age/rank/sample labels.
+
+    This fills *scouting* gaps for 172 currently supported champions, but
+    must not be interpreted as Emerald+ patch 26.21 statistics or used to
+    pick a champion automatically. Does not access any external service.
+    """
+    if role not in ROLES or not enemy:
+        return {"status": "unsupported_role", "rows": []}
+    metrics, _gold = _data()
+    if not metrics:
+        return {"status": "historical_archive_missing", "rows": []}
+    path = storage_dir() / "matchv5-metrics.json"
+    catalog = _enemy_catalog(str(path), source_mtime_ns(path))
+    rows = catalog.get((role, _norm(enemy)), [])
+    return {
+        "status": "historical_only" if rows else "no_historical_rows",
+        "rows": rows,
+        "patch": SOURCE_PATCH, "rank": SOURCE_RANK, "region": SOURCE_REGION,
+        "source_url": SOURCE_URL, "observations": len(rows),
+        "warning": "One older-patch, lower-rank sample. Observations are not current counters.",
     }

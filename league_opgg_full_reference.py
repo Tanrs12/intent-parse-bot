@@ -35,7 +35,7 @@ def _canon(value: str) -> str:
 
 def _page_slug(value: str) -> str:
     key = _canon(value)
-    return {"wukong": "monkeyking", "nunuandwillump": "nunu"}.get(key, key)
+    return {"wukong": "monkeyking", "nunuandwillump": "nunu", "nunuwillump": "nunu", "renataglasc": "renata"}.get(key, key)
 
 
 def _source_patch(live_patch: str) -> str:

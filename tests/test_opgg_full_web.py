@@ -171,3 +171,26 @@ def test_offmeta_bot_web_fetch_requires_explicit_confirmed_or_declared_context(
     assert approved["index_observations"] == 4
     assert requests == ["https://op.gg/lol/champions/hwei/counters/adc"]
     assert page_file(tmp_path, "ADC", "Hwei").is_file()
+
+
+
+def test_alias_urls_and_titles_for_nunu_and_renata():
+    from tools.collect_opgg_full_web import source_url
+    from league_opgg_full_reference import _page_slug
+    assert source_url("Nunu & Willump", "Jungle").endswith("/nunu/counters/jungle")
+    assert source_url("Renata Glasc", "Support").endswith("/renata/counters/support")
+    assert _page_slug("Nunu & Willump") == "nunu"
+    assert _page_slug("Renata Glasc") == "renata"
+    from tools.collect_opgg_full_web import parse_full_page
+    for full, title, role in [
+        ("Nunu & Willump", "Nunu", "Jungle"),
+        ("Nunu & Willump", "Nunu & Willump", "Jungle"),
+        ("Renata Glasc", "Renata", "Support"),
+        ("Renata Glasc", "Renata Glasc", "Support"),
+    ]:
+        result=parse_full_page(
+            sample_html(champ=title), full, role,
+            url=source_url(full,role), captured_epoch=200000)
+        assert result["ours"]==full
+        assert result["source_patch"]=="16.21"
+        assert len(result["rows"])==4

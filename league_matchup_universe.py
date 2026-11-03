@@ -17,6 +17,7 @@ DATA = Path(__file__).with_name("data")
 ROLE_FILE = DATA / "league_role_champions.json"
 SCOUT_FILE = DATA / "league_curated_counter_scout.json"
 OTP_FILE = DATA / "league_otp_matchup_notes.json"
+HIGH_ELO_GUIDE_FILE = DATA / "league_onetricks_matchup_notes.json"
 ROLES = ("Top", "Jungle", "Mid", "ADC", "Support")
 
 
@@ -69,9 +70,9 @@ def _scout_catalog(path: str, stamp: int) -> dict:
 
 
 def scout_note(role: str, ours: str, enemy: str) -> dict:
-    """Read reviewed signals; preserve the older multi-source curated rows first."""
+    """Read reviewed signals; multi-source curated > ranked single-guide > anecdote."""
     key = (role, _normalise(ours), _normalise(enemy))
-    for path in (SCOUT_FILE, OTP_FILE):
+    for path in (SCOUT_FILE, HIGH_ELO_GUIDE_FILE, OTP_FILE):
         try:
             rows = _scout_catalog(str(path), source_mtime_ns(path))
         except OSError:

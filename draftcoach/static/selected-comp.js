@@ -55,6 +55,10 @@
     } else if (liveFetch?.state === "access_restricted") {
       root.append(D.el("p", "fd-sc-reference",
         "OP.GG access restricted; live lookup paused. Cached scouting remains available."));
+    } else if (liveFetch?.state === "patch_expired") {
+      root.append(D.el("p", "fd-sc-reference",
+        "Patch changed: 26.21 OP.GG numbers are historical, not current counters. " +
+        "Automatic current-patch matchup scoring paused until verified 26.22 data is available."));
     }
     const compensation = guidance?.compensation_search;
     if (compensation?.state === "evaluating" ||
@@ -86,7 +90,10 @@
       const scout = (lane?.scout || []).slice(0, 2);
       const rolling = lane?.opgg_reference || null;
       const full = lane?.opgg_full_reference || null;
+      const historic = lane?.pocket_reference || null;
+      const proOrder = lane?.pro_order_reference || null;
       const fullOptions = (full?.alternatives || []).slice(0, 4);
+      const historicalOptions = (historic?.alternatives || []).slice(0, 3);
       const rollingOptions = (full?.planned || fullOptions.length)
         ? [] : (rolling?.alternatives || []).slice(0, 3);
       // Same-patch Emerald+ observations are prioritised over unversioned
@@ -95,6 +102,9 @@
         if (entry.champion && !options.includes(entry.champion)) options.push(entry.champion);
       }
       for (const entry of rollingOptions) {
+        if (entry.champion && !options.includes(entry.champion)) options.push(entry.champion);
+      }
+      for (const entry of historicalOptions) {
         if (entry.champion && !options.includes(entry.champion)) options.push(entry.champion);
       }
       for (const entry of scout) {
@@ -115,6 +125,8 @@
         const isCounter = ((!!rec && champ === rec.now && champ !== primary)
           || (!!playable && champ === playable.champion));
         const scoutEntry = scout.find(entry => entry.champion === champ);
+        const historicalEntry = historicalOptions.find(entry => entry.champion === champ) ||
+          (historic?.planned?.champion === champ ? historic.planned : null);
         const fullEntry = fullOptions.find(entry => entry.champion === champ) ||
           (full?.planned?.champion === champ ? full.planned : null);
         const referenceEntry = fullEntry ||
@@ -124,7 +136,8 @@
         const isLearn = learning.has(champ) || (!!learn && champ === learn.champion) ||
           (isScout && scoutEntry.type === "learn") ||
           (!!fullEntry && fullEntry.type === "learn") ||
-          (!!referenceEntry && referenceEntry.type === "learn");
+          (!!referenceEntry && referenceEntry.type === "learn") ||
+          (!!historicalEntry && historicalEntry.type === "learn");
         const isLocked = ownLocks[role] === champ;
         const unavailable = !isLocked && (bans.has(champ) || taken.has(champ));
         const item = D.el("div", "fd-sc-option" +
@@ -132,7 +145,7 @@
           (isLearn ? " learn" : "") +
           (isCounter ? " counter" : "") +
           (isScout ? " scout" : "") +
-          (referenceEntry ? " reference" : "") +
+          (referenceEntry || historicalEntry ? " reference" : "") +
           (isLocked ? " locked" : "") +
           (unavailable ? " unavailable" : ""));
         item.title = [champ, isScout ? "SCOUT ONLY · " + scoutEntry.summary +
@@ -155,6 +168,12 @@
                 ? "may need a coordinated frontline/team adjustment · " : "") +
               "observational data"
               : "rank/patch unknown") + " · not a forced pick" : "",
+          historicalEntry ? "PocketPick historical 16.16 EUW Silver–Platinum: " +
+            historicalEntry.head_to_head_win_rate.toFixed(1) +
+            "% in " + historicalEntry.games + " games, " +
+            (historicalEntry.adjusted_matchup_lift_pp >= 0 ? "+" : "") +
+            historicalEntry.adjusted_matchup_lift_pp +
+            " pp versus own historical baseline · not current patch · no automatic swap" : "",
           unavailable ? "Unavailable" : isLocked ? "Locked in League" : ""].filter(Boolean).join(" · ");
         item.append(D.portrait(champ, "small"));
         item.append(D.el("span", "fd-sc-name", champ));
@@ -164,6 +183,8 @@
         else if (playable?.champion === champ) item.append(D.el("span", "fd-sc-idea-badge", "COUNTER"));
         else if (referenceEntry) item.append(D.el("span", "fd-sc-idea-badge",
           referenceEntry.type === "learn" ? "LEARN" : fullEntry ? "OP.GG STATS" : "OP.GG"));
+        else if (historicalEntry) item.append(D.el("span", "fd-sc-idea-badge",
+          historicalEntry.type === "learn" ? "LEARN" : "HISTORIC"));
         if (isLocked) item.append(D.el("span", "fd-sc-lock", "✓"));
         picks.append(item);
       }
@@ -201,15 +222,42 @@
             entry.champion + " " + entry.head_to_head_win_rate.toFixed(1) +
             "% (n=" + entry.games + ")").join(" · ")));
       }
+      if (!full?.planned && !fullOptions.length &&
+          historic && (historic.planned || historicalOptions.length)) {
+        const oldRows = [historic.planned, ...historicalOptions].filter(Boolean).slice(0, 4);
+        row.append(D.el("p", "fd-sc-reference",
+          "PocketPick 16.16 EUW Silver–Platinum (historical only): " +
+          oldRows.map(e => e.champion + " " +
+            e.head_to_head_win_rate.toFixed(1) + "% (n=" + e.games + ")").join(" · ") +
+          " · never interpreted as current-patch high-Elo counter evidence"));
+      }
+      if (proOrder?.planned?.games || (proOrder?.alternatives || []).length) {
+        const patterns = [proOrder.planned, ...(proOrder.alternatives || [])]
+          .filter(e => e?.games && e?.ours && e?.enemy).slice(0, 3);
+        row.append(D.el("p", "fd-sc-reference",
+          "Pro draft ORDER (2026 patches 26.13–26.17): " +
+          patterns.map(e => e.ours + " selected AFTER " + e.enemy +
+            " in " + e.games + " games").join(" · ") +
+          " · positions unverified; historical only; not an automatic counter"));
+      }
       if (lane?.planned_risk) {
         row.append(D.el("p", "fd-sc-risk",
           primary + " into " + lane.enemy + ": adverse community matchup report · " +
           lane.planned_risk.summary));
       }
+      const currentSource = full?.planned?.source_url || fullOptions[0]?.source_url;
+      const proSource = proOrder?.planned?.source_url ||
+        (proOrder?.alternatives || [])[0]?.source_url;
+      const historicSource = historic?.planned?.source_url ||
+        historicalOptions[0]?.source_url;
       const source = scout[0]?.sources?.[0] || lane?.planned_risk?.sources?.[0] ||
+        (currentSource ? {url: currentSource, provider: "OP.GG · current patch"} : null) ||
         (rollingOptions[0]?.source_url
-          ? {url: rollingOptions[0].source_url, provider: "OP.GG MCP"}
-          : null);
+          ? {url: rollingOptions[0].source_url, provider: "OP.GG MCP"} : null) ||
+        (proSource ? {url: proSource,
+            provider: "LoL-Draft / Leaguepedia · CC BY-SA"} : null) ||
+        (historicSource ? {url: historicSource,
+            provider: "PocketPick · historical"} : null);
       if (source?.url?.startsWith("https://")) {
         const link = D.el("a", "fd-sc-source-link", "Matchup source · " + (source.provider || "reference"));
         link.href = source.url;
