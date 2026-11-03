@@ -3,9 +3,9 @@
 The shared scorer owns player pools, mastery/comfort, matchup evidence and comp
 quality. We select between its finished candidates, never inventing champions.
 
-A top-lane counter may require moving frontline into Jungle (or vice versa):
-two coordinated *champion* changes can be legal when player/role assignments
-stay fixed, the new five remains coherent, and the counter is well evidenced.
+A counter in any role can prompt a supporting champion change in any
+other role (Top Vayne + Mid Galio, or Mid Zed + Bot Ziggs). These are
+champion changes, not player role swaps; the scorer still owns legality.
 """
 from __future__ import annotations
 
@@ -13,6 +13,13 @@ from typing import Mapping
 
 ROLES = ("Top", "Jungle", "Mid", "ADC", "Support")
 FRONTLINE_TAGS = {"TANK", "VANGUARD", "WARDEN", "JUGGERNAUT"}
+DAMAGE_TYPES = {"MAGIC_DAMAGE", "PHYSICAL_DAMAGE"}
+
+
+def _damage_roles(champs: Mapping[str, str], traits: Mapping[str, dict],
+                  kind: str) -> set[str]:
+    return {role for role in ROLES
+            if str(traits.get(champs.get(role, ""), {}).get("adaptive_type") or "") == kind}
 
 
 def _signature(row: dict) -> tuple[str, ...]:
@@ -128,19 +135,35 @@ def select_adaptive_comp(
                 continue
             if float(row.get("score", 0)) < base_score - (1.0 if two_seat else 4.0):
                 continue
-            if float(row.get("team_plan_score", 0)) < float(base.get("team_plan_score", 0)) - (0.7 if two_seat else 0.8):
+            plan_score = float(row.get("team_plan_score", 0))
+            bot_score = float(row.get("bot_lane_score", 0))
+            mid_jg_score = float(row.get("mid_jungle_score", 0))
+            # A coordinated composition repair may sacrifice SOME lane
+            # pairing strength (e.g. Jinx -> Ziggs when Mid picks Zed),
+            # but must still be a playable team and improve global fit.
+            # The shared score already prices the trade-off.
+            if plan_score < max(6.5, float(base.get("team_plan_score", 0)) - (1.5 if two_seat else 0.8)):
                 continue
-            if float(row.get("bot_lane_score", 0)) < float(base.get("bot_lane_score", 0)) - (0.6 if two_seat else 1.0):
+            if bot_score < max(6.8, float(base.get("bot_lane_score", 0)) - (2.0 if two_seat else 1.0)):
                 continue
-            if float(row.get("mid_jungle_score", 0)) < float(base.get("mid_jungle_score", 0)) - 1.0:
+            if mid_jg_score < max(5.0, float(base.get("mid_jungle_score", 0)) - (1.8 if two_seat else 1.0)):
                 continue
 
-            # A double swap must NOT give up the frontline that our original
-            # team needed. If Top supplied it and now becomes Sylas/Vayne,
-            # the other changed role must actually supply replacement frontline.
+            # Preserve critical composition jobs independent of lane. A top
+            # tank can be replaced by Galio mid, and lost AP from a mid
+            # assassin change can be restored by a mage bot or any other
+            # qualified teammate. The shared five-player score then judges
+            # finer structure, agency, synergy and skill.
+            new_front = _frontline_roles(row.get("champions") or {}, traits)
+            base_damage = {kind: _damage_roles(base.get("champions") or original,
+                                              traits, kind) for kind in DAMAGE_TYPES}
+            new_damage = {kind: _damage_roles(row.get("champions") or {},
+                                             traits, kind) for kind in DAMAGE_TYPES}
             if two_seat:
-                new_front = _frontline_roles(row.get("champions") or {}, traits)
                 if len(new_front) < len(base_front):
+                    continue
+                if any(base_damage[kind] and not new_damage[kind]
+                       for kind in DAMAGE_TYPES):
                     continue
 
             evidence = []
@@ -210,16 +233,30 @@ def select_adaptive_comp(
             gain, role, reason = max(evidence)
             if two_seat:
                 companion = next(iter(swaps - {role}))
-                if companion in known and len(swaps & set(known)) == 2:
-                    # A second countered role does not establish that this
-                    # change is an actual structural compensation.
-                    continue
-                new_front = _frontline_roles(row.get("champions") or {}, traits)
+                replaced_jobs = []
                 if role in base_front and role not in new_front:
                     if companion not in new_front or companion in base_front:
                         continue
+                    replaced_jobs.append("frontline/engage")
+                missing_job = False
+                for kind, label in (("MAGIC_DAMAGE", "magic damage"),
+                                    ("PHYSICAL_DAMAGE", "physical damage")):
+                    if role in base_damage[kind] and role not in new_damage[kind]:
+                        if (companion in new_damage[kind]
+                            and companion not in base_damage[kind]):
+                            replaced_jobs.append(label)
+                        elif len(new_damage[kind]) < len(base_damage[kind]):
+                            missing_job = True
+                            break
+                if missing_job:
+                    continue
+                # When both lanes are countered, a second swap still needs
+                # a concrete structural explanation, not two unrelated picks.
+                if companion in known and not replaced_jobs:
+                    continue
+                job = ", ".join(replaced_jobs) if replaced_jobs else "team composition"
                 why = (f"{reason}; switch {companion} to "
-                       f"{row['champions'][companion]} to preserve team structure")
+                       f"{row['champions'][companion]} to restore {job}")
             else:
                 why = reason
             # Counter must be worth the combined complexity; a minuscule

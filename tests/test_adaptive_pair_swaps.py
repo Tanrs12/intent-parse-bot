@@ -49,7 +49,7 @@ def test_sylas_top_and_tank_jungle_can_replace_tank_top_and_assassin_jungle():
     assert picked["champions"]["Top"] == "Sylas"
     assert picked["champions"]["Jungle"] == "Skarner"
     assert "Malphite" in picked["adaptive_reasons"]["Top"]
-    assert "frontline" not in picked["adaptive_reasons"]["Top"].lower() or "structure" in picked["adaptive_reasons"]["Top"]
+    assert "frontline" in picked["adaptive_reasons"]["Top"].lower()
     assert "compensating" in picked["adaptive_reasons"]["Jungle"]
     assert picked["player_ids"] == IDS
 
@@ -177,3 +177,96 @@ def test_unqualified_patch_small_sample_or_no_baseline_never_autopicks():
             champion_traits=TRAITS, statistical_evidence={"Top": corrupt},
         )
         assert result[0]["champions"] == ORIGINAL
+
+
+
+# Role labels are seats, not fixed compensation lanes. Each player stays in
+# their already assigned seat and must own the replacement in their role pool
+# (the shared backend enforces that before the selector sees these candidates).
+TRAITS.update({
+    "Orianna": {"roles": ["MAGE"], "adaptive_type": "MAGIC_DAMAGE",
+                "ratings": {"toughness": 1}},
+    "Jinx": {"roles": ["MARKSMAN"], "adaptive_type": "PHYSICAL_DAMAGE",
+             "ratings": {"toughness": 1}},
+    "Galio": {"roles": ["TANK", "WARDEN", "MAGE"],
+              "adaptive_type": "MAGIC_DAMAGE",
+              "ratings": {"toughness": 3}},
+    "Ziggs": {"roles": ["MAGE"], "adaptive_type": "MAGIC_DAMAGE",
+              "ratings": {"toughness": 1}},
+    "Zed": {"roles": ["ASSASSIN"], "adaptive_type": "PHYSICAL_DAMAGE",
+            "ratings": {"toughness": 1}},
+    "Yasuo": {"roles": ["SKIRMISHER"], "adaptive_type": "PHYSICAL_DAMAGE",
+              "ratings": {"toughness": 1}},
+    "Braum": {"roles": ["TANK", "WARDEN"], "adaptive_type": "PHYSICAL_DAMAGE",
+              "ratings": {"toughness": 3}},
+    "Lulu": {"roles": ["ENCHANTER"], "adaptive_type": "MAGIC_DAMAGE",
+             "ratings": {"toughness": 1}},
+})
+
+
+def test_top_vayne_can_restore_frontline_via_galio_mid_not_just_jungle():
+    start = row(ORIGINAL)
+    candidate = row({**ORIGINAL, "Top": "Vayne", "Mid": "Galio"},
+                    score=94.5, team_plan_score=8.5,
+                    mid_jungle_score=6.5, edges=[{
+                        "role": "Top", "enemy": "Malphite", "games": 3200,
+                        "points": 2.2, "usable_for_ranking": True
+                    }])
+    winner = plan([candidate, start])
+    assert winner["champions"]["Top"] == "Vayne"
+    assert winner["champions"]["Mid"] == "Galio"
+    assert winner["champions"]["Jungle"] == "Lee Sin"
+    assert "frontline" in winner["adaptive_reasons"]["Top"]
+    assert "compensating" in winner["adaptive_reasons"]["Mid"]
+
+
+def test_top_counter_can_restore_frontline_from_support():
+    start = row(ORIGINAL)
+    candidate = row({**ORIGINAL, "Top": "Vayne", "Support": "Braum"},
+                    score=94.8, team_plan_score=8.4,
+                    bot_lane_score=7.4, edges=[{
+                        "role": "Top", "enemy": "Malphite", "games": 2800,
+                        "points": 2.3, "usable_for_ranking": True
+                    }])
+    winner = plan([candidate, start])
+    assert winner["champions"]["Support"] == "Braum"
+    assert "frontline" in winner["adaptive_reasons"]["Top"]
+
+
+def test_zed_or_yasuo_mid_can_restore_magic_damage_from_mage_bot():
+    for carry in ("Zed", "Yasuo"):
+        start = row(ORIGINAL)
+        replacement = row({**ORIGINAL, "Mid": carry, "ADC": "Ziggs"},
+                          score=95.3, team_plan_score=8.0,
+                          bot_lane_score=7.2, mid_jungle_score=6.6,
+                          edges=[{"role": "Mid", "enemy": "Akali",
+                                  "games": 2100, "points": 2.2,
+                                  "usable_for_ranking": True}])
+        winner = select_adaptive_comp(
+            [replacement, start], ORIGINAL,
+            enemy_roles={"Mid": "Akali"},
+            identity="dive", champion_traits=TRAITS,
+        )[0]
+        assert winner["champions"]["Mid"] == carry
+        assert winner["champions"]["ADC"] == "Ziggs"
+        assert "magic damage" in winner["adaptive_reasons"]["Mid"]
+        assert "compensating" in winner["adaptive_reasons"]["ADC"]
+
+
+def test_mid_assassin_plus_second_physical_bot_cannot_drop_all_magic_damage():
+    start = row(ORIGINAL)
+    candidate = row({**ORIGINAL, "Mid": "Zed", "ADC": "Jhin"},
+                    score=99.0, bot_lane_score=8.4,
+                    edges=[{"role": "Mid", "enemy": "Akali", "games": 2500,
+                            "points": 3.0, "usable_for_ranking": True}])
+    extra = dict(TRAITS)
+    extra["Jhin"] = {"adaptive_type": "PHYSICAL_DAMAGE",
+                     "roles": ["MARKSMAN"], "ratings": {"toughness": 1}}
+    # This five still has Lulu's incidental magic spells, but losing its
+    # only dedicated mid magic carry without a replacement is not balanced.
+    # The total-scoring engine also prices the poor all-AD team.
+    winner = select_adaptive_comp(
+        [candidate, start], ORIGINAL,
+        enemy_roles={"Mid": "Akali"}, champion_traits=extra,
+    )[0]
+    assert winner["champions"] == ORIGINAL
