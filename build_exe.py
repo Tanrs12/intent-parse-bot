@@ -40,45 +40,42 @@ echo.
 echo Update repaired and verified. You can now open Draft Coach normally.
 pause
 ''',
+    # The exe is a windowed build (no console): each launcher just starts it with its flags and
+    # exits. The app is its own windows; closing the coach window and the panel stops it. The
+    # self-updater relaunches the exe itself (with --no-update after a failed update), so no
+    # restart loop lives here any more.
     "Draft Coach (live client).bat": r'''@echo off
 cd /d "%~dp0"
 echo Starting Flexers Draft Coach against your League client...
 echo Ten INTent composition plans are available during champ select (PgUp/PgDn for pages).
-echo Coach page: http://127.0.0.1:8765/   (close this window to stop)
-:restart
-FlexersDraftCoach.exe --load "loadfiles\flexers-team.json" --hud
-set EXITCODE=%ERRORLEVEL%
-if "%EXITCODE%"=="42" exit /b 0
-if not "%EXITCODE%"=="0" echo Draft Coach stopped unexpectedly; restarting in 2 seconds...
-timeout /t 2 /nobreak >nul
-goto restart
+echo The coach window and the floating panel open in a moment; close both to stop.
+start "" "FlexersDraftCoach.exe" --load "loadfiles\flexers-team.json" --window --hud
 ''',
     "Draft Coach (practice, no client).bat": r'''@echo off
 cd /d "%~dp0"
 echo Replaying a scripted draft with the team roster. No League client needed.
-echo Coach page: http://127.0.0.1:8765/   (close this window to stop)
-FlexersDraftCoach.exe --simulate --load "loadfiles\flexers-team.json" --window
-pause
+echo The coach window and the floating panel open in a moment; close both to stop.
+start "" "FlexersDraftCoach.exe" --simulate --load "loadfiles\flexers-team.json" --window
 ''',
     "Draft Coach (any queue).bat": r'''@echo off
 cd /d "%~dp0"
 echo Coaching every champion select (normals too). Default launchers: Ranked Flex and custom games only.
-FlexersDraftCoach.exe --load "loadfiles\flexers-team.json" --window --hud --any-queue
-pause
+echo The coach window and the floating panel open in a moment; close both to stop.
+start "" "FlexersDraftCoach.exe" --load "loadfiles\flexers-team.json" --window --hud --any-queue
 ''',
     "Player (sync from coach PC).bat": r'''@echo off
 cd /d "%~dp0"
 set /p COACH=Coach PC address (for example 192.168.1.20:8765):
 if "%COACH%"=="" set COACH=127.0.0.1:8765
 echo Using your own League client, with roster AND authoritative live draft synced from http://%COACH%
-FlexersDraftCoach.exe --window --hud --sync http://%COACH%
-pause
+echo The coach window and the floating panel open in a moment; close both to stop.
+start "" "FlexersDraftCoach.exe" --window --hud --sync http://%COACH%
 ''',
     "Coach PC (share roster on the LAN).bat": r'''@echo off
 cd /d "%~dp0"
 echo Coach mode: this PC is the authoritative INTent draft brain; players point the sync launcher at this machine's IP.
-FlexersDraftCoach.exe --host 0.0.0.0 --load "loadfiles\flexers-team.json" --window --hud
-pause
+echo The coach window and the floating panel open in a moment; close both to stop.
+start "" "FlexersDraftCoach.exe" --host 0.0.0.0 --load "loadfiles\flexers-team.json" --window --hud
 ''',
 }
 
@@ -87,7 +84,12 @@ START_HERE = """FLEXERS DRAFT COACH
 
 Unzip the whole folder anywhere (keep FlexersDraftCoach.exe next to the _internal folder).
 
-Double-click one of these:
+Double-click FlexersDraftCoach.exe: it opens as a normal application (its own taskbar button) with two
+windows, the coach window and the small always-on-top panel, plus the in-client HUD once League is open.
+There is no console window. Closing one window keeps the other; the panel's "Open coach" button and
+the coach window's "Show panel" bring a closed one back. Closing both windows stops the app.
+
+Or double-click one of these launchers for another mode:
 
   Draft Coach (live client).bat          Normal launcher for EVERYONE. It checks for updates, then identifies your Riot
                                          account and automatically joins the shared Flexers draft room.
@@ -124,7 +126,9 @@ Edit loadfiles\\flexers-team.json to change pools, familiarity (comfort / refres
 preference, scouting and the playbook. Drop any JSON or CSV loadfile into loadfiles\\ while it
 runs and it is imported within seconds. Your merged roster is saved in var\\roster.json.
 
-Command line (from this folder): FlexersDraftCoach.exe --help
+Modes and flags: the launchers above are the way to pick a mode. FlexersDraftCoach.exe has no console
+window, so it cannot print a help text; each launcher .bat is a plain text file showing the flags it passes,
+and the full list is in the source folder: python run.py --help (after the pip install above).
 """
 
 
@@ -142,7 +146,9 @@ def main() -> int:
         shutil.rmtree(DIST)
     sep = ";" if sys.platform == "win32" else ":"
     cmd = [
-        sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onedir", "--console",
+        # --windowed: a real desktop app with no console; run.py logs to var/draftcoach.log and reports
+        # crashes with a dialog, so nothing is lost when stdout/stderr do not exist.
+        sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onedir", "--windowed",
         "--name", NAME, "--icon", str(ROOT / "draftcoach" / "flexers_draft.ico"),
         "--distpath", str(ROOT / "dist"), "--workpath", str(ROOT / "build"),
         "--specpath", str(ROOT / "build"),

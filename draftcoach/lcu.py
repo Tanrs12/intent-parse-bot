@@ -17,6 +17,7 @@ import os
 import platform
 import ssl
 import subprocess
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -66,8 +67,43 @@ def parse_lockfile(text: str) -> LockfileInfo:
     return LockfileInfo(pid=int(parts[1]), port=int(parts[2]), password=parts[3], protocol=parts[4])
 
 
+# The process-list probe spawns powershell; while the client is absent it would otherwise run on
+# every watcher poll (2 s). An empty result is remembered for this long before probing again.
+PROCESS_PROBE_BACKOFF = 10.0
+_last_empty_probe: float | None = None   # time.monotonic() of the last probe that found no client
+
+
+def _hidden_subprocess_kwargs() -> dict:
+    """Keep the helper process off the screen.
+
+    The packaged exe is a windowed (console-less) build: a console-subsystem child such as
+    powershell would otherwise get a brand-new visible console window that flashes up and steals
+    focus. CREATE_NO_WINDOW plus a hidden STARTUPINFO (what updater._spawn_replacer_script does)
+    stops that; neither exists outside Windows.
+    """
+    kwargs: dict = {}
+    if platform.system() != "Windows":
+        return kwargs
+    kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+    startupinfo_cls = getattr(subprocess, "STARTUPINFO", None)
+    if startupinfo_cls is not None:
+        startupinfo = startupinfo_cls()
+        startupinfo.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0x00000001)
+        startupinfo.wShowWindow = 0  # SW_HIDE
+        kwargs["startupinfo"] = startupinfo
+    return kwargs
+
+
 def _lockfile_from_process() -> LockfileInfo | None:
-    """Fall back to reading the client's command line for the port/token."""
+    """Fall back to reading the client's command line for the port/token.
+
+    A probe that finds nothing is not repeated for PROCESS_PROBE_BACKOFF seconds; a probe that
+    finds the client is never throttled (the caller connects right away).
+    """
+    global _last_empty_probe
+    now = time.monotonic()
+    if _last_empty_probe is not None and now - _last_empty_probe < PROCESS_PROBE_BACKOFF:
+        return None
     system = platform.system()
     try:
         if system == "Windows":
@@ -75,17 +111,20 @@ def _lockfile_from_process() -> LockfileInfo | None:
                    "Get-CimInstance Win32_Process -Filter \"name = 'LeagueClientUx.exe'\" | Select-Object -ExpandProperty CommandLine"]
         else:
             cmd = ["sh", "-c", "ps -A -o command | grep LeagueClientUx | grep -v grep"]
-        output = subprocess.run(cmd, capture_output=True, text=True, timeout=5).stdout
+        output = subprocess.run(cmd, capture_output=True, text=True, timeout=5, **_hidden_subprocess_kwargs()).stdout
     except Exception:  # noqa: BLE001
+        _last_empty_probe = now
         return None
     port = token = None
-    for part in output.replace('"', " ").split():
+    for part in (output or "").replace('"', " ").split():
         if part.startswith("--app-port="):
             port = int(part.split("=", 1)[1])
         elif part.startswith("--remoting-auth-token="):
             token = part.split("=", 1)[1]
     if port and token:
+        _last_empty_probe = None
         return LockfileInfo(pid=0, port=port, password=token)
+    _last_empty_probe = now
     return None
 
 
