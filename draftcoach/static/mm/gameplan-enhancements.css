@@ -1,0 +1,43 @@
+/* Optional enhancement to Rat's Game Plan cards. No token/palette overrides. */
+.gameplan-role-portraits { align-items: stretch; }
+.gameplan-role-card { min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px; }
+.gameplan-role-card .gameplan-role-label { color: var(--mm-blue); text-transform: uppercase; }
+.gameplan-role-card .captain-player { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gameplan-option-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-start; }
+.gameplan-option { min-width: 0; max-width: 60px; display: flex; flex-direction: column; align-items: center; gap: 3px; position: relative; }
+.gameplan-option .portrait { height: 39px; width: 39px; border-radius: 3px; }
+.gameplan-option.primary .portrait { outline: 2px solid var(--mm-blue); outline-offset: 1px; }
+.gameplan-option.learn .portrait { outline: 1px dashed var(--mm-warn); outline-offset: 1px; opacity: .8; }
+.gameplan-option-name { display: block; max-width: 60px; font: 10px/13px var(--mm-sans); color: var(--mm-ink); text-align: center; overflow-wrap: anywhere; }
+.gameplan-learning-label { color: var(--mm-warn); font: 8px/9px var(--mm-mono); }
+.gameplan-side-boards { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin-top: 14px; }
+.gameplan-side-panel { min-width: 0; padding: 10px; border: 1px solid var(--fd-border); border-radius: 5px; }
+.gameplan-side-panel.blue { border-color: #5aa8e5; }
+.gameplan-side-panel.red { border-color: #dd7284; }
+.gameplan-side-panel.active { background: var(--mm-paper); }
+.gameplan-side-heading { margin: 0 0 8px; font: 700 10px/14px var(--mm-mono); letter-spacing: .03em; }
+.gameplan-side-panel.blue .gameplan-side-heading,
+.gameplan-side-panel.blue .gameplan-ban-heading { color: #5aa8e5; }
+.gameplan-side-panel.red .gameplan-side-heading,
+.gameplan-side-panel.red .gameplan-ban-heading { color: #dd7284; }
+.gameplan-full-order { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 5px; }
+.gameplan-pick-step { min-width: 0; padding: 5px 2px; display: flex; align-items: center; flex-direction: column; gap: 3px; border: 1px solid var(--mm-line); border-radius: 4px; }
+.gameplan-pick-step.ours { background: var(--mm-pale); }
+.gameplan-pick-step.enemy { opacity: .70; border-style: dashed; }
+.gameplan-slot { font: 700 10px/12px var(--mm-mono); color: var(--mm-ink); }
+.gameplan-pick-step .portrait { width: 28px; height: 28px; }
+.gameplan-pick-name { font: 9px/12px var(--mm-sans); overflow-wrap: anywhere; max-width: 100%; text-align: center; }
+.gameplan-enemy-placeholder { font: 9px/12px var(--mm-sans); color: var(--mm-secondary); text-align: center; }
+.gameplan-ban-heading { margin: 12px 0 7px; padding-top: 10px; border-top: 1px solid var(--mm-line); font: 700 10px/12px var(--mm-mono); }
+.gameplan-ban-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.gameplan-ban-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: 4px; font: 10px/12px var(--mm-sans); background: var(--mm-paper); }
+.gameplan-side-panel.blue .gameplan-ban-chip { border: 1px solid #5aa8e5; }
+.gameplan-side-panel.red .gameplan-ban-chip { border: 1px solid #dd7284; }
+.gameplan-ban-chip .portrait { width: 23px; height: 23px; }
+.gameplan-no-bans, .gameplan-conditional-bans { color: var(--mm-secondary); font: 10px/14px var(--mm-sans); }
+.gameplan-conditional-bans { margin: 8px 0 0; }
+@media (max-width: 840px) {
+ .gameplan-side-boards { grid-template-columns: 1fr; }
+ .gameplan-full-order { grid-template-columns: repeat(5,minmax(0,1fr)); }
+ .gameplan-option .portrait { width: 34px; height: 34px; }
+}

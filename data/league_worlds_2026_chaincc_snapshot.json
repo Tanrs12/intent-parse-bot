@@ -1,0 +1,1855 @@
+{
+  "schema_version": 1,
+  "provider": "ChainCC",
+  "source_url": "https://chaincc.lol/free/data/",
+  "licence": "CC BY 4.0",
+  "attribution": "ChainCC. League of Legends esports match dataset. chaincc.lol/free/data",
+  "generated_at": "2026-11-03T10:55:21.327645+00:00",
+  "league_code": "WLDs",
+  "season": 2026,
+  "last_source_game_date": "2026-10-31 23:05:06",
+  "games": 73,
+  "team_sides": 146,
+  "patch_team_sides": {
+    "16.20": 146
+  },
+  "champions": [
+    {
+      "champion": "Aatrox",
+      "picked": 3,
+      "banned": 0,
+      "picked_wins": 1,
+      "games_picked_or_banned": 3
+    },
+    {
+      "champion": "Ahri",
+      "picked": 4,
+      "banned": 4,
+      "picked_wins": 3,
+      "games_picked_or_banned": 8
+    },
+    {
+      "champion": "Akali",
+      "picked": 12,
+      "banned": 25,
+      "picked_wins": 3,
+      "games_picked_or_banned": 37
+    },
+    {
+      "champion": "Alistar",
+      "picked": 20,
+      "banned": 0,
+      "picked_wins": 6,
+      "games_picked_or_banned": 20
+    },
+    {
+      "champion": "Ambessa",
+      "picked": 19,
+      "banned": 8,
+      "picked_wins": 9,
+      "games_picked_or_banned": 27
+    },
+    {
+      "champion": "Anivia",
+      "picked": 6,
+      "banned": 4,
+      "picked_wins": 1,
+      "games_picked_or_banned": 10
+    },
+    {
+      "champion": "Annie",
+      "picked": 4,
+      "banned": 2,
+      "picked_wins": 2,
+      "games_picked_or_banned": 6
+    },
+    {
+      "champion": "Aphelios",
+      "picked": 1,
+      "banned": 2,
+      "picked_wins": 1,
+      "games_picked_or_banned": 3
+    },
+    {
+      "champion": "Ashe",
+      "picked": 10,
+      "banned": 3,
+      "picked_wins": 7,
+      "games_picked_or_banned": 13
+    },
+    {
+      "champion": "Aurora",
+      "picked": 3,
+      "banned": 3,
+      "picked_wins": 2,
+      "games_picked_or_banned": 6
+    },
+    {
+      "champion": "Bard",
+      "picked": 3,
+      "banned": 2,
+      "picked_wins": 2,
+      "games_picked_or_banned": 5
+    },
+    {
+      "champion": "Caitlyn",
+      "picked": 8,
+      "banned": 11,
+      "picked_wins": 2,
+      "games_picked_or_banned": 19
+    },
+    {
+      "champion": "Camille",
+      "picked": 10,
+      "banned": 9,
+      "picked_wins": 5,
+      "games_picked_or_banned": 19
+    },
+    {
+      "champion": "Cassiopeia",
+      "picked": 12,
+      "banned": 38,
+      "picked_wins": 8,
+      "games_picked_or_banned": 50
+    },
+    {
+      "champion": "Cho'Gath",
+      "picked": 2,
+      "banned": 0,
+      "picked_wins": 1,
+      "games_picked_or_banned": 2
+    },
+    {
+      "champion": "Corki",
+      "picked": 5,
+      "banned": 2,
+      "picked_wins": 4,
+      "games_picked_or_banned": 7
+    },
+    {
+      "champion": "Diana",
+      "picked": 1,
+      "banned": 0,
+      "picked_wins": 0,
+      "games_picked_or_banned": 1
+    },
+    {
+      "champion": "Draven",
+      "picked": 1,
+      "banned": 5,
+      "picked_wins": 1,
+      "games_picked_or_banned": 6
+    },
+    {
+      "champion": "Elise",
+      "picked": 1,
+      "banned": 0,
+      "picked_wins": 0,
+      "games_picked_or_banned": 1
+    },
+    {
+      "champion": "Ezreal",
+      "picked": 22,
+      "banned": 19,
+      "picked_wins": 10,
+      "games_picked_or_banned": 41
+    },
+    {
+      "champion": "Galio",
+      "picked": 12,
+      "banned": 13,
+      "picked_wins": 8,
+      "games_picked_or_banned": 25
+    },
+    {
+      "champion": "Gnar",
+      "picked": 9,
+      "banned": 7,
+      "picked_wins": 6,
+      "games_picked_or_banned": 16
+    },
+    {
+      "champion": "Gwen",
+      "picked": 1,
+      "banned": 1,
+      "picked_wins": 1,
+      "games_picked_or_banned": 2
+    },
+    {
+      "champion": "Hwei",
+      "picked": 1,
+      "banned": 0,
+      "picked_wins": 0,
+      "games_picked_or_banned": 1
+    },
+    {
+      "champion": "Irelia",
+      "picked": 1,
+      "banned": 0,
+      "picked_wins": 1,
+      "games_picked_or_banned": 1
+    },
+    {
+      "champion": "Jarvan IV",
+      "picked": 21,
+      "banned": 18,
+      "picked_wins": 12,
+      "games_picked_or_banned": 39
+    },
+    {
+      "champion": "Jax",
+      "picked": 5,
+      "banned": 8,
+      "picked_wins": 2,
+      "games_picked_or_banned": 13
+    },
+    {
+      "champion": "Jayce",
+      "picked": 12,
+      "banned": 24,
+      "picked_wins": 7,
+      "games_picked_or_banned": 36
+    },
+    {
+      "champion": "Jhin",
+      "picked": 16,
+      "banned": 12,
+      "picked_wins": 8,
+      "games_picked_or_banned": 28
+    },
+    {
+      "champion": "Jinx",
+      "picked": 1,
+      "banned": 0,
+      "picked_wins": 0,
+      "games_picked_or_banned": 1
+    },
+    {
+      "champion": "K'Sante",
+      "picked": 19,
+      "banned": 15,
+      "picked_wins": 6,
+      "games_picked_or_banned": 34
+    },
+    {
+      "champion": "Kai'Sa",
+      "picked": 9,
+      "banned": 3,
+      "picked_wins": 4,
+      "games_picked_or_banned": 12
+    },
+    {
+      "champion": "Kalista",
+      "picked": 15,
+      "banned": 2,
+      "picked_wins": 7,
+      "games_picked_or_banned": 17
+    },
+    {
+      "champion": "Karma",
+      "picked": 14,
+      "banned": 6,
+      "picked_wins": 5,
+      "games_picked_or_banned": 20
+    },
+    {
+      "champion": "Kennen",
+      "picked": 2,
+      "banned": 0,
+      "picked_wins": 2,
+      "games_picked_or_banned": 2
+    },
+    {
+      "champion": "Kha'Zix",
+      "picked": 0,
+      "banned": 2,
+      "picked_wins": 0,
+      "games_picked_or_banned": 2
+    },
+    {
+      "champion": "Kindred",
+      "picked": 0,
+      "banned": 1,
+      "picked_wins": 0,
+      "games_picked_or_banned": 1
+    },
+    {
+      "champion": "Kled",
+      "picked": 3,
+      "banned": 1,
+      "picked_wins": 2,
+      "games_picked_or_banned": 4
+    },
+    {
+      "champion": "Kog'Maw",
+      "picked": 3,
+      "banned": 1,
+      "picked_wins": 2,
+      "games_picked_or_banned": 4
+    },
+    {
+      "champion": "LeBlanc",
+      "picked": 4,
+      "banned": 5,
+      "picked_wins": 1,
+      "games_picked_or_banned": 9
+    },
+    {
+      "champion": "Lee Sin",
+      "picked": 24,
+      "banned": 16,
+      "picked_wins": 12,
+      "games_picked_or_banned": 40
+    },
+    {
+      "champion": "Leona",
+      "picked": 4,
+      "banned": 0,
+      "picked_wins": 2,
+      "games_picked_or_banned": 4
+    },
+    {
+      "champion": "Lillia",
+      "picked": 1,
+      "banned": 0,
+      "picked_wins": 0,
+      "games_picked_or_banned": 1
+    },
+    {
+      "champion": "Lissandra",
+      "picked": 2,
+      "banned": 0,
+      "picked_wins": 1,
+      "games_picked_or_banned": 2
+    },
+    {
+      "champion": "Locke",
+      "picked": 11,
+      "banned": 22,
+      "picked_wins": 6,
+      "games_picked_or_banned": 33
+    },
+    {
+      "champion": "Lucian",
+      "picked": 14,
+      "banned": 5,
+      "picked_wins": 7,
+      "games_picked_or_banned": 19
+    },
+    {
+      "champion": "Lulu",
+      "picked": 19,
+      "banned": 9,
+      "picked_wins": 11,
+      "games_picked_or_banned": 28
+    },
+    {
+      "champion": "Lux",
+      "picked": 1,
+      "banned": 0,
+      "picked_wins": 1,
+      "games_picked_or_banned": 1
+    },
+    {
+      "champion": "Malphite",
+      "picked": 1,
+      "banned": 0,
+      "picked_wins": 0,
+      "games_picked_or_banned": 1
+    },
+    {
+      "champion": "Maokai",
+      "picked": 3,
+      "banned": 6,
+      "picked_wins": 0,
+      "games_picked_or_banned": 9
+    },
+    {
+      "champion": "Mel",
+      "picked": 1,
+      "banned": 0,
+      "picked_wins": 0,
+      "games_picked_or_banned": 1
+    },
+    {
+      "champion": "Milio",
+      "picked": 11,
+      "banned": 0,
+      "picked_wins": 5,
+      "games_picked_or_banned": 11
+    },
+    {
+      "champion": "Miss Fortune",
+      "picked": 5,
+      "banned": 0,
+      "picked_wins": 2,
+      "games_picked_or_banned": 5
+    },
+    {
+      "champion": "Naafiri",
+      "picked": 4,
+      "banned": 5,
+      "picked_wins": 1,
+      "games_picked_or_banned": 9
+    },
+    {
+      "champion": "Nami",
+      "picked": 3,
+      "banned": 0,
+      "picked_wins": 2,
+      "games_picked_or_banned": 3
+    },
+    {
+      "champion": "Nasus",
+      "picked": 1,
+      "banned": 0,
+      "picked_wins": 0,
+      "games_picked_or_banned": 1
+    },
+    {
+      "champion": "Nautilus",
+      "picked": 19,
+      "banned": 14,
+      "picked_wins": 12,
+      "games_picked_or_banned": 33
+    },
+    {
+      "champion": "Neeko",
+      "picked": 2,
+      "banned": 1,
+      "picked_wins": 0,
+      "games_picked_or_banned": 3
+    },
+    {
+      "champion": "Nocturne",
+      "picked": 13,
+      "banned": 53,
+      "picked_wins": 8,
+      "games_picked_or_banned": 66
+    },
+    {
+      "champion": "Olaf",
+      "picked": 13,
+      "banned": 32,
+      "picked_wins": 8,
+      "games_picked_or_banned": 45
+    },
+    {
+      "champion": "Orianna",
+      "picked": 18,
+      "banned": 20,
+      "picked_wins": 13,
+      "games_picked_or_banned": 38
+    },
+    {
+      "champion": "Ornn",
+      "picked": 7,
+      "banned": 1,
+      "picked_wins": 4,
+      "games_picked_or_banned": 8
+    },
+    {
+      "champion": "Pantheon",
+      "picked": 12,
+      "banned": 9,
+      "picked_wins": 6,
+      "games_picked_or_banned": 21
+    },
+    {
+      "champion": "Poppy",
+      "picked": 1,
+      "banned": 5,
+      "picked_wins": 1,
+      "games_picked_or_banned": 6
+    },
+    {
+      "champion": "Pyke",
+      "picked": 1,
+      "banned": 3,
+      "picked_wins": 0,
+      "games_picked_or_banned": 4
+    },
+    {
+      "champion": "Qiyana",
+      "picked": 17,
+      "banned": 28,
+      "picked_wins": 8,
+      "games_picked_or_banned": 45
+    },
+    {
+      "champion": "Rakan",
+      "picked": 9,
+      "banned": 2,
+      "picked_wins": 4,
+      "games_picked_or_banned": 11
+    },
+    {
+      "champion": "Rell",
+      "picked": 2,
+      "banned": 0,
+      "picked_wins": 2,
+      "games_picked_or_banned": 2
+    },
+    {
+      "champion": "Renata Glasc",
+      "picked": 15,
+      "banned": 36,
+      "picked_wins": 7,
+      "games_picked_or_banned": 51
+    },
+    {
+      "champion": "Renekton",
+      "picked": 6,
+      "banned": 12,
+      "picked_wins": 4,
+      "games_picked_or_banned": 18
+    },
+    {
+      "champion": "Rumble",
+      "picked": 21,
+      "banned": 17,
+      "picked_wins": 6,
+      "games_picked_or_banned": 38
+    },
+    {
+      "champion": "Ryze",
+      "picked": 7,
+      "banned": 4,
+      "picked_wins": 2,
+      "games_picked_or_banned": 11
+    },
+    {
+      "champion": "Sejuani",
+      "picked": 5,
+      "banned": 0,
+      "picked_wins": 1,
+      "games_picked_or_banned": 5
+    },
+    {
+      "champion": "Seraphine",
+      "picked": 12,
+      "banned": 18,
+      "picked_wins": 8,
+      "games_picked_or_banned": 30
+    },
+    {
+      "champion": "Shen",
+      "picked": 7,
+      "banned": 1,
+      "picked_wins": 2,
+      "games_picked_or_banned": 8
+    },
+    {
+      "champion": "Sivir",
+      "picked": 3,
+      "banned": 3,
+      "picked_wins": 2,
+      "games_picked_or_banned": 6
+    },
+    {
+      "champion": "Skarner",
+      "picked": 3,
+      "banned": 10,
+      "picked_wins": 1,
+      "games_picked_or_banned": 13
+    },
+    {
+      "champion": "Swain",
+      "picked": 1,
+      "banned": 0,
+      "picked_wins": 1,
+      "games_picked_or_banned": 1
+    },
+    {
+      "champion": "Sylas",
+      "picked": 5,
+      "banned": 9,
+      "picked_wins": 1,
+      "games_picked_or_banned": 14
+    },
+    {
+      "champion": "Syndra",
+      "picked": 19,
+      "banned": 25,
+      "picked_wins": 11,
+      "games_picked_or_banned": 44
+    },
+    {
+      "champion": "Tahm Kench",
+      "picked": 1,
+      "banned": 0,
+      "picked_wins": 0,
+      "games_picked_or_banned": 1
+    },
+    {
+      "champion": "Taliyah",
+      "picked": 5,
+      "banned": 4,
+      "picked_wins": 3,
+      "games_picked_or_banned": 9
+    },
+    {
+      "champion": "Tristana",
+      "picked": 7,
+      "banned": 0,
+      "picked_wins": 3,
+      "games_picked_or_banned": 7
+    },
+    {
+      "champion": "Trundle",
+      "picked": 8,
+      "banned": 5,
+      "picked_wins": 5,
+      "games_picked_or_banned": 13
+    },
+    {
+      "champion": "Twisted Fate",
+      "picked": 3,
+      "banned": 5,
+      "picked_wins": 2,
+      "games_picked_or_banned": 8
+    },
+    {
+      "champion": "Twitch",
+      "picked": 1,
+      "banned": 0,
+      "picked_wins": 0,
+      "games_picked_or_banned": 1
+    },
+    {
+      "champion": "Varus",
+      "picked": 2,
+      "banned": 1,
+      "picked_wins": 2,
+      "games_picked_or_banned": 3
+    },
+    {
+      "champion": "Vayne",
+      "picked": 0,
+      "banned": 9,
+      "picked_wins": 0,
+      "games_picked_or_banned": 9
+    },
+    {
+      "champion": "Vel'Koz",
+      "picked": 1,
+      "banned": 0,
+      "picked_wins": 1,
+      "games_picked_or_banned": 1
+    },
+    {
+      "champion": "Vi",
+      "picked": 14,
+      "banned": 42,
+      "picked_wins": 10,
+      "games_picked_or_banned": 56
+    },
+    {
+      "champion": "Viktor",
+      "picked": 14,
+      "banned": 9,
+      "picked_wins": 8,
+      "games_picked_or_banned": 23
+    },
+    {
+      "champion": "Volibear",
+      "picked": 1,
+      "banned": 1,
+      "picked_wins": 1,
+      "games_picked_or_banned": 2
+    },
+    {
+      "champion": "Wukong",
+      "picked": 10,
+      "banned": 15,
+      "picked_wins": 5,
+      "games_picked_or_banned": 25
+    },
+    {
+      "champion": "Xayah",
+      "picked": 7,
+      "banned": 1,
+      "picked_wins": 4,
+      "games_picked_or_banned": 8
+    },
+    {
+      "champion": "Xin Zhao",
+      "picked": 5,
+      "banned": 5,
+      "picked_wins": 3,
+      "games_picked_or_banned": 10
+    },
+    {
+      "champion": "Yone",
+      "picked": 3,
+      "banned": 6,
+      "picked_wins": 0,
+      "games_picked_or_banned": 9
+    },
+    {
+      "champion": "Yorick",
+      "picked": 2,
+      "banned": 0,
+      "picked_wins": 0,
+      "games_picked_or_banned": 2
+    },
+    {
+      "champion": "Yunara",
+      "picked": 14,
+      "banned": 3,
+      "picked_wins": 8,
+      "games_picked_or_banned": 17
+    },
+    {
+      "champion": "Yuumi",
+      "picked": 2,
+      "banned": 0,
+      "picked_wins": 1,
+      "games_picked_or_banned": 2
+    },
+    {
+      "champion": "Zaahen",
+      "picked": 5,
+      "banned": 0,
+      "picked_wins": 3,
+      "games_picked_or_banned": 5
+    },
+    {
+      "champion": "Zeri",
+      "picked": 2,
+      "banned": 0,
+      "picked_wins": 1,
+      "games_picked_or_banned": 2
+    },
+    {
+      "champion": "Ziggs",
+      "picked": 5,
+      "banned": 1,
+      "picked_wins": 1,
+      "games_picked_or_banned": 6
+    },
+    {
+      "champion": "Zyra",
+      "picked": 0,
+      "banned": 1,
+      "picked_wins": 0,
+      "games_picked_or_banned": 1
+    }
+  ],
+  "duos": [
+    {
+      "package": "ADC+Support",
+      "first": "Aphelios",
+      "second": "Alistar",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Ashe",
+      "second": "Seraphine",
+      "games": 10,
+      "wins": 7
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Caitlyn",
+      "second": "Bard",
+      "games": 2,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Caitlyn",
+      "second": "Elise",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Caitlyn",
+      "second": "Karma",
+      "games": 3,
+      "wins": 0
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Caitlyn",
+      "second": "Lux",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Caitlyn",
+      "second": "Neeko",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Corki",
+      "second": "Alistar",
+      "games": 3,
+      "wins": 2
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Corki",
+      "second": "Nautilus",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Corki",
+      "second": "Shen",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Draven",
+      "second": "Nautilus",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Ezreal",
+      "second": "Alistar",
+      "games": 5,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Ezreal",
+      "second": "Karma",
+      "games": 9,
+      "wins": 3
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Ezreal",
+      "second": "Leona",
+      "games": 2,
+      "wins": 2
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Ezreal",
+      "second": "Lulu",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Ezreal",
+      "second": "Nautilus",
+      "games": 3,
+      "wins": 3
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Ezreal",
+      "second": "Pyke",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Ezreal",
+      "second": "Seraphine",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Jhin",
+      "second": "Alistar",
+      "games": 7,
+      "wins": 2
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Jhin",
+      "second": "Bard",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Jhin",
+      "second": "Camille",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Jhin",
+      "second": "Karma",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Jhin",
+      "second": "Nautilus",
+      "games": 3,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Jhin",
+      "second": "Rakan",
+      "games": 2,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Jhin",
+      "second": "Shen",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Jinx",
+      "second": "Tahm Kench",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Kai'Sa",
+      "second": "Alistar",
+      "games": 3,
+      "wins": 0
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Kai'Sa",
+      "second": "Leona",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Kai'Sa",
+      "second": "Nautilus",
+      "games": 4,
+      "wins": 3
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Kai'Sa",
+      "second": "Rell",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Kalista",
+      "second": "Renata Glasc",
+      "games": 15,
+      "wins": 7
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Lucian",
+      "second": "Milio",
+      "games": 11,
+      "wins": 5
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Lucian",
+      "second": "Nami",
+      "games": 3,
+      "wins": 2
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Miss Fortune",
+      "second": "Nautilus",
+      "games": 2,
+      "wins": 0
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Miss Fortune",
+      "second": "Neeko",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Miss Fortune",
+      "second": "Rell",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Miss Fortune",
+      "second": "Seraphine",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Sivir",
+      "second": "Alistar",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Sivir",
+      "second": "Karma",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Sivir",
+      "second": "Lulu",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Tristana",
+      "second": "Lulu",
+      "games": 3,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Tristana",
+      "second": "Nautilus",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Tristana",
+      "second": "Rakan",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Twitch",
+      "second": "Camille",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Varus",
+      "second": "Nautilus",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Varus",
+      "second": "Vel'Koz",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Xayah",
+      "second": "Nautilus",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Xayah",
+      "second": "Rakan",
+      "games": 6,
+      "wins": 3
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Yunara",
+      "second": "Lulu",
+      "games": 14,
+      "wins": 8
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Zeri",
+      "second": "Yuumi",
+      "games": 2,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Ziggs",
+      "second": "Leona",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Ziggs",
+      "second": "Nautilus",
+      "games": 2,
+      "wins": 0
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Ziggs",
+      "second": "Poppy",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "ADC+Support",
+      "first": "Ziggs",
+      "second": "Shen",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Ahri",
+      "second": "Jarvan IV",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Ahri",
+      "second": "Lee Sin",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Ahri",
+      "second": "Trundle",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Ahri",
+      "second": "Xin Zhao",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Akali",
+      "second": "Jarvan IV",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Akali",
+      "second": "Lee Sin",
+      "games": 2,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Akali",
+      "second": "Nocturne",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Akali",
+      "second": "Pantheon",
+      "games": 2,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Akali",
+      "second": "Qiyana",
+      "games": 2,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Akali",
+      "second": "Sejuani",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Akali",
+      "second": "Vi",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Akali",
+      "second": "Wukong",
+      "games": 2,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Anivia",
+      "second": "Lee Sin",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Anivia",
+      "second": "Naafiri",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Anivia",
+      "second": "Nocturne",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Anivia",
+      "second": "Qiyana",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Anivia",
+      "second": "Trundle",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Anivia",
+      "second": "Vi",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Annie",
+      "second": "Jarvan IV",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Annie",
+      "second": "Lee Sin",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Annie",
+      "second": "Nocturne",
+      "games": 2,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Aurora",
+      "second": "Jarvan IV",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Aurora",
+      "second": "Vi",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Cassiopeia",
+      "second": "Jarvan IV",
+      "games": 2,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Cassiopeia",
+      "second": "Lee Sin",
+      "games": 3,
+      "wins": 2
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Cassiopeia",
+      "second": "Pantheon",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Cassiopeia",
+      "second": "Qiyana",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Cassiopeia",
+      "second": "Sejuani",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Cassiopeia",
+      "second": "Vi",
+      "games": 3,
+      "wins": 3
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Cassiopeia",
+      "second": "Wukong",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Diana",
+      "second": "Vi",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Galio",
+      "second": "Jarvan IV",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Galio",
+      "second": "Jayce",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Galio",
+      "second": "Lee Sin",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Galio",
+      "second": "Qiyana",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Galio",
+      "second": "Trundle",
+      "games": 2,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Galio",
+      "second": "Vi",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Hwei",
+      "second": "Malphite",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "K'Sante",
+      "second": "Maokai",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Kog'Maw",
+      "second": "Jarvan IV",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Kog'Maw",
+      "second": "Vi",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Kog'Maw",
+      "second": "Wukong",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "LeBlanc",
+      "second": "Lee Sin",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "LeBlanc",
+      "second": "Qiyana",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "LeBlanc",
+      "second": "Wukong",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "LeBlanc",
+      "second": "Xin Zhao",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Lissandra",
+      "second": "Nocturne",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Lissandra",
+      "second": "Qiyana",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Locke",
+      "second": "Aatrox",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Locke",
+      "second": "Jarvan IV",
+      "games": 2,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Locke",
+      "second": "Lee Sin",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Locke",
+      "second": "Nocturne",
+      "games": 2,
+      "wins": 2
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Locke",
+      "second": "Pantheon",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Locke",
+      "second": "Qiyana",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Locke",
+      "second": "Trundle",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Locke",
+      "second": "Vi",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Locke",
+      "second": "Xin Zhao",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Mel",
+      "second": "Jayce",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Orianna",
+      "second": "Jarvan IV",
+      "games": 4,
+      "wins": 3
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Orianna",
+      "second": "Lee Sin",
+      "games": 4,
+      "wins": 3
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Orianna",
+      "second": "Naafiri",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Orianna",
+      "second": "Nocturne",
+      "games": 3,
+      "wins": 2
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Orianna",
+      "second": "Qiyana",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Orianna",
+      "second": "Skarner",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Orianna",
+      "second": "Trundle",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Orianna",
+      "second": "Vi",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Orianna",
+      "second": "Wukong",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Orianna",
+      "second": "Xin Zhao",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Rumble",
+      "second": "Qiyana",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Ryze",
+      "second": "Cho'Gath",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Ryze",
+      "second": "Lee Sin",
+      "games": 2,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Ryze",
+      "second": "Naafiri",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Ryze",
+      "second": "Qiyana",
+      "games": 2,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Ryze",
+      "second": "Wukong",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Swain",
+      "second": "Jarvan IV",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Sylas",
+      "second": "Jarvan IV",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Sylas",
+      "second": "Lee Sin",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Sylas",
+      "second": "Nocturne",
+      "games": 2,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Sylas",
+      "second": "Sejuani",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Syndra",
+      "second": "Jarvan IV",
+      "games": 2,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Syndra",
+      "second": "Lee Sin",
+      "games": 4,
+      "wins": 2
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Syndra",
+      "second": "Pantheon",
+      "games": 3,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Syndra",
+      "second": "Qiyana",
+      "games": 2,
+      "wins": 2
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Syndra",
+      "second": "Sejuani",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Syndra",
+      "second": "Skarner",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Syndra",
+      "second": "Trundle",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Syndra",
+      "second": "Vi",
+      "games": 2,
+      "wins": 2
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Syndra",
+      "second": "Wukong",
+      "games": 3,
+      "wins": 2
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Taliyah",
+      "second": "Nocturne",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Taliyah",
+      "second": "Pantheon",
+      "games": 3,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Taliyah",
+      "second": "Qiyana",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Tristana",
+      "second": "Maokai",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Twisted Fate",
+      "second": "Skarner",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Twisted Fate",
+      "second": "Vi",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Viktor",
+      "second": "Cho'Gath",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Viktor",
+      "second": "Jarvan IV",
+      "games": 3,
+      "wins": 2
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Viktor",
+      "second": "Lee Sin",
+      "games": 2,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Viktor",
+      "second": "Naafiri",
+      "games": 1,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Viktor",
+      "second": "Nasus",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Viktor",
+      "second": "Pantheon",
+      "games": 2,
+      "wins": 2
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Viktor",
+      "second": "Qiyana",
+      "games": 2,
+      "wins": 1
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Viktor",
+      "second": "Sejuani",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Viktor",
+      "second": "Xin Zhao",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Yone",
+      "second": "Lillia",
+      "games": 1,
+      "wins": 0
+    },
+    {
+      "package": "Mid+Jungle",
+      "first": "Yone",
+      "second": "Maokai",
+      "games": 1,
+      "wins": 0
+    }
+  ],
+  "limitations": "Frozen tournament sample; picks/bans not chronological, no inferred counterpicks, no automatic scoring."
+}

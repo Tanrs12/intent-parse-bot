@@ -314,10 +314,14 @@ class Party:
                     acted.add(action["id"])
                     continue
                 champion = sug.get("champion")
+                # Rat\'s live-client safety contract requires the exact game,
+                # current action and action type; a champion-only click is stale.
+                payload = {"champion": champion, "action_id": local.get("action_id"),
+                           "kind": local.get("kind"), "game_id": local.get("game_id")}
                 try:
-                    http("POST", inst.url + "/api/client/hover", {"champion": champion})
+                    http("POST", inst.url + "/api/client/hover", payload)
                     time.sleep(0.6)
-                    http("POST", inst.url + "/api/client/lock", {"champion": champion})
+                    http("POST", inst.url + "/api/client/lock", payload)
                 except Exception as exc:  # noqa: BLE001
                     self.report.check(f"seat {action['cell']}: hover + lock through its own client", False, str(exc))
                     acted.add(action["id"])

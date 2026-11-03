@@ -190,14 +190,24 @@ def test_missing_suggestion_cannot_lock_another_roles_top_pick(browser_page):
     assert errors == []
 
 
-def test_legacy_automatic_dark_preference_does_not_override_new_default(browser_page):
+def test_explicit_dark_choice_survives_reload_and_applies_to_coach(browser_page):
     page, errors, _ = browser_page
+    # The obsolete automatic dark default should not force a new preference.
     page.add_init_script("localStorage.setItem('fd-overlay-theme', 'graphite')")
     show(page, draft())
     assert page.locator("body.graphite").count() == 0
     page.locator("#theme").click()
     pw.expect(page.locator("body")).to_have_class("fd-overlay graphite")
-    page.reload()                                        # Will, 3 Nov 2026: every open starts light
+    assert page.evaluate("localStorage.getItem('fd-theme-preference-v1')") == "graphite"
+    page.reload()
+    pw.expect(page.locator("body")).to_have_class("fd-overlay graphite")
+    # Both surfaces share the same saved setting.
+    show(page, draft(), "/")
+    pw.expect(page.locator("body.graphite")).to_have_count(1)
+    page.locator("#coach-theme").click()
+    pw.expect(page.locator("body.graphite")).to_have_count(0)
+    assert page.evaluate("localStorage.getItem('fd-theme-preference-v1')") == "porcelain"
+    show(page, draft())
     pw.expect(page.locator("body")).to_have_class("fd-overlay")
     assert errors == []
 

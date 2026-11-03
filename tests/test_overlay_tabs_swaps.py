@@ -198,10 +198,13 @@ def test_window_size_preset_is_remembered(tmp_path, monkeypatch):
     assert window.load_scale() == 1.15
 
 
-def test_every_window_opens_in_light_mode():
+def test_theme_is_saved_and_shared_across_both_windows():
     common = (STATIC / "common.js").read_text(encoding="utf-8")
     body = common.split("function themeControl", 1)[1].split("function fmtTimer", 1)[0]
-    assert "localStorage.getItem" not in body
+    assert "localStorage.getItem(sharedKey)" in body
+    assert "localStorage.setItem(sharedKey" in body
+    assert "fd-theme-preference-v1" in body
+    assert 'window.addEventListener("storage"' in body
     for rel in ("draftcoach/hud.py", "draftcoach/hud_intent.py"):
         text = (STATIC.parent.parent / rel).read_text(encoding="utf-8")
         assert 'theme or "porcelain"' in text and 'theme or "client"' not in text

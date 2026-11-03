@@ -328,7 +328,13 @@ def run(url: str, *, x: int = 40, y: int = 120, theme: str | None = None) -> Non
         style_windows_window(PANEL_TITLE)
 
     try:
-        webview.start(on_start)
+        # pywebview defaults to private_mode=True, which discards localStorage
+        # each time the app exits. Keep the coach/panel theme in this user-only
+        # directory (inside var/, which updater/repair preserves).
+        from . import VAR_DIR
+        storage = VAR_DIR / "webview-data"
+        storage.mkdir(parents=True, exist_ok=True)
+        webview.start(on_start, private_mode=False, storage_path=str(storage))
     except Exception as exc:  # noqa: BLE001 - e.g. .NET refusing a blocked Python.Runtime.dll
         print(f"WebView2 windows unavailable ({exc.__class__.__name__}: {str(exc)[:160]}); using the tkinter window instead")
         from .window_tk import OverlayWindow

@@ -29,6 +29,7 @@ from league_draft_backend import IDENTITIES, _pick_group_meta, recommend_live_dr
 from league_flex_core import normalise_team_role_update, role_option_limit
 from league_pro_data import refresh_recent_pro_data
 from team_sync import chosen_status, clean_chosen
+from counterpick_advice import counter_advice
 
 ROLES = ["Top", "Jungle", "Mid", "ADC", "Support"]
 COACH_STATE_URL = "http://127.0.0.1:8765/api/state"
@@ -1726,6 +1727,29 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
     }
 
 
+def _scouting_lead_with_pools(lead: dict, signups: list[dict]) -> dict:
+    """Enrich the presentation comp with true owner/role pools for advice only.
+
+    Do not alter the displayed recommendation or the engine's legal picks.
+    The compact live comp has player names, not the original signup objects.
+    """
+    by_id = {str(row.get("user_id")): row for row in signups if row.get("user_id")}
+    ids = lead.get("player_ids") or {}
+    display = lead.get("players") or {}
+    pools = {}
+    owners = {}
+    for role in ROLES:
+        row = by_id.get(str(ids.get(role))) or {}
+        pool = ((row.get("champions") or {}).get(role) or [])
+        pools[role] = list(dict.fromkeys(str(c) for c in pool if c))
+        who = display.get(role) or row.get("display_name") or role
+        owners[role] = {
+            "display_name": str(who.get("display_name") if isinstance(who, dict) else who),
+            "user_id": row.get("user_id") or ids.get(role),
+        }
+    return {**lead, "players": owners, "submitted_pools": pools}
+
+
 def build_response():
     gate = _mode_gate()
     if gate["disabled"]:
@@ -1865,6 +1889,25 @@ def build_response():
         lead = (guidance.get("comps") or [{}])[0]
         _last_best_signature = lead.get("signature") or (_comp_signature(lead.get("champions")) if lead.get("champions") else None)
         guidance["control"] = control
+        # Scouting only. An off-pool recommendation never enters the legal
+        # champion selection or the client Hover/Lock actions.
+        # Guidance comp cards flatten each player to a display-name string.
+        # Counter research needs the real *assigned* player's submitted pool
+        # (not the draft's candidate options or OP.GG account history).
+        # Role assignments can be swapped by the captain, so derive this from
+        # the actual selected comp's player IDs, not seat index.
+        scouting_lead = _scouting_lead_with_pools(lead, five)
+        guidance["counter_advice"] = (
+            counter_advice(
+                scouting_lead, known_enemy_lanes,
+                unavailable=unavailable, ally_locks=locked,
+            ) if control.get("chosen") and lead.get("champions")
+            else {"lanes": [], "status": "waiting_for_confirmed_enemy_lane"}
+            # Even before enemy roles are confirmed, counter_advice supplies
+            # read-only professional duo references for the chosen five.
+            # No lane counter or automatic replacement is evaluated until
+            # known_enemy_lanes has a confirmed opponent.
+        )
         # FLEXERS: the draft the team chose (Discord "Lock Draft N" or an app) and what the live
         # re-solve did to it: roles stay pinned, surviving champions stay locked, only banned or
         # taken seats change, and the panel says which seat changed and why.
