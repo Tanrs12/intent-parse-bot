@@ -205,7 +205,7 @@
   let typesFilled = false, deadline = 0, changeExpiry = 0, changeKey = "", leadKey = "", announced = "", typePending = false, planPending = false, plansKey = "", lastSnapshot = null;
 
   // ---- theme ----------------------------------------------------------------
-  // v1 wrote the old dark default on every load; v2 stores only explicit choices.
+  // The chosen colour is saved and shared with the main Coach window.
   D.themeControl($("theme"), "fd-overlay-theme-v2");
   // Size presets: the page zooms and the desktop window resizes to match (remembered by the app).
   const SIZES = [["S", 0.85], ["M", 1], ["L", 1.15], ["XL", 1.3]];

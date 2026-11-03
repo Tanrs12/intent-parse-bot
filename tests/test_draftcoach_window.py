@@ -57,11 +57,12 @@ class FakeWindow:
 
 
 @pytest.fixture
-def fake(monkeypatch):
+def fake(monkeypatch, tmp_path):
     """A fake ``webview`` module (no WebView2) plus the ctypes-free stand-ins for the Windows styling."""
     webview = types.ModuleType("webview")
     webview.windows = []
     webview.started = []
+    webview.start_options = []
 
     def create_window(title, **options):
         window = FakeWindow(title, **options)
@@ -70,12 +71,15 @@ def fake(monkeypatch):
 
     def start(func=None, *args, **kwargs):
         webview.started.append(func)
+        webview.start_options.append(kwargs)
         if func:
             func()
 
     webview.create_window = create_window
     webview.start = start
     monkeypatch.setitem(sys.modules, "webview", webview)
+    import draftcoach
+    monkeypatch.setattr(draftcoach, "VAR_DIR", tmp_path)
     from draftcoach import window as module
 
     styled, app_ids = [], []
@@ -109,6 +113,9 @@ def test_run_creates_the_coach_window_and_the_panel_under_one_app_id(fake):
     assert panel.options["resizable"] is False
     assert panel.options["js_api"] is api, "one Api serves both pages"
     assert len(fake.webview.started) == 1
+    assert fake.webview.start_options[0]["private_mode"] is False
+    assert (fake.module._settings_path().parent / "webview-data").is_dir()
+    assert fake.webview.start_options[0]["storage_path"] == str(fake.module._settings_path().parent / "webview-data")
     # the icon lands on both windows; only the frameless panel gets the DWM corners
     assert ("Flexers Draft Coach", False) in fake.styled and ("Flexers Draft Overlay", True) in fake.styled
 

@@ -101,18 +101,28 @@
   }
 
   function themeControl(button, storageKey) {
-    // Every window opens in the porcelain (light) theme on every machine; the button switches for this
-    // session only, and only an explicit ?theme= in the URL opens it dark.
+    // The coach and floating panel share one saved preference. The desktop
+    // WebView uses a persistent user-data folder, so this survives restarts.
+    const sharedKey = "fd-theme-preference-v1";
     const requested = new URLSearchParams(location.search).get("theme");
+    let saved = null;
+    try { saved = localStorage.getItem(sharedKey); } catch {}
     function apply(dark, persist) {
       document.body.classList.toggle("graphite", dark);
       button.textContent = dark ? "Light" : "Dark";
       button.setAttribute("aria-pressed", String(dark));
       button.setAttribute("aria-label", dark ? "Use porcelain light theme" : "Use graphite dark theme");
-      if (persist) try { localStorage.removeItem(storageKey); } catch {}
+      if (persist) {
+        try { localStorage.setItem(sharedKey, dark ? "graphite" : "porcelain"); } catch {}
+      }
     }
-    apply(requested === "graphite" || requested === "client", false);
+    const initial = requested === "graphite" || requested === "client" || (!requested && saved === "graphite");
+    apply(initial, false);
     button.onclick = () => apply(!document.body.classList.contains("graphite"), true);
+    // Sync the separate WebView windows immediately when either is changed.
+    window.addEventListener("storage", (event) => {
+      if (event.key === sharedKey && event.newValue) apply(event.newValue === "graphite", false);
+    });
   }
 
   function fmtTimer(ms) {
