@@ -30,7 +30,8 @@
     }
     const advice = guidance?.counter_advice?.lanes || [];
     const proDuos = guidance?.counter_advice?.pro_duos || {};
-    const key = JSON.stringify([chosen, [...bans], [...taken], replacements, ownLocks, advice, proDuos, wide]);
+    const key = JSON.stringify([chosen, [...bans], [...taken], replacements, ownLocks,
+      advice, proDuos, guidance?.counter_advice?.live_fetch, wide]);
     if (root.dataset.model === key) return;
     root.dataset.model = key;
     root.hidden = !chosen;
@@ -42,6 +43,18 @@
     head.append(D.el("b", "", (chosen.source === "discord" ? "DISCORD" : "TEAM") + "  /  " + (chosen.label || "Team comp").toUpperCase()));
     head.append(D.el("span", "fd-sc-mode", chosen.mode === "adaptive" ? "ADAPTIVE" : "SELECTED"));
     root.append(head);
+    const liveFetch = guidance?.counter_advice?.live_fetch;
+    if (liveFetch?.state === "fetching") {
+      root.append(D.el("p", "fd-sc-reference",
+        "OP.GG: loading missing confirmed enemy matchups in background (" +
+        liveFetch.queued + " pending). Picks and locks stay responsive."));
+    } else if (liveFetch?.state === "daily_limit") {
+      root.append(D.el("p", "fd-sc-reference",
+        "OP.GG daily request cap reached; using cached stats and historical scouting."));
+    } else if (liveFetch?.state === "access_restricted") {
+      root.append(D.el("p", "fd-sc-reference",
+        "OP.GG access restricted; live lookup paused. Cached scouting remains available."));
+    }
     if (chosen.plan) root.append(D.el("p", "fd-sc-plan", chosen.plan));
 
     const rows = D.el("div", "fd-sc-roles");
@@ -95,7 +108,9 @@
           (rolling?.original?.champion === champ ? rolling.original : null);
         const isScout = !!scoutEntry;
         const isLearn = learning.has(champ) || (!!learn && champ === learn.champion) ||
-          (isScout && scoutEntry.type === "learn");
+          (isScout && scoutEntry.type === "learn") ||
+          (!!fullEntry && fullEntry.type === "learn") ||
+          (!!referenceEntry && referenceEntry.type === "learn");
         const isLocked = ownLocks[role] === champ;
         const unavailable = !isLocked && (bans.has(champ) || taken.has(champ));
         const item = D.el("div", "fd-sc-option" +
@@ -115,8 +130,17 @@
           : champ === primary ? "Selected plan" : "Same-plan owned option",
           referenceEntry ? "OP.GG observed " + referenceEntry.head_to_head_win_rate +
             "% in " + referenceEntry.games + " games · " +
-            (fullEntry ? fullEntry.source_patch + " Emerald+ · statistical reference only"
-              : "rank/patch unknown") + " · never an automatic pick" : "",
+            (fullEntry ? fullEntry.source_patch + " Emerald+ · " +
+              (Number.isFinite(fullEntry.adjusted_matchup_lift_pp)
+                ? (fullEntry.adjusted_matchup_lift_pp >= 0 ? "+" : "") +
+                    fullEntry.adjusted_matchup_lift_pp +
+                    " pp vs own role baseline · " : "") +
+              (fullEntry.source_direction === "reverse_from_enemy_page"
+                ? "estimated from enemy-side results · " : "") +
+              (fullEntry.team_fit === "needs_compensation"
+                ? "may need a coordinated frontline/team adjustment · " : "") +
+              "observational data"
+              : "rank/patch unknown") + " · not a forced pick" : "",
           unavailable ? "Unavailable" : isLocked ? "Locked in League" : ""].filter(Boolean).join(" · ");
         item.append(D.portrait(champ, "small"));
         item.append(D.el("span", "fd-sc-name", champ));

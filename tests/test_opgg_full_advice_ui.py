@@ -36,7 +36,8 @@ def test_full_page_evidence_is_pool_aware_and_does_not_change_ranked_picks(monke
     parsed = with_stats["opgg_full_reference"]
     assert parsed["planned"]["head_to_head_win_rate"] == 45.68
     assert parsed["patch"] == "16.21"
-    assert [r["champion"] for r in parsed["alternatives"][:2]] == ["Gwen", "Camille"]
+    assert {r["champion"] for r in parsed["alternatives"][:2]} == {"Gwen", "Camille"}
+    assert all(r.get("team_score_delta") is not None for r in parsed["alternatives"][:2])
     assert [r["type"] for r in parsed["alternatives"][:3]] == ["playable", "playable", "learn"]
 
     monkeypatch.setattr(counterpick_advice, "full_for_enemy",

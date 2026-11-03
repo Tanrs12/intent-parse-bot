@@ -30,6 +30,7 @@ from league_flex_core import normalise_team_role_update, role_option_limit
 from league_pro_data import refresh_recent_pro_data
 from team_sync import chosen_status, clean_chosen
 from counterpick_advice import counter_advice
+from league_opgg_live_fetch import request_live_counters
 
 ROLES = ["Top", "Jungle", "Mid", "ADC", "Support"]
 COACH_STATE_URL = "http://127.0.0.1:8765/api/state"
@@ -476,6 +477,15 @@ _last_pro_refresh = time.time() if RUNTIME_PRO_PATH.exists() else 0.0
 SIGNUP_REFRESH_SECONDS = 10 * 60
 PRO_REFRESH_SECONDS = 6 * 60 * 60
 _compute_lock = threading.Lock()
+
+
+def _invalidate_opgg_guidance() -> None:
+    """Background OP.GG refresh must never wait while holding a score lock."""
+    global _response_cache_key
+    with _compute_lock:
+        _response_cache_key = None
+
+
 _upstream_base: str | None = None
 _cloud_base: str | None = None
 _cloud_key: str | None = None
@@ -1597,6 +1607,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
                 if (rec.get("players", {}).get(role) or {}).get("_uncontrolled") and live_by_role.get(role)
             },
             "team_plan": rec.get("team_plan"),
+            "adaptive_reasons": dict(rec.get("adaptive_reasons") or {}),
             "team_plan_grade": rec.get("team_plan_grade"),
             "team_plan_reasons": list(rec.get("team_plan_reasons") or []),
             "strengths": list(rec.get("strengths") or []),
@@ -1849,9 +1860,22 @@ def build_response():
         # Keep the team-selected picks in every UNCHALLENGED lane. Only a
         # revealed enemy lane is allowed a researched counter, and the scorer
         # still applies the player's actual submitted pool/comp requirements.
+        # A revealed counter can require moving a *team job* to a second
+        # role (e.g. replace Ornn Top with Sylas into Malphite, but move
+        # frontline from Lee Sin Jungle to Skarner). Preserve every other
+        # unchallenged seat; only free its structural companion for the
+        # shared, pool-safe two-seat adaptive candidate search.
+        compensation_roles = set()
+        if "Top" in known_enemy_lanes and "Top" not in locked:
+            compensation_roles.add("Jungle")
+        if "Jungle" in known_enemy_lanes and "Jungle" not in locked:
+            compensation_roles.add("Top")
+        if "Mid" in known_enemy_lanes and "Mid" not in locked:
+            compensation_roles.add("Jungle")
         preserve_plan = {
             role: champ for role, champ in adaptive_plan.items()
             if role in ROLES and role not in known_enemy_lanes
+            and role not in compensation_roles
             and role not in locked and champ not in unavailable
         }
         # FLEXERS: if the pinned roles or the preserved plan leave nothing playable for this lobby,
@@ -1908,6 +1932,26 @@ def build_response():
             # No lane counter or automatic replacement is evaluated until
             # known_enemy_lanes has a confirmed opponent.
         )
+        # A confirmed enemy's public page contains a full same-role opponent
+        # table. This queues a bounded optional request off the score/UI thread.
+        # Never fetch for test lobbies or unconfirmed lane hovers.
+        # Only the elected captain may fetch in a synced room. Otherwise
+        # five clients could multiply a nominally small request budget.
+        can_fetch = (
+            not testing and known_enemy_lanes
+            and (_cloud_mode not in ("auto", "follow") or _auto_is_host)
+            and not _upstream_base
+        )
+        if can_fetch:
+            guidance["counter_advice"]["live_fetch"] = request_live_counters(
+                game_key, known_enemy_lanes,
+                patch=league_comp_engine.LIVE_PATCH,
+                on_update=_invalidate_opgg_guidance,
+                planned=(scouting_lead.get("champions") or {})
+                        if control.get("chosen") else {},
+                pools=(scouting_lead.get("submitted_pools") or {})
+                      if control.get("chosen") else {},
+            )
         # FLEXERS: the draft the team chose (Discord "Lock Draft N" or an app) and what the live
         # re-solve did to it: roles stay pinned, surviving champions stay locked, only banned or
         # taken seats change, and the panel says which seat changed and why.

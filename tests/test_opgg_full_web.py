@@ -90,3 +90,47 @@ def test_wukong_uses_provider_monkeyking_slug():
     assert source_url("Wukong", "Jungle") == (
         "https://op.gg/lol/champions/monkeyking/counters/jungle"
     )
+
+
+
+def test_enemy_page_inverts_all_matchups_without_extra_network_calls(tmp_path):
+    page = parse_full_page(sample_html(), "Malphite", "Top",
+                           url="https://op.gg/lol/champions/malphite/counters/top",
+                           captured_epoch=200000)
+    path = page_file(tmp_path, "Top", "Malphite")
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(page), encoding="utf8")
+    rebuild_index(tmp_path)
+    result = full_for_enemy("Top", "Malphite", patch="26.21",
+                            now=200100, index_path=tmp_path / "index.json")
+    rows = {x["ours"]: x for x in result["rows"]}
+    assert len(rows) == 4
+    assert rows["Jayce"]["head_to_head_win_rate"] == 43.0
+    assert rows["Jayce"]["source_direction"] == "reverse_from_enemy_page"
+    assert rows["Cho'Gath"]["head_to_head_win_rate"] == 54.11
+    assert all(x["source_patch"] == "16.21" for x in rows.values())
+    no_stale = full_for_enemy("Top", "Malphite", patch="26.22",
+                              now=200100, index_path=tmp_path / "index.json")
+    assert no_stale["rows"] == []
+
+
+def test_direct_champion_page_takes_precedence_over_reverse_enemy_estimate(tmp_path):
+    base = parse_full_page(sample_html(champ="Malphite"), "Malphite", "Top",
+                           url="https://op.gg/lol/champions/malphite/counters/top",
+                           captured_epoch=200000)
+    jayce_html = sample_html(champ="Jayce")
+    jayce_html = jayce_html.replace('alt="Jayce"', 'alt="Vayne"')
+    jayce_html = jayce_html.replace('alt="Darius"', 'alt="Malphite"')
+    jayce = parse_full_page(jayce_html, "Jayce", "Top",
+                            url="https://op.gg/lol/champions/jayce/counters/top",
+                            captured_epoch=200000)
+    for champ, page in (("Malphite", base), ("Jayce", jayce)):
+        path = page_file(tmp_path, "Top", champ)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(page), encoding="utf8")
+    rebuild_index(tmp_path)
+    row = {x["ours"]: x for x in full_for_enemy(
+        "Top", "Malphite", patch="26.21", now=200100,
+        index_path=tmp_path / "index.json")["rows"]}
+    assert row["Jayce"]["source_direction"] == "own_champion_page"
+    assert row["Jayce"]["head_to_head_win_rate"] == 48.10
