@@ -7,6 +7,7 @@ is always a scouting/learning IDEA, never legal for Hover / Lock or auto-selecti
 from __future__ import annotations
 
 from typing import Mapping
+from league_matchup_universe import role_universe, scout_note
 
 from league_comp_engine import (
     ROLES, load_meta, load_lane_matchups, load_solo_queue_winrates,
@@ -63,9 +64,13 @@ def counter_advice(
         recorded = (samples.get("matchups") or {}).get(role, {}).get(enemy, {}).get("responses") or {}
         candidates = set(pool) | set(recorded) | set((meta.get("role_stats") or {}).get(role, {}))
         candidates |= set(solo.get(role, {}))
+        # The prototype bundled data covers eight opponents, but this search
+        # visits EVERY officially supported champion in the assigned lane.
+        candidates |= set(role_universe(role))
         # Avoid evaluating a full champion database on every poll; most candidates
         # without a recent authorised observation will fall out before composition scoring.
         eligible = []
+        scouting = []
         for champion in sorted(candidates):
             if (not champion or champion == original or champion in unavailable
                 or champion in champions.values()):
@@ -77,6 +82,34 @@ def counter_advice(
             n = int(edge.get("games") or 0)
             if (n < MIN_GAMES or edge.get("qualitative_only")
                 or edge.get("usable_for_ranking") is False):
+                # A manually verified directional observation isn't a win rate.
+                # It may guide a human's exploratory pick but never earns
+                # numerical points or unlocks an automated counter substitution.
+                note = scout_note(role, champion, enemy) if matchup_data is None else {}
+                if note and note["verdict"] in ("favourable", "mixed"):
+                    swapped = {**champions, role: champion}
+                    fit = score_comp(swapped, meta)
+                    team_delta = float(fit.get("score", 0)) - scored_baseline
+                    weak_fit = (team_delta < -MAX_COMP_LOSS or
+                                (base_plan and fit.get("team_plan") != base_plan and
+                                 float(fit.get("team_plan_score", 0)) <
+                                 float(original_scored.get("team_plan_score", 0)) - 0.8))
+                    # Don't hide an owned matchup option just because it weakens
+                    # the selected shell. Let the user SEE that trade-off; only
+                    # the hard-scored live engine may choose an automatic swap.
+                    scouting.append({
+                        "champion": champion,
+                        "role": role,
+                        "enemy": enemy,
+                        "type": "playable" if champion in pool_set else "learn",
+                        "verdict": note["verdict"],
+                        "summary": note["summary"],
+                        "patch": note["patch"],
+                        "sources": note["sources"],
+                        "qualitative_only": True,
+                        "team_score_delta": round(team_delta, 2),
+                        "team_fit": "weakens_comp" if weak_fit else "fits_comp",
+                    })
                 continue
             gain = round(float(edge.get("points") or 0) - original_points, 2)
             if gain < MIN_GAIN:
@@ -122,6 +155,11 @@ def counter_advice(
         )
         playable = [x for x in eligible if x["type"] == "playable"][:2]
         learn = [x for x in eligible if x["type"] == "learn"][:2]
+        scouting.sort(key=lambda x: (
+            x["verdict"] == "favourable",
+            x["type"] == "playable",
+            x["team_score_delta"],
+        ), reverse=True)
         rows.append({
             "role": role,
             "player": str(((lead or {}).get("players") or {}).get(role, {}).get("display_name") or role),
@@ -129,7 +167,10 @@ def counter_advice(
             "planned": original,
             "playable": playable,
             "learn": learn,
+            "scout": scouting[:4],
+            "candidates_searched": len(candidates),
             "base_evidence_games": int(original_edge.get("games") or 0),
-            "coverage": "verified" if playable or learn else "no_qualified_counter_data",
+            "coverage": ("verified" if playable or learn else
+                         "scouting_only" if scouting else "no_qualified_counter_data"),
         })
     return {"lanes": rows, "status": "evaluated"}

@@ -55,6 +55,10 @@
       const lane = advice.find(x => x.role === role);
       const playable = lane?.playable?.[0];
       const learn = lane?.learn?.[0];
+      const scout = (lane?.scout || []).slice(0, 2);
+      for (const entry of scout) {
+        if (entry.champion && !options.includes(entry.champion)) options.push(entry.champion);
+      }
       if (playable?.champion && !options.includes(playable.champion)) options.push(playable.champion);
       if (learn?.champion && !options.includes(learn.champion)) options.push(learn.champion);
       // An adaptive counter is visually distinct from the original Discord options.
@@ -69,20 +73,30 @@
       for (const champ of options.filter(Boolean)) {
         const isCounter = ((!!rec && champ === rec.now && champ !== primary)
           || (!!playable && champ === playable.champion));
-        const isLearn = learning.has(champ) || (!!learn && champ === learn.champion);
+        const scoutEntry = scout.find(entry => entry.champion === champ);
+        const isScout = !!scoutEntry;
+        const isLearn = learning.has(champ) || (!!learn && champ === learn.champion) ||
+          (isScout && scoutEntry.type === "learn");
         const isLocked = ownLocks[role] === champ;
         const unavailable = !isLocked && (bans.has(champ) || taken.has(champ));
         const item = D.el("div", "fd-sc-option" +
           (champ === primary ? " primary" : "") +
           (isLearn ? " learn" : "") +
           (isCounter ? " counter" : "") +
+          (isScout ? " scout" : "") +
           (isLocked ? " locked" : "") +
           (unavailable ? " unavailable" : ""));
-        item.title = [champ, isLearn ? "Learning suggestion" : isCounter ? "Adaptive counter" : champ === primary ? "Selected plan" : "Same-plan owned option",
+        item.title = [champ, isScout ? "SCOUT ONLY · " + scoutEntry.summary +
+          " · " + (scoutEntry.sources || []).map(s => s.provider).join(" / ") +
+          (scoutEntry.team_fit === "weakens_comp" ? " · weakens the current five" : "")
+          : isLearn ? "Learning suggestion" : isCounter ? "Quantitative matchup counter"
+          : champ === primary ? "Selected plan" : "Same-plan owned option",
           unavailable ? "Unavailable" : isLocked ? "Locked in League" : ""].filter(Boolean).join(" · ");
         item.append(D.portrait(champ, "small"));
         item.append(D.el("span", "fd-sc-name", champ));
-        if (learn?.champion === champ) item.append(D.el("span", "fd-sc-idea-badge", "LEARN"));
+        if (scoutEntry) item.append(D.el("span", "fd-sc-idea-badge",
+          scoutEntry.type === "learn" ? "LEARN" : "SCOUT"));
+        else if (learn?.champion === champ) item.append(D.el("span", "fd-sc-idea-badge", "LEARN"));
         else if (playable?.champion === champ) item.append(D.el("span", "fd-sc-idea-badge", "COUNTER"));
         if (isLocked) item.append(D.el("span", "fd-sc-lock", "✓"));
         picks.append(item);
@@ -95,9 +109,21 @@
           item ? "Versus " + lane.enemy + ": " + item.champion + (playable ? " (in pool)" : " (LEARN only)") +
             " · " + item.games + " games · " + (item.patch || "patch unspecified") +
             (item.evidence_freshness === "historical" ? " (historical)" : "")
-          : "Versus " + lane.enemy + ": no qualified counter data; keep the chosen plan"));
+          : scout.length ? "Versus " + lane.enemy + ": " + scout.map(x =>
+              x.champion + " (" + (x.type === "learn" ? "LEARN only" : "in pool") +
+              (x.team_fit === "weakens_comp" ? ", weaker team fit" : "") + ")").join(" / ") +
+              " · reviewed " + scout[0].patch + " scouting, not proven ranked stats"
+            : "Versus " + lane.enemy + ": no qualified counter data; keep the chosen plan"));
       }
       else if (options.length > 1) row.append(D.el("p", "fd-sc-reason", "Same-plan options" + (learning.size ? " · learning marked" : "")));
+      const source = scout[0]?.sources?.[0];
+      if (source?.url?.startsWith("https://")) {
+        const link = D.el("a", "fd-sc-source-link", "Matchup source · " + (source.provider || "reference"));
+        link.href = source.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        row.append(link);
+      }
       rows.append(row);
     }
     root.append(rows);

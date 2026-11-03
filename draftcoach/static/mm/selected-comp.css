@@ -15,12 +15,14 @@
 .fd-sc-option.primary .portrait { border: 2px solid var(--mm-blue); }
 .fd-sc-option.counter .portrait { border: 2px solid var(--mm-warn); }
 .fd-sc-option.learn .portrait { border-style: dashed; opacity: .7; }
+.fd-sc-option.scout .portrait { outline: 1px dashed var(--mm-warn); outline-offset: 1px; }
 .fd-sc-option.unavailable { opacity: .35; filter: grayscale(1); }
 .fd-sc-option.unavailable::after { content: ""; position: absolute; top: 17px; left: calc(50% - 20px); width: 40px; border-top: 2px solid var(--mm-ink); transform: rotate(-40deg); }
 .fd-sc-option .fd-sc-name { width: 100%; font: 10px/12px var(--mm-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fd-sc-lock { position: absolute; top: 0; right: calc(50% - 24px); width: 12px; line-height: 12px; border-radius: 50%; background: var(--mm-blue); color: var(--mm-surface); font-size: 9px; }
 .fd-sc-reason { margin: 4px 0 0; color: var(--mm-secondary); font: 10px/13px var(--mm-sans); overflow-wrap: anywhere; }
 .fd-sc-idea-badge { color: var(--mm-warn); font: 700 8px/10px var(--mm-mono); }
+.fd-sc-source-link { display: inline-block; margin-top: 4px; color: var(--mm-blue); font: 10px/14px var(--mm-sans); text-decoration: underline; }
 .fd-sc-footnote { margin: 8px 0 0; color: var(--mm-secondary); font: 10px/14px var(--mm-sans); }
 .fd-selected-comp.wide .fd-sc-roles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .fd-selected-comp.wide .fd-sc-role { padding: 10px; min-height: 116px; }

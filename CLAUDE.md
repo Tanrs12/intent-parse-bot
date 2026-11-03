@@ -48,6 +48,19 @@ Read this before changing the app, UI or relay. Preserve Rat's existing architec
 
 - `data/league_lane_matchups.json`: bundled LoLalytics D2+ patch 16.20 data
   with only EIGHT covered enemy champions per role. No Cho'Gath Top rows.
+- `league_matchup_universe.py` expands COUNTER SCOUTING to every champion in
+  `data/league_role_champions.json`, currently 12,128 valid ordered non-mirror
+  same-role pairs. This does NOT create 12,128 statistical observations.
+  Run `python tools/matchup_coverage.py` to measure the real evidence coverage.
+- `data/league_curated_counter_scout.json` contains four manually reviewed
+  Shen Top examples with two cited current-patch sources each. Their
+  `favourable`/`mixed` verdicts are QUALITATIVE SCOUTING ONLY, not win rates
+  or scored counter picks. Web sources disagree on Gnar/Kayle, so never
+  quietly convert these notes into a guaranteed lane win.
+- `counterpick_advice.py` scans the entire role catalogue: owned options can be
+  displayed as SCOUT, off-pool options as LEARN. Both show comp-fit tradeoffs.
+  Do not move these options into the legal `picks` list unless the common
+  engine has enough permitted numerical evidence and the player owns them.
 - `league_riot_ranked_sample.py` and `tools/collect_riot_ranked_matchups.py`
   support permissioned current-patch Riot Match-V5 EUW samples, IF a valid
   authorised API key and data collection exist. Keep credentials server-side.

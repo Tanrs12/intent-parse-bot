@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "description": "Small human-reviewed matchup scouting notes, never a licensed numerical export or a draft-score input. Matchup direction may differ by rank, region, and statistic.",
+  "reviewed_on": "2026-11-03",
+  "entries": [
+    {
+      "role": "Top",
+      "our": "Camille",
+      "enemy": "Shen",
+      "verdict": "unfavourable",
+      "summary": "Both selected current-patch sources show Shen achieving better overall results in this pairing than against a neutral opponent. Consider keeping Camille only if the player's comfort or team plan justifies it.",
+      "patch": "26.21",
+      "sources": [
+        {
+          "provider": "Wincon Master+ all regions",
+          "url": "https://wincon.app/shen/top/counters/"
+        },
+        {
+          "provider": "LoL Builds patch 26.21",
+          "url": "https://lolbuilds.app/champion/Shen/top/counters/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Gwen",
+      "enemy": "Shen",
+      "verdict": "favourable",
+      "summary": "Two public current-patch summaries indicate Gwen can be a favourable alternative into Shen; confirm the assigned player plays Gwen and that changing from Camille preserves the selected five's frontline, engagement and damage balance.",
+      "patch": "26.21",
+      "sources": [
+        {
+          "provider": "Wincon Master+ all regions",
+          "url": "https://wincon.app/shen/top/counters/"
+        },
+        {
+          "provider": "LoL Builds patch 26.21",
+          "url": "https://lolbuilds.app/champion/Shen/top/counters/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Gnar",
+      "enemy": "Shen",
+      "verdict": "mixed",
+      "summary": "High-elo observations suggest a strong lane for Gnar into Shen, but broad match-win records do not unanimously favour Gnar. Useful lane-pressure scouting option, not an automatic win-rate counterpick.",
+      "patch": "26.21",
+      "sources": [
+        {
+          "provider": "Wincon Master+ all regions",
+          "url": "https://wincon.app/shen/top/counters/"
+        },
+        {
+          "provider": "LoL Builds patch 26.21",
+          "url": "https://lolbuilds.app/champion/Shen/top/counters/"
+        }
+      ]
+    },
+    {
+      "role": "Top",
+      "our": "Kayle",
+      "enemy": "Shen",
+      "verdict": "mixed",
+      "summary": "Current-patch sources disagree on Kayle into Shen by rank and sample: some broader match results favour Kayle while the Master+ sample does not. Treat as a scaling team-plan option, not a proven lane counter.",
+      "patch": "26.21",
+      "sources": [
+        {
+          "provider": "Wincon Master+ all regions",
+          "url": "https://wincon.app/shen/top/counters/"
+        },
+        {
+          "provider": "LoL Builds patch 26.21",
+          "url": "https://lolbuilds.app/champion/Shen/top/counters/"
+        }
+      ]
+    }
+  ]
+}
