@@ -746,8 +746,8 @@
   }
   $("stats-refresh").onclick = () => loadStats(true);
 
-  // ---- role / pick-order swaps: one button per offer the client makes this seat --------------------
-  let swapActing = false;
+  // ---- role / pick-order swaps: one button to the planned role and pick slot; offers by hand underneath --
+  let swapActing = false, manualSwapsOpen = false;
   const SWAP_ROLE = { Top: "Top", Jungle: "Jungle", Mid: "Mid", ADC: "Bot", Support: "Support" };
   function swapLabel(row, verb) {
     const role = row.family === "position-swaps";
@@ -758,6 +758,9 @@
     if (verb === "accept") return "Accept " + row.name + "\u2019s " + what + " swap (take " + theirs + ")";
     return "Decline";
   }
+  function seatText(role, slot) {
+    return (SWAP_ROLE[role] || role || "?") + (slot != null ? " \u00b7 pick " + (slot + 1) : "");
+  }
   async function seatSwap(row, verb) {
     if (swapActing) return;
     swapActing = true; $("swap-note").textContent = swapLabel(row, verb) + "\u2026";
@@ -767,6 +770,27 @@
       $("swap-note").textContent = { request: "Request sent", cancel: "Request cancelled", accept: "Swap accepted", decline: "Declined" }[verb];
     } catch (e) { $("swap-note").textContent = "Client refused: " + e.message; }
     finally { swapActing = false; if (lastSnapshot) renderSwaps(lastSnapshot); }
+  }
+  async function swapToPlan(want) {
+    if (swapActing) return;
+    swapActing = true; $("swap-note").textContent = "Asking for " + want + "\u2026";
+    if (lastSnapshot) renderSwaps(lastSnapshot);
+    try {
+      const local = (lastSnapshot && lastSnapshot.local) || {};
+      await D.api("POST", "/api/client/swap_to_plan", { game_id: local.game_id, cell_id: local.cell_id, draft_token: local.draft_token });
+      $("swap-note").textContent = "Requested. Teammates\u2019 apps accept; the rest follows on its own.";
+    } catch (e) { $("swap-note").textContent = "Couldn\u2019t swap: " + e.message; }
+    finally { swapActing = false; if (lastSnapshot) renderSwaps(lastSnapshot); }
+  }
+  function swapRow(row) {
+    const line = D.el("div", "ov-swap-row" + (row.state === "RECEIVED" ? " incoming" : ""));
+    for (const verb of row.verbs) {
+      const b = D.el("button", "fd-button" + (verb === "accept" ? " primary" : ""), swapLabel(row, verb));
+      b.type = "button"; b.disabled = swapActing;
+      b.onclick = () => seatSwap(row, verb);
+      line.append(b);
+    }
+    return line;
   }
   function renderSwaps(snap) {
     const box = $("swaps"), list = $("swap-list"), a = snap && snap.assist;
@@ -782,22 +806,38 @@
       catch (e) { $("swap-note").textContent = "Could not change: " + e.message; }
       finally { auto.disabled = false; }
     };
-    const key = JSON.stringify([a.offers, swapActing]);
+    const plan = a.swaps || {};
+    const key = JSON.stringify([a.offers, plan, swapActing]);
     if (list.dataset.model === key) return;
     list.dataset.model = key;
     list.replaceChildren();
-    const rows = a.offers.slice().sort((x, y) => (y.state === "RECEIVED") - (x.state === "RECEIVED"));
-    for (const row of rows) {
-      const line = D.el("div", "ov-swap-row" + (row.state === "RECEIVED" ? " incoming" : ""));
-      for (const verb of row.verbs) {
-        const b = D.el("button", "fd-button" + (verb === "accept" ? " primary" : ""), swapLabel(row, verb));
-        b.type = "button"; b.disabled = swapActing;
-        b.onclick = () => seatSwap(row, verb);
-        line.append(b);
-      }
-      list.append(line);
+    const rows = a.offers || [];
+    const target = plan.target_role, slot = plan.target_pick_slot;
+    const want = target ? seatText(target, slot) : "";
+    const inPlace = target && plan.current_role === target && (slot == null || plan.current_pick_slot === slot);
+    if (!target) {
+      list.append(D.el("p", "fd-note", "No planned role yet: send a team draft from Coach \u2192 Game plan."));
+    } else if (inPlace) {
+      list.append(D.el("p", "ov-swap-done", "\u2713 In place: " + want));
+    } else {
+      const waiting = rows.some((r) => r.state === "SENT");
+      const b = D.el("button", "fd-button primary ov-swap-main", waiting ? "Waiting for a teammate\u2026 (" + want + ")" : "Swap to " + want);
+      b.type = "button"; b.disabled = swapActing || waiting;
+      b.title = "Requests the role swap, then the pick-order swap, that put you on " + want + "; teammates\u2019 apps accept them.";
+      b.onclick = () => swapToPlan(want);
+      list.append(b, D.el("p", "fd-note", "Now " + seatText(plan.current_role, plan.current_pick_slot) + " \u00b7 the team draft puts you on " + want + "."));
     }
-    if (!rows.length) list.append(D.el("p", "fd-note", "No swaps on offer right now."));
+    // A teammate's request always gets its own Accept / Decline: it is theirs to make, not ours to hide.
+    for (const row of rows.filter((r) => r.state === "RECEIVED")) list.append(swapRow(row));
+    const manual = rows.filter((r) => r.state !== "RECEIVED");
+    if (manual.length) {
+      const more = D.el("details", "ov-swap-manual");
+      more.open = manualSwapsOpen;
+      more.ontoggle = () => { manualSwapsOpen = more.open; };
+      more.append(D.el("summary", "", "Manual swaps (" + manual.length + ")"));
+      for (const row of manual) more.append(swapRow(row));
+      list.append(more);
+    }
   }
 
   function renderActions(snap) {

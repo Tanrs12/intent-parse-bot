@@ -46,6 +46,9 @@ class FakeWindow:
     def resize(self, width, height):
         self.calls.append(("resize", width, height))
 
+    def load_url(self, url):
+        self.calls.append(("load_url", url))
+
     def destroy(self):
         self.calls.append("destroy")
         self.close()
@@ -228,3 +231,26 @@ def test_alert_shows_a_dialog_when_there_is_no_console(run_module, monkeypatch):
     monkeypatch.setattr(sys, "stderr", None)
     run_module._alert("port taken", error=True)
     assert shown == [("port taken", "Flexers Draft Coach", 0x10)]
+
+
+def test_draft_studio_opens_inside_the_coach_window(fake):
+    main, panel, api = _started(fake)
+    api.open_studio()
+    assert main.calls == [("load_url", "http://127.0.0.1:8899/studio?host=webview"), "show"]
+    assert len(fake.webview.windows) == 2                       # no browser, no extra window
+
+
+def test_draft_studio_reopens_a_closed_coach_window_on_the_studio(fake):
+    main, panel, api = _started(fake)
+    main.close()
+    api.open_studio()
+    again = fake.webview.windows[-1]
+    assert again.title == "Flexers Draft Coach" and again.options["url"] == "http://127.0.0.1:8899/studio?host=webview"
+
+
+def test_without_a_gui_loop_draft_studio_falls_back_to_the_browser(monkeypatch):
+    from draftcoach import window as module
+    opened = []
+    monkeypatch.setattr(module.webbrowser, "open", opened.append)
+    module.Api("http://127.0.0.1:8899").open_studio()
+    assert opened == ["http://127.0.0.1:8899/studio"]

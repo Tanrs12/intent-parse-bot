@@ -1823,7 +1823,57 @@ def live_enemy_draft_adjustment(champions: dict[str, str], enemies: Iterable[str
             adjustment -= 4.0 if frontline == 2 else 7.0
             reasons.append("burst-assassin mid is poor at cutting through multiple tanks")
 
+    lean = enemy_damage_lean(opponents, meta)
+    if lean["type"]:
+        # The mirror of the rule above: one-sided enemy damage lets OUR durable frontliners buy a
+        # single resistance and cover nearly all of it. Trait labels are coarse (no hybrid builds,
+        # no true damage), so the lean must be clear, and one tank's share (DAMAGE_LEAN_TANK_POINTS)
+        # stays below the largest calibrated Top-lane matchup signal: lane evidence still decides.
+        durable = sorted(
+            (c for c in champions.values()
+             if "TANK" in _tags(c, meta) and _rating(c, "toughness", meta) >= 2),
+            key=lambda c: (-_rating(c, "toughness", meta), c),
+        )[:3]
+        if durable:
+            # Diminishing: the first tank gains most from a one-resistance build, a third much less.
+            gain = sum(DAMAGE_LEAN_TANK_POINTS * weight * lean["strength"] * min(1.0, _rating(c, "toughness", meta) / 3.0)
+                       for weight, c in zip((1.0, 0.7, 0.4), durable))
+            adjustment += gain
+            resist = "armour" if lean["type"] == "physical" else "magic resist"
+            reasons.append(f"enemy damage is {lean['count']}/{lean['locked']} {lean['type']}: "
+                           f"{', '.join(durable)} can stack {resist}")
+
     return {"adjustment": round(adjustment, 3), "reasons": reasons}
+
+
+DAMAGE_LEAN_TANK_POINTS = 1.5
+
+
+def enemy_damage_lean(enemies: Iterable[str], meta: dict) -> dict:
+    """Does the revealed enemy damage lean clearly one way? Needs three locks with a known type;
+    unlabelled champions count against the lean (they might deal the other type)."""
+    opponents = sorted({str(c) for c in enemies if c})
+    physical = magic = 0.0
+    for champion in opponents:
+        if champion in HYBRID_CHAMPS:
+            physical += 0.5
+            magic += 0.5
+            continue
+        adaptive = str(_traits(champion, meta).get("adaptive_type") or "")
+        if adaptive == "PHYSICAL_DAMAGE":
+            physical += 1
+        elif adaptive == "MAGIC_DAMAGE":
+            magic += 1
+    none = {"type": None, "count": 0, "locked": len(opponents), "strength": 0.0}
+    if physical + magic < 3:
+        return none
+    dominant, count = ("physical", physical) if physical >= magic else ("magic", magic)
+    share = count / len(opponents)
+    if share < 0.75:
+        return none
+    strength = min(1.0, (share - 0.6) / 0.4) * min(1.0, len(opponents) / 5.0)
+    shown = int(count) if float(count).is_integer() else count
+    return {"type": dominant, "count": shown, "locked": len(opponents), "strength": round(strength, 3)}
 
 
 def _archetypes(champions: dict[str, str], meta: dict) -> list[str]:

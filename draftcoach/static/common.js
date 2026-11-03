@@ -392,8 +392,22 @@
     if (p.source === "meta") return "From role meta, not a submitted pool.";
     return (p.why && p.why[0]) ? p.why[0][0].toUpperCase() + p.why[0].slice(1) + "." : "";
   }
+  // The app's advisor writes ban reasons as text; the shared backend (team mode) writes objects
+  // ({role, our_champion, counter_edge, ...}). Both read the same here.
+  const REASON_ROLE = { Top: "Top", Jungle: "Jungle", Mid: "Mid", ADC: "Bot", Bot: "Bot", Support: "Support" };
+  function reasonText(r) {
+    if (typeof r === "string") return r;
+    if (!r || typeof r !== "object") return "";
+    if (typeof r.reason === "string" && r.reason) return r.reason + (r.our_champion ? " (vs our " + r.our_champion + ")" : "");
+    if (r.our_champion && REASON_ROLE[r.role]) {
+      const edge = Number(r.counter_edge);
+      return "beats our " + r.our_champion + " " + REASON_ROLE[r.role] + (Number.isFinite(edge) ? " by " + (edge >= 0 ? "+" : "") + edge.toFixed(1) : "");
+    }
+    return "";
+  }
   function shortBanReason(b) {
     if (!b) return "";
+    b = { ...b, reasons: (b.reasons || []).map(reasonText).filter(Boolean) };
     const tags = b.tags || [];
     if (tags.includes("hover")) return "Enemy is hovering it.";
     if (tags.includes("ours")) return "Likely enemy pick, but we may want it ourselves.";

@@ -1904,6 +1904,36 @@ class Handler(BaseHTTPRequestHandler):
             # A page/poller can cancel its request during a relay timeout.
             pass
 
+    def _app_origins(self) -> set[str]:
+        """The browser origins of this PC's Draft Coach pages (the app that owns this bridge)."""
+        from urllib.parse import urlparse
+        try:
+            port = urlparse(COACH_STATE_URL).port or int(self.server.server_address[1]) - 1
+        except (TypeError, ValueError):
+            port = int(self.server.server_address[1]) - 1
+        return {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
+
+    def _write_allowed(self) -> bool:
+        """A browser always sends Origin on a cross-site POST, preflighted or not (a text/plain POST
+        skips the preflight). Only the app's own pages may write; local tools send no Origin."""
+        origin = self.headers.get("Origin")
+        return origin is None or origin in self._app_origins()
+
+    def do_OPTIONS(self):
+        # The app's pages live on the app port and this bridge on app port + 1, so a browser
+        # preflights their JSON POSTs (Send to team, identity, role). Only those pages get the
+        # grant: any other website the player has open must not rewrite the team's draft.
+        origin = self.headers.get("Origin") or ""
+        self.send_response(204)
+        if origin in self._app_origins():
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Max-Age", "600")
+        self.send_header("Vary", "Origin")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def do_GET(self):
         path = self.path.split("?", 1)[0]
         if path == "/api/data-sources":
@@ -1996,6 +2026,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = self.path.split("?", 1)[0]
+        if not self._write_allowed():
+            self._reply({"error": "forbidden origin"}, 403)
+            return
         try:
             length = int(self.headers.get("Content-Length") or 0)
             payload = json.loads(self.rfile.read(length) or b"{}")

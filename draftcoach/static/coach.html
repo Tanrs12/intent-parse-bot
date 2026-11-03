@@ -21,7 +21,7 @@
   <div class="coach-mast-actions">
     <button class="fd-text-button" id="coach-theme" type="button" aria-pressed="false">Dark</button>
     <span class="mm-meta coach-status" id="status" data-mode="connecting">Connecting</span>
-    <a class="fd-text-button" href="/studio" target="_blank" rel="noopener">Draft Studio</a>
+    <a class="fd-text-button" id="open-studio" href="/studio">Draft Studio</a>
     <button class="fd-button" id="open-roster" type="button"><span class="mm-icon" data-icon="book" aria-hidden="true"></span>Roster &amp; imports</button>
     <a class="fd-button" href="/overlay" target="_blank" rel="noopener"><span class="mm-icon" data-icon="overlay" aria-hidden="true"></span>Preview overlay</a>
     <button class="fd-button" id="show-panel" type="button" title="Bring the always-on-top panel back" hidden><span class="mm-icon" data-icon="overlay" aria-hidden="true"></span>Show panel</button>
@@ -1299,6 +1299,7 @@
   loadGamePlan();
   setInterval(loadGamePlan, 60000);
   if (new URLSearchParams(location.search).get("host") === "webview") {
+    $("open-studio").href = "/studio?host=webview";     // stays the app's window: Studio's Coach link comes back here
     const showPanel = $("show-panel");
     showPanel.hidden = false;
     showPanel.onclick = () => { const api = window.pywebview && window.pywebview.api; if (api && api.open_panel) api.open_panel(); else toast("The panel opens with the app.", true); };

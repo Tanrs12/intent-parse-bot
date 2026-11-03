@@ -488,7 +488,8 @@ def advise(state: DraftState, roster: Roster | None = None, *, meta: dict | None
             if slot.role_source in ("lcu", "client", "config"):
                 role_players[role] = int(seat["user_id"])
         backend_result = backend.recommend(signups, unavailable=unavailable, locked=our_locked, role_players=role_players,
-                                           side=state.side, limit=comps_limit)
+                                           side=state.side, limit=comps_limit,
+                                           enemy_champions=[p.locked for p in state.enemy_team if p.locked])
         comps = backend.as_comps(backend_result)
         if comps:
             notes.append("ranking: shared /league game backend")
@@ -964,6 +965,8 @@ def _why(champion: str, best: dict, lane: list[dict], risk: float, risk_rows: li
         sign = "favourable" if edge["adjusted"] > 0.2 else "unfavourable" if edge["adjusted"] < -0.2 else "even"
         who = "locked" if edge["locked"] else "hovered"
         why.append(f"{sign} matchup signal vs {who} {edge['enemy']}: {edge['adjusted']:+.1f} adjusted pp, {edge['games']} games")
+    # Team-wide reactions to the revealed enemy draft (ultimate steals, one-sided enemy damage).
+    why.extend(list(best.get("live_enemy_reasons") or [])[:1])
     if risk >= 0.5 and risk_rows:
         who = ", ".join(r["enemy"] + ("*" if r.get("scouted") else "") for r in risk_rows[:2])
         why.append("answerable by " + who)

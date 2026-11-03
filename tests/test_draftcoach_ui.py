@@ -213,3 +213,25 @@ def test_coach_mobile_has_no_horizontal_overflow(browser_page, tmp_path):
     page.set_viewport_size(dict(width=1440, height=1000))
     page.screenshot(path=tmp_path / "coach-desktop.png", full_page=True)
     assert errors == []
+
+
+def test_ban_turn_with_backend_object_reasons_shows_working_ban_button(browser_page):
+    """Team mode: the shared backend's ban reasons are objects, not text. They once threw inside the
+    reason formatter, so no overlay in a team lobby ever showed its Ban button."""
+    page, errors, posts = browser_page
+    snap = draft()
+    ban = dict(champion="Ezreal", champion_id=81, score=3.8, tags=[],
+               reasons=[dict(role="ADC", our_champion="Jinx", pick_number=1, counter_edge=4.37, games=3391)])
+    snap["state"]["active"] = dict(kind="ban", ours=True, cell_ids=[0, 1, 2, 3, 4])
+    for seat in snap["state"]["our_team"]:
+        seat["locked"] = None
+    snap["guidance"]["bans"] = [ban]
+    snap["local"] = dict(can_act=True, kind="ban", name="Sasha", role="Support",
+                         suggestion=dict(kind="ban", champion="Ezreal", champion_id=81, reason="beats our Jinx ADC by +4.4"))
+    show(page, snap)
+    button = page.get_by_role("button", name="Ban Ezreal", exact=True)
+    pw.expect(button).to_be_enabled()
+    pw.expect(page.locator("#panel")).to_contain_text("Strong into our Jinx (bot)")
+    button.click()
+    assert [(path, body["champion"], body.get("kind")) for path, body in posts] == [("/api/client/lock", "Ezreal", "ban")]
+    assert errors == []

@@ -59,13 +59,19 @@ def signup_for_seat(slot: Any, role: str, seat_pool: list[str], roster: Any, use
 
 
 def recommend(signups: list[dict], *, unavailable: set[str], locked: dict[str, str], role_players: dict[str, int],
-              side: str, limit: int, rotation_token: str | None = None) -> dict | None:
-    """Call the shared backend; None when it is unavailable or raised."""
+              side: str, limit: int, rotation_token: str | None = None,
+              enemy_champions: list[str] | None = None) -> dict | None:
+    """Call the shared backend; None when it is unavailable or raised.
+
+    ``enemy_champions`` (locked enemy picks) feeds the team-wide reactions only (ultimate steals,
+    damage concentration, enemy frontline); lane counters stay with the advisor's own lane edges,
+    so no enemy roles are passed and nothing is counted twice."""
     if _recommend_live_drafts is None:
         return None
     try:
         return _recommend_live_drafts(signups, unavailable=unavailable, locked_champions=locked, role_players=role_players,
-                                      side=side, limit=limit, rotation_token=rotation_token)
+                                      side=side, limit=limit, rotation_token=rotation_token,
+                                      enemy_champions=list(enemy_champions or []))
     except Exception as exc:  # noqa: BLE001
         log.warning("shared draft backend failed, falling back to the engine search: %s", exc)
         return None

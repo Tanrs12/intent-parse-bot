@@ -21,8 +21,13 @@ Control API (for the party test driver, no auth):
     POST /control/trade/{from}/{to}     request a trade as the "from" seat
     POST /control/ws-drop/{client}      close that client's websockets (the client "hiccups")
     POST /control/rotate/{client}       restart that client on a new port + password (client restart)
+    POST /control/swap/{family}/{cell}/{other}/{verb}   act as that seat on a role / pick-order swap
     POST /control/leave                 leave champion select (dodge / game start)
     POST /control/end                   game starting: InProgress
+
+``--format ranked`` runs ranked/normal draft instead of the tournament script: one simultaneous ban
+phase (enemy bans revealed when it ends), picks 1-2-2-2-2-1, enemy hovers and enemy lanes hidden, and
+role / pick-order swaps between our seats (``assigned`` sets each seat's starting lane).
 """
 from __future__ import annotations
 
@@ -72,6 +77,11 @@ FALLBACK = {"top": ["Garen", "Malphite", "Sett"], "jungle": ["Warwick", "Amumu",
             "utility": ["Soraka", "Leona", "Janna"]}
 
 
+# Ranked/normal draft: blue picks one, then two each, red picks the last one.
+RANKED_PICKS = [[0], [5, 6], [1, 2], [7, 8], [3, 4], [9]]
+SWAP_FAMILIES = {"position-swaps": 200, "pick-order-swaps": 300}   # swap id = base + the other seat's cell
+
+
 def cid(name: str | None) -> int:
     return int(champ_map.id_for(name) or 0) if name else 0
 
@@ -98,6 +108,9 @@ class Lobby:
         self.clients: list[FakeClient] = []
         self.enemy_done = {"ban": 0, "pick": 0}
         self.trades: list[dict] = []            # {"id", "from", "to", "state"}
+        self.format = "tournament"
+        self.assigned: list[str] = list(POSITIONS)   # our seats' starting lanes (ranked: role-select result)
+        self.swaps: list[dict] = []             # {"family", "from", "to", "state"}
         self.last_timer_push = 0.0
         self._task: asyncio.Task | None = None
 
@@ -135,8 +148,28 @@ class Lobby:
                 "isAllyAction": self.is_ours(cell), "pickTurn": aid}
 
     # ---- lifecycle ---------------------------------------------------------------------------
+    @property
+    def ranked(self) -> bool:
+        return self.format == "ranked"
+
+    def _ranked_groups(self) -> list[list[dict]]:
+        aid = 0
+        bans = []
+        for cell in self.our_cells + self.their_cells:
+            aid += 1
+            bans.append(self._action(aid, cell, "ban"))
+        groups = [bans]
+        for cells in RANKED_PICKS:
+            row = []
+            for cell in cells:
+                aid += 1
+                row.append(self._action(aid, cell, "pick"))
+            groups.append(row)
+        return groups
+
     def start(self) -> None:
-        my = [self._member_row(c, self.our_team, POSITIONS[i], self.our_names[i]) for i, c in enumerate(self.our_cells)]
+        mine = self.assigned if self.ranked else POSITIONS
+        my = [self._member_row(c, self.our_team, mine[i], self.our_names[i]) for i, c in enumerate(self.our_cells)]
         their = [self._member_row(c, 3 - self.our_team, POSITIONS[i], self.enemy["names"][i]) for i, c in enumerate(self.their_cells)]
         aid = 0
         groups: list[list[dict]] = []
@@ -158,7 +191,10 @@ class Lobby:
                 aid += 1
                 row.append(self._action(aid, cell, "pick"))
             groups.append(row)
+        if self.ranked:
+            groups = self._ranked_groups()
         self.groups = groups
+        self.swaps = []
         self.session = {
             "gameId": int(time.time()), "localPlayerCellId": self.our_cells[0], "myTeam": my, "theirTeam": their,
             "bans": {"myTeamBans": [], "theirTeamBans": [], "numBans": 10}, "actions": groups,
@@ -166,7 +202,7 @@ class Lobby:
                       "totalTimeInPhase": int(self.planning * 1000), "internalNowInEpochMs": int(time.time() * 1000), "isInfinite": False},
             "trades": [], "pickOrderSwaps": [], "counter": 0, "isCustomGame": self.queue_id == 0, "allowBattleBoost": False,
             "allowDuplicatePicks": False, "allowLockedEvents": False, "allowRerolling": False, "allowSkinSelection": True,
-            "hasSimultaneousBans": False, "hasSimultaneousPicks": False, "isSpectating": False, "lockedEventIndex": -1,
+            "hasSimultaneousBans": self.ranked, "hasSimultaneousPicks": False, "isSpectating": False, "lockedEventIndex": -1,
             "rerollsRemaining": 0, "skipChampionSelect": False, "benchEnabled": False, "benchChampions": [],
             "chatDetails": {"chatRoomName": "fake", "chatRoomPassword": ""}, "recoveryCounter": 0,
         }
@@ -292,7 +328,7 @@ class Lobby:
     def _enemy_step(self, action: dict, elapsed: float) -> bool:
         kind = action["type"]
         index = self.enemy_done[kind]
-        position = self.member(action["actorCellId"])["assignedPosition"]
+        position = self.member(action["actorCellId"])["assignedPosition"] or POSITIONS[self.their_cells.index(action["actorCellId"])]
         if kind == "ban":
             target = self.enemy["bans"][index % len(self.enemy["bans"])]
             if elapsed >= self.enemy_delay:
@@ -350,7 +386,13 @@ class Lobby:
         if action["completed"] or not action["isInProgress"]:
             raise web.HTTPBadRequest(text=json.dumps({"message": "action is not in progress"}))
         champion_id = int(body.get("championId") or 0)
-        if champion_id and champion_id in self.unavailable():
+        blocked = self.unavailable()
+        if self.ranked and action["type"] == "ban" and not all(a["completed"] for a in self.groups[0]):
+            # Simultaneous bans: the other team's bans are hidden, so banning the same champion is allowed
+            # (a wasted ban, as in the real client); only our own team's bans and any picks block it.
+            blocked = set(self.session["bans"]["myTeamBans"]) | {
+                a["championId"] for g in self.groups for a in g if a["type"] == "pick" and a["completed"] and a["championId"]}
+        if champion_id and champion_id in blocked:
             raise web.HTTPBadRequest(text=json.dumps({"message": "champion is unavailable"}))
         if champion_id and not champ_map.name_for(champion_id):
             raise web.HTTPBadRequest(text=json.dumps({"message": "unknown champion"}))
@@ -413,6 +455,74 @@ class Lobby:
             raise web.HTTPNotFound()
         return {"ok": True}
 
+    # ---- role and pick-order swaps (ranked) ------------------------------------------------------
+    def _swap_open(self, a: int, b: int) -> bool:
+        """Swaps run until either seat has picked."""
+        if not self.ranked or not self.session or self.session["timer"]["phase"] not in ("PLANNING", "BAN_PICK"):
+            return False
+        picked = {x["actorCellId"] for g in self.groups for x in g if x["type"] == "pick" and x["completed"]}
+        return a not in picked and b not in picked
+
+    def swaps_for(self, cell: int, family: str) -> list[dict]:
+        if not self.ranked or cell not in self.our_cells:
+            return []
+        base = SWAP_FAMILIES[family]
+        out = []
+        for other in self.our_cells:
+            if other == cell:
+                continue
+            state = "AVAILABLE" if self._swap_open(cell, other) else "INVALID"
+            for t in self.swaps:
+                if t["family"] != family or t["state"] != "PENDING":
+                    continue
+                if {t["from"], t["to"]} == {cell, other}:
+                    state = "SENT" if t["from"] == cell else "RECEIVED"
+                elif state == "AVAILABLE" and (cell in (t["from"], t["to"]) or other in (t["from"], t["to"])):
+                    state = "BUSY"
+            out.append({"id": base + other, "cellId": other, "state": state})
+        return out
+
+    def swap(self, cell: int, family: str, swap_id: int, verb: str) -> dict:
+        if family not in SWAP_FAMILIES:
+            raise web.HTTPNotFound()
+        other = swap_id - SWAP_FAMILIES[family]
+        if other not in self.our_cells or other == cell or cell not in self.our_cells:
+            raise web.HTTPBadRequest(text=json.dumps({"message": "no such swap"}))
+        pending = next((t for t in self.swaps if t["family"] == family and t["state"] == "PENDING"
+                        and {t["from"], t["to"]} == {cell, other}), None)
+        what = "role swap" if family == "position-swaps" else "pick-order swap"
+        if verb == "request":
+            if pending or not self._swap_open(cell, other):
+                raise web.HTTPBadRequest(text=json.dumps({"message": "swap not available"}))
+            if any(t["state"] == "PENDING" and t["family"] == family and {cell, other} & {t["from"], t["to"]} for t in self.swaps):
+                raise web.HTTPBadRequest(text=json.dumps({"message": "a seat is busy with another swap"}))
+            self.swaps.append({"family": family, "from": cell, "to": other, "state": "PENDING"})
+            self.log_event(f"seat {cell} requested a {what} with seat {other}", cell=cell, swap=family, verb="request")
+        elif verb == "accept":
+            if not pending or pending["to"] != cell:
+                raise web.HTTPBadRequest(text=json.dumps({"message": "no incoming swap"}))
+            if not self._swap_open(cell, other):
+                pending["state"] = "EXPIRED"
+                raise web.HTTPBadRequest(text=json.dumps({"message": "swap window closed"}))
+            if family == "position-swaps":
+                a, b = self.member(cell), self.member(other)
+                a["assignedPosition"], b["assignedPosition"] = b["assignedPosition"], a["assignedPosition"]
+            else:
+                for g in self.groups:
+                    for x in g:
+                        if x["type"] == "pick" and not x["completed"] and x["actorCellId"] in (cell, other):
+                            x["actorCellId"] = other if x["actorCellId"] == cell else cell
+            pending["state"] = "ACCEPTED"
+            self.log_event(f"seat {cell} accepted the {what} with seat {other}", cell=cell, swap=family, verb="accept")
+        elif verb in ("decline", "cancel"):
+            if not pending or (verb == "decline" and pending["to"] != cell) or (verb == "cancel" and pending["from"] != cell):
+                raise web.HTTPBadRequest(text=json.dumps({"message": f"nothing to {verb}"}))
+            pending["state"] = "DECLINED" if verb == "decline" else "CANCELLED"
+            self.log_event(f"seat {cell} {verb}d the {what} with seat {other}", cell=cell, swap=family, verb=verb)
+        else:
+            raise web.HTTPNotFound()
+        return {"ok": True}
+
     def view(self, cell: int) -> dict | None:
         if not self.session:
             return None
@@ -422,6 +532,26 @@ class Lobby:
         view["localPlayerCellId"] = cell
         view["counter"] = self.counter
         view["trades"] = self.trades_for(cell)
+        if self.ranked:
+            view["positionSwaps"] = self.swaps_for(cell, "position-swaps")
+            view["pickOrderSwaps"] = self.swaps_for(cell, "pick-order-swaps")
+            # Ranked hides the enemy's lanes and hovers, and their bans until the ban phase ends.
+            bans_open = bool(self.groups) and not all(a["completed"] for a in self.groups[0])
+            locked = {a["actorCellId"] for g in self.groups for a in g if a["type"] == "pick" and a["completed"]}
+            for m in view["theirTeam"]:
+                m["assignedPosition"] = ""
+                if m["cellId"] not in locked:
+                    m["championId"] = 0
+            for g in view["actions"]:
+                for a in g:
+                    if a["actorCellId"] not in self.their_cells:
+                        continue
+                    if a["type"] == "ban" and bans_open:
+                        a["championId"], a["completed"] = 0, False
+                    elif not a["completed"]:
+                        a["championId"] = 0
+            if bans_open:
+                view["bans"]["theirTeamBans"] = []
         return view
 
     def summary(self) -> dict:
@@ -436,7 +566,8 @@ class Lobby:
                 seats.append({"cell": m["cellId"], "name": f"{m['gameName']}#{m['tagLine']}", "position": m["assignedPosition"],
                               "champion": champ_map.name_for(m["championId"]), "ours": self.is_ours(m["cellId"])})
         return {"phase": self.phase, "timer": (self.session or {}).get("timer"), "group_index": self.group_index,
-                "groups": groups, "seats": seats, "trades": self.trades, "queue": self.queue_id,
+                "groups": groups, "seats": seats, "trades": self.trades, "swaps": self.swaps, "format": self.format,
+                "queue": self.queue_id,
                 "clients": [{"index": c.index, "cell": c.cell, "port": c.port, "sockets": len(c.sockets), "lockfile": str(c.lockfile)}
                             for c in self.clients],
                 "game_id": (self.session or {}).get("gameId"), "events": self.events}
@@ -481,6 +612,11 @@ class FakeClient:
         app.router.add_post("/lol-champ-select/v1/session/trades/{tid}/request", self.trade)
         app.router.add_post("/lol-champ-select/v1/session/trades/{tid}/accept", self.trade)
         app.router.add_post("/lol-champ-select/v1/session/trades/{tid}/decline", self.trade)
+        for family in SWAP_FAMILIES:
+            app.router.add_get(f"/lol-champ-select/v1/session/{family}", self.swap_list)
+            app.router.add_post(f"/lol-champ-select/v1/session/{family}/{{sid}}/{{verb}}", self.swap_act)
+        app.router.add_get("/lol-champ-select/v1/pickable-champion-ids", self.pickable)
+        app.router.add_get("/lol-champion-mastery/v1/local-player/champion-mastery", self.mastery)
         app.router.add_get("/lol-gameflow/v1/gameflow-phase", self.gameflow_phase)
         app.router.add_get("/lol-gameflow/v1/session", self.gameflow_session)
         app.router.add_get("/lol-lobby/v2/lobby", self.lobby_view)
@@ -554,6 +690,22 @@ class FakeClient:
         self.lobby.trade(self.cell, int(request.match_info["tid"]), verb)
         await self.lobby.broadcast()
         return web.json_response(self.lobby.trades_for(self.cell))
+
+    async def swap_list(self, request: web.Request) -> web.Response:
+        family = request.path.rstrip("/").rsplit("/", 1)[-1]
+        return web.json_response(self.lobby.swaps_for(self.cell, family))
+
+    async def swap_act(self, request: web.Request) -> web.Response:
+        family = request.path.split("/")[4]
+        self.lobby.swap(self.cell, family, int(request.match_info["sid"]), request.match_info["verb"])
+        await self.lobby.broadcast()
+        return web.Response(status=204)
+
+    async def pickable(self, _request: web.Request) -> web.Response:
+        return web.json_response(sorted(champ_map.all_ids().values()))
+
+    async def mastery(self, _request: web.Request) -> web.Response:
+        return web.json_response([])   # no invented mastery: comfort comes from the player's pools
 
     async def gameflow_phase(self, _request: web.Request) -> web.Response:
         return web.json_response(self.lobby.phase)
@@ -691,6 +843,14 @@ def control_app(lobby: Lobby, client_port_base: int, directory: Path) -> web.App
             lobby.our_names = body["our"]
         if "party_size" in body:
             lobby.party_size = int(body["party_size"])
+        if "format" in body:
+            lobby.format = "ranked" if body["format"] == "ranked" else "tournament"
+        if "assigned" in body:
+            if sorted(body["assigned"]) != sorted(POSITIONS):
+                raise web.HTTPBadRequest(text="assigned must be a permutation of " + ",".join(POSITIONS))
+            lobby.assigned = list(body["assigned"])
+        if "enemy" in body:
+            lobby.enemy = {**DEFAULT_ENEMY, **body["enemy"]}
         lobby.start()
         await lobby.broadcast()
         return web.json_response(lobby.summary())
@@ -723,6 +883,12 @@ def control_app(lobby: Lobby, client_port_base: int, directory: Path) -> web.App
     async def trade(request: web.Request) -> web.Response:
         a, b = int(request.match_info["a"]), int(request.match_info["b"])
         lobby.trade(a, 100 + b, "request")
+        await lobby.broadcast()
+        return web.json_response(lobby.summary())
+
+    async def swap_act(request: web.Request) -> web.Response:
+        m = request.match_info
+        lobby.swap(int(m["cell"]), m["family"], SWAP_FAMILIES.get(m["family"], 0) + int(m["other"]), m["verb"])
         await lobby.broadcast()
         return web.json_response(lobby.summary())
 
@@ -760,6 +926,7 @@ def control_app(lobby: Lobby, client_port_base: int, directory: Path) -> web.App
     app.router.add_post("/control/hover/{cell}", seat_act)
     app.router.add_post("/control/lock/{cell}", seat_act)
     app.router.add_post("/control/trade/{a}/{b}", trade)
+    app.router.add_post("/control/swap/{family}/{cell}/{other}/{verb}", swap_act)
     app.router.add_post("/control/ws-drop/{client}", ws_drop)
     app.router.add_post("/control/rotate/{client}", rotate)
     app.router.add_post("/control/close/{client}", close_client)
@@ -774,6 +941,7 @@ async def serve(args: argparse.Namespace) -> None:
         raise SystemExit("--our needs five Riot IDs (Name#TAG)")
     enemy = json.loads(args.enemy) if args.enemy else {}
     lobby = Lobby(our, enemy, args.side, args.queue, args.planning, args.turn, args.finalization, args.enemy_delay, not args.no_auto_lock)
+    lobby.format = args.format
     directory = Path(args.dir)
     for i in range(5):
         client = FakeClient(lobby, i, args.client_port + i, directory / f"client{i}")
@@ -800,6 +968,8 @@ def main() -> None:
     parser.add_argument("--enemy", help="JSON overriding the enemy script (names, bans, picks, hover_first)")
     parser.add_argument("--side", choices=["blue", "red"], default="blue")
     parser.add_argument("--queue", type=int, default=440)
+    parser.add_argument("--format", choices=["tournament", "ranked"], default="tournament",
+                        help="tournament script (default) or ranked/normal draft with simultaneous bans and swaps")
     parser.add_argument("--planning", type=float, default=8.0)
     parser.add_argument("--turn", type=float, default=27.0)
     parser.add_argument("--finalization", type=float, default=25.0)

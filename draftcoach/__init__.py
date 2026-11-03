@@ -31,7 +31,11 @@ else:
     # league_draft_backend.py) and data/ live at the repository root next to this package.
     ROOT = Path(__file__).resolve().parent.parent
     ENGINE_DIR = ROOT
-VAR_DIR = ROOT / "var"
+import os
+
+# Harnesses that run several apps on one PC (party test, demo) give each its own state folder;
+# otherwise one PC owner, one wanted role and one roster would be shared by every instance.
+VAR_DIR = Path(os.environ["DRAFTCOACH_VAR_DIR"]) if os.environ.get("DRAFTCOACH_VAR_DIR") else ROOT / "var"
 LOADFILE_DIR = ROOT / "loadfiles"
 
 if str(ENGINE_DIR) not in sys.path:
