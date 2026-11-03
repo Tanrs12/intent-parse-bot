@@ -58,7 +58,15 @@
       const learn = lane?.learn?.[0];
       const scout = (lane?.scout || []).slice(0, 2);
       const rolling = lane?.opgg_reference || null;
-      const rollingOptions = (rolling?.alternatives || []).slice(0, 3);
+      const full = lane?.opgg_full_reference || null;
+      const fullOptions = (full?.alternatives || []).slice(0, 4);
+      const rollingOptions = (full?.planned || fullOptions.length)
+        ? [] : (rolling?.alternatives || []).slice(0, 3);
+      // Same-patch Emerald+ observations are prioritised over unversioned
+      // MCP samples. These are reference cards, not legal champion swaps.
+      for (const entry of fullOptions) {
+        if (entry.champion && !options.includes(entry.champion)) options.push(entry.champion);
+      }
       for (const entry of rollingOptions) {
         if (entry.champion && !options.includes(entry.champion)) options.push(entry.champion);
       }
@@ -80,7 +88,10 @@
         const isCounter = ((!!rec && champ === rec.now && champ !== primary)
           || (!!playable && champ === playable.champion));
         const scoutEntry = scout.find(entry => entry.champion === champ);
-        const referenceEntry = rollingOptions.find(entry => entry.champion === champ) ||
+        const fullEntry = fullOptions.find(entry => entry.champion === champ) ||
+          (full?.planned?.champion === champ ? full.planned : null);
+        const referenceEntry = fullEntry ||
+          rollingOptions.find(entry => entry.champion === champ) ||
           (rolling?.original?.champion === champ ? rolling.original : null);
         const isScout = !!scoutEntry;
         const isLearn = learning.has(champ) || (!!learn && champ === learn.champion) ||
@@ -103,7 +114,9 @@
           : isLearn ? "Learning suggestion" : isCounter ? "Qualified matchup counter"
           : champ === primary ? "Selected plan" : "Same-plan owned option",
           referenceEntry ? "OP.GG observed " + referenceEntry.head_to_head_win_rate +
-            "% in " + referenceEntry.games + " games · rank/patch unknown · never an automatic pick" : "",
+            "% in " + referenceEntry.games + " games · " +
+            (fullEntry ? fullEntry.source_patch + " Emerald+ · statistical reference only"
+              : "rank/patch unknown") + " · never an automatic pick" : "",
           unavailable ? "Unavailable" : isLocked ? "Locked in League" : ""].filter(Boolean).join(" · ");
         item.append(D.portrait(champ, "small"));
         item.append(D.el("span", "fd-sc-name", champ));
@@ -112,7 +125,7 @@
         else if (learn?.champion === champ) item.append(D.el("span", "fd-sc-idea-badge", "LEARN"));
         else if (playable?.champion === champ) item.append(D.el("span", "fd-sc-idea-badge", "COUNTER"));
         else if (referenceEntry) item.append(D.el("span", "fd-sc-idea-badge",
-          referenceEntry.type === "learn" ? "LEARN" : "OP.GG"));
+          referenceEntry.type === "learn" ? "LEARN" : fullEntry ? "OP.GG STATS" : "OP.GG"));
         if (isLocked) item.append(D.el("span", "fd-sc-lock", "✓"));
         picks.append(item);
       }
@@ -133,7 +146,16 @@
               : "Versus " + lane.enemy + ": no qualified counter data; keep the chosen plan"));
       }
       else if (options.length > 1) row.append(D.el("p", "fd-sc-reason", "Same-plan options" + (learning.size ? " · learning marked" : "")));
-      if (rolling?.original || rollingOptions.length) {
+      if (full?.planned || fullOptions.length) {
+        const observed = [full.planned, ...fullOptions]
+          .filter(Boolean).slice(0, 5);
+        row.append(D.el("p", "fd-sc-reference",
+          "OP.GG " + full.patch + " " + full.rank + " full matchup data: " + observed.map(entry =>
+            entry.champion + " " + entry.head_to_head_win_rate.toFixed(1) +
+            "% (n=" + entry.games + ")").join(" · ") +
+          " · observations only; player comfort and team composition take priority"));
+      }
+      if (!full?.planned && !fullOptions.length && (rolling?.original || rollingOptions.length)) {
         const observed = [rolling.original, ...rollingOptions]
           .filter(Boolean).slice(0, 4);
         row.append(D.el("p", "fd-sc-reference",

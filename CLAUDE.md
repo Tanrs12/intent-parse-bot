@@ -195,3 +195,47 @@ to overwrite. Update this handoff whenever changing the above contracts.
   can display pre-lobby; `counter_advice` exits immediately with
   `waiting_for_confirmed_enemy_lane` and **does not evaluate counterpicks**
   until enemies are confirmed. This never runs the external collectors.
+
+
+## Critical OP.GG full-counter correction — 3 November 2026
+
+The OP.GG official MCP `lol_get_champion_analysis` selected fields
+`data.strong_counters[]`, `data.weak_counters[]` and
+`data.summary.positions[].counters[]` return only top-three summaries.
+**This does NOT mean OP.GG has only six matchups.** Its publicly displayed
+`/lol/champions/{slug}/counters/{role}` page shows the full opponent table,
+win rate, games, visible patch and rank. We tested Malphite Top with 61 rows
+on patch 16.21 Emerald+. `tools/collect_opgg_full_web.py` now fetches and
+validates such pages cautiously, no more than 20 new HTTP requests per run
+and >=3.5-second gaps. It fails closed on any page-layout change or
+access denial. Wukong's page slug is `monkeyking`.
+
+43 full pages yielded **2,238** distinct directional observations
+(2,210 with >=100 games, 1,868 within the existing role-universe).
+They are stored PRIVATELY at ignored `var/opgg_full/` in the dev checkout
+and the installed `INTent Draft Coach/var/opgg_full/` folder, with matching
+index hashes. **DO NOT commit raw OP.GG page data**, conflate it with the
+separate 213 official-MCP cache references, or claim all ~12,128 possible
+role pairings have been collected.
+
+`league_opgg_full_reference.py` loads one local indexed file without
+network access and accepts only exact current client/source patch,
+Emerald+, All Servers, Ranked Solo/Duo, at least 100 games, age <=7 days.
+`counterpick_advice.py` attaches `opgg_full_reference` statistics to
+confirmed enemy lanes, and `draftcoach/static/selected-comp.js`
+shows them as OP.GG STATS with patch/tier labels. This **does not**
+change the legal pick scorer, captain sync, role locks or Hover/Lock.
+Never auto-swap champions from raw matchup WR without a calibrated
+expected-WR residual, confidence shrinkage, player pool and team-fit gates.
+
+OP.GG explicitly permitted small-scale noncommercial attributed crawling
+in their 26 Oct 2026 email but warned against excessive traffic, and
+does not grant unrestricted bulk export. A single public query verified
+`?tier=platinum_plus&region=global` displays Platinum+ rows. Future work:
+explicit volume confirmation for full ~243-page collection, then a
+patch/rank-aware, permissioned refresh process; separate Gold/Platinum
+data and calibrate rankings after testing.
+
+Run `python tools/opgg_full_audit.py` and review
+`docs/draftcoach/MATCHUP_EVIDENCE_COLLECTION_2026-11-03.md` for exact
+counts, source restrictions, tests, and resumption plan.

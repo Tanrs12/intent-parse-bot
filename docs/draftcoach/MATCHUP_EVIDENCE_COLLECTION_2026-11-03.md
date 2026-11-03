@@ -318,3 +318,106 @@ scoring authority. Rebuild after newer licensed source updates.
   can display pre-lobby; `counter_advice` exits immediately with
   `waiting_for_confirmed_enemy_lane` and **does not evaluate counterpicks**
   until enemies are confirmed. This never runs the external collectors.
+
+
+## Correction: OP.GG complete public matchup tables are accessible (3 November 2026)
+
+**Important:** The earlier official MCP counter collectors only retrieved
+the strongest three plus weakest three by champion, and optionally three
+`data.summary.positions[].counters[]` examples per role. That *was a
+limitation of the MCP fields we chose*, not proof that OP.GG only publishes
+six matchups. The public pages at
+`https://op.gg/lol/champions/{champion}/counters/{role}`
+display complete same-role opponent lists, game counts and win rates.
+Example Malphite Top rendered **61 opponents on one HTML page**. We
+inspected live OP.GG MCP's `tools/list`; its champion-analysis schema
+includes an optional tier parameter, but **the counters and summary fields
+are truncated summaries, not a full export**.
+
+OP.GG's 26 October 2026 written support reply allowed *small-scale,
+non-commercial attributed crawling*, with no separate restrictions for
+that scope, but warns that request volume or usage patterns may trigger
+limits and asks that traffic not become excessive. The same reply
+explicitly states that OP.GG supplies no separate data feed beyond its
+service and suggests the official open-source MCP. That is **not blanket
+permission for a 243-page bulk mirror**. Do not bypass access restrictions,
+use private endpoints or run unrestricted background scraping.
+
+### What is really collected
+
+A new, deliberately paced `tools/collect_opgg_full_web.py` uses **only**
+public rendered champion pages, at least **3.5 seconds between new
+requests**, no more than **20 fresh page requests per invocation**,
+24-hour per-page cache and immediate stop on HTTP 401/403/429. The
+parser validates visible champion, patch, selected tier and the complete
+row structure and **fails closed** if any part differs. Wukong uses
+OP.GG's `monkeyking` URL identifier.
+
+43 public page requests succeeded (one earlier Wukong URL failed safely
+and was corrected). All saved rows indicate **patch 16.21, Emerald+,
+All Servers, Ranked Solo/Duo**. The private index
+`var/opgg_full/index.json` has **2,238 unique directional champion/opponent
+observations** across **43 champions' full pages**:
+
+- Top: 549; Jungle: 522; Mid: 495; ADC: 304; Support: 368.
+- **2,210** observed pairs have 100+ games reported by OP.GG.
+- **1,868** observations fall within our older 12,128-pair role-universe
+  denominator; the rest concern OP.GG-listed additional lane opponents.
+  Do not call 2,238 / 12,128 the same-catalogue coverage percentage.
+- These rows **overlap** earlier 213 rolling official-MCP observations
+  and historical LoLalytics/PocketPick pairs. Never sum them into an
+  inflated independent matchup count.
+- A one-page probe confirmed `?tier=platinum_plus&region=global`
+  returns a different page explicitly marked **Platinum+**, so other
+  rank-scoped public statistics appear possible. We have **not** run a
+  broad Platinum+/Gold+ collection or integrated that tier selector.
+
+The private full counters folder was copied to the installed app at
+`INTent Draft Coach/var/opgg_full/`; the source and installed
+`index.json` SHA-256 hashes matched. No original executable was
+restarted or overwritten. The Web collector and its tests are committed
+to GitHub but **not the private full data**.
+
+### How the app uses it safely
+
+`league_opgg_full_reference.full_for_enemy()` is **read-only** and
+never calls OP.GG in champion select. It checks exactly the requested
+live client patch (e.g. 26.21 => source 16.21), Emerald+ tier,
+Ranked Solo/Duo, All Servers, 100+ games, and collection age
+(7 days maximum for current-patch display). A changed patch gives
+no matches; it NEVER treats an older patch as fresh.
+
+`counterpick_advice` appends the planned champion's OP.GG
+head-to-head stats and up to four alternative current-patch observations
+in `opgg_full_reference`, ranking **in-pool playable** candidates
+ahead of **off-pool LEARN** ideas for display. The small Draft Coach
+selected-comp panel labels them OP.GG STATS, patch/tier and sample size.
+The unversioned MCP three-and-three results are secondary fallback.
+
+**No OP.GG full-page figure is inserted into the automatic
+`league_comp_engine` scoring, eligible auto counter swaps, or
+Hover/Lock.** Raw matchup win rate alone does not isolate counter
+advantage from champion base strength, enemy base strength, comp, and
+player mastery. Before auto-scoring, add a calibrated, same-patch
+expected-win-rate residual with sample shrinkage and role ownership
+checks, then test across both sides and five instances.
+
+### Reproducible audits and further work
+
+- `python tools/opgg_full_audit.py` shows coverage, source-patch
+  counts and 100+ samples without network calls.
+- `python tools/collect_opgg_full_web.py --role Top --champions
+  Malphite Shen Gwen --expected-patch 16.21` collects at most three
+  new pages if not already cached.
+- `python -m pytest -q tests/test_opgg_full_web.py
+  tests/test_opgg_full_advice_ui.py` checks parsing, alias handling,
+  patch segregation and no forced picks.
+- `python tools/opgg_cache_audit.py` remains the *separate* official
+  MCP top-three cache audit.
+
+For a genuine **complete 243-champion-role page acquisition**, seek
+explicit guidance/permission from OP.GG for one-time and ongoing
+bulk-scale volume and caching, or an authorised complete
+patch/rank dataset. Continue small, respectful, opt-in collection only
+within the scope they already approved. Never claim the full matrix
+is already available locally.

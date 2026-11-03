@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Mapping
 from league_matchup_universe import role_universe, scout_note
 from league_opgg_mcp_reference import cached_for_enemy
+from league_opgg_full_reference import full_for_enemy
 from league_chaincc_pro_synergy import pro_duo
 
 from league_comp_engine import (
@@ -85,6 +86,37 @@ def counter_advice(
         # patch, rank or queue. Show as evidence links, never score auto-picks.
         opgg_cache = cached_for_enemy(role, enemy) if matchup_data is None else {}
         base_opgg = opgg_cache.get("".join(c for c in original.casefold() if c.isalnum()))
+        # Unlike the MCP top-three summaries, the public OP.GG web page
+        # exposes the full visible opponent list. Keep filtered same-patch
+        # Emerald+ observations separate from the legal draft's score.
+        full_page = full_for_enemy(role, enemy, patch=LIVE_PATCH) if matchup_data is None else {"rows": []}
+        full_base = None
+        full_alternatives = []
+        for observed in full_page.get("rows") or []:
+            champion_name = observed.get("ours")
+            if not champion_name:
+                continue
+            info = {
+                "champion": champion_name,
+                "enemy": enemy,
+                "games": observed["games"],
+                "head_to_head_win_rate": observed["head_to_head_win_rate"],
+                "source_patch": observed["source_patch"],
+                "rank_filter": observed["rank_filter"],
+                "retrieved_at": observed.get("retrieved_at"),
+                "source_url": observed["source_url"],
+                "evidence_limit": "patch_rank_attested_observation_not_autopick",
+            }
+            if champion_name == original:
+                full_base = info
+            elif champion_name not in unavailable and champion_name not in champions.values():
+                info["type"] = "playable" if champion_name in pool_set else "learn"
+                full_alternatives.append(info)
+        # Surface the strongest observed options within the actual owner's
+        # submitted pool first, never as eligible / automatic counter swaps.
+        full_alternatives.sort(key=lambda e: (
+            e["type"] == "playable", e["head_to_head_win_rate"], e["games"]
+        ), reverse=True)
         opgg_alternatives = []
         for _key, row in opgg_cache.items():
             name = row.get("ours")
@@ -234,6 +266,14 @@ def counter_advice(
             "playable": playable,
             "learn": learn,
             "scout": scouting[:4],
+            "opgg_full_reference": {
+                "planned": full_base,
+                "alternatives": full_alternatives[:4],
+                "source": "OP.GG public counters page",
+                "patch": full_page.get("source_patch"),
+                "rank": full_page.get("rank_filter"),
+                "label": "patch/rank-labelled statistical reference; no automatic pick changes",
+            },
             "opgg_reference": {
                 "original": ({
                     "champion": original,
