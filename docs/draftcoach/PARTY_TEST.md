@@ -83,7 +83,7 @@ then run one app with `--lockfile var/party/lobby/client0/lockfile`, and `POST /
 The full scenario now also exercises a duplicate launch on the occupied app port, two concurrent
 page polling loops per app, red-side trades (`--side red`), four known players plus an unlisted
 Riot ID, a client genuinely closed and reopened, a dodge followed by a new lobby after ten seconds
-while the relay returns HTTP 500, a relay clock one hour ahead, ARAM/normal standby, and a 30-second
+while the relay returns HTTP 500, a relay clock one hour ahead, ARAM standby and a coached Normal Draft, and a 30-second
 idle ban. The idle ban checks explicit client PATCH audit events: the fake client's timer is the
 actor. Its generic "locked" event alone cannot identify who acted.
 

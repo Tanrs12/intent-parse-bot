@@ -487,11 +487,16 @@ class Party:
         self.report.check("relay recovers with an hour of clock skew", bool(wait_for(self._one_host, 20)))
         http("POST", self.relay + "/control/fault", {"clock_skew": 0})
 
-        for queue, label in ((450, "ARAM"), (400, "Normal Draft")):
-            http("POST", self.lobby + "/control/leave")
-            http("POST", self.lobby + "/control/start", {"queue": queue, "planning": 120})
-            standby = wait_for(lambda: all((lambda s, g: s and not s["status"].get("lcu_in_champ_select") and not (s.get("local") or {}).get("can_act") and g is not None and not g.get("active"))(i.state(), i.guidance()) for i in self.instances), 12)
-            self.report.check(f"{label}: all apps stand by with no client actions", bool(standby))
+        # ARAM has no role draft, so every app stands by. Every other queue (Normal Draft here) is coached
+        # since the all-queue work: the apps enter champion select and guidance goes active.
+        http("POST", self.lobby + "/control/leave")
+        http("POST", self.lobby + "/control/start", {"queue": 450, "planning": 120})
+        standby = wait_for(lambda: all((lambda s, g: s and not s["status"].get("lcu_in_champ_select") and not (s.get("local") or {}).get("can_act") and g is not None and not g.get("active"))(i.state(), i.guidance()) for i in self.instances), 12)
+        self.report.check("ARAM: all apps stand by with no client actions", bool(standby))
+        http("POST", self.lobby + "/control/leave")
+        http("POST", self.lobby + "/control/start", {"queue": 400, "planning": 120})
+        coached = wait_for(lambda: all((lambda s, g: s and s["status"].get("lcu_in_champ_select") and g is not None and g.get("active"))(i.state(), i.guidance()) for i in self.instances), 15)
+        self.report.check("Normal Draft: all apps coach the draft like Ranked Flex", bool(coached))
 
         http("POST", self.lobby + "/control/leave")
         http("POST", self.lobby + "/control/start", {"queue": 440, "planning": 1, "turn": 30, "our": OUR, "party_size": 5})
