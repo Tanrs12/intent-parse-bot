@@ -1,4 +1,4 @@
-"""Draft Coach ranks through the repository's /league game backend, and only reacts in Ranked Flex."""
+"""Draft Coach ranks through the repository's /league game backend in every role-draft queue."""
 from __future__ import annotations
 
 import asyncio
@@ -72,39 +72,49 @@ def _ingest(hub, sess, queue):
     asyncio.run(go())
 
 
-def test_live_sessions_outside_ranked_flex_stand_by(roster, monkeypatch):
-    # Test production lightweight LCU queue handling, not slow composition ranking.
+def test_every_role_draft_queue_is_coached_and_aram_arena_stand_by(roster, monkeypatch):
+    # Will, 2 Nov 2026: coach normals, solo queue and every queue except ARAM (Arena has no roles either).
     monkeypatch.setenv('INTENT_LIVE', '1')
-    hub = Hub(roster)
     sess = session({}, {}, [], [], [0])
-    _ingest(hub, sess, {"id": 430, "name": "Normal Draft", "type": "NORMAL"})
-    assert hub.state is None or hub.state.source != "lcu"
-    assert "Standing by" in hub.status.get("detail", "") and hub.status["queue"]["id"] == 430
+    coached = [{"id": 420, "name": "Ranked Solo/Duo", "type": "RANKED_SOLO_5x5", "gameMode": "CLASSIC", "mapId": 11},
+               {"id": 440, "name": "Ranked Flex", "type": "RANKED_FLEX_SR", "gameMode": "CLASSIC", "mapId": 11},
+               {"id": 400, "name": "Normal Draft", "type": "NORMAL", "gameMode": "CLASSIC", "mapId": 11},
+               {"id": 430, "name": "Normal Blind", "type": "NORMAL", "gameMode": "CLASSIC", "mapId": 11},
+               {"id": 490, "name": "Quickplay", "type": "NORMAL", "gameMode": "CLASSIC", "mapId": 11},
+               {"id": 700, "name": "Clash", "type": "CLASH", "gameMode": "CLASSIC", "mapId": 11},
+               {"id": 0, "name": "Custom", "type": "CUSTOM"},
+               {"id": 3140, "name": "Multiplayer Practice Tool Custom", "type": "PRACTICETOOL"},
+               {"id": 850, "name": "Intermediate", "type": "BOT", "category": "VersusAi"},
+               None]                                      # unknown queue (REST failure) is not a reason to go silent
+    for queue in coached:
+        hub = Hub(roster)
+        _ingest(hub, sess, queue)
+        assert hub.state is not None and hub.state.source == "lcu", queue
+    for queue, label in [({"id": 450, "name": "ARAM", "type": "ARAM_UNRANKED_5x5", "gameMode": "ARAM", "mapId": 12}, "ARAM"),
+                         ({"id": 2400, "name": "ARAM: Mayhem", "gameMode": "KIWI", "mapId": 12}, "ARAM"),
+                         ({"id": 1700, "name": "Arena", "gameMode": "CHERRY", "mapId": 30}, "Arena")]:
+        hub = Hub(roster)
+        _ingest(hub, sess, queue)
+        assert hub.state is None and hub.status["detail"].startswith(f"Standing by: {label}"), queue
+    hub_any = Hub(roster); hub_any.any_queue = True       # --any-queue never turns ARAM into a role draft
+    _ingest(hub_any, sess, {"id": 450, "name": "ARAM", "gameMode": "ARAM", "mapId": 12})
+    assert hub_any.state is None
+
+
+def test_explicit_queue_list_still_filters(roster, monkeypatch):
+    monkeypatch.setenv('INTENT_LIVE', '1')
+    sess = session({}, {}, [], [], [0])
+    roster.settings["queues"] = [440, 0]
+    hub = Hub(roster)
+    _ingest(hub, sess, {"id": 420, "name": "Ranked Solo/Duo", "type": "RANKED_SOLO_5x5"})
+    assert hub.state is None and "settings.queues" in hub.status["detail"]
     _ingest(hub, sess, {"id": 440, "name": "Ranked Flex", "type": "RANKED_FLEX_SR"})
     assert hub.state is not None and hub.state.source == "lcu"
-    # Unknown queue (REST failure) is not a reason to go silent; --any-queue coaches customs too.
-    hub2 = Hub(roster)
-    _ingest(hub2, sess, None)
-    assert hub2.state is not None and hub2.state.source == "lcu"
-    hub3 = Hub(roster)                                        # custom games are coached by default
-    _ingest(hub3, sess, {"id": 0, "name": "Custom", "type": "CUSTOM"})
-    assert hub3.state is not None and hub3.state.source == "lcu"
-    hub3_practice = Hub(roster)                               # Riot practice tool may use a non-zero queue id/type
-    _ingest(hub3_practice, sess, {"id": 3140, "name": "Multiplayer Practice Tool Custom", "type": "PRACTICETOOL"})
-    assert hub3_practice.state is not None and hub3_practice.state.source == "lcu"
-    hub3b = Hub(roster)
-    _ingest(hub3b, sess, {"id": 420, "name": "Ranked Solo/Duo", "type": "RANKED_SOLO_5x5"})
-    assert hub3b.state is None and "Standing by" in hub3b.status.get("detail", "")
-    hub_bot = Hub(roster)                                    # versus-AI is always available for solo testing
-    _ingest(hub_bot, sess, {"id": 850, "name": "Intermediate", "type": "BOT", "category": "VersusAi"})
-    assert hub_bot.state is not None and hub_bot.state.source == "lcu"
-    hub3c = Hub(roster); hub3c.any_queue = True
-    _ingest(hub3c, sess, {"id": 420, "name": "Ranked Solo/Duo", "type": "RANKED_SOLO_5x5"})
-    assert hub3c.state is not None
-    roster.settings["queues"] = []
-    hub4 = Hub(roster)
-    _ingest(hub4, sess, {"id": 0, "name": "Custom", "type": "CUSTOM"})
-    assert hub4.state is not None and hub4.state.source == "lcu"
+
+
+def test_team_loadfile_and_defaults_coach_every_queue(roster):
+    assert roster.settings["queues"] == []
+    assert Hub(roster).allowed_queues() is None
 
 
 def test_short_lobby_is_padded_to_five_seats_from_the_lineup(roster):

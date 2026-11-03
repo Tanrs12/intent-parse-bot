@@ -111,6 +111,14 @@
           <span class="mm-meta" id="action-note"></span>
         </div>
 
+        <section id="assist-section" hidden aria-labelledby="assist-title">
+          <header class="coach-section-head"><h3 id="assist-title">Your seat</h3><span class="mm-meta" id="assist-sub"></span></header>
+          <div class="assist-swaps" id="assist-swaps" role="status" aria-live="polite"></div>
+          <div class="list" id="assist-picks"></div>
+          <h3 class="coach-analysis-title">Enemy may pick <small class="mm-meta" id="assist-enemy-note"></small></h3>
+          <div class="assist-enemy" id="assist-enemy"></div>
+        </section>
+
         <section id="control-section" hidden>
           <header class="coach-section-head"><h3>Team sheet</h3><span class="mm-meta" id="control-sync"></span></header>
           <div class="control-row">
@@ -288,7 +296,7 @@
       b.onclick = async () => { if (confirm("Remove " + p.name + " from the roster?")) { await fetch("/api/roster/player/" + p.key, { method: "DELETE" }); loadRoster(); } };
       del.append(b); tr.append(del); players.append(tr);
     }
-    if (!r.players.length) { const td = D.el("td", "champs", "No players yet. Import a loadfile."); td.colSpan = 4; players.append(D.el("tr")).append(td); }
+    if (!r.players.length) { const td = D.el("td", "champs", "No players yet. Import a loadfile."); td.colSpan = 4; const tr = D.el("tr"); tr.append(td); players.append(tr); }
     const opps = $("opponents"); opps.replaceChildren();
     for (const o of r.opponents) {
       const tr = D.el("tr"); const who = D.el("td"); who.append(D.el("b", "", o.name)); if (o.riot_ids.length) who.append(D.el("div", "champs", o.riot_ids.join(", ")));
@@ -297,7 +305,7 @@
       b.onclick = async () => { if (confirm("Remove " + o.name + "?")) { await fetch("/api/roster/opponent/" + o.key, { method: "DELETE" }); loadRoster(); } };
       del.append(b); tr.append(del); opps.append(tr);
     }
-    if (!r.opponents.length) { const td = D.el("td", "champs", "No scouting yet."); td.colSpan = 4; opps.append(D.el("tr")).append(td); }
+    if (!r.opponents.length) { const td = D.el("td", "champs", "No scouting yet."); td.colSpan = 4; const tr = D.el("tr"); tr.append(td); opps.append(tr); }
     lineupSelects($("lineup"), r.lineup, r.players.map((p) => [p.key, p.name]), "/api/roster/lineup", ["Seat 1", "Seat 2", "Seat 3", "Seat 4", "Seat 5"]);
     lineupSelects($("enemy-lineup"), r.enemy_lineup, r.opponents.map((o) => [o.key, o.name]), "/api/roster/enemy-lineup", ["Enemy 1", "Enemy 2", "Enemy 3", "Enemy 4", "Enemy 5"]);
     const policy = $("policy"); policy.replaceChildren();
@@ -394,7 +402,7 @@
         for (const r of D.ROLES) sel.append(new Option((ROLE_LONG[r] || r).toUpperCase(), r, false, r === slot.role));
         sel.onchange = () => act("/api/draft/role", { index: boardAction.index, role: sel.value });
         right.append(sel);
-      } else right.append(D.el("div", "role" + (slot.role_source === "inferred" ? " inferred" : ""), (ROLE_LONG[slot.role] || "?").toUpperCase()));
+      } else right.append(D.el("div", "role" + (["inferred", "guessed"].includes(slot.role_source) ? " inferred" : ""), (ROLE_LONG[slot.role] || "?").toUpperCase()));
       const sw = swapTo[slot.cell_id];
       right.append(D.el("div", "state " + (slot.locked ? (sw ? "hover" : "lock") : champ ? "hover" : ""), slot.locked ? (sw ? "→ " + (ROLE_LONG[sw.to_role] || sw.to_role).toUpperCase() : "Locked") : champ ? "Hover" : ""));
       row.append(right); box.append(row);
@@ -802,8 +810,9 @@
     if (!pick || !local || !local.client || !local.can_act || me.locked) { actions.hidden = true; return; }
     actions.hidden = false;
     $("intent-actions-label").textContent = "YOUR " + (local.kind === "ban" ? "BAN" : "PICK") + " \u00b7 " + pick.champion + (pick.team_plan ? " \u00b7 " + String(pick.team_plan).toUpperCase() : "");
-    $("intent-hover").onclick = () => clientAct("hover", { champion: pick.champion });
-    $("intent-lock").onclick = () => clientAct("lock", { champion: pick.champion });
+    const seen = { action_id: local.action_id, kind: local.kind, game_id: local.game_id };
+    $("intent-hover").onclick = () => clientAct("hover", { champion: pick.champion, ...seen });
+    $("intent-lock").onclick = () => clientAct("lock", { champion: pick.champion, ...seen });
   }
   let captainRanks = new Map();
   let captainRenderKey = "";
@@ -1005,8 +1014,9 @@
     if (local.can_act && local.suggestion) {
       const sg = local.suggestion;
       accept.textContent = (sg.kind === "ban" ? "Accept \u00b7 Ban " : "Accept \u00b7 Lock ") + sg.champion;
-      accept.onclick = () => clientAct("lock", { champion: sg.champion });
-      hoverBtn.hidden = sg.kind !== "pick"; hoverBtn.onclick = () => clientAct("hover", { champion: sg.champion });
+      const seen = { action_id: local.action_id, kind: local.kind, game_id: local.game_id };
+      accept.onclick = () => clientAct("lock", { champion: sg.champion, ...seen });
+      hoverBtn.hidden = sg.kind !== "pick"; hoverBtn.onclick = () => clientAct("hover", { champion: sg.champion, ...seen });
       $("action-note").textContent = "Acts through this machine\u2019s League client for " + local.name + ".";
       box.hidden = false; return;
     }
@@ -1022,6 +1032,65 @@
       accept.textContent = "Swap " + sw.give + " with " + sw.with_player + (sw.receive ? " for " + sw.receive : "");
       accept.onclick = () => clientAct("swap_request");
       box.hidden = false;
+    }
+  }
+
+  // Any-queue seat assistance (hub.assist_view): comfort-first picks with one-click lock, the
+  // enemy's likely picks for open roles, and the role / pick-order swap plan.
+  const SWAP_STATE = { AVAILABLE: "can request", SENT: "requested", RECEIVED: "offered to you", ACCEPTED: "done", DECLINED: "declined", BUSY: "busy" };
+  function renderAssist(snapshot) {
+    const section = $("assist-section"), a = snapshot.assist, local = snapshot.local;
+    if (!a || a.error || !local) { section.hidden = true; return; }
+    section.hidden = false;
+    const role = a.role || local.picking_role || local.role;
+    const myTurn = !!(local.can_act && local.kind === "pick" && !acting);
+    $("assist-sub").textContent = (role ? (ROLE_LONG[role] || role) : "Role unknown") + (a.comfort_known ? " \u00b7 your mastery" : " \u00b7 mastery loading") + (a.patch ? " \u00b7 patch " + a.patch : "");
+    const picks = (a.picks || []).map((p, i) => cardRow({
+      champion: p.champion, champion_id: p.champion_id, role: p.role, why: (p.why || []).join(" \u00b7 "),
+      score: p.score.toFixed(1), sub: myTurn ? "click to lock" : "ranked", action: "Lock",
+      tags: [p.in_pool ? { text: "your pool", cls: "blue" } : null, p.comfort >= 0.6 ? { text: "comfort", cls: "blue" } : null,
+             p.lane_edge > 0 ? { text: "counters lane", cls: "blue" } : p.lane_edge < 0 ? { text: "lane risk", cls: "warn" } : null].filter(Boolean),
+    }, myTurn ? (r) => clientAct("lock", { champion: r.champion, action_id: local.action_id, kind: "pick", game_id: local.game_id }) : null, i === 0));
+    fill($("assist-picks"), picks, role ? "No ranked picks for " + (ROLE_LONG[role] || role) + " yet." : "Waiting for your role.");
+    // The headline / Accept button stays the one lead pick; these are your comfort alternatives to it.
+    $("assist-title").textContent = local.suggestion && local.suggestion.kind === "pick" ? "Your comfort alternatives" : "Your picks";
+    const enemy = $("assist-enemy"); enemy.replaceChildren();
+    const byRole = {};
+    for (const r of a.enemy || []) (byRole[r.role] = byRole[r.role] || []).push(r);
+    const hinted = (a.enemy || []).some((r) => (r.ban_hints || []).length);
+    $("assist-enemy-note").textContent = hinted ? "solo-queue meta, nudged by their bans" : "solo-queue meta for open roles";
+    for (const [r, rows] of Object.entries(byRole)) {
+      const line = D.el("div", "assist-enemy-role");
+      line.append(D.el("strong", "", D.ROLE_SHORT[r] || r));
+      for (const row of rows) {
+        const c = D.el("span", "chip" + ((row.ban_hints || []).length ? " next" : ""));
+        c.title = row.why;
+        c.append(D.portrait(row.champion, "tiny", row.champion_id), D.el("b", "", row.champion), D.el("small", "", Math.round(row.share * 100) + "%"));
+        line.append(c);
+      }
+      enemy.append(line);
+    }
+    if (!enemy.childElementCount) enemy.append(D.el("p", "fd-note", "Every enemy role is locked."));
+    const sw = a.swaps || {}, box = $("assist-swaps"); box.replaceChildren();
+    if (sw.target_role) {
+      const want = "Plan: " + (ROLE_LONG[sw.target_role] || sw.target_role) + (sw.target_pick_slot != null ? ", pick " + (sw.target_pick_slot + 1) : "");
+      box.append(D.el("span", "mm-meta", want + (sw.current_role ? " \u00b7 now " + (ROLE_LONG[sw.current_role] || sw.current_role) + (sw.current_pick_slot != null ? ", pick " + (sw.current_pick_slot + 1) : "") : "")));
+      for (const [kind, label] of [["position", "Role swap"], ["pick_order", "Pick-order swap"]]) {
+        const row = sw[kind];
+        if (!row) continue;
+        const b = D.el("button", "fd-button", label + " with seat " + row.with_cell + " \u00b7 " + (SWAP_STATE[row.state] || row.state.toLowerCase()));
+        b.type = "button"; b.disabled = row.state !== "AVAILABLE" || acting;
+        b.onclick = () => clientAct("seat_swap", { family: row.family, swap_id: row.swap_id, verb: "request" });
+        box.append(b);
+      }
+      for (const row of sw.accept || []) {
+        const b = D.el("button", "fd-button primary", "Accept " + (row.family === "position-swaps" ? "role" : "pick-order") + " swap from seat " + row.with_cell);
+        b.type = "button"; b.disabled = acting;
+        b.onclick = () => clientAct("seat_swap", { family: row.family, swap_id: row.swap_id, verb: "accept" });
+        box.append(b);
+      }
+    } else {
+      box.append(D.el("span", "mm-meta", "Pick \u201cMy role tonight\u201d (or choose a team draft) and swaps follow it automatically."));
     }
   }
 
@@ -1136,6 +1205,7 @@
     $("ours-score").textContent = g && g.team ? g.team.score.toFixed(0) : "—"; $("enemy-score").textContent = g && g.enemy_team_score ? g.enemy_team_score.score.toFixed(0) : "—";
     refreshGrid();
     renderClientActions(snapshot);
+    renderAssist(snapshot);
     D.Review.coachEnd(
       snapshot, g,
       typeof intentBridge !== "undefined" ? intentBridge : intentGuidance,

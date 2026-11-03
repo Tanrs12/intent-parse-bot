@@ -1,0 +1,5210 @@
+{
+ "schema_version": 1,
+ "patch": "16.21",
+ "tier": "emerald_plus",
+ "queue": "RANKED_SOLO_5x5",
+ "fetched_at": "2026-11-02T23:55+00:00",
+ "source": "lolalytics.com public tier list (lane pages)",
+ "roles": {
+  "Top": {
+   "Annie": {
+    "win": 54.37,
+    "pick": 0.1,
+    "ban": 0.57,
+    "games": 2652
+   },
+   "Olaf": {
+    "win": 51.8,
+    "pick": 2.84,
+    "ban": 3.56,
+    "games": 72913
+   },
+   "Galio": {
+    "win": 51.98,
+    "pick": 0.39,
+    "ban": 1.9,
+    "games": 10008
+   },
+   "Twisted Fate": {
+    "win": 50.31,
+    "pick": 0.26,
+    "ban": 1.37,
+    "games": 6758
+   },
+   "Xin Zhao": {
+    "win": 50.71,
+    "pick": 0.19,
+    "ban": 0.83,
+    "games": 4987
+   },
+   "Urgot": {
+    "win": 52.37,
+    "pick": 2.35,
+    "ban": 0.89,
+    "games": 60302
+   },
+   "LeBlanc": {
+    "win": 51.7,
+    "pick": 0.16,
+    "ban": 17.75,
+    "games": 4050
+   },
+   "Vladimir": {
+    "win": 51.07,
+    "pick": 1.31,
+    "ban": 6.44,
+    "games": 33677
+   },
+   "Fiddlesticks": {
+    "win": 52.2,
+    "pick": 0.28,
+    "ban": 1.17,
+    "games": 7245
+   },
+   "Kayle": {
+    "win": 53.32,
+    "pick": 2.2,
+    "ban": 1.32,
+    "games": 56425
+   },
+   "Master Yi": {
+    "win": 50.23,
+    "pick": 0.55,
+    "ban": 16.17,
+    "games": 14160
+   },
+   "Alistar": {
+    "win": 49.04,
+    "pick": 0.06,
+    "ban": 2.23,
+    "games": 1503
+   },
+   "Ryze": {
+    "win": 50.37,
+    "pick": 0.58,
+    "ban": 0.43,
+    "games": 14940
+   },
+   "Sion": {
+    "win": 52.69,
+    "pick": 3.76,
+    "ban": 0.72,
+    "games": 96717
+   },
+   "Sivir": {
+    "win": 43.42,
+    "pick": 0.01,
+    "ban": 1.66,
+    "games": 228
+   },
+   "Soraka": {
+    "win": 47.44,
+    "pick": 0.05,
+    "ban": 2.25,
+    "games": 1231
+   },
+   "Teemo": {
+    "win": 52.95,
+    "pick": 3.93,
+    "ban": 7.32,
+    "games": 100923
+   },
+   "Tristana": {
+    "win": 46.68,
+    "pick": 0.21,
+    "ban": 6.94,
+    "games": 5398
+   },
+   "Warwick": {
+    "win": 53.71,
+    "pick": 1.41,
+    "ban": 1.84,
+    "games": 36125
+   },
+   "Nunu & Willump": {
+    "win": 44.83,
+    "pick": 0.02,
+    "ban": 0.51,
+    "games": 513
+   },
+   "Miss Fortune": {
+    "win": 45.1,
+    "pick": 0.02,
+    "ban": 1.61,
+    "games": 408
+   },
+   "Ashe": {
+    "win": 46.33,
+    "pick": 0.08,
+    "ban": 1.62,
+    "games": 1977
+   },
+   "Tryndamere": {
+    "win": 52.33,
+    "pick": 3.02,
+    "ban": 2.92,
+    "games": 77547
+   },
+   "Jax": {
+    "win": 50.96,
+    "pick": 5.97,
+    "ban": 9.84,
+    "games": 153336
+   },
+   "Morgana": {
+    "win": 51.03,
+    "pick": 0.09,
+    "ban": 18.37,
+    "games": 2187
+   },
+   "Zilean": {
+    "win": 54.81,
+    "pick": 0.21,
+    "ban": 1.77,
+    "games": 5413
+   },
+   "Singed": {
+    "win": 53.34,
+    "pick": 2.14,
+    "ban": 0.67,
+    "games": 55005
+   },
+   "Evelynn": {
+    "win": 45.67,
+    "pick": 0.04,
+    "ban": 2.19,
+    "games": 981
+   },
+   "Twitch": {
+    "win": 47.63,
+    "pick": 0.02,
+    "ban": 8.02,
+    "games": 548
+   },
+   "Karthus": {
+    "win": 50.71,
+    "pick": 0.11,
+    "ban": 0.94,
+    "games": 2814
+   },
+   "Cho'Gath": {
+    "win": 52.23,
+    "pick": 2.99,
+    "ban": 8.49,
+    "games": 76924
+   },
+   "Amumu": {
+    "win": 38.62,
+    "pick": 0.01,
+    "ban": 1.03,
+    "games": 334
+   },
+   "Rammus": {
+    "win": 46.15,
+    "pick": 0.06,
+    "ban": 4.48,
+    "games": 1664
+   },
+   "Anivia": {
+    "win": 52.79,
+    "pick": 0.73,
+    "ban": 2.28,
+    "games": 18628
+   },
+   "Shaco": {
+    "win": 45.95,
+    "pick": 0.1,
+    "ban": 18.08,
+    "games": 2618
+   },
+   "Dr. Mundo": {
+    "win": 51.79,
+    "pick": 3.34,
+    "ban": 2.34,
+    "games": 85839
+   },
+   "Sona": {
+    "win": 42.86,
+    "pick": 0,
+    "ban": 0.21,
+    "games": 98
+   },
+   "Kassadin": {
+    "win": 54.25,
+    "pick": 0.17,
+    "ban": 2.54,
+    "games": 4431
+   },
+   "Irelia": {
+    "win": 52.06,
+    "pick": 4.59,
+    "ban": 12.7,
+    "games": 117803
+   },
+   "Janna": {
+    "win": 49.03,
+    "pick": 0.02,
+    "ban": 1.21,
+    "games": 565
+   },
+   "Gangplank": {
+    "win": 52.31,
+    "pick": 5.07,
+    "ban": 8.77,
+    "games": 130182
+   },
+   "Corki": {
+    "win": 46.33,
+    "pick": 0.36,
+    "ban": 0.34,
+    "games": 9146
+   },
+   "Karma": {
+    "win": 49.2,
+    "pick": 0.23,
+    "ban": 3.13,
+    "games": 5827
+   },
+   "Taric": {
+    "win": 47.1,
+    "pick": 0.02,
+    "ban": 0.24,
+    "games": 414
+   },
+   "Veigar": {
+    "win": 51.61,
+    "pick": 0.17,
+    "ban": 1.13,
+    "games": 4292
+   },
+   "Trundle": {
+    "win": 50.89,
+    "pick": 1.69,
+    "ban": 0.45,
+    "games": 43478
+   },
+   "Swain": {
+    "win": 51.7,
+    "pick": 0.56,
+    "ban": 2.09,
+    "games": 14279
+   },
+   "Caitlyn": {
+    "win": 45.43,
+    "pick": 0.08,
+    "ban": 21.46,
+    "games": 1990
+   },
+   "Blitzcrank": {
+    "win": 35.27,
+    "pick": 0.01,
+    "ban": 15.21,
+    "games": 258
+   },
+   "Malphite": {
+    "win": 53.29,
+    "pick": 7.03,
+    "ban": 18.34,
+    "games": 180664
+   },
+   "Katarina": {
+    "win": 50.19,
+    "pick": 0.16,
+    "ban": 12.01,
+    "games": 4178
+   },
+   "Nocturne": {
+    "win": 48.54,
+    "pick": 0.08,
+    "ban": 8.94,
+    "games": 2128
+   },
+   "Maokai": {
+    "win": 50.9,
+    "pick": 0.38,
+    "ban": 0.18,
+    "games": 9846
+   },
+   "Renekton": {
+    "win": 51.68,
+    "pick": 5.82,
+    "ban": 4.24,
+    "games": 149427
+   },
+   "Jarvan IV": {
+    "win": 45.98,
+    "pick": 0.1,
+    "ban": 1.57,
+    "games": 2625
+   },
+   "Elise": {
+    "win": 50.36,
+    "pick": 0.12,
+    "ban": 2.31,
+    "games": 3036
+   },
+   "Orianna": {
+    "win": 51.36,
+    "pick": 0.04,
+    "ban": 0.54,
+    "games": 1104
+   },
+   "Wukong": {
+    "win": 52.41,
+    "pick": 0.92,
+    "ban": 6.08,
+    "games": 23641
+   },
+   "Brand": {
+    "win": 52.43,
+    "pick": 0.29,
+    "ban": 2.96,
+    "games": 7408
+   },
+   "Lee Sin": {
+    "win": 42.87,
+    "pick": 0.16,
+    "ban": 14.83,
+    "games": 4052
+   },
+   "Vayne": {
+    "win": 50.68,
+    "pick": 1.23,
+    "ban": 3.89,
+    "games": 31684
+   },
+   "Rumble": {
+    "win": 48.1,
+    "pick": 1.56,
+    "ban": 0.53,
+    "games": 40149
+   },
+   "Cassiopeia": {
+    "win": 51.2,
+    "pick": 0.42,
+    "ban": 1.24,
+    "games": 10753
+   },
+   "Skarner": {
+    "win": 49.45,
+    "pick": 0.16,
+    "ban": 0.24,
+    "games": 4071
+   },
+   "Heimerdinger": {
+    "win": 52.57,
+    "pick": 1.21,
+    "ban": 2.21,
+    "games": 31104
+   },
+   "Nasus": {
+    "win": 52.85,
+    "pick": 3.77,
+    "ban": 11.53,
+    "games": 96921
+   },
+   "Nidalee": {
+    "win": 45.61,
+    "pick": 0.08,
+    "ban": 2.4,
+    "games": 1936
+   },
+   "Udyr": {
+    "win": 49.6,
+    "pick": 0.54,
+    "ban": 0.95,
+    "games": 13967
+   },
+   "Poppy": {
+    "win": 53.33,
+    "pick": 0.91,
+    "ban": 3.26,
+    "games": 23262
+   },
+   "Gragas": {
+    "win": 51.37,
+    "pick": 2.48,
+    "ban": 0.8,
+    "games": 63694
+   },
+   "Pantheon": {
+    "win": 51.28,
+    "pick": 3.99,
+    "ban": 3.58,
+    "games": 102463
+   },
+   "Ezreal": {
+    "win": 42.89,
+    "pick": 0.08,
+    "ban": 4.03,
+    "games": 2038
+   },
+   "Mordekaiser": {
+    "win": 52.3,
+    "pick": 5.48,
+    "ban": 8.9,
+    "games": 140674
+   },
+   "Yorick": {
+    "win": 51.3,
+    "pick": 2.72,
+    "ban": 5.78,
+    "games": 69869
+   },
+   "Akali": {
+    "win": 50.98,
+    "pick": 3.28,
+    "ban": 17.21,
+    "games": 84330
+   },
+   "Kennen": {
+    "win": 51.35,
+    "pick": 1.86,
+    "ban": 1.34,
+    "games": 47698
+   },
+   "Garen": {
+    "win": 52.94,
+    "pick": 6.26,
+    "ban": 4.58,
+    "games": 160735
+   },
+   "Leona": {
+    "win": 42.41,
+    "pick": 0.01,
+    "ban": 9.49,
+    "games": 316
+   },
+   "Malzahar": {
+    "win": 51.68,
+    "pick": 0.55,
+    "ban": 9.74,
+    "games": 14078
+   },
+   "Talon": {
+    "win": 51.05,
+    "pick": 0.06,
+    "ban": 9.42,
+    "games": 1663
+   },
+   "Riven": {
+    "win": 51.54,
+    "pick": 2.28,
+    "ban": 1.41,
+    "games": 58454
+   },
+   "Kog'Maw": {
+    "win": 52.46,
+    "pick": 0.18,
+    "ban": 0.76,
+    "games": 4615
+   },
+   "Shen": {
+    "win": 52.95,
+    "pick": 3.7,
+    "ban": 0.75,
+    "games": 94997
+   },
+   "Lux": {
+    "win": 49.56,
+    "pick": 0.07,
+    "ban": 4.35,
+    "games": 1709
+   },
+   "Xerath": {
+    "win": 51.53,
+    "pick": 0.03,
+    "ban": 8.21,
+    "games": 786
+   },
+   "Shyvana": {
+    "win": 47.25,
+    "pick": 0.25,
+    "ban": 4.6,
+    "games": 6300
+   },
+   "Ahri": {
+    "win": 53.65,
+    "pick": 0.32,
+    "ban": 3.3,
+    "games": 8315
+   },
+   "Graves": {
+    "win": 47.78,
+    "pick": 0.1,
+    "ban": 9.28,
+    "games": 2587
+   },
+   "Fizz": {
+    "win": 50.66,
+    "pick": 0.16,
+    "ban": 7.27,
+    "games": 4011
+   },
+   "Volibear": {
+    "win": 50.74,
+    "pick": 3.91,
+    "ban": 2.15,
+    "games": 100417
+   },
+   "Rengar": {
+    "win": 51.26,
+    "pick": 0.27,
+    "ban": 7.14,
+    "games": 7041
+   },
+   "Varus": {
+    "win": 49.26,
+    "pick": 0.66,
+    "ban": 1.12,
+    "games": 17078
+   },
+   "Nautilus": {
+    "win": 49.01,
+    "pick": 0.06,
+    "ban": 15.34,
+    "games": 1622
+   },
+   "Viktor": {
+    "win": 50.02,
+    "pick": 0.28,
+    "ban": 10.24,
+    "games": 7249
+   },
+   "Sejuani": {
+    "win": 51.29,
+    "pick": 0.27,
+    "ban": 0.25,
+    "games": 6812
+   },
+   "Fiora": {
+    "win": 52.15,
+    "pick": 4.46,
+    "ban": 5.97,
+    "games": 114567
+   },
+   "Ziggs": {
+    "win": 49.84,
+    "pick": 0.02,
+    "ban": 0.8,
+    "games": 636
+   },
+   "Lulu": {
+    "win": 48.47,
+    "pick": 0.05,
+    "ban": 14,
+    "games": 1403
+   },
+   "Draven": {
+    "win": 49.42,
+    "pick": 0.11,
+    "ban": 14.56,
+    "games": 2823
+   },
+   "Hecarim": {
+    "win": 38.24,
+    "pick": 0.01,
+    "ban": 7.43,
+    "games": 353
+   },
+   "Kha'Zix": {
+    "win": 46.27,
+    "pick": 0.01,
+    "ban": 4.28,
+    "games": 335
+   },
+   "Darius": {
+    "win": 52.89,
+    "pick": 7.63,
+    "ban": 14.56,
+    "games": 195959
+   },
+   "Jayce": {
+    "win": 48.91,
+    "pick": 5.7,
+    "ban": 6.71,
+    "games": 146364
+   },
+   "Lissandra": {
+    "win": 52.99,
+    "pick": 0.53,
+    "ban": 4.39,
+    "games": 13538
+   },
+   "Diana": {
+    "win": 48.79,
+    "pick": 0.2,
+    "ban": 3.59,
+    "games": 5013
+   },
+   "Quinn": {
+    "win": 53.86,
+    "pick": 0.83,
+    "ban": 0.8,
+    "games": 21450
+   },
+   "Syndra": {
+    "win": 52.24,
+    "pick": 0.15,
+    "ban": 7.95,
+    "games": 3907
+   },
+   "Aurelion Sol": {
+    "win": 53.53,
+    "pick": 0.17,
+    "ban": 0.62,
+    "games": 4261
+   },
+   "Kayn": {
+    "win": 48.18,
+    "pick": 0.29,
+    "ban": 5.92,
+    "games": 7513
+   },
+   "Zoe": {
+    "win": 54.8,
+    "pick": 0.18,
+    "ban": 3.35,
+    "games": 4728
+   },
+   "Zyra": {
+    "win": 48.84,
+    "pick": 0.03,
+    "ban": 4.23,
+    "games": 688
+   },
+   "Kai'Sa": {
+    "win": 48.27,
+    "pick": 0.2,
+    "ban": 4.22,
+    "games": 5040
+   },
+   "Seraphine": {
+    "win": 52.54,
+    "pick": 0.01,
+    "ban": 4.8,
+    "games": 236
+   },
+   "Gnar": {
+    "win": 50.58,
+    "pick": 3.51,
+    "ban": 1.2,
+    "games": 90065
+   },
+   "Zac": {
+    "win": 53.68,
+    "pick": 0.51,
+    "ban": 1.09,
+    "games": 13126
+   },
+   "Yasuo": {
+    "win": 51.35,
+    "pick": 3.63,
+    "ban": 26.31,
+    "games": 93156
+   },
+   "Vel'Koz": {
+    "win": 54.41,
+    "pick": 0.14,
+    "ban": 2.04,
+    "games": 3661
+   },
+   "Taliyah": {
+    "win": 51.97,
+    "pick": 0.06,
+    "ban": 0.7,
+    "games": 1522
+   },
+   "Camille": {
+    "win": 52.06,
+    "pick": 4.36,
+    "ban": 1.86,
+    "games": 112054
+   },
+   "Akshan": {
+    "win": 52.16,
+    "pick": 0.19,
+    "ban": 1.93,
+    "games": 4795
+   },
+   "Bel'Veth": {
+    "win": 46.88,
+    "pick": 0.02,
+    "ban": 3.78,
+    "games": 416
+   },
+   "Braum": {
+    "win": 38.46,
+    "pick": 0,
+    "ban": 6.53,
+    "games": 91
+   },
+   "Jhin": {
+    "win": 49.73,
+    "pick": 0.12,
+    "ban": 2.48,
+    "games": 3207
+   },
+   "Kindred": {
+    "win": 42.34,
+    "pick": 0.01,
+    "ban": 1.83,
+    "games": 248
+   },
+   "Zeri": {
+    "win": 47.01,
+    "pick": 0.04,
+    "ban": 0.95,
+    "games": 1138
+   },
+   "Jinx": {
+    "win": 44.4,
+    "pick": 0.01,
+    "ban": 7.18,
+    "games": 232
+   },
+   "Tahm Kench": {
+    "win": 52.31,
+    "pick": 1.79,
+    "ban": 2.46,
+    "games": 46082
+   },
+   "Briar": {
+    "win": 51.36,
+    "pick": 0.24,
+    "ban": 8.92,
+    "games": 6267
+   },
+   "Viego": {
+    "win": 49.62,
+    "pick": 0.1,
+    "ban": 6.83,
+    "games": 2513
+   },
+   "Senna": {
+    "win": 47.86,
+    "pick": 0.03,
+    "ban": 1.28,
+    "games": 888
+   },
+   "Lucian": {
+    "win": 45.5,
+    "pick": 0.16,
+    "ban": 2.28,
+    "games": 4207
+   },
+   "Zed": {
+    "win": 53.17,
+    "pick": 0.75,
+    "ban": 24.12,
+    "games": 19187
+   },
+   "Kled": {
+    "win": 52.86,
+    "pick": 1.69,
+    "ban": 0.97,
+    "games": 43530
+   },
+   "Ekko": {
+    "win": 51.31,
+    "pick": 0.29,
+    "ban": 2.8,
+    "games": 7324
+   },
+   "Qiyana": {
+    "win": 50.41,
+    "pick": 0.23,
+    "ban": 14.67,
+    "games": 5916
+   },
+   "Vi": {
+    "win": 45.72,
+    "pick": 0.08,
+    "ban": 1.4,
+    "games": 2023
+   },
+   "Aatrox": {
+    "win": 51.65,
+    "pick": 6.39,
+    "ban": 7.22,
+    "games": 164235
+   },
+   "Nami": {
+    "win": 24.39,
+    "pick": 0,
+    "ban": 1.14,
+    "games": 41
+   },
+   "Azir": {
+    "win": 53.26,
+    "pick": 0.2,
+    "ban": 0.32,
+    "games": 5227
+   },
+   "Yuumi": {
+    "win": 23.33,
+    "pick": 0,
+    "ban": 8.25,
+    "games": 30
+   },
+   "Samira": {
+    "win": 40.63,
+    "pick": 0.01,
+    "ban": 5.8,
+    "games": 288
+   },
+   "Thresh": {
+    "win": 43.86,
+    "pick": 0.02,
+    "ban": 13.02,
+    "games": 472
+   },
+   "Illaoi": {
+    "win": 52.68,
+    "pick": 2.55,
+    "ban": 5.58,
+    "games": 65562
+   },
+   "Rek'Sai": {
+    "win": 52.8,
+    "pick": 0.11,
+    "ban": 0.56,
+    "games": 2896
+   },
+   "Ivern": {
+    "win": 49.08,
+    "pick": 0.1,
+    "ban": 0.34,
+    "games": 2606
+   },
+   "Kalista": {
+    "win": 50.5,
+    "pick": 0.31,
+    "ban": 2.07,
+    "games": 7928
+   },
+   "Bard": {
+    "win": 38.1,
+    "pick": 0.01,
+    "ban": 1.81,
+    "games": 147
+   },
+   "Rakan": {
+    "win": 51.64,
+    "pick": 0.01,
+    "ban": 0.39,
+    "games": 244
+   },
+   "Xayah": {
+    "win": 45.64,
+    "pick": 0.01,
+    "ban": 2.33,
+    "games": 344
+   },
+   "Ornn": {
+    "win": 53.17,
+    "pick": 3.96,
+    "ban": 0.6,
+    "games": 101809
+   },
+   "Sylas": {
+    "win": 51.31,
+    "pick": 1.17,
+    "ban": 17.12,
+    "games": 30005
+   },
+   "Neeko": {
+    "win": 50.07,
+    "pick": 0.08,
+    "ban": 0.71,
+    "games": 2163
+   },
+   "Aphelios": {
+    "win": 48.96,
+    "pick": 0.03,
+    "ban": 3.65,
+    "games": 815
+   },
+   "Rell": {
+    "win": 44.22,
+    "pick": 0.01,
+    "ban": 1.4,
+    "games": 346
+   },
+   "Pyke": {
+    "win": 42.86,
+    "pick": 0,
+    "ban": 23.6,
+    "games": 112
+   },
+   "Vex": {
+    "win": 52.54,
+    "pick": 0.07,
+    "ban": 4.47,
+    "games": 1869
+   },
+   "Yone": {
+    "win": 50.98,
+    "pick": 8.1,
+    "ban": 15.23,
+    "games": 207984
+   },
+   "Ambessa": {
+    "win": 49.21,
+    "pick": 4,
+    "ban": 4.62,
+    "games": 102829
+   },
+   "Mel": {
+    "win": 42.78,
+    "pick": 0.04,
+    "ban": 8.95,
+    "games": 907
+   },
+   "Yunara": {
+    "win": 46.6,
+    "pick": 0.02,
+    "ban": 4.65,
+    "games": 412
+   },
+   "Locke": {
+    "win": 49.07,
+    "pick": 0.25,
+    "ban": 32.95,
+    "games": 6538
+   },
+   "Sett": {
+    "win": 52.36,
+    "pick": 6.3,
+    "ban": 2.92,
+    "games": 161983
+   },
+   "Lillia": {
+    "win": 45.69,
+    "pick": 0.04,
+    "ban": 5.09,
+    "games": 1138
+   },
+   "Gwen": {
+    "win": 52.34,
+    "pick": 2.47,
+    "ban": 3.25,
+    "games": 63383
+   },
+   "Renata Glasc": {
+    "win": 44,
+    "pick": 0,
+    "ban": 0.42,
+    "games": 50
+   },
+   "Aurora": {
+    "win": 52.35,
+    "pick": 0.56,
+    "ban": 1.32,
+    "games": 14279
+   },
+   "Nilah": {
+    "win": 29.63,
+    "pick": 0,
+    "ban": 1.91,
+    "games": 108
+   },
+   "K'Sante": {
+    "win": 47.46,
+    "pick": 3.79,
+    "ban": 2.44,
+    "games": 97343
+   },
+   "Smolder": {
+    "win": 45.95,
+    "pick": 0.27,
+    "ban": 1.54,
+    "games": 6933
+   },
+   "Milio": {
+    "win": 47.73,
+    "pick": 0,
+    "ban": 4.34,
+    "games": 44
+   },
+   "Zaahen": {
+    "win": 52.08,
+    "pick": 2.77,
+    "ban": 1.13,
+    "games": 71232
+   },
+   "Hwei": {
+    "win": 52.26,
+    "pick": 0.11,
+    "ban": 2.34,
+    "games": 2782
+   },
+   "Naafiri": {
+    "win": 51.49,
+    "pick": 0.28,
+    "ban": 7.85,
+    "games": 7077
+   }
+  },
+  "Jungle": {
+   "Annie": {
+    "win": 31.25,
+    "pick": 0,
+    "ban": 0.57,
+    "games": 32
+   },
+   "Olaf": {
+    "win": 52.45,
+    "pick": 0.36,
+    "ban": 3.56,
+    "games": 9200
+   },
+   "Galio": {
+    "win": 45.28,
+    "pick": 0.01,
+    "ban": 1.9,
+    "games": 254
+   },
+   "Twisted Fate": {
+    "win": 45,
+    "pick": 0.02,
+    "ban": 1.37,
+    "games": 520
+   },
+   "Xin Zhao": {
+    "win": 52.19,
+    "pick": 3.42,
+    "ban": 0.83,
+    "games": 87874
+   },
+   "Urgot": {
+    "win": 46.59,
+    "pick": 0.03,
+    "ban": 0.89,
+    "games": 777
+   },
+   "LeBlanc": {
+    "win": 35.94,
+    "pick": 0,
+    "ban": 17.75,
+    "games": 64
+   },
+   "Vladimir": {
+    "win": 22.22,
+    "pick": 0,
+    "ban": 6.44,
+    "games": 18
+   },
+   "Fiddlesticks": {
+    "win": 52.78,
+    "pick": 1.94,
+    "ban": 1.17,
+    "games": 49841
+   },
+   "Kayle": {
+    "win": 48.19,
+    "pick": 0.02,
+    "ban": 1.32,
+    "games": 579
+   },
+   "Master Yi": {
+    "win": 52.79,
+    "pick": 6.1,
+    "ban": 16.17,
+    "games": 156825
+   },
+   "Alistar": {
+    "win": 29.73,
+    "pick": 0,
+    "ban": 2.23,
+    "games": 111
+   },
+   "Ryze": {
+    "win": 34.85,
+    "pick": 0.01,
+    "ban": 0.43,
+    "games": 132
+   },
+   "Sion": {
+    "win": 54.38,
+    "pick": 0.49,
+    "ban": 0.72,
+    "games": 12614
+   },
+   "Sivir": {
+    "win": 0,
+    "pick": 0,
+    "ban": 1.66,
+    "games": 12
+   },
+   "Soraka": {
+    "win": 17.39,
+    "pick": 0,
+    "ban": 2.25,
+    "games": 23
+   },
+   "Teemo": {
+    "win": 51.38,
+    "pick": 0.56,
+    "ban": 7.32,
+    "games": 14460
+   },
+   "Tristana": {
+    "win": 41.78,
+    "pick": 0.01,
+    "ban": 6.94,
+    "games": 213
+   },
+   "Warwick": {
+    "win": 53.91,
+    "pick": 2.93,
+    "ban": 1.84,
+    "games": 75262
+   },
+   "Nunu & Willump": {
+    "win": 52.73,
+    "pick": 2.1,
+    "ban": 0.51,
+    "games": 53982
+   },
+   "Miss Fortune": {
+    "win": 28.57,
+    "pick": 0,
+    "ban": 1.61,
+    "games": 35
+   },
+   "Ashe": {
+    "win": 31.11,
+    "pick": 0,
+    "ban": 1.62,
+    "games": 45
+   },
+   "Tryndamere": {
+    "win": 51.22,
+    "pick": 0.24,
+    "ban": 2.92,
+    "games": 6277
+   },
+   "Jax": {
+    "win": 51.56,
+    "pick": 0.86,
+    "ban": 9.84,
+    "games": 22053
+   },
+   "Morgana": {
+    "win": 53.07,
+    "pick": 0.29,
+    "ban": 18.37,
+    "games": 7345
+   },
+   "Zilean": {
+    "win": 25,
+    "pick": 0,
+    "ban": 1.77,
+    "games": 16
+   },
+   "Singed": {
+    "win": 48.51,
+    "pick": 0.05,
+    "ban": 0.67,
+    "games": 1379
+   },
+   "Evelynn": {
+    "win": 52.8,
+    "pick": 2.72,
+    "ban": 2.19,
+    "games": 69833
+   },
+   "Twitch": {
+    "win": 43.6,
+    "pick": 0.14,
+    "ban": 8.02,
+    "games": 3601
+   },
+   "Karthus": {
+    "win": 51.14,
+    "pick": 1.35,
+    "ban": 0.94,
+    "games": 34743
+   },
+   "Cho'Gath": {
+    "win": 53.75,
+    "pick": 5.75,
+    "ban": 8.49,
+    "games": 147784
+   },
+   "Amumu": {
+    "win": 53.19,
+    "pick": 1.97,
+    "ban": 1.03,
+    "games": 50656
+   },
+   "Rammus": {
+    "win": 54.15,
+    "pick": 1.69,
+    "ban": 4.48,
+    "games": 43427
+   },
+   "Anivia": {
+    "win": 42.11,
+    "pick": 0,
+    "ban": 2.28,
+    "games": 76
+   },
+   "Shaco": {
+    "win": 52.55,
+    "pick": 4.34,
+    "ban": 18.08,
+    "games": 111587
+   },
+   "Dr. Mundo": {
+    "win": 52.94,
+    "pick": 0.42,
+    "ban": 2.34,
+    "games": 10911
+   },
+   "Sona": {
+    "win": 25,
+    "pick": 0,
+    "ban": 0.21,
+    "games": 4
+   },
+   "Kassadin": {
+    "win": 37.14,
+    "pick": 0.01,
+    "ban": 2.54,
+    "games": 175
+   },
+   "Irelia": {
+    "win": 35.44,
+    "pick": 0,
+    "ban": 12.7,
+    "games": 79
+   },
+   "Janna": {
+    "win": 25,
+    "pick": 0,
+    "ban": 1.21,
+    "games": 16
+   },
+   "Gangplank": {
+    "win": 32.76,
+    "pick": 0,
+    "ban": 8.77,
+    "games": 58
+   },
+   "Corki": {
+    "win": 43.23,
+    "pick": 0.01,
+    "ban": 0.34,
+    "games": 155
+   },
+   "Karma": {
+    "win": 36.84,
+    "pick": 0,
+    "ban": 3.13,
+    "games": 19
+   },
+   "Taric": {
+    "win": 49.24,
+    "pick": 0.03,
+    "ban": 0.24,
+    "games": 792
+   },
+   "Veigar": {
+    "win": 33.33,
+    "pick": 0,
+    "ban": 1.13,
+    "games": 30
+   },
+   "Trundle": {
+    "win": 52.52,
+    "pick": 0.76,
+    "ban": 0.45,
+    "games": 19582
+   },
+   "Swain": {
+    "win": 43.75,
+    "pick": 0,
+    "ban": 2.09,
+    "games": 32
+   },
+   "Caitlyn": {
+    "win": 27.78,
+    "pick": 0,
+    "ban": 21.46,
+    "games": 54
+   },
+   "Blitzcrank": {
+    "win": 24.73,
+    "pick": 0,
+    "ban": 15.21,
+    "games": 93
+   },
+   "Malphite": {
+    "win": 50.95,
+    "pick": 0.83,
+    "ban": 18.34,
+    "games": 21298
+   },
+   "Katarina": {
+    "win": 40.55,
+    "pick": 0.01,
+    "ban": 12.01,
+    "games": 328
+   },
+   "Nocturne": {
+    "win": 50.86,
+    "pick": 4.16,
+    "ban": 8.94,
+    "games": 106886
+   },
+   "Maokai": {
+    "win": 51.86,
+    "pick": 0.48,
+    "ban": 0.18,
+    "games": 12258
+   },
+   "Renekton": {
+    "win": 44.86,
+    "pick": 0,
+    "ban": 4.24,
+    "games": 107
+   },
+   "Jarvan IV": {
+    "win": 51.16,
+    "pick": 8.14,
+    "ban": 1.57,
+    "games": 209071
+   },
+   "Elise": {
+    "win": 52.6,
+    "pick": 3.28,
+    "ban": 2.31,
+    "games": 84161
+   },
+   "Orianna": {
+    "win": 42.11,
+    "pick": 0,
+    "ban": 0.54,
+    "games": 19
+   },
+   "Wukong": {
+    "win": 53.58,
+    "pick": 6.45,
+    "ban": 6.08,
+    "games": 165757
+   },
+   "Brand": {
+    "win": 49.55,
+    "pick": 0.24,
+    "ban": 2.96,
+    "games": 6224
+   },
+   "Lee Sin": {
+    "win": 49.5,
+    "pick": 12.45,
+    "ban": 14.83,
+    "games": 319961
+   },
+   "Vayne": {
+    "win": 46.4,
+    "pick": 0.06,
+    "ban": 3.89,
+    "games": 1474
+   },
+   "Rumble": {
+    "win": 48.62,
+    "pick": 0.11,
+    "ban": 0.53,
+    "games": 2783
+   },
+   "Cassiopeia": {
+    "win": 45.24,
+    "pick": 0,
+    "ban": 1.24,
+    "games": 42
+   },
+   "Skarner": {
+    "win": 52.85,
+    "pick": 0.96,
+    "ban": 0.24,
+    "games": 24710
+   },
+   "Heimerdinger": {
+    "win": 47.97,
+    "pick": 0.02,
+    "ban": 2.21,
+    "games": 469
+   },
+   "Nasus": {
+    "win": 47.23,
+    "pick": 0.13,
+    "ban": 11.53,
+    "games": 3373
+   },
+   "Nidalee": {
+    "win": 51.94,
+    "pick": 2.71,
+    "ban": 2.4,
+    "games": 69550
+   },
+   "Udyr": {
+    "win": 53.25,
+    "pick": 1.81,
+    "ban": 0.95,
+    "games": 46605
+   },
+   "Poppy": {
+    "win": 51.68,
+    "pick": 0.37,
+    "ban": 3.26,
+    "games": 9412
+   },
+   "Gragas": {
+    "win": 52.91,
+    "pick": 0.77,
+    "ban": 0.8,
+    "games": 19889
+   },
+   "Pantheon": {
+    "win": 49.85,
+    "pick": 0.97,
+    "ban": 3.58,
+    "games": 24892
+   },
+   "Ezreal": {
+    "win": 43.28,
+    "pick": 0.03,
+    "ban": 4.03,
+    "games": 871
+   },
+   "Mordekaiser": {
+    "win": 53.47,
+    "pick": 0.34,
+    "ban": 8.9,
+    "games": 8629
+   },
+   "Yorick": {
+    "win": 50.22,
+    "pick": 0.05,
+    "ban": 5.78,
+    "games": 1368
+   },
+   "Akali": {
+    "win": 30.88,
+    "pick": 0,
+    "ban": 17.21,
+    "games": 68
+   },
+   "Kennen": {
+    "win": 34.29,
+    "pick": 0,
+    "ban": 1.34,
+    "games": 35
+   },
+   "Garen": {
+    "win": 40.92,
+    "pick": 0.06,
+    "ban": 4.58,
+    "games": 1442
+   },
+   "Leona": {
+    "win": 47.86,
+    "pick": 0,
+    "ban": 9.49,
+    "games": 117
+   },
+   "Malzahar": {
+    "win": 43.17,
+    "pick": 0.01,
+    "ban": 9.74,
+    "games": 322
+   },
+   "Talon": {
+    "win": 51.56,
+    "pick": 5.35,
+    "ban": 9.42,
+    "games": 137463
+   },
+   "Riven": {
+    "win": 47.68,
+    "pick": 0.12,
+    "ban": 1.41,
+    "games": 3106
+   },
+   "Kog'Maw": {
+    "win": 46.27,
+    "pick": 0.03,
+    "ban": 0.76,
+    "games": 765
+   },
+   "Shen": {
+    "win": 51.82,
+    "pick": 0.28,
+    "ban": 0.75,
+    "games": 7109
+   },
+   "Lux": {
+    "win": 36.23,
+    "pick": 0,
+    "ban": 4.35,
+    "games": 69
+   },
+   "Xerath": {
+    "win": 23.53,
+    "pick": 0,
+    "ban": 8.21,
+    "games": 17
+   },
+   "Shyvana": {
+    "win": 53.36,
+    "pick": 3.87,
+    "ban": 4.6,
+    "games": 99487
+   },
+   "Ahri": {
+    "win": 41.54,
+    "pick": 0,
+    "ban": 3.3,
+    "games": 65
+   },
+   "Graves": {
+    "win": 51,
+    "pick": 7.58,
+    "ban": 9.28,
+    "games": 194777
+   },
+   "Fizz": {
+    "win": 52.43,
+    "pick": 0.62,
+    "ban": 7.27,
+    "games": 15921
+   },
+   "Volibear": {
+    "win": 51.88,
+    "pick": 1.01,
+    "ban": 2.15,
+    "games": 25989
+   },
+   "Rengar": {
+    "win": 50.12,
+    "pick": 3.96,
+    "ban": 7.14,
+    "games": 101624
+   },
+   "Varus": {
+    "win": 37.5,
+    "pick": 0,
+    "ban": 1.12,
+    "games": 40
+   },
+   "Nautilus": {
+    "win": 50.24,
+    "pick": 0.09,
+    "ban": 15.34,
+    "games": 2299
+   },
+   "Viktor": {
+    "win": 50,
+    "pick": 0,
+    "ban": 10.24,
+    "games": 24
+   },
+   "Sejuani": {
+    "win": 53.42,
+    "pick": 2.18,
+    "ban": 0.25,
+    "games": 56066
+   },
+   "Fiora": {
+    "win": 49.19,
+    "pick": 0,
+    "ban": 5.97,
+    "games": 124
+   },
+   "Ziggs": {
+    "win": 53.06,
+    "pick": 0,
+    "ban": 0.8,
+    "games": 49
+   },
+   "Lulu": {
+    "win": 29.41,
+    "pick": 0,
+    "ban": 14,
+    "games": 34
+   },
+   "Draven": {
+    "win": 42.86,
+    "pick": 0.01,
+    "ban": 14.56,
+    "games": 266
+   },
+   "Hecarim": {
+    "win": 50.88,
+    "pick": 5.33,
+    "ban": 7.43,
+    "games": 136997
+   },
+   "Kha'Zix": {
+    "win": 51.47,
+    "pick": 6.79,
+    "ban": 4.28,
+    "games": 174443
+   },
+   "Darius": {
+    "win": 53.5,
+    "pick": 1.25,
+    "ban": 14.56,
+    "games": 32086
+   },
+   "Jayce": {
+    "win": 48.61,
+    "pick": 1.92,
+    "ban": 6.71,
+    "games": 49246
+   },
+   "Lissandra": {
+    "win": 34.92,
+    "pick": 0,
+    "ban": 4.39,
+    "games": 63
+   },
+   "Diana": {
+    "win": 52.22,
+    "pick": 3.55,
+    "ban": 3.59,
+    "games": 91112
+   },
+   "Quinn": {
+    "win": 51.47,
+    "pick": 1.09,
+    "ban": 0.8,
+    "games": 28050
+   },
+   "Syndra": {
+    "win": 34.38,
+    "pick": 0,
+    "ban": 7.95,
+    "games": 32
+   },
+   "Aurelion Sol": {
+    "win": 48.57,
+    "pick": 0.08,
+    "ban": 0.62,
+    "games": 2059
+   },
+   "Kayn": {
+    "win": 52.12,
+    "pick": 7.36,
+    "ban": 5.92,
+    "games": 189211
+   },
+   "Zoe": {
+    "win": 27.27,
+    "pick": 0,
+    "ban": 3.35,
+    "games": 22
+   },
+   "Zyra": {
+    "win": 53.74,
+    "pick": 2.07,
+    "ban": 4.23,
+    "games": 53235
+   },
+   "Kai'Sa": {
+    "win": 43.3,
+    "pick": 0.08,
+    "ban": 4.22,
+    "games": 2076
+   },
+   "Seraphine": {
+    "win": 47.06,
+    "pick": 0,
+    "ban": 4.8,
+    "games": 17
+   },
+   "Gnar": {
+    "win": 41.13,
+    "pick": 0.01,
+    "ban": 1.2,
+    "games": 248
+   },
+   "Zac": {
+    "win": 53.23,
+    "pick": 2.64,
+    "ban": 1.09,
+    "games": 67863
+   },
+   "Yasuo": {
+    "win": 35.27,
+    "pick": 0.02,
+    "ban": 26.31,
+    "games": 499
+   },
+   "Vel'Koz": {
+    "win": 40.82,
+    "pick": 0,
+    "ban": 2.04,
+    "games": 49
+   },
+   "Taliyah": {
+    "win": 52.74,
+    "pick": 1.97,
+    "ban": 0.7,
+    "games": 50638
+   },
+   "Camille": {
+    "win": 49.76,
+    "pick": 0.09,
+    "ban": 1.86,
+    "games": 2327
+   },
+   "Akshan": {
+    "win": 43.75,
+    "pick": 0.01,
+    "ban": 1.93,
+    "games": 160
+   },
+   "Bel'Veth": {
+    "win": 53.52,
+    "pick": 2.56,
+    "ban": 3.78,
+    "games": 65719
+   },
+   "Braum": {
+    "win": 55.26,
+    "pick": 0,
+    "ban": 6.53,
+    "games": 38
+   },
+   "Jhin": {
+    "win": 39.03,
+    "pick": 0.05,
+    "ban": 2.48,
+    "games": 1376
+   },
+   "Kindred": {
+    "win": 52.34,
+    "pick": 2.59,
+    "ban": 1.83,
+    "games": 66430
+   },
+   "Zeri": {
+    "win": 41.3,
+    "pick": 0.04,
+    "ban": 0.95,
+    "games": 1104
+   },
+   "Jinx": {
+    "win": 45.31,
+    "pick": 0,
+    "ban": 7.18,
+    "games": 128
+   },
+   "Tahm Kench": {
+    "win": 44.98,
+    "pick": 0.01,
+    "ban": 2.46,
+    "games": 229
+   },
+   "Briar": {
+    "win": 53.71,
+    "pick": 4.29,
+    "ban": 8.92,
+    "games": 110341
+   },
+   "Viego": {
+    "win": 51.5,
+    "pick": 8.27,
+    "ban": 6.83,
+    "games": 212496
+   },
+   "Senna": {
+    "win": 53.33,
+    "pick": 0,
+    "ban": 1.28,
+    "games": 15
+   },
+   "Lucian": {
+    "win": 47.44,
+    "pick": 0,
+    "ban": 2.28,
+    "games": 78
+   },
+   "Zed": {
+    "win": 49.12,
+    "pick": 2.65,
+    "ban": 24.12,
+    "games": 68200
+   },
+   "Kled": {
+    "win": 47.1,
+    "pick": 0.01,
+    "ban": 0.97,
+    "games": 155
+   },
+   "Ekko": {
+    "win": 52.24,
+    "pick": 4.93,
+    "ban": 2.8,
+    "games": 126698
+   },
+   "Qiyana": {
+    "win": 47.32,
+    "pick": 6.94,
+    "ban": 14.67,
+    "games": 178196
+   },
+   "Vi": {
+    "win": 50.88,
+    "pick": 4.64,
+    "ban": 1.4,
+    "games": 119290
+   },
+   "Aatrox": {
+    "win": 51.96,
+    "pick": 0.91,
+    "ban": 7.22,
+    "games": 23369
+   },
+   "Nami": {
+    "win": 42.86,
+    "pick": 0,
+    "ban": 1.14,
+    "games": 7
+   },
+   "Azir": {
+    "win": 43.9,
+    "pick": 0,
+    "ban": 0.32,
+    "games": 41
+   },
+   "Yuumi": {
+    "win": 0,
+    "pick": 0,
+    "ban": 8.25,
+    "games": 2
+   },
+   "Samira": {
+    "win": 32.79,
+    "pick": 0,
+    "ban": 5.8,
+    "games": 61
+   },
+   "Thresh": {
+    "win": 38.1,
+    "pick": 0,
+    "ban": 13.02,
+    "games": 63
+   },
+   "Illaoi": {
+    "win": 35.62,
+    "pick": 0,
+    "ban": 5.58,
+    "games": 73
+   },
+   "Rek'Sai": {
+    "win": 53.08,
+    "pick": 1.36,
+    "ban": 0.56,
+    "games": 34949
+   },
+   "Ivern": {
+    "win": 53.36,
+    "pick": 1.06,
+    "ban": 0.34,
+    "games": 27185
+   },
+   "Kalista": {
+    "win": 12.7,
+    "pick": 0,
+    "ban": 2.07,
+    "games": 63
+   },
+   "Bard": {
+    "win": 30.43,
+    "pick": 0,
+    "ban": 1.81,
+    "games": 23
+   },
+   "Rakan": {
+    "win": 60,
+    "pick": 0,
+    "ban": 0.39,
+    "games": 35
+   },
+   "Xayah": {
+    "win": 39.39,
+    "pick": 0,
+    "ban": 2.33,
+    "games": 33
+   },
+   "Ornn": {
+    "win": 46.03,
+    "pick": 0.03,
+    "ban": 0.6,
+    "games": 667
+   },
+   "Sylas": {
+    "win": 51.39,
+    "pick": 6.32,
+    "ban": 17.12,
+    "games": 162423
+   },
+   "Neeko": {
+    "win": 50.75,
+    "pick": 0.08,
+    "ban": 0.71,
+    "games": 1945
+   },
+   "Aphelios": {
+    "win": 34.21,
+    "pick": 0,
+    "ban": 3.65,
+    "games": 38
+   },
+   "Rell": {
+    "win": 47.37,
+    "pick": 0,
+    "ban": 1.4,
+    "games": 76
+   },
+   "Pyke": {
+    "win": 38.6,
+    "pick": 0,
+    "ban": 23.6,
+    "games": 57
+   },
+   "Vex": {
+    "win": 44.44,
+    "pick": 0,
+    "ban": 4.47,
+    "games": 9
+   },
+   "Yone": {
+    "win": 45.79,
+    "pick": 0.07,
+    "ban": 15.23,
+    "games": 1815
+   },
+   "Ambessa": {
+    "win": 48.69,
+    "pick": 0.68,
+    "ban": 4.62,
+    "games": 17461
+   },
+   "Mel": {
+    "win": 33.33,
+    "pick": 0,
+    "ban": 8.95,
+    "games": 18
+   },
+   "Yunara": {
+    "win": 33.33,
+    "pick": 0,
+    "ban": 4.65,
+    "games": 33
+   },
+   "Locke": {
+    "win": 48.71,
+    "pick": 0.9,
+    "ban": 32.95,
+    "games": 23225
+   },
+   "Sett": {
+    "win": 46.46,
+    "pick": 0.06,
+    "ban": 2.92,
+    "games": 1539
+   },
+   "Lillia": {
+    "win": 53.66,
+    "pick": 5.22,
+    "ban": 5.09,
+    "games": 134132
+   },
+   "Gwen": {
+    "win": 52.59,
+    "pick": 0.92,
+    "ban": 3.25,
+    "games": 23730
+   },
+   "Renata Glasc": {
+    "win": 0,
+    "pick": 0,
+    "ban": 0.42,
+    "games": 0
+   },
+   "Aurora": {
+    "win": 32.5,
+    "pick": 0,
+    "ban": 1.32,
+    "games": 40
+   },
+   "Nilah": {
+    "win": 46.9,
+    "pick": 0,
+    "ban": 1.91,
+    "games": 113
+   },
+   "K'Sante": {
+    "win": 36.84,
+    "pick": 0,
+    "ban": 2.44,
+    "games": 95
+   },
+   "Smolder": {
+    "win": 20.69,
+    "pick": 0,
+    "ban": 1.54,
+    "games": 29
+   },
+   "Milio": {
+    "win": 42.86,
+    "pick": 0,
+    "ban": 4.34,
+    "games": 14
+   },
+   "Zaahen": {
+    "win": 53.92,
+    "pick": 0.43,
+    "ban": 1.13,
+    "games": 11029
+   },
+   "Hwei": {
+    "win": 41.82,
+    "pick": 0,
+    "ban": 2.34,
+    "games": 55
+   },
+   "Naafiri": {
+    "win": 51.67,
+    "pick": 2.6,
+    "ban": 7.85,
+    "games": 66895
+   }
+  },
+  "Mid": {
+   "Annie": {
+    "win": 52.66,
+    "pick": 1.88,
+    "ban": 0.57,
+    "games": 48217
+   },
+   "Olaf": {
+    "win": 53.72,
+    "pick": 0.06,
+    "ban": 3.56,
+    "games": 1506
+   },
+   "Galio": {
+    "win": 50.75,
+    "pick": 4.19,
+    "ban": 1.9,
+    "games": 107652
+   },
+   "Twisted Fate": {
+    "win": 52.84,
+    "pick": 4.97,
+    "ban": 1.37,
+    "games": 127650
+   },
+   "Xin Zhao": {
+    "win": 50.26,
+    "pick": 0.13,
+    "ban": 0.83,
+    "games": 3456
+   },
+   "Urgot": {
+    "win": 51.34,
+    "pick": 0.05,
+    "ban": 0.89,
+    "games": 1229
+   },
+   "LeBlanc": {
+    "win": 52.31,
+    "pick": 5.57,
+    "ban": 17.75,
+    "games": 143021
+   },
+   "Vladimir": {
+    "win": 53.15,
+    "pick": 4.24,
+    "ban": 6.44,
+    "games": 108873
+   },
+   "Fiddlesticks": {
+    "win": 54.31,
+    "pick": 0.09,
+    "ban": 1.17,
+    "games": 2388
+   },
+   "Kayle": {
+    "win": 51.49,
+    "pick": 0.52,
+    "ban": 1.32,
+    "games": 13258
+   },
+   "Master Yi": {
+    "win": 49.67,
+    "pick": 0.13,
+    "ban": 16.17,
+    "games": 3306
+   },
+   "Alistar": {
+    "win": 47.37,
+    "pick": 0.03,
+    "ban": 2.23,
+    "games": 665
+   },
+   "Ryze": {
+    "win": 48.72,
+    "pick": 2.24,
+    "ban": 0.43,
+    "games": 57517
+   },
+   "Sion": {
+    "win": 52.99,
+    "pick": 0.61,
+    "ban": 0.72,
+    "games": 15789
+   },
+   "Sivir": {
+    "win": 45.68,
+    "pick": 0.03,
+    "ban": 1.66,
+    "games": 869
+   },
+   "Soraka": {
+    "win": 48.21,
+    "pick": 0.02,
+    "ban": 2.25,
+    "games": 616
+   },
+   "Teemo": {
+    "win": 50.11,
+    "pick": 0.14,
+    "ban": 7.32,
+    "games": 3568
+   },
+   "Tristana": {
+    "win": 48.58,
+    "pick": 0.69,
+    "ban": 6.94,
+    "games": 17804
+   },
+   "Warwick": {
+    "win": 47.46,
+    "pick": 0.04,
+    "ban": 1.84,
+    "games": 1024
+   },
+   "Nunu & Willump": {
+    "win": 51.49,
+    "pick": 0.31,
+    "ban": 0.51,
+    "games": 8062
+   },
+   "Miss Fortune": {
+    "win": 45.51,
+    "pick": 0.08,
+    "ban": 1.61,
+    "games": 2070
+   },
+   "Ashe": {
+    "win": 44.46,
+    "pick": 0.07,
+    "ban": 1.62,
+    "games": 1876
+   },
+   "Tryndamere": {
+    "win": 53.28,
+    "pick": 0.34,
+    "ban": 2.92,
+    "games": 8809
+   },
+   "Jax": {
+    "win": 48.07,
+    "pick": 0.09,
+    "ban": 9.84,
+    "games": 2359
+   },
+   "Morgana": {
+    "win": 51.03,
+    "pick": 0.36,
+    "ban": 18.37,
+    "games": 9157
+   },
+   "Zilean": {
+    "win": 54.87,
+    "pick": 0.25,
+    "ban": 1.77,
+    "games": 6512
+   },
+   "Singed": {
+    "win": 54.85,
+    "pick": 0.26,
+    "ban": 0.67,
+    "games": 6578
+   },
+   "Evelynn": {
+    "win": 50.49,
+    "pick": 0.02,
+    "ban": 2.19,
+    "games": 612
+   },
+   "Twitch": {
+    "win": 49.11,
+    "pick": 0.16,
+    "ban": 8.02,
+    "games": 4119
+   },
+   "Karthus": {
+    "win": 50.82,
+    "pick": 0.14,
+    "ban": 0.94,
+    "games": 3646
+   },
+   "Cho'Gath": {
+    "win": 51.71,
+    "pick": 0.52,
+    "ban": 8.49,
+    "games": 13325
+   },
+   "Amumu": {
+    "win": 41.67,
+    "pick": 0,
+    "ban": 1.03,
+    "games": 96
+   },
+   "Rammus": {
+    "win": 41.39,
+    "pick": 0.01,
+    "ban": 4.48,
+    "games": 244
+   },
+   "Anivia": {
+    "win": 52.23,
+    "pick": 2.42,
+    "ban": 2.28,
+    "games": 62265
+   },
+   "Shaco": {
+    "win": 44.68,
+    "pick": 0.02,
+    "ban": 18.08,
+    "games": 611
+   },
+   "Dr. Mundo": {
+    "win": 47.36,
+    "pick": 0.09,
+    "ban": 2.34,
+    "games": 2251
+   },
+   "Sona": {
+    "win": 40,
+    "pick": 0,
+    "ban": 0.21,
+    "games": 110
+   },
+   "Kassadin": {
+    "win": 52.35,
+    "pick": 3.02,
+    "ban": 2.54,
+    "games": 77491
+   },
+   "Irelia": {
+    "win": 50.5,
+    "pick": 2.82,
+    "ban": 12.7,
+    "games": 72516
+   },
+   "Janna": {
+    "win": 45.31,
+    "pick": 0.01,
+    "ban": 1.21,
+    "games": 256
+   },
+   "Gangplank": {
+    "win": 51.44,
+    "pick": 0.4,
+    "ban": 8.77,
+    "games": 10338
+   },
+   "Corki": {
+    "win": 46.65,
+    "pick": 0.28,
+    "ban": 0.34,
+    "games": 7318
+   },
+   "Karma": {
+    "win": 48.48,
+    "pick": 0.18,
+    "ban": 3.13,
+    "games": 4649
+   },
+   "Taric": {
+    "win": 57.81,
+    "pick": 0.01,
+    "ban": 0.24,
+    "games": 237
+   },
+   "Veigar": {
+    "win": 52.64,
+    "pick": 3.22,
+    "ban": 1.13,
+    "games": 82634
+   },
+   "Trundle": {
+    "win": 45.72,
+    "pick": 0.02,
+    "ban": 0.45,
+    "games": 619
+   },
+   "Swain": {
+    "win": 53.32,
+    "pick": 0.81,
+    "ban": 2.09,
+    "games": 20889
+   },
+   "Caitlyn": {
+    "win": 43.78,
+    "pick": 0.1,
+    "ban": 21.46,
+    "games": 2453
+   },
+   "Blitzcrank": {
+    "win": 29.8,
+    "pick": 0.01,
+    "ban": 15.21,
+    "games": 245
+   },
+   "Malphite": {
+    "win": 52.18,
+    "pick": 0.77,
+    "ban": 18.34,
+    "games": 19875
+   },
+   "Katarina": {
+    "win": 52.51,
+    "pick": 6.57,
+    "ban": 12.01,
+    "games": 168809
+   },
+   "Nocturne": {
+    "win": 46.82,
+    "pick": 0.04,
+    "ban": 8.94,
+    "games": 1023
+   },
+   "Maokai": {
+    "win": 50.35,
+    "pick": 0.02,
+    "ban": 0.18,
+    "games": 429
+   },
+   "Renekton": {
+    "win": 51.51,
+    "pick": 0.29,
+    "ban": 4.24,
+    "games": 7502
+   },
+   "Jarvan IV": {
+    "win": 47.46,
+    "pick": 0.07,
+    "ban": 1.57,
+    "games": 1770
+   },
+   "Elise": {
+    "win": 51.59,
+    "pick": 0.04,
+    "ban": 2.31,
+    "games": 1035
+   },
+   "Orianna": {
+    "win": 48.85,
+    "pick": 4.35,
+    "ban": 0.54,
+    "games": 111663
+   },
+   "Wukong": {
+    "win": 52.18,
+    "pick": 0.08,
+    "ban": 6.08,
+    "games": 2045
+   },
+   "Brand": {
+    "win": 51.46,
+    "pick": 0.61,
+    "ban": 2.96,
+    "games": 15771
+   },
+   "Lee Sin": {
+    "win": 45.61,
+    "pick": 0.11,
+    "ban": 14.83,
+    "games": 2822
+   },
+   "Vayne": {
+    "win": 49.16,
+    "pick": 0.1,
+    "ban": 3.89,
+    "games": 2569
+   },
+   "Rumble": {
+    "win": 50.77,
+    "pick": 0.12,
+    "ban": 0.53,
+    "games": 3134
+   },
+   "Cassiopeia": {
+    "win": 49.12,
+    "pick": 1.22,
+    "ban": 1.24,
+    "games": 31402
+   },
+   "Skarner": {
+    "win": 46.94,
+    "pick": 0.01,
+    "ban": 0.24,
+    "games": 245
+   },
+   "Heimerdinger": {
+    "win": 53.74,
+    "pick": 0.25,
+    "ban": 2.21,
+    "games": 6519
+   },
+   "Nasus": {
+    "win": 51.71,
+    "pick": 0.64,
+    "ban": 11.53,
+    "games": 16408
+   },
+   "Nidalee": {
+    "win": 48.75,
+    "pick": 0.03,
+    "ban": 2.4,
+    "games": 878
+   },
+   "Udyr": {
+    "win": 45.74,
+    "pick": 0.04,
+    "ban": 0.95,
+    "games": 1056
+   },
+   "Poppy": {
+    "win": 49.67,
+    "pick": 0.02,
+    "ban": 3.26,
+    "games": 600
+   },
+   "Gragas": {
+    "win": 53.71,
+    "pick": 0.53,
+    "ban": 0.8,
+    "games": 13718
+   },
+   "Pantheon": {
+    "win": 52.66,
+    "pick": 0.98,
+    "ban": 3.58,
+    "games": 25077
+   },
+   "Ezreal": {
+    "win": 43.73,
+    "pick": 0.39,
+    "ban": 4.03,
+    "games": 10060
+   },
+   "Mordekaiser": {
+    "win": 52.57,
+    "pick": 0.15,
+    "ban": 8.9,
+    "games": 3816
+   },
+   "Yorick": {
+    "win": 48.47,
+    "pick": 0.12,
+    "ban": 5.78,
+    "games": 3113
+   },
+   "Akali": {
+    "win": 50.47,
+    "pick": 7.58,
+    "ban": 17.21,
+    "games": 194783
+   },
+   "Kennen": {
+    "win": 54.14,
+    "pick": 0.37,
+    "ban": 1.34,
+    "games": 9464
+   },
+   "Garen": {
+    "win": 52.69,
+    "pick": 0.5,
+    "ban": 4.58,
+    "games": 12929
+   },
+   "Leona": {
+    "win": 37.4,
+    "pick": 0.01,
+    "ban": 9.49,
+    "games": 131
+   },
+   "Malzahar": {
+    "win": 52.16,
+    "pick": 5.14,
+    "ban": 9.74,
+    "games": 132148
+   },
+   "Talon": {
+    "win": 52.49,
+    "pick": 1.65,
+    "ban": 9.42,
+    "games": 42494
+   },
+   "Riven": {
+    "win": 52.49,
+    "pick": 0.48,
+    "ban": 1.41,
+    "games": 12300
+   },
+   "Kog'Maw": {
+    "win": 52.61,
+    "pick": 0.71,
+    "ban": 0.76,
+    "games": 18346
+   },
+   "Shen": {
+    "win": 48.11,
+    "pick": 0.08,
+    "ban": 0.75,
+    "games": 1931
+   },
+   "Lux": {
+    "win": 52.95,
+    "pick": 3.99,
+    "ban": 4.35,
+    "games": 102470
+   },
+   "Xerath": {
+    "win": 53.13,
+    "pick": 4.19,
+    "ban": 8.21,
+    "games": 107739
+   },
+   "Shyvana": {
+    "win": 43.26,
+    "pick": 0.03,
+    "ban": 4.6,
+    "games": 779
+   },
+   "Ahri": {
+    "win": 53.11,
+    "pick": 9.99,
+    "ban": 3.3,
+    "games": 256772
+   },
+   "Graves": {
+    "win": 44.78,
+    "pick": 0.04,
+    "ban": 9.28,
+    "games": 1139
+   },
+   "Fizz": {
+    "win": 53.16,
+    "pick": 5.04,
+    "ban": 7.27,
+    "games": 129510
+   },
+   "Volibear": {
+    "win": 47.96,
+    "pick": 0.23,
+    "ban": 2.15,
+    "games": 5817
+   },
+   "Rengar": {
+    "win": 40.98,
+    "pick": 0,
+    "ban": 7.14,
+    "games": 61
+   },
+   "Varus": {
+    "win": 48.2,
+    "pick": 0.25,
+    "ban": 1.12,
+    "games": 6345
+   },
+   "Nautilus": {
+    "win": 45.24,
+    "pick": 0.03,
+    "ban": 15.34,
+    "games": 756
+   },
+   "Viktor": {
+    "win": 49.6,
+    "pick": 6.64,
+    "ban": 10.24,
+    "games": 170710
+   },
+   "Sejuani": {
+    "win": 50.32,
+    "pick": 0.04,
+    "ban": 0.25,
+    "games": 924
+   },
+   "Fiora": {
+    "win": 54.3,
+    "pick": 0.09,
+    "ban": 5.97,
+    "games": 2289
+   },
+   "Ziggs": {
+    "win": 52.33,
+    "pick": 0.64,
+    "ban": 0.8,
+    "games": 16462
+   },
+   "Lulu": {
+    "win": 43.29,
+    "pick": 0.03,
+    "ban": 14,
+    "games": 686
+   },
+   "Draven": {
+    "win": 45.82,
+    "pick": 0.06,
+    "ban": 14.56,
+    "games": 1447
+   },
+   "Hecarim": {
+    "win": 35.94,
+    "pick": 0,
+    "ban": 7.43,
+    "games": 64
+   },
+   "Kha'Zix": {
+    "win": 45.34,
+    "pick": 0.01,
+    "ban": 4.28,
+    "games": 247
+   },
+   "Darius": {
+    "win": 51.66,
+    "pick": 0.1,
+    "ban": 14.56,
+    "games": 2470
+   },
+   "Jayce": {
+    "win": 48.98,
+    "pick": 0.74,
+    "ban": 6.71,
+    "games": 18994
+   },
+   "Lissandra": {
+    "win": 52.77,
+    "pick": 5.52,
+    "ban": 4.39,
+    "games": 141772
+   },
+   "Diana": {
+    "win": 52.79,
+    "pick": 3.52,
+    "ban": 3.59,
+    "games": 90497
+   },
+   "Quinn": {
+    "win": 53.69,
+    "pick": 0.24,
+    "ban": 0.8,
+    "games": 6273
+   },
+   "Syndra": {
+    "win": 51.39,
+    "pick": 8.75,
+    "ban": 7.95,
+    "games": 224837
+   },
+   "Aurelion Sol": {
+    "win": 52.51,
+    "pick": 1.64,
+    "ban": 0.62,
+    "games": 42015
+   },
+   "Kayn": {
+    "win": 47.68,
+    "pick": 0.03,
+    "ban": 5.92,
+    "games": 818
+   },
+   "Zoe": {
+    "win": 51.91,
+    "pick": 2.83,
+    "ban": 3.35,
+    "games": 72802
+   },
+   "Zyra": {
+    "win": 51.36,
+    "pick": 0.12,
+    "ban": 4.23,
+    "games": 3049
+   },
+   "Kai'Sa": {
+    "win": 46.4,
+    "pick": 0.26,
+    "ban": 4.22,
+    "games": 6631
+   },
+   "Seraphine": {
+    "win": 47.73,
+    "pick": 0.13,
+    "ban": 4.8,
+    "games": 3436
+   },
+   "Gnar": {
+    "win": 47.33,
+    "pick": 0.02,
+    "ban": 1.2,
+    "games": 524
+   },
+   "Zac": {
+    "win": 52.7,
+    "pick": 0.14,
+    "ban": 1.09,
+    "games": 3617
+   },
+   "Yasuo": {
+    "win": 52.24,
+    "pick": 9.18,
+    "ban": 26.31,
+    "games": 235792
+   },
+   "Vel'Koz": {
+    "win": 53.75,
+    "pick": 1.15,
+    "ban": 2.04,
+    "games": 29419
+   },
+   "Taliyah": {
+    "win": 51.87,
+    "pick": 2.03,
+    "ban": 0.7,
+    "games": 52192
+   },
+   "Camille": {
+    "win": 51.82,
+    "pick": 0.08,
+    "ban": 1.86,
+    "games": 1982
+   },
+   "Akshan": {
+    "win": 51.47,
+    "pick": 2.19,
+    "ban": 1.93,
+    "games": 56270
+   },
+   "Bel'Veth": {
+    "win": 45.71,
+    "pick": 0.02,
+    "ban": 3.78,
+    "games": 431
+   },
+   "Braum": {
+    "win": 26.67,
+    "pick": 0,
+    "ban": 6.53,
+    "games": 30
+   },
+   "Jhin": {
+    "win": 49.09,
+    "pick": 0.16,
+    "ban": 2.48,
+    "games": 4164
+   },
+   "Kindred": {
+    "win": 50.93,
+    "pick": 0.02,
+    "ban": 1.83,
+    "games": 540
+   },
+   "Zeri": {
+    "win": 49.22,
+    "pick": 0.07,
+    "ban": 0.95,
+    "games": 1788
+   },
+   "Jinx": {
+    "win": 47.07,
+    "pick": 0.03,
+    "ban": 7.18,
+    "games": 699
+   },
+   "Tahm Kench": {
+    "win": 53.43,
+    "pick": 0.06,
+    "ban": 2.46,
+    "games": 1516
+   },
+   "Briar": {
+    "win": 50.81,
+    "pick": 0.19,
+    "ban": 8.92,
+    "games": 5007
+   },
+   "Viego": {
+    "win": 49.68,
+    "pick": 0.15,
+    "ban": 6.83,
+    "games": 3784
+   },
+   "Senna": {
+    "win": 46.93,
+    "pick": 0.01,
+    "ban": 1.28,
+    "games": 375
+   },
+   "Lucian": {
+    "win": 45.66,
+    "pick": 0.51,
+    "ban": 2.28,
+    "games": 13004
+   },
+   "Zed": {
+    "win": 51.36,
+    "pick": 8.23,
+    "ban": 24.12,
+    "games": 211463
+   },
+   "Kled": {
+    "win": 53.14,
+    "pick": 0.11,
+    "ban": 0.97,
+    "games": 2847
+   },
+   "Ekko": {
+    "win": 53.15,
+    "pick": 5.16,
+    "ban": 2.8,
+    "games": 132630
+   },
+   "Qiyana": {
+    "win": 50.02,
+    "pick": 2.5,
+    "ban": 14.67,
+    "games": 64270
+   },
+   "Vi": {
+    "win": 46.94,
+    "pick": 0.06,
+    "ban": 1.4,
+    "games": 1521
+   },
+   "Aatrox": {
+    "win": 50.3,
+    "pick": 0.14,
+    "ban": 7.22,
+    "games": 3557
+   },
+   "Nami": {
+    "win": 46.15,
+    "pick": 0,
+    "ban": 1.14,
+    "games": 65
+   },
+   "Azir": {
+    "win": 48.98,
+    "pick": 1.96,
+    "ban": 0.32,
+    "games": 50305
+   },
+   "Yuumi": {
+    "win": 13.16,
+    "pick": 0,
+    "ban": 8.25,
+    "games": 38
+   },
+   "Samira": {
+    "win": 42.37,
+    "pick": 0.02,
+    "ban": 5.8,
+    "games": 524
+   },
+   "Thresh": {
+    "win": 41.95,
+    "pick": 0.01,
+    "ban": 13.02,
+    "games": 267
+   },
+   "Illaoi": {
+    "win": 50.64,
+    "pick": 0.07,
+    "ban": 5.58,
+    "games": 1712
+   },
+   "Rek'Sai": {
+    "win": 50,
+    "pick": 0.01,
+    "ban": 0.56,
+    "games": 380
+   },
+   "Ivern": {
+    "win": 50.78,
+    "pick": 0.02,
+    "ban": 0.34,
+    "games": 516
+   },
+   "Kalista": {
+    "win": 51.73,
+    "pick": 0.1,
+    "ban": 2.07,
+    "games": 2515
+   },
+   "Bard": {
+    "win": 41.9,
+    "pick": 0,
+    "ban": 1.81,
+    "games": 105
+   },
+   "Rakan": {
+    "win": 50.26,
+    "pick": 0.02,
+    "ban": 0.39,
+    "games": 573
+   },
+   "Xayah": {
+    "win": 45.45,
+    "pick": 0.02,
+    "ban": 2.33,
+    "games": 407
+   },
+   "Ornn": {
+    "win": 50.96,
+    "pick": 0.08,
+    "ban": 0.6,
+    "games": 2092
+   },
+   "Sylas": {
+    "win": 50.36,
+    "pick": 6.8,
+    "ban": 17.12,
+    "games": 174730
+   },
+   "Neeko": {
+    "win": 53.24,
+    "pick": 0.31,
+    "ban": 0.71,
+    "games": 7876
+   },
+   "Aphelios": {
+    "win": 46.75,
+    "pick": 0.04,
+    "ban": 3.65,
+    "games": 999
+   },
+   "Rell": {
+    "win": 41.38,
+    "pick": 0,
+    "ban": 1.4,
+    "games": 58
+   },
+   "Pyke": {
+    "win": 49.39,
+    "pick": 0.03,
+    "ban": 23.6,
+    "games": 826
+   },
+   "Vex": {
+    "win": 54.12,
+    "pick": 3.1,
+    "ban": 4.47,
+    "games": 79560
+   },
+   "Yone": {
+    "win": 51.83,
+    "pick": 8.03,
+    "ban": 15.23,
+    "games": 206292
+   },
+   "Ambessa": {
+    "win": 50.41,
+    "pick": 0.26,
+    "ban": 4.62,
+    "games": 6745
+   },
+   "Mel": {
+    "win": 48.09,
+    "pick": 1.79,
+    "ban": 8.95,
+    "games": 45911
+   },
+   "Yunara": {
+    "win": 46.4,
+    "pick": 0.02,
+    "ban": 4.65,
+    "games": 528
+   },
+   "Locke": {
+    "win": 51.23,
+    "pick": 7.15,
+    "ban": 32.95,
+    "games": 183670
+   },
+   "Sett": {
+    "win": 53.18,
+    "pick": 0.18,
+    "ban": 2.92,
+    "games": 4665
+   },
+   "Lillia": {
+    "win": 53.4,
+    "pick": 0.01,
+    "ban": 5.09,
+    "games": 206
+   },
+   "Gwen": {
+    "win": 55.2,
+    "pick": 0.52,
+    "ban": 3.25,
+    "games": 13285
+   },
+   "Renata Glasc": {
+    "win": 47.5,
+    "pick": 0,
+    "ban": 0.42,
+    "games": 40
+   },
+   "Aurora": {
+    "win": 52.49,
+    "pick": 2.56,
+    "ban": 1.32,
+    "games": 65811
+   },
+   "Nilah": {
+    "win": 34.91,
+    "pick": 0,
+    "ban": 1.91,
+    "games": 106
+   },
+   "K'Sante": {
+    "win": 48.29,
+    "pick": 0.11,
+    "ban": 2.44,
+    "games": 2771
+   },
+   "Smolder": {
+    "win": 46.84,
+    "pick": 0.51,
+    "ban": 1.54,
+    "games": 13103
+   },
+   "Milio": {
+    "win": 28.81,
+    "pick": 0,
+    "ban": 4.34,
+    "games": 59
+   },
+   "Zaahen": {
+    "win": 52.62,
+    "pick": 0.06,
+    "ban": 1.13,
+    "games": 1486
+   },
+   "Hwei": {
+    "win": 52.37,
+    "pick": 3.58,
+    "ban": 2.34,
+    "games": 91907
+   },
+   "Naafiri": {
+    "win": 51.3,
+    "pick": 0.7,
+    "ban": 7.85,
+    "games": 18072
+   }
+  },
+  "ADC": {
+   "Annie": {
+    "win": 54.17,
+    "pick": 0.04,
+    "ban": 0.57,
+    "games": 1043
+   },
+   "Olaf": {
+    "win": 52.01,
+    "pick": 0.06,
+    "ban": 3.56,
+    "games": 1465
+   },
+   "Galio": {
+    "win": 47.97,
+    "pick": 0.02,
+    "ban": 1.9,
+    "games": 444
+   },
+   "Twisted Fate": {
+    "win": 48.9,
+    "pick": 0.18,
+    "ban": 1.37,
+    "games": 4708
+   },
+   "Xin Zhao": {
+    "win": 47.93,
+    "pick": 0.01,
+    "ban": 0.83,
+    "games": 338
+   },
+   "Urgot": {
+    "win": 49.05,
+    "pick": 0.01,
+    "ban": 0.89,
+    "games": 263
+   },
+   "LeBlanc": {
+    "win": 50.8,
+    "pick": 0.03,
+    "ban": 17.75,
+    "games": 689
+   },
+   "Vladimir": {
+    "win": 53.6,
+    "pick": 0.43,
+    "ban": 6.44,
+    "games": 11141
+   },
+   "Fiddlesticks": {
+    "win": 52.48,
+    "pick": 0.01,
+    "ban": 1.17,
+    "games": 202
+   },
+   "Kayle": {
+    "win": 52.99,
+    "pick": 0.02,
+    "ban": 1.32,
+    "games": 636
+   },
+   "Master Yi": {
+    "win": 54.04,
+    "pick": 0.1,
+    "ban": 16.17,
+    "games": 2572
+   },
+   "Alistar": {
+    "win": 50.52,
+    "pick": 0,
+    "ban": 2.23,
+    "games": 97
+   },
+   "Ryze": {
+    "win": 49.07,
+    "pick": 0.03,
+    "ban": 0.43,
+    "games": 699
+   },
+   "Sion": {
+    "win": 52.95,
+    "pick": 0.06,
+    "ban": 0.72,
+    "games": 1426
+   },
+   "Sivir": {
+    "win": 52.95,
+    "pick": 4.61,
+    "ban": 1.66,
+    "games": 118334
+   },
+   "Soraka": {
+    "win": 42.97,
+    "pick": 0.01,
+    "ban": 2.25,
+    "games": 249
+   },
+   "Teemo": {
+    "win": 52.5,
+    "pick": 0.09,
+    "ban": 7.32,
+    "games": 2383
+   },
+   "Tristana": {
+    "win": 51.79,
+    "pick": 7.73,
+    "ban": 6.94,
+    "games": 198575
+   },
+   "Warwick": {
+    "win": 37.88,
+    "pick": 0,
+    "ban": 1.84,
+    "games": 66
+   },
+   "Nunu & Willump": {
+    "win": 44.1,
+    "pick": 0.01,
+    "ban": 0.51,
+    "games": 161
+   },
+   "Miss Fortune": {
+    "win": 52.91,
+    "pick": 8.77,
+    "ban": 1.61,
+    "games": 225364
+   },
+   "Ashe": {
+    "win": 51.83,
+    "pick": 5.8,
+    "ban": 1.62,
+    "games": 148892
+   },
+   "Tryndamere": {
+    "win": 52.51,
+    "pick": 0.01,
+    "ban": 2.92,
+    "games": 299
+   },
+   "Jax": {
+    "win": 49.72,
+    "pick": 0.01,
+    "ban": 9.84,
+    "games": 354
+   },
+   "Morgana": {
+    "win": 49.95,
+    "pick": 0.04,
+    "ban": 18.37,
+    "games": 935
+   },
+   "Zilean": {
+    "win": 49.9,
+    "pick": 0.02,
+    "ban": 1.77,
+    "games": 507
+   },
+   "Singed": {
+    "win": 54.02,
+    "pick": 0.04,
+    "ban": 0.67,
+    "games": 970
+   },
+   "Evelynn": {
+    "win": 36.84,
+    "pick": 0,
+    "ban": 2.19,
+    "games": 19
+   },
+   "Twitch": {
+    "win": 53.1,
+    "pick": 5.58,
+    "ban": 8.02,
+    "games": 143273
+   },
+   "Karthus": {
+    "win": 55.39,
+    "pick": 0.65,
+    "ban": 0.94,
+    "games": 16640
+   },
+   "Cho'Gath": {
+    "win": 50.94,
+    "pick": 0.06,
+    "ban": 8.49,
+    "games": 1496
+   },
+   "Amumu": {
+    "win": 32,
+    "pick": 0,
+    "ban": 1.03,
+    "games": 25
+   },
+   "Rammus": {
+    "win": 36.67,
+    "pick": 0,
+    "ban": 4.48,
+    "games": 30
+   },
+   "Anivia": {
+    "win": 51.1,
+    "pick": 0.08,
+    "ban": 2.28,
+    "games": 2182
+   },
+   "Shaco": {
+    "win": 42.06,
+    "pick": 0,
+    "ban": 18.08,
+    "games": 107
+   },
+   "Dr. Mundo": {
+    "win": 45.7,
+    "pick": 0.01,
+    "ban": 2.34,
+    "games": 372
+   },
+   "Sona": {
+    "win": 44.6,
+    "pick": 0.01,
+    "ban": 0.21,
+    "games": 139
+   },
+   "Kassadin": {
+    "win": 45.15,
+    "pick": 0.01,
+    "ban": 2.54,
+    "games": 268
+   },
+   "Irelia": {
+    "win": 49.45,
+    "pick": 0.12,
+    "ban": 12.7,
+    "games": 2993
+   },
+   "Janna": {
+    "win": 53.45,
+    "pick": 0,
+    "ban": 1.21,
+    "games": 58
+   },
+   "Gangplank": {
+    "win": 47.72,
+    "pick": 0.01,
+    "ban": 8.77,
+    "games": 329
+   },
+   "Corki": {
+    "win": 50.36,
+    "pick": 2.03,
+    "ban": 0.34,
+    "games": 52195
+   },
+   "Karma": {
+    "win": 39.64,
+    "pick": 0.01,
+    "ban": 3.13,
+    "games": 275
+   },
+   "Taric": {
+    "win": 53.42,
+    "pick": 0,
+    "ban": 0.24,
+    "games": 73
+   },
+   "Veigar": {
+    "win": 54.5,
+    "pick": 1.08,
+    "ban": 1.13,
+    "games": 27679
+   },
+   "Trundle": {
+    "win": 36.13,
+    "pick": 0,
+    "ban": 0.45,
+    "games": 119
+   },
+   "Swain": {
+    "win": 54.73,
+    "pick": 0.99,
+    "ban": 2.09,
+    "games": 25340
+   },
+   "Caitlyn": {
+    "win": 50.38,
+    "pick": 13.24,
+    "ban": 21.46,
+    "games": 340270
+   },
+   "Blitzcrank": {
+    "win": 38.78,
+    "pick": 0,
+    "ban": 15.21,
+    "games": 98
+   },
+   "Malphite": {
+    "win": 44.89,
+    "pick": 0.01,
+    "ban": 18.34,
+    "games": 372
+   },
+   "Katarina": {
+    "win": 53.15,
+    "pick": 0.94,
+    "ban": 12.01,
+    "games": 24144
+   },
+   "Nocturne": {
+    "win": 39.47,
+    "pick": 0,
+    "ban": 8.94,
+    "games": 38
+   },
+   "Maokai": {
+    "win": 46.94,
+    "pick": 0,
+    "ban": 0.18,
+    "games": 49
+   },
+   "Renekton": {
+    "win": 42.22,
+    "pick": 0.01,
+    "ban": 4.24,
+    "games": 180
+   },
+   "Jarvan IV": {
+    "win": 47.51,
+    "pick": 0.02,
+    "ban": 1.57,
+    "games": 421
+   },
+   "Elise": {
+    "win": 44.52,
+    "pick": 0.01,
+    "ban": 2.31,
+    "games": 146
+   },
+   "Orianna": {
+    "win": 44.16,
+    "pick": 0.05,
+    "ban": 0.54,
+    "games": 1268
+   },
+   "Wukong": {
+    "win": 48.45,
+    "pick": 0.02,
+    "ban": 6.08,
+    "games": 485
+   },
+   "Brand": {
+    "win": 53.44,
+    "pick": 0.48,
+    "ban": 2.96,
+    "games": 12383
+   },
+   "Lee Sin": {
+    "win": 43.47,
+    "pick": 0.02,
+    "ban": 14.83,
+    "games": 467
+   },
+   "Vayne": {
+    "win": 51.44,
+    "pick": 3.59,
+    "ban": 3.89,
+    "games": 92211
+   },
+   "Rumble": {
+    "win": 54.41,
+    "pick": 0,
+    "ban": 0.53,
+    "games": 68
+   },
+   "Cassiopeia": {
+    "win": 51.45,
+    "pick": 0.24,
+    "ban": 1.24,
+    "games": 6183
+   },
+   "Skarner": {
+    "win": 41.18,
+    "pick": 0,
+    "ban": 0.24,
+    "games": 34
+   },
+   "Heimerdinger": {
+    "win": 53.95,
+    "pick": 0.12,
+    "ban": 2.21,
+    "games": 3188
+   },
+   "Nasus": {
+    "win": 45.6,
+    "pick": 0.01,
+    "ban": 11.53,
+    "games": 250
+   },
+   "Nidalee": {
+    "win": 48.31,
+    "pick": 0.01,
+    "ban": 2.4,
+    "games": 354
+   },
+   "Udyr": {
+    "win": 49.67,
+    "pick": 0.01,
+    "ban": 0.95,
+    "games": 151
+   },
+   "Poppy": {
+    "win": 38.98,
+    "pick": 0,
+    "ban": 3.26,
+    "games": 59
+   },
+   "Gragas": {
+    "win": 50.39,
+    "pick": 0.01,
+    "ban": 0.8,
+    "games": 258
+   },
+   "Pantheon": {
+    "win": 50.48,
+    "pick": 0.05,
+    "ban": 3.58,
+    "games": 1262
+   },
+   "Ezreal": {
+    "win": 47.98,
+    "pick": 12.73,
+    "ban": 4.03,
+    "games": 326959
+   },
+   "Mordekaiser": {
+    "win": 53.16,
+    "pick": 0.02,
+    "ban": 8.9,
+    "games": 570
+   },
+   "Yorick": {
+    "win": 45.09,
+    "pick": 0.01,
+    "ban": 5.78,
+    "games": 173
+   },
+   "Akali": {
+    "win": 44.76,
+    "pick": 0.02,
+    "ban": 17.21,
+    "games": 639
+   },
+   "Kennen": {
+    "win": 45.69,
+    "pick": 0.02,
+    "ban": 1.34,
+    "games": 626
+   },
+   "Garen": {
+    "win": 48.11,
+    "pick": 0.02,
+    "ban": 4.58,
+    "games": 528
+   },
+   "Leona": {
+    "win": 40.91,
+    "pick": 0,
+    "ban": 9.49,
+    "games": 66
+   },
+   "Malzahar": {
+    "win": 51.69,
+    "pick": 0.19,
+    "ban": 9.74,
+    "games": 4877
+   },
+   "Talon": {
+    "win": 53.81,
+    "pick": 0.01,
+    "ban": 9.42,
+    "games": 210
+   },
+   "Riven": {
+    "win": 49.56,
+    "pick": 0.04,
+    "ban": 1.41,
+    "games": 918
+   },
+   "Kog'Maw": {
+    "win": 53.93,
+    "pick": 2.34,
+    "ban": 0.76,
+    "games": 60197
+   },
+   "Shen": {
+    "win": 53.06,
+    "pick": 0.04,
+    "ban": 0.75,
+    "games": 1127
+   },
+   "Lux": {
+    "win": 53.64,
+    "pick": 0.82,
+    "ban": 4.35,
+    "games": 21183
+   },
+   "Xerath": {
+    "win": 53.47,
+    "pick": 0.7,
+    "ban": 8.21,
+    "games": 17934
+   },
+   "Shyvana": {
+    "win": 55.17,
+    "pick": 0,
+    "ban": 4.6,
+    "games": 58
+   },
+   "Ahri": {
+    "win": 51.64,
+    "pick": 0.07,
+    "ban": 3.3,
+    "games": 1888
+   },
+   "Graves": {
+    "win": 47.43,
+    "pick": 0.02,
+    "ban": 9.28,
+    "games": 487
+   },
+   "Fizz": {
+    "win": 49.68,
+    "pick": 0.03,
+    "ban": 7.27,
+    "games": 789
+   },
+   "Volibear": {
+    "win": 48.26,
+    "pick": 0.01,
+    "ban": 2.15,
+    "games": 344
+   },
+   "Rengar": {
+    "win": 52.41,
+    "pick": 0.03,
+    "ban": 7.14,
+    "games": 893
+   },
+   "Varus": {
+    "win": 51.06,
+    "pick": 4.08,
+    "ban": 1.12,
+    "games": 104886
+   },
+   "Nautilus": {
+    "win": 35.29,
+    "pick": 0,
+    "ban": 15.34,
+    "games": 119
+   },
+   "Viktor": {
+    "win": 51.54,
+    "pick": 1.72,
+    "ban": 10.24,
+    "games": 44170
+   },
+   "Sejuani": {
+    "win": 42.19,
+    "pick": 0,
+    "ban": 0.25,
+    "games": 64
+   },
+   "Fiora": {
+    "win": 55.72,
+    "pick": 0.05,
+    "ban": 5.97,
+    "games": 1337
+   },
+   "Ziggs": {
+    "win": 53.13,
+    "pick": 1.61,
+    "ban": 0.8,
+    "games": 41487
+   },
+   "Lulu": {
+    "win": 38.31,
+    "pick": 0.01,
+    "ban": 14,
+    "games": 154
+   },
+   "Draven": {
+    "win": 51.45,
+    "pick": 4.22,
+    "ban": 14.56,
+    "games": 108550
+   },
+   "Hecarim": {
+    "win": 23.81,
+    "pick": 0,
+    "ban": 7.43,
+    "games": 21
+   },
+   "Kha'Zix": {
+    "win": 54.29,
+    "pick": 0,
+    "ban": 4.28,
+    "games": 35
+   },
+   "Darius": {
+    "win": 52.87,
+    "pick": 0.02,
+    "ban": 14.56,
+    "games": 575
+   },
+   "Jayce": {
+    "win": 49.64,
+    "pick": 0.04,
+    "ban": 6.71,
+    "games": 1118
+   },
+   "Lissandra": {
+    "win": 49.77,
+    "pick": 0.04,
+    "ban": 4.39,
+    "games": 1109
+   },
+   "Diana": {
+    "win": 46.22,
+    "pick": 0.02,
+    "ban": 3.59,
+    "games": 437
+   },
+   "Quinn": {
+    "win": 53.57,
+    "pick": 0.04,
+    "ban": 0.8,
+    "games": 1120
+   },
+   "Syndra": {
+    "win": 52.6,
+    "pick": 0.9,
+    "ban": 7.95,
+    "games": 23056
+   },
+   "Aurelion Sol": {
+    "win": 53.99,
+    "pick": 0.63,
+    "ban": 0.62,
+    "games": 16197
+   },
+   "Kayn": {
+    "win": 40.59,
+    "pick": 0,
+    "ban": 5.92,
+    "games": 101
+   },
+   "Zoe": {
+    "win": 50,
+    "pick": 0.04,
+    "ban": 3.35,
+    "games": 992
+   },
+   "Zyra": {
+    "win": 52.56,
+    "pick": 0.14,
+    "ban": 4.23,
+    "games": 3522
+   },
+   "Kai'Sa": {
+    "win": 51.87,
+    "pick": 21.94,
+    "ban": 4.22,
+    "games": 563686
+   },
+   "Seraphine": {
+    "win": 51.23,
+    "pick": 0.54,
+    "ban": 4.8,
+    "games": 13824
+   },
+   "Gnar": {
+    "win": 36.6,
+    "pick": 0.01,
+    "ban": 1.2,
+    "games": 153
+   },
+   "Zac": {
+    "win": 48.48,
+    "pick": 0.01,
+    "ban": 1.09,
+    "games": 165
+   },
+   "Yasuo": {
+    "win": 53.89,
+    "pick": 2.37,
+    "ban": 26.31,
+    "games": 60886
+   },
+   "Vel'Koz": {
+    "win": 55.52,
+    "pick": 0.77,
+    "ban": 2.04,
+    "games": 19885
+   },
+   "Taliyah": {
+    "win": 52.74,
+    "pick": 0.17,
+    "ban": 0.7,
+    "games": 4496
+   },
+   "Camille": {
+    "win": 46.9,
+    "pick": 0.01,
+    "ban": 1.86,
+    "games": 226
+   },
+   "Akshan": {
+    "win": 51.28,
+    "pick": 0.11,
+    "ban": 1.93,
+    "games": 2923
+   },
+   "Bel'Veth": {
+    "win": 34.21,
+    "pick": 0,
+    "ban": 3.78,
+    "games": 38
+   },
+   "Braum": {
+    "win": 23.33,
+    "pick": 0,
+    "ban": 6.53,
+    "games": 30
+   },
+   "Jhin": {
+    "win": 51.38,
+    "pick": 19.34,
+    "ban": 2.48,
+    "games": 496915
+   },
+   "Kindred": {
+    "win": 51.38,
+    "pick": 0.04,
+    "ban": 1.83,
+    "games": 1127
+   },
+   "Zeri": {
+    "win": 52.5,
+    "pick": 4.63,
+    "ban": 0.95,
+    "games": 119072
+   },
+   "Jinx": {
+    "win": 53.08,
+    "pick": 13.29,
+    "ban": 7.18,
+    "games": 341493
+   },
+   "Tahm Kench": {
+    "win": 54.97,
+    "pick": 0.17,
+    "ban": 2.46,
+    "games": 4406
+   },
+   "Briar": {
+    "win": 51.72,
+    "pick": 0.02,
+    "ban": 8.92,
+    "games": 580
+   },
+   "Viego": {
+    "win": 50.74,
+    "pick": 0.04,
+    "ban": 6.83,
+    "games": 1141
+   },
+   "Senna": {
+    "win": 51.9,
+    "pick": 0.42,
+    "ban": 1.28,
+    "games": 10726
+   },
+   "Lucian": {
+    "win": 50.88,
+    "pick": 8.83,
+    "ban": 2.28,
+    "games": 226897
+   },
+   "Zed": {
+    "win": 54.28,
+    "pick": 0.15,
+    "ban": 24.12,
+    "games": 3904
+   },
+   "Kled": {
+    "win": 51.95,
+    "pick": 0.01,
+    "ban": 0.97,
+    "games": 333
+   },
+   "Ekko": {
+    "win": 52.76,
+    "pick": 0.12,
+    "ban": 2.8,
+    "games": 3150
+   },
+   "Qiyana": {
+    "win": 49.52,
+    "pick": 0.04,
+    "ban": 14.67,
+    "games": 1038
+   },
+   "Vi": {
+    "win": 38.03,
+    "pick": 0.01,
+    "ban": 1.4,
+    "games": 142
+   },
+   "Aatrox": {
+    "win": 43.08,
+    "pick": 0.01,
+    "ban": 7.22,
+    "games": 325
+   },
+   "Nami": {
+    "win": 33.96,
+    "pick": 0,
+    "ban": 1.14,
+    "games": 53
+   },
+   "Azir": {
+    "win": 45.5,
+    "pick": 0.04,
+    "ban": 0.32,
+    "games": 1022
+   },
+   "Yuumi": {
+    "win": 27.27,
+    "pick": 0,
+    "ban": 8.25,
+    "games": 55
+   },
+   "Samira": {
+    "win": 52.03,
+    "pick": 3.71,
+    "ban": 5.8,
+    "games": 95332
+   },
+   "Thresh": {
+    "win": 34.53,
+    "pick": 0.01,
+    "ban": 13.02,
+    "games": 223
+   },
+   "Illaoi": {
+    "win": 38.46,
+    "pick": 0,
+    "ban": 5.58,
+    "games": 65
+   },
+   "Rek'Sai": {
+    "win": 29.41,
+    "pick": 0,
+    "ban": 0.56,
+    "games": 34
+   },
+   "Ivern": {
+    "win": 45.3,
+    "pick": 0,
+    "ban": 0.34,
+    "games": 117
+   },
+   "Kalista": {
+    "win": 50.43,
+    "pick": 4.82,
+    "ban": 2.07,
+    "games": 123836
+   },
+   "Bard": {
+    "win": 31.82,
+    "pick": 0,
+    "ban": 1.81,
+    "games": 66
+   },
+   "Rakan": {
+    "win": 52.17,
+    "pick": 0,
+    "ban": 0.39,
+    "games": 69
+   },
+   "Xayah": {
+    "win": 53.57,
+    "pick": 7.9,
+    "ban": 2.33,
+    "games": 202951
+   },
+   "Ornn": {
+    "win": 53.93,
+    "pick": 0.01,
+    "ban": 0.6,
+    "games": 178
+   },
+   "Sylas": {
+    "win": 43.73,
+    "pick": 0.06,
+    "ban": 17.12,
+    "games": 1452
+   },
+   "Neeko": {
+    "win": 49.51,
+    "pick": 0.02,
+    "ban": 0.71,
+    "games": 408
+   },
+   "Aphelios": {
+    "win": 51.3,
+    "pick": 7.4,
+    "ban": 3.65,
+    "games": 190169
+   },
+   "Rell": {
+    "win": 45.16,
+    "pick": 0,
+    "ban": 1.4,
+    "games": 31
+   },
+   "Pyke": {
+    "win": 49.04,
+    "pick": 0.01,
+    "ban": 23.6,
+    "games": 363
+   },
+   "Vex": {
+    "win": 52.03,
+    "pick": 0.03,
+    "ban": 4.47,
+    "games": 888
+   },
+   "Yone": {
+    "win": 51.39,
+    "pick": 0.27,
+    "ban": 15.23,
+    "games": 6821
+   },
+   "Ambessa": {
+    "win": 48.47,
+    "pick": 0.01,
+    "ban": 4.62,
+    "games": 326
+   },
+   "Mel": {
+    "win": 48.46,
+    "pick": 0.52,
+    "ban": 8.95,
+    "games": 13348
+   },
+   "Yunara": {
+    "win": 51.2,
+    "pick": 9.16,
+    "ban": 4.65,
+    "games": 235413
+   },
+   "Locke": {
+    "win": 50,
+    "pick": 0.12,
+    "ban": 32.95,
+    "games": 2974
+   },
+   "Sett": {
+    "win": 52.45,
+    "pick": 0.03,
+    "ban": 2.92,
+    "games": 715
+   },
+   "Lillia": {
+    "win": 36.36,
+    "pick": 0,
+    "ban": 5.09,
+    "games": 22
+   },
+   "Gwen": {
+    "win": 56.9,
+    "pick": 0.03,
+    "ban": 3.25,
+    "games": 652
+   },
+   "Renata Glasc": {
+    "win": 42.86,
+    "pick": 0,
+    "ban": 0.42,
+    "games": 56
+   },
+   "Aurora": {
+    "win": 52.94,
+    "pick": 0.07,
+    "ban": 1.32,
+    "games": 1902
+   },
+   "Nilah": {
+    "win": 54.27,
+    "pick": 1.11,
+    "ban": 1.91,
+    "games": 28521
+   },
+   "K'Sante": {
+    "win": 51.57,
+    "pick": 0.01,
+    "ban": 2.44,
+    "games": 254
+   },
+   "Smolder": {
+    "win": 52.21,
+    "pick": 4.06,
+    "ban": 1.54,
+    "games": 104388
+   },
+   "Milio": {
+    "win": 33.33,
+    "pick": 0,
+    "ban": 4.34,
+    "games": 48
+   },
+   "Zaahen": {
+    "win": 52.89,
+    "pick": 0.01,
+    "ban": 1.13,
+    "games": 225
+   },
+   "Hwei": {
+    "win": 54.24,
+    "pick": 0.95,
+    "ban": 2.34,
+    "games": 24434
+   },
+   "Naafiri": {
+    "win": 49.67,
+    "pick": 0.04,
+    "ban": 7.85,
+    "games": 1073
+   }
+  },
+  "Support": {
+   "Annie": {
+    "win": 52.53,
+    "pick": 0.28,
+    "ban": 0.57,
+    "games": 7204
+   },
+   "Olaf": {
+    "win": 41.56,
+    "pick": 0.01,
+    "ban": 3.56,
+    "games": 243
+   },
+   "Galio": {
+    "win": 52.37,
+    "pick": 0.79,
+    "ban": 1.9,
+    "games": 20423
+   },
+   "Twisted Fate": {
+    "win": 51.35,
+    "pick": 0.24,
+    "ban": 1.37,
+    "games": 6224
+   },
+   "Xin Zhao": {
+    "win": 46.72,
+    "pick": 0.03,
+    "ban": 0.83,
+    "games": 732
+   },
+   "Urgot": {
+    "win": 38.83,
+    "pick": 0.02,
+    "ban": 0.89,
+    "games": 443
+   },
+   "LeBlanc": {
+    "win": 51.1,
+    "pick": 0.82,
+    "ban": 17.75,
+    "games": 20956
+   },
+   "Vladimir": {
+    "win": 40.52,
+    "pick": 0.01,
+    "ban": 6.44,
+    "games": 153
+   },
+   "Fiddlesticks": {
+    "win": 51.26,
+    "pick": 0.45,
+    "ban": 1.17,
+    "games": 11619
+   },
+   "Kayle": {
+    "win": 45.84,
+    "pick": 0.04,
+    "ban": 1.32,
+    "games": 938
+   },
+   "Master Yi": {
+    "win": 45.38,
+    "pick": 0.09,
+    "ban": 16.17,
+    "games": 2197
+   },
+   "Alistar": {
+    "win": 52.76,
+    "pick": 6.24,
+    "ban": 2.23,
+    "games": 160197
+   },
+   "Ryze": {
+    "win": 36.94,
+    "pick": 0.01,
+    "ban": 0.43,
+    "games": 157
+   },
+   "Sion": {
+    "win": 50.93,
+    "pick": 0.24,
+    "ban": 0.72,
+    "games": 6153
+   },
+   "Sivir": {
+    "win": 46.43,
+    "pick": 0,
+    "ban": 1.66,
+    "games": 84
+   },
+   "Soraka": {
+    "win": 52.56,
+    "pick": 4.66,
+    "ban": 2.25,
+    "games": 119621
+   },
+   "Teemo": {
+    "win": 51.07,
+    "pick": 0.48,
+    "ban": 7.32,
+    "games": 12211
+   },
+   "Tristana": {
+    "win": 36.08,
+    "pick": 0.01,
+    "ban": 6.94,
+    "games": 255
+   },
+   "Warwick": {
+    "win": 45.93,
+    "pick": 0.02,
+    "ban": 1.84,
+    "games": 614
+   },
+   "Nunu & Willump": {
+    "win": 48,
+    "pick": 0.13,
+    "ban": 0.51,
+    "games": 3267
+   },
+   "Miss Fortune": {
+    "win": 42.83,
+    "pick": 0.38,
+    "ban": 1.61,
+    "games": 9888
+   },
+   "Ashe": {
+    "win": 46.73,
+    "pick": 0.76,
+    "ban": 1.62,
+    "games": 19459
+   },
+   "Tryndamere": {
+    "win": 42.31,
+    "pick": 0.01,
+    "ban": 2.92,
+    "games": 260
+   },
+   "Jax": {
+    "win": 47.89,
+    "pick": 0.1,
+    "ban": 9.84,
+    "games": 2656
+   },
+   "Morgana": {
+    "win": 51.98,
+    "pick": 4.17,
+    "ban": 18.37,
+    "games": 107253
+   },
+   "Zilean": {
+    "win": 53.18,
+    "pick": 2.87,
+    "ban": 1.77,
+    "games": 73772
+   },
+   "Singed": {
+    "win": 47.25,
+    "pick": 0.08,
+    "ban": 0.67,
+    "games": 2036
+   },
+   "Evelynn": {
+    "win": 48.27,
+    "pick": 0.04,
+    "ban": 2.19,
+    "games": 1100
+   },
+   "Twitch": {
+    "win": 44.45,
+    "pick": 0.31,
+    "ban": 8.02,
+    "games": 8087
+   },
+   "Karthus": {
+    "win": 46.42,
+    "pick": 0.03,
+    "ban": 0.94,
+    "games": 881
+   },
+   "Cho'Gath": {
+    "win": 48.48,
+    "pick": 0.17,
+    "ban": 8.49,
+    "games": 4334
+   },
+   "Amumu": {
+    "win": 53.71,
+    "pick": 0.73,
+    "ban": 1.03,
+    "games": 18636
+   },
+   "Rammus": {
+    "win": 50.39,
+    "pick": 0.08,
+    "ban": 4.48,
+    "games": 2076
+   },
+   "Anivia": {
+    "win": 50.89,
+    "pick": 0.48,
+    "ban": 2.28,
+    "games": 12273
+   },
+   "Shaco": {
+    "win": 49.89,
+    "pick": 1.14,
+    "ban": 18.08,
+    "games": 29299
+   },
+   "Dr. Mundo": {
+    "win": 47.71,
+    "pick": 0.04,
+    "ban": 2.34,
+    "games": 937
+   },
+   "Sona": {
+    "win": 53.07,
+    "pick": 2.6,
+    "ban": 0.21,
+    "games": 66746
+   },
+   "Kassadin": {
+    "win": 41.67,
+    "pick": 0,
+    "ban": 2.54,
+    "games": 84
+   },
+   "Irelia": {
+    "win": 31.89,
+    "pick": 0.01,
+    "ban": 12.7,
+    "games": 185
+   },
+   "Janna": {
+    "win": 52.75,
+    "pick": 4.86,
+    "ban": 1.21,
+    "games": 124847
+   },
+   "Gangplank": {
+    "win": 34.76,
+    "pick": 0.01,
+    "ban": 8.77,
+    "games": 187
+   },
+   "Corki": {
+    "win": 32.76,
+    "pick": 0,
+    "ban": 0.34,
+    "games": 116
+   },
+   "Karma": {
+    "win": 49.93,
+    "pick": 7.56,
+    "ban": 3.13,
+    "games": 194336
+   },
+   "Taric": {
+    "win": 53.99,
+    "pick": 1.23,
+    "ban": 0.24,
+    "games": 31687
+   },
+   "Veigar": {
+    "win": 47.69,
+    "pick": 0.38,
+    "ban": 1.13,
+    "games": 9801
+   },
+   "Trundle": {
+    "win": 47.26,
+    "pick": 0.1,
+    "ban": 0.45,
+    "games": 2503
+   },
+   "Swain": {
+    "win": 50.54,
+    "pick": 2.77,
+    "ban": 2.09,
+    "games": 71122
+   },
+   "Caitlyn": {
+    "win": 39.49,
+    "pick": 0.03,
+    "ban": 21.46,
+    "games": 780
+   },
+   "Blitzcrank": {
+    "win": 53,
+    "pick": 7.6,
+    "ban": 15.21,
+    "games": 195237
+   },
+   "Malphite": {
+    "win": 47.52,
+    "pick": 0.31,
+    "ban": 18.34,
+    "games": 7853
+   },
+   "Katarina": {
+    "win": 47.06,
+    "pick": 0.06,
+    "ban": 12.01,
+    "games": 1649
+   },
+   "Nocturne": {
+    "win": 46.77,
+    "pick": 0.01,
+    "ban": 8.94,
+    "games": 263
+   },
+   "Maokai": {
+    "win": 52.65,
+    "pick": 1.6,
+    "ban": 0.18,
+    "games": 41155
+   },
+   "Renekton": {
+    "win": 40,
+    "pick": 0.01,
+    "ban": 4.24,
+    "games": 195
+   },
+   "Jarvan IV": {
+    "win": 50.4,
+    "pick": 0.44,
+    "ban": 1.57,
+    "games": 11426
+   },
+   "Elise": {
+    "win": 51.7,
+    "pick": 0.75,
+    "ban": 2.31,
+    "games": 19261
+   },
+   "Orianna": {
+    "win": 46.3,
+    "pick": 0.07,
+    "ban": 0.54,
+    "games": 1782
+   },
+   "Wukong": {
+    "win": 46.24,
+    "pick": 0.07,
+    "ban": 6.08,
+    "games": 1914
+   },
+   "Brand": {
+    "win": 51.48,
+    "pick": 2.3,
+    "ban": 2.96,
+    "games": 59062
+   },
+   "Lee Sin": {
+    "win": 44.01,
+    "pick": 0.22,
+    "ban": 14.83,
+    "games": 5647
+   },
+   "Vayne": {
+    "win": 39.89,
+    "pick": 0.01,
+    "ban": 3.89,
+    "games": 351
+   },
+   "Rumble": {
+    "win": 45.1,
+    "pick": 0.03,
+    "ban": 0.53,
+    "games": 887
+   },
+   "Cassiopeia": {
+    "win": 46.2,
+    "pick": 0.01,
+    "ban": 1.24,
+    "games": 329
+   },
+   "Skarner": {
+    "win": 47.85,
+    "pick": 0.19,
+    "ban": 0.24,
+    "games": 4805
+   },
+   "Heimerdinger": {
+    "win": 49.07,
+    "pick": 0.17,
+    "ban": 2.21,
+    "games": 4441
+   },
+   "Nasus": {
+    "win": 43.6,
+    "pick": 0.05,
+    "ban": 11.53,
+    "games": 1266
+   },
+   "Nidalee": {
+    "win": 49.06,
+    "pick": 0.2,
+    "ban": 2.4,
+    "games": 5210
+   },
+   "Udyr": {
+    "win": 40.63,
+    "pick": 0.01,
+    "ban": 0.95,
+    "games": 288
+   },
+   "Poppy": {
+    "win": 52.71,
+    "pick": 1.66,
+    "ban": 3.26,
+    "games": 42600
+   },
+   "Gragas": {
+    "win": 50.27,
+    "pick": 0.23,
+    "ban": 0.8,
+    "games": 5807
+   },
+   "Pantheon": {
+    "win": 49.83,
+    "pick": 3.33,
+    "ban": 3.58,
+    "games": 85658
+   },
+   "Ezreal": {
+    "win": 43.41,
+    "pick": 0.2,
+    "ban": 4.03,
+    "games": 5199
+   },
+   "Mordekaiser": {
+    "win": 38.09,
+    "pick": 0.03,
+    "ban": 8.9,
+    "games": 743
+   },
+   "Yorick": {
+    "win": 44.54,
+    "pick": 0.01,
+    "ban": 5.78,
+    "games": 348
+   },
+   "Akali": {
+    "win": 43.02,
+    "pick": 0.02,
+    "ban": 17.21,
+    "games": 523
+   },
+   "Kennen": {
+    "win": 48.4,
+    "pick": 0.08,
+    "ban": 1.34,
+    "games": 2126
+   },
+   "Garen": {
+    "win": 34.29,
+    "pick": 0.01,
+    "ban": 4.58,
+    "games": 280
+   },
+   "Leona": {
+    "win": 53.76,
+    "pick": 8.29,
+    "ban": 9.49,
+    "games": 212990
+   },
+   "Malzahar": {
+    "win": 46.76,
+    "pick": 0.08,
+    "ban": 9.74,
+    "games": 2006
+   },
+   "Talon": {
+    "win": 43.59,
+    "pick": 0.01,
+    "ban": 9.42,
+    "games": 273
+   },
+   "Riven": {
+    "win": 38.85,
+    "pick": 0.01,
+    "ban": 1.41,
+    "games": 314
+   },
+   "Kog'Maw": {
+    "win": 47.79,
+    "pick": 0.04,
+    "ban": 0.76,
+    "games": 1130
+   },
+   "Shen": {
+    "win": 50.22,
+    "pick": 0.75,
+    "ban": 0.75,
+    "games": 19297
+   },
+   "Lux": {
+    "win": 51.42,
+    "pick": 6.36,
+    "ban": 4.35,
+    "games": 163530
+   },
+   "Xerath": {
+    "win": 50.9,
+    "pick": 2.81,
+    "ban": 8.21,
+    "games": 72228
+   },
+   "Shyvana": {
+    "win": 28.85,
+    "pick": 0,
+    "ban": 4.6,
+    "games": 52
+   },
+   "Ahri": {
+    "win": 48.26,
+    "pick": 0.11,
+    "ban": 3.3,
+    "games": 2781
+   },
+   "Graves": {
+    "win": 35.53,
+    "pick": 0.01,
+    "ban": 9.28,
+    "games": 152
+   },
+   "Fizz": {
+    "win": 46.48,
+    "pick": 0.07,
+    "ban": 7.27,
+    "games": 1721
+   },
+   "Volibear": {
+    "win": 43.82,
+    "pick": 0.02,
+    "ban": 2.15,
+    "games": 518
+   },
+   "Rengar": {
+    "win": 47.61,
+    "pick": 0.1,
+    "ban": 7.14,
+    "games": 2472
+   },
+   "Varus": {
+    "win": 38.25,
+    "pick": 0.03,
+    "ban": 1.12,
+    "games": 732
+   },
+   "Nautilus": {
+    "win": 51.1,
+    "pick": 10.44,
+    "ban": 15.34,
+    "games": 268314
+   },
+   "Viktor": {
+    "win": 46.46,
+    "pick": 0.04,
+    "ban": 10.24,
+    "games": 945
+   },
+   "Sejuani": {
+    "win": 47.25,
+    "pick": 0.06,
+    "ban": 0.25,
+    "games": 1600
+   },
+   "Fiora": {
+    "win": 43.88,
+    "pick": 0.03,
+    "ban": 5.97,
+    "games": 850
+   },
+   "Ziggs": {
+    "win": 44.84,
+    "pick": 0.09,
+    "ban": 0.8,
+    "games": 2315
+   },
+   "Lulu": {
+    "win": 51.17,
+    "pick": 12.15,
+    "ban": 14,
+    "games": 312073
+   },
+   "Draven": {
+    "win": 24.55,
+    "pick": 0,
+    "ban": 14.56,
+    "games": 110
+   },
+   "Hecarim": {
+    "win": 22.58,
+    "pick": 0,
+    "ban": 7.43,
+    "games": 31
+   },
+   "Kha'Zix": {
+    "win": 42.11,
+    "pick": 0.01,
+    "ban": 4.28,
+    "games": 152
+   },
+   "Darius": {
+    "win": 44.44,
+    "pick": 0.06,
+    "ban": 14.56,
+    "games": 1422
+   },
+   "Jayce": {
+    "win": 43.69,
+    "pick": 0.04,
+    "ban": 6.71,
+    "games": 1117
+   },
+   "Lissandra": {
+    "win": 49.32,
+    "pick": 0.22,
+    "ban": 4.39,
+    "games": 5623
+   },
+   "Diana": {
+    "win": 39.54,
+    "pick": 0.02,
+    "ban": 3.59,
+    "games": 569
+   },
+   "Quinn": {
+    "win": 50.83,
+    "pick": 0.05,
+    "ban": 0.8,
+    "games": 1326
+   },
+   "Syndra": {
+    "win": 50.48,
+    "pick": 0.19,
+    "ban": 7.95,
+    "games": 5010
+   },
+   "Aurelion Sol": {
+    "win": 49.45,
+    "pick": 0.06,
+    "ban": 0.62,
+    "games": 1646
+   },
+   "Kayn": {
+    "win": 46.67,
+    "pick": 0.01,
+    "ban": 5.92,
+    "games": 225
+   },
+   "Zoe": {
+    "win": 49.59,
+    "pick": 0.84,
+    "ban": 3.35,
+    "games": 21483
+   },
+   "Zyra": {
+    "win": 52.51,
+    "pick": 2.66,
+    "ban": 4.23,
+    "games": 68374
+   },
+   "Kai'Sa": {
+    "win": 41.36,
+    "pick": 0.04,
+    "ban": 4.22,
+    "games": 926
+   },
+   "Seraphine": {
+    "win": 52.54,
+    "pick": 6.48,
+    "ban": 4.8,
+    "games": 166364
+   },
+   "Gnar": {
+    "win": 35.48,
+    "pick": 0,
+    "ban": 1.2,
+    "games": 124
+   },
+   "Zac": {
+    "win": 50.44,
+    "pick": 0.3,
+    "ban": 1.09,
+    "games": 7734
+   },
+   "Yasuo": {
+    "win": 42.28,
+    "pick": 0.06,
+    "ban": 26.31,
+    "games": 1523
+   },
+   "Vel'Koz": {
+    "win": 52.84,
+    "pick": 3.24,
+    "ban": 2.04,
+    "games": 83120
+   },
+   "Taliyah": {
+    "win": 50.16,
+    "pick": 0.17,
+    "ban": 0.7,
+    "games": 4348
+   },
+   "Camille": {
+    "win": 48.45,
+    "pick": 1.03,
+    "ban": 1.86,
+    "games": 26542
+   },
+   "Akshan": {
+    "win": 43.2,
+    "pick": 0.04,
+    "ban": 1.93,
+    "games": 919
+   },
+   "Bel'Veth": {
+    "win": 33.56,
+    "pick": 0.01,
+    "ban": 3.78,
+    "games": 149
+   },
+   "Braum": {
+    "win": 53.44,
+    "pick": 5.36,
+    "ban": 6.53,
+    "games": 137635
+   },
+   "Jhin": {
+    "win": 43.2,
+    "pick": 0.07,
+    "ban": 2.48,
+    "games": 1736
+   },
+   "Kindred": {
+    "win": 47.1,
+    "pick": 0.01,
+    "ban": 1.83,
+    "games": 138
+   },
+   "Zeri": {
+    "win": 22.64,
+    "pick": 0,
+    "ban": 0.95,
+    "games": 53
+   },
+   "Jinx": {
+    "win": 35.96,
+    "pick": 0.01,
+    "ban": 7.18,
+    "games": 203
+   },
+   "Tahm Kench": {
+    "win": 51.46,
+    "pick": 2.25,
+    "ban": 2.46,
+    "games": 57685
+   },
+   "Briar": {
+    "win": 43.36,
+    "pick": 0.05,
+    "ban": 8.92,
+    "games": 1250
+   },
+   "Viego": {
+    "win": 44.15,
+    "pick": 0.03,
+    "ban": 6.83,
+    "games": 727
+   },
+   "Senna": {
+    "win": 52.97,
+    "pick": 5.58,
+    "ban": 1.28,
+    "games": 143481
+   },
+   "Lucian": {
+    "win": 35.27,
+    "pick": 0.01,
+    "ban": 2.28,
+    "games": 224
+   },
+   "Zed": {
+    "win": 44.82,
+    "pick": 0.12,
+    "ban": 24.12,
+    "games": 3175
+   },
+   "Kled": {
+    "win": 45.43,
+    "pick": 0.04,
+    "ban": 0.97,
+    "games": 951
+   },
+   "Ekko": {
+    "win": 46.35,
+    "pick": 0.09,
+    "ban": 2.8,
+    "games": 2315
+   },
+   "Qiyana": {
+    "win": 49.67,
+    "pick": 0.15,
+    "ban": 14.67,
+    "games": 3815
+   },
+   "Vi": {
+    "win": 45.13,
+    "pick": 0.11,
+    "ban": 1.4,
+    "games": 2903
+   },
+   "Aatrox": {
+    "win": 43.01,
+    "pick": 0.05,
+    "ban": 7.22,
+    "games": 1388
+   },
+   "Nami": {
+    "win": 52.24,
+    "pick": 8.83,
+    "ban": 1.14,
+    "games": 226740
+   },
+   "Azir": {
+    "win": 37.44,
+    "pick": 0.01,
+    "ban": 0.32,
+    "games": 211
+   },
+   "Yuumi": {
+    "win": 49.53,
+    "pick": 5.41,
+    "ban": 8.25,
+    "games": 139078
+   },
+   "Samira": {
+    "win": 30.91,
+    "pick": 0,
+    "ban": 5.8,
+    "games": 55
+   },
+   "Thresh": {
+    "win": 53.41,
+    "pick": 14.83,
+    "ban": 13.02,
+    "games": 381129
+   },
+   "Illaoi": {
+    "win": 40.81,
+    "pick": 0.01,
+    "ban": 5.58,
+    "games": 272
+   },
+   "Rek'Sai": {
+    "win": 48.13,
+    "pick": 0.02,
+    "ban": 0.56,
+    "games": 588
+   },
+   "Ivern": {
+    "win": 49.9,
+    "pick": 0.15,
+    "ban": 0.34,
+    "games": 3816
+   },
+   "Kalista": {
+    "win": 33.51,
+    "pick": 0.01,
+    "ban": 2.07,
+    "games": 370
+   },
+   "Bard": {
+    "win": 50.13,
+    "pick": 4.19,
+    "ban": 1.81,
+    "games": 107772
+   },
+   "Rakan": {
+    "win": 52.42,
+    "pick": 4.55,
+    "ban": 0.39,
+    "games": 116926
+   },
+   "Xayah": {
+    "win": 26.98,
+    "pick": 0,
+    "ban": 2.33,
+    "games": 63
+   },
+   "Ornn": {
+    "win": 44.92,
+    "pick": 0.06,
+    "ban": 0.6,
+    "games": 1614
+   },
+   "Sylas": {
+    "win": 48.92,
+    "pick": 1.2,
+    "ban": 17.12,
+    "games": 30891
+   },
+   "Neeko": {
+    "win": 50.55,
+    "pick": 1.65,
+    "ban": 0.71,
+    "games": 42443
+   },
+   "Aphelios": {
+    "win": 21.95,
+    "pick": 0,
+    "ban": 3.65,
+    "games": 123
+   },
+   "Rell": {
+    "win": 53.34,
+    "pick": 3.93,
+    "ban": 1.4,
+    "games": 100884
+   },
+   "Pyke": {
+    "win": 51,
+    "pick": 5.75,
+    "ban": 23.6,
+    "games": 147671
+   },
+   "Vex": {
+    "win": 48.46,
+    "pick": 0.07,
+    "ban": 4.47,
+    "games": 1851
+   },
+   "Yone": {
+    "win": 36.8,
+    "pick": 0.02,
+    "ban": 15.23,
+    "games": 625
+   },
+   "Ambessa": {
+    "win": 40.64,
+    "pick": 0.01,
+    "ban": 4.62,
+    "games": 283
+   },
+   "Mel": {
+    "win": 44.93,
+    "pick": 0.49,
+    "ban": 8.95,
+    "games": 12700
+   },
+   "Yunara": {
+    "win": 27.78,
+    "pick": 0,
+    "ban": 4.65,
+    "games": 108
+   },
+   "Locke": {
+    "win": 46.59,
+    "pick": 0.12,
+    "ban": 32.95,
+    "games": 3020
+   },
+   "Sett": {
+    "win": 47.19,
+    "pick": 0.21,
+    "ban": 2.92,
+    "games": 5311
+   },
+   "Lillia": {
+    "win": 34.86,
+    "pick": 0,
+    "ban": 5.09,
+    "games": 109
+   },
+   "Gwen": {
+    "win": 42.86,
+    "pick": 0,
+    "ban": 3.25,
+    "games": 91
+   },
+   "Renata Glasc": {
+    "win": 51.34,
+    "pick": 2.37,
+    "ban": 0.42,
+    "games": 61010
+   },
+   "Aurora": {
+    "win": 44.39,
+    "pick": 0.02,
+    "ban": 1.32,
+    "games": 633
+   },
+   "Nilah": {
+    "win": 40,
+    "pick": 0,
+    "ban": 1.91,
+    "games": 30
+   },
+   "K'Sante": {
+    "win": 46.01,
+    "pick": 0.07,
+    "ban": 2.44,
+    "games": 1715
+   },
+   "Smolder": {
+    "win": 33.85,
+    "pick": 0.01,
+    "ban": 1.54,
+    "games": 195
+   },
+   "Milio": {
+    "win": 51.89,
+    "pick": 6.42,
+    "ban": 4.34,
+    "games": 165062
+   },
+   "Zaahen": {
+    "win": 53.73,
+    "pick": 0.02,
+    "ban": 1.13,
+    "games": 603
+   },
+   "Hwei": {
+    "win": 52.29,
+    "pick": 0.63,
+    "ban": 2.34,
+    "games": 16081
+   },
+   "Naafiri": {
+    "win": 42.33,
+    "pick": 0.03,
+    "ban": 7.85,
+    "games": 834
+   }
+  }
+ }
+}

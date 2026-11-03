@@ -103,7 +103,8 @@ async function clientAct(what, champion) {
   if (lastSnapshot) render(lastSnapshot);
 
   try {
-    await D.api("POST", "/api/client/" + what, { champion });
+    const seen = (lastSnapshot && lastSnapshot.local) || {};
+    await D.api("POST", "/api/client/" + what, { champion, action_id: seen.action_id, kind: seen.kind, game_id: seen.game_id });
 
     actionFeedback = {
       what,

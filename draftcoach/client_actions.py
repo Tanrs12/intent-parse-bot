@@ -7,7 +7,10 @@ the decision for *their* seat, and "Accept" performs it through their client:
 * hover / lock a ban or a pick: ``PATCH /lol-champ-select/v1/session/actions/{id}``
   with ``{"championId": X}`` (hover) or ``{"championId": X, "completed": true}`` (lock),
 * request the champion trade the advisor expects: ``POST .../trades/{id}/request``,
-* accept an incoming trade: ``POST .../trades/{id}/accept``.
+* accept an incoming trade: ``POST .../trades/{id}/accept``,
+* role and pick-order swaps: ``POST .../position-swaps/{id}/request|accept|decline`` and
+  ``POST .../pick-order-swaps/{id}/request|accept|decline`` (listed by the client's ``/help``,
+  checked on patch 16.21); their lists are ``GET .../session/position-swaps`` and ``.../pick-order-swaps``.
 
 The pure functions here work on the raw session JSON so they can be unit-tested
 without a client; ``ClientActions`` wraps them around a ``LcuRest``.
@@ -128,3 +131,22 @@ class ClientActions:
             raise RuntimeError("no incoming trade to decline")
         self.rest.request("POST", f"/lol-champ-select/v1/session/trades/{int(trade['id'])}/decline")
         return {"trade_id": int(trade["id"]), "declined": True}
+
+    def swap(self, family: str, swap_id: int, verb: str) -> dict:
+        """request / accept / decline a ``position-swaps`` or ``pick-order-swaps`` offer."""
+        if family not in SWAP_FAMILIES:
+            raise RuntimeError(f"unknown swap kind: {family}")
+        if verb not in ("request", "accept", "decline", "cancel"):
+            raise RuntimeError(f"unknown swap verb: {verb}")
+        self.rest.request("POST", f"/lol-champ-select/v1/session/{family}/{int(swap_id)}/{verb}")
+        return {"family": family, "swap_id": int(swap_id), verb: True}
+
+    def swap_offers(self, family: str) -> list[dict]:
+        """The client's current offers for one swap family (empty when the queue has none)."""
+        if family not in SWAP_FAMILIES:
+            raise RuntimeError(f"unknown swap kind: {family}")
+        rows = self.rest.get(f"/lol-champ-select/v1/session/{family}")
+        return [r for r in rows if isinstance(r, dict)] if isinstance(rows, list) else []
+
+
+SWAP_FAMILIES = ("position-swaps", "pick-order-swaps")

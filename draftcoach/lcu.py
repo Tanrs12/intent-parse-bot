@@ -157,12 +157,15 @@ class LcuRest:
             lobby = self.get("/lol-lobby/v2/lobby") or {}
             config = (lobby.get("gameConfig") or {}) if isinstance(lobby, dict) else {}
             if config.get("queueId") is not None:
-                queue = {"id": config.get("queueId"), "name": config.get("gameMode") or "", "type": config.get("gameMode") or ""}
+                queue = {"id": config.get("queueId"), "name": config.get("gameMode") or "", "type": config.get("gameMode") or "",
+                         "gameMode": config.get("gameMode") or "", "mapId": config.get("mapId")}
         if not queue:
             return None
         try:
             return {"id": int(queue.get("id", -1)), "name": str(queue.get("name") or queue.get("shortName") or ""),
-                    "type": str(queue.get("type") or queue.get("gameMode") or "")}
+                    "type": str(queue.get("type") or queue.get("gameMode") or ""),
+                    "gameMode": str(queue.get("gameMode") or ""), "mapId": queue.get("mapId"),
+                    "category": str(queue.get("category") or "")}
         except (TypeError, ValueError):
             return None
 

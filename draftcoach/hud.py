@@ -212,7 +212,8 @@ class NativeHud:
         self.shown = False
         self.snapshot: dict | None = None
         self.decision_key: tuple | None = None
-        self.hotspots: list[tuple[int, int, int, int, str, str]] = []   # x, y, w, h, action, champion
+        self._drawn_token: dict = {}
+        self.hotspots: list[tuple] = []   # x, y, w, h, action, champion
         self.buttons: list[tk.Button] = []
         self.feedback: tuple[str, float] | None = None                     # last button result, shown for a few seconds
         self._mouse_was_down = False
@@ -275,7 +276,7 @@ class NativeHud:
             return
         hit = self._hotspot_under_cursor()
         if hit is not None:
-            self._act(hit[4], hit[5])
+            self._act(hit[4], hit[5], hit[6] if len(hit) > 6 else None)
 
     # ---- data ----------------------------------------------------------------------------
     def _poll(self) -> None:
@@ -287,7 +288,7 @@ class NativeHud:
                 self.snapshot = None
             time.sleep(0.4)
 
-    def _act(self, what: str, champion: str) -> None:
+    def _act(self, what: str, champion: str, token: dict | None = None) -> None:
         if self._acting:
             return
         self._acting = True
@@ -297,7 +298,8 @@ class NativeHud:
 
         def run() -> None:
             try:
-                req = urllib.request.Request(self.url + f"/api/client/{what}", data=json.dumps({"champion": champion}).encode(),
+                body = {"champion": champion, **(token or {})}
+                req = urllib.request.Request(self.url + f"/api/client/{what}", data=json.dumps(body).encode(),
                                              headers={"Content-Type": "application/json"}, method="POST")
                 urllib.request.urlopen(req, timeout=10).read()
                 self.feedback = (f"{champion} {'locked in' if what == 'lock' else 'hovered'}", time.time())
@@ -398,7 +400,11 @@ class NativeHud:
         rect = self._client_rect()
         foreground = self.u.GetForegroundWindow()
         up = bool(rect) and not self.u.IsIconic(self.client) and (self.always or foreground in (self.client, self.hwnd))
-        decision, notice = decide(self.snapshot or {}) if up else (None, None)
+        snap = self.snapshot or {}
+        decision, notice = decide(snap) if up else (None, None)
+        # The token of the action these buttons are drawn for; a click sends it, never a later snapshot's.
+        seen = snap.get("local") or {}
+        self._drawn_token = {"action_id": seen.get("action_id"), "kind": seen.get("kind"), "game_id": seen.get("game_id")}
         state = (self.snapshot or {}).get("state") or {}
         status = (self.snapshot or {}).get("status") or {}
         feedback_live = bool(
@@ -481,6 +487,7 @@ class NativeHud:
         # Reasons, warnings and plan progress can change without a new champion.
         key = (
             json.dumps(decision, sort_keys=True, ensure_ascii=False),
+            json.dumps(self._drawn_token, sort_keys=True, default=str),   # hotspots must carry the current token
             json.dumps(notice, sort_keys=True, ensure_ascii=False),
             feedback,
             self._acting,
@@ -756,7 +763,7 @@ class NativeHud:
 
                     # Keep pending buttons input-opaque; _act() rejects duplicates.
                     self.hotspots.append(
-                        (bx, by, bw, bh, what, champion)
+                        (bx, by, bw, bh, what, champion, dict(self._drawn_token))
                     )
 
         if notice:

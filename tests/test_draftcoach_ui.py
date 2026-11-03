@@ -105,7 +105,8 @@ def test_simulated_local_contract_exposes_working_lock_button(browser_page):
     pw.expect(button).to_be_enabled()
     assert button.bounding_box()["y"] + button.bounding_box()["height"] <= 480
     button.click()
-    assert posts == [("/api/client/lock", {"champion": "Nami"})]
+    # The click carries the action it was drawn for (stale-click guard), plus the champion.
+    assert [(path, body["champion"], body.get("kind")) for path, body in posts] == [("/api/client/lock", "Nami", "pick")]
     assert errors == []
 
 

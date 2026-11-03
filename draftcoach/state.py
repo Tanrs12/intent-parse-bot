@@ -195,7 +195,8 @@ def infer_roles(team: list[PlayerSlot], meta: dict | None = None, *, fill_blank:
     for p in open_cells:
         if p.role or not leftover:
             continue
-        p.role, p.role_source = leftover.pop(0), "inferred"
+        # Seat order is no evidence at all (blind pick, role-less customs): "guessed" is never pinned.
+        p.role, p.role_source = leftover.pop(0), "guessed"
 
 
 def resolve_locked_swaps(team: list[PlayerSlot], meta: dict | None = None) -> tuple[dict[int, str], list[dict]]:
@@ -270,7 +271,7 @@ def history_pools(user_id: int, limit: int = 10) -> dict[str, list[str]]:
     return out
 
 
-def apply_player(slot: PlayerSlot, player: Player | None, roster: Roster) -> None:
+def apply_player(slot: PlayerSlot, player: Player | None, roster: Roster, *, strict: bool = False) -> None:
     """Attach a roster player's identity, pools and priorities to a seat.
 
     A player without a submitted pool but with an engine profile drafts from
@@ -300,7 +301,7 @@ def apply_player(slot: PlayerSlot, player: Player | None, roster: Roster) -> Non
         if not slot.role and len(slot.allowed_roles) == 1:
             slot.role, slot.role_source = slot.allowed_roles[0], "config"
     if slot.user_id is None and slot.riot_id:
-        slot.user_id = roster.profile_user_id_for(slot.riot_id)
+        slot.user_id = roster.profile_user_id_for(slot.riot_id, strict=strict)
     if not slot.pool and slot.user_id and player is None:
         history = history_pools(slot.user_id)
         if history:
@@ -355,8 +356,13 @@ def _names(ids: list[int] | None) -> list[str]:
     return out
 
 
-def state_from_lcu_session(session: dict, roster: Roster | None = None, gameflow_phase: str | None = None) -> DraftState:
-    """Translate ``/lol-champ-select/v1/session`` JSON into a DraftState."""
+def state_from_lcu_session(session: dict, roster: Roster | None = None, gameflow_phase: str | None = None, *,
+                           seat_fallback: bool = True) -> DraftState:
+    """Translate ``/lol-champ-select/v1/session`` JSON into a DraftState.
+
+    ``seat_fallback`` lets unnamed seats borrow the saved lineup by index. Only test lobbies
+    (custom, versus-AI, simulation) may do that: in Solo/Duo and normals an anonymous seat is a
+    stranger, and giving it a teammate's pool would rank drafts for the wrong player."""
     state = DraftState(source="lcu")
     my_team = session.get("myTeam") or []
     their_team = session.get("theirTeam") or []
@@ -408,13 +414,17 @@ def state_from_lcu_session(session: dict, roster: Roster | None = None, gameflow
                 slot.hover = champ_map.name_for(champion_id)
             if roster is not None:
                 if ours:
-                    player = roster.find_player(riot_id=slot.riot_id, puuid=slot.puuid, name=game_name or None)
-                    if player is None and index < 5 and roster.lineup[index] and not game_name:
+                    # Live seats are strangers unless their PUUID or full Riot ID is ours: a bare game
+                    # name ("Jack") or another tag of a linked account must not borrow a teammate's pool.
+                    player = roster.find_player(riot_id=slot.riot_id, puuid=slot.puuid,
+                                                name=(game_name or None) if seat_fallback else None)
+                    if player is None and seat_fallback and index < 5 and roster.lineup[index] and not game_name:
                         player = roster.players.get(roster.lineup[index])
-                    apply_player(slot, player, roster)
+                    apply_player(slot, player, roster, strict=not seat_fallback)
                 else:
-                    opp = roster.find_opponent(riot_id=slot.riot_id, name=game_name or None)
-                    if opp is None and index < 5 and roster.enemy_lineup[index]:
+                    opp = roster.find_opponent(riot_id=slot.riot_id, name=(game_name or None) if seat_fallback else None,
+                                              strict=not seat_fallback)
+                    if opp is None and seat_fallback and index < 5 and roster.enemy_lineup[index]:
                         opp = roster.opponents.get(roster.enemy_lineup[index])
                     apply_opponent(slot, opp)
             slots.append(slot)
@@ -453,8 +463,11 @@ def state_from_lcu_session(session: dict, roster: Roster | None = None, gameflow
     picks_completed = 0
     step_counter = 0
     step_index = None
+    in_flight: list[tuple] = []
     for group in session.get("actions") or []:
-        for action in group:
+        for action in group or []:
+            if not isinstance(action, dict):
+                continue
             kind = str(action.get("type") or "")
             cell = int(action.get("actorCellId", -1))
             ours = bool(action.get("isAllyAction")) if "isAllyAction" in action else cell in our_cells
@@ -468,16 +481,22 @@ def state_from_lcu_session(session: dict, roster: Roster | None = None, gameflow
             if completed and champion_id and kind == "pick":
                 locked_by_cell[cell] = champ_map.name_for(champion_id) or ""
                 picks_completed += 1
-            if in_progress and not completed:
-                if active_kind == "none":
-                    active_kind, active_ours = kind, ours
-                    step_index = step_counter - 1
-                if kind == active_kind:
-                    active_cells.append(cell)
-                    if action.get("id") is not None:
-                        active_ids[cell] = int(action["id"])
+            if in_progress and not completed and kind in ("pick", "ban"):
+                in_flight.append((kind, ours, cell, action.get("id"), step_counter - 1))
             if not completed:
                 remaining.append({"kind": kind, "ours": ours, "cell_id": cell})
+    # Simultaneous bans (ranked, normal draft) put all ten seats in progress at once, blue first. Our
+    # team's actions decide our turn; taking the first in-flight action made red side read "enemy
+    # banning" and hid its Ban button. Only one team's seats are ever listed as active.
+    if in_flight:
+        mine = [a for a in in_flight if a[1]]
+        chosen = mine or in_flight
+        active_kind, active_ours, step_index = chosen[0][0], chosen[0][1], chosen[0][4]
+        for kind, ours, cell, action_id, _ in chosen:
+            if kind == active_kind and ours == active_ours:
+                active_cells.append(cell)
+                if action_id is not None:
+                    active_ids[cell] = int(action_id)
     state.active = ActiveAction(active_kind, active_ours, active_cells, active_ids)
     state.local_cell_id = int(local_cell) if isinstance(local_cell, int) and local_cell >= 0 else None
     state.pick_number = picks_completed + 1 if any(a["kind"] == "pick" for a in remaining) else 0
@@ -496,16 +515,20 @@ def state_from_lcu_session(session: dict, roster: Roster | None = None, gameflow
     bans = session.get("bans") or {}
     state.our_bans = _names(bans.get("myTeamBans"))
     state.enemy_bans = _names(bans.get("theirTeamBans"))
-    if not state.our_bans and not state.enemy_bans:
-        for group in session.get("actions") or []:
-            for action in group:
-                if action.get("type") != "ban" or not action.get("completed"):
-                    continue
-                name = champ_map.name_for(int(action.get("championId") or 0))
-                if not name:
-                    continue
-                cell = int(action.get("actorCellId", -1))
-                (state.our_bans if cell in our_cells else state.enemy_bans).append(name)
+    # Completed ban actions fill whichever side's array the client left empty (each side independently:
+    # one populated array used to suppress recovery of the other).
+    recover_ours, recover_enemy = not state.our_bans, not state.enemy_bans
+    for group in session.get("actions") or []:
+        for action in group or []:
+            if not isinstance(action, dict) or action.get("type") != "ban" or not action.get("completed"):
+                continue
+            name = champ_map.name_for(int(action.get("championId") or 0))
+            if not name:
+                continue
+            ours = bool(action.get("isAllyAction")) if "isAllyAction" in action else int(action.get("actorCellId", -1)) in our_cells
+            target = state.our_bans if ours else state.enemy_bans
+            if (recover_ours if ours else recover_enemy) and name not in target:
+                target.append(name)
 
     timer = session.get("timer") or {}
     phase = str(timer.get("phase") or "")

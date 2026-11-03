@@ -170,6 +170,7 @@ class Opponent:
         return opp
 
 
+LEGACY_QUEUE_DEFAULTS = ([440], [440, 0], [440, 0, 830, 840, 850, 870])
 DEFAULT_SETTINGS = {
     "pool_limit": 8,          # champions per role handed to the engine
     "comps_limit": 14,        # compositions explored per update
@@ -179,8 +180,9 @@ DEFAULT_SETTINGS = {
     "mode": "competitive",    # competitive | practice: how hard developing picks are penalised
     "committed_plan": "",     # playbook id the team has chosen to draft towards ("" = weigh every open plan)
     "ranking": "backend",     # backend = the repository's /league game brain; engine = the raw composition search
-    "queues": [440, 0],       # queue ids the live coach reacts to: 440 = Ranked Flex, 0 = custom games; [] = any queue
+    "queues": [],             # queue ids the live coach reacts to (440 = Ranked Flex, 0 = custom); [] = every queue but ARAM/Arena
     "scouting_weight": 1.0,   # how much scouted enemy pools move ban/counter scores
+    "auto_swap": True,        # request/accept the role and pick-order swaps that reach the chosen plan
     "draft_type": "tournament",  # tournament | ranked | fearless
     "plan_weight": 4.0,       # pick-score bonus for completing a viable playbook composition
 }
@@ -244,6 +246,9 @@ class Roster:
             opp = Opponent.from_dict(row)
             self.opponents[opp.key] = opp
         self.settings = {**DEFAULT_SETTINGS, **{k: v for k, v in (data.get("settings") or {}).items() if k in DEFAULT_SETTINGS}}
+        if self.settings.get("queues") in LEGACY_QUEUE_DEFAULTS:
+            # Saved before 2 Nov 2026, when Ranked Flex + test lobbies was the default: now every queue.
+            self.settings["queues"] = []
         lineup = list(data.get("lineup") or [])
         self.lineup = (lineup + [None] * 5)[:5]
         enemy = list(data.get("enemy_lineup") or [])
@@ -372,13 +377,14 @@ class Roster:
             return True
         return False
 
-    def profile_user_id_for(self, riot_id: str | None) -> int | None:
-        """Engine profile id for a Riot id; falls back to the bare game name when it is unambiguous."""
+    def profile_user_id_for(self, riot_id: str | None, *, strict: bool = False) -> int | None:
+        """Engine profile id for a Riot id; falls back to the bare game name when it is unambiguous
+        (never when ``strict``: a live seat with another tag is somebody else)."""
         if not riot_id:
             return None
         key = self.riot_key(riot_id)
         hit = self._profile_accounts.get(key)
-        if hit:
+        if hit or strict:
             return hit
         bare = key.split("#")[0]
         matches = {uid for k, uid in self._profile_accounts.items() if k.split("#")[0] == bare}
@@ -400,12 +406,16 @@ class Roster:
             opp.team = team
         return opp
 
-    def find_opponent(self, *, riot_id: str | None = None, name: str | None = None) -> Opponent | None:
+    def find_opponent(self, *, riot_id: str | None = None, name: str | None = None,
+                      strict: bool = False) -> Opponent | None:
+        """``strict`` (live seats): the full Riot ID only, never another tag of the same game name."""
         if riot_id:
             rk = self.riot_key(riot_id)
             for o in self.opponents.values():
                 if rk in {self.riot_key(r) for r in o.riot_ids}:
                     return o
+            if strict:
+                return None
             bare = rk.split("#")[0]
             for o in self.opponents.values():
                 if any(self.riot_key(r).split("#")[0] == bare for r in o.riot_ids):

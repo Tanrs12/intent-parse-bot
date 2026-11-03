@@ -53,7 +53,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTex
 
 from . import ENGINE_DIR, LOADFILE_DIR, ROOT, VAR_DIR, __version__, champions, loadfiles
 from .draft_order import ManualDraft
-from .hub import Hub, _json_default
+from .hub import MISSING, Hub, _json_default
 from .lcu import LcuWatcher
 from .roster import Roster
 
@@ -467,10 +467,13 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
     @app.post("/api/client/{what}")
     async def client_act(what: str, request: Request) -> JSONResponse:
         payload = await _json(request) if int(request.headers.get("content-length") or 0) else {}
-        if what not in ("hover", "lock", "swap_request", "swap_accept", "swap_decline"):
+        if what not in ("hover", "lock", "swap_request", "swap_accept", "swap_decline", "seat_swap"):
             raise HTTPException(404, "unknown client action")
         try:
-            result = await hub.client_act(what, payload.get("champion"), payload.get("trade_id"))
+            result = await hub.client_act(what, payload.get("champion"), payload.get("trade_id"),
+                                          action_id=payload.get("action_id"), family=payload.get("family"),
+                                          swap_id=payload.get("swap_id"), verb=payload.get("verb"),
+                                          kind=payload.get("kind"), game_id=payload["game_id"] if "game_id" in payload else MISSING)
         except RuntimeError as exc:
             raise HTTPException(409, str(exc))
         return JSONResponse({"ok": True, "result": result})
@@ -734,7 +737,10 @@ async def _poll_bridge(hub: Hub, bridge_url: str) -> None:
         data = await asyncio.to_thread(fetch)
         same_game = hub.state is not None and str((data or {}).get("game_id")) == str(hub.state.game_id)
         guidance = (data or {}).get("guidance") if same_game and (data or {}).get("active") else None
-        hub.intent_guidance = guidance if isinstance(guidance, dict) else None
+        guidance = guidance if isinstance(guidance, dict) else None
+        if guidance != hub.intent_guidance:
+            hub.intent_guidance = guidance
+            await hub._push()   # the seat panel and swap plan read the shared guidance
         await asyncio.sleep(0.5)
 
 

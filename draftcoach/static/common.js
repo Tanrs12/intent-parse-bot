@@ -146,7 +146,7 @@
       mid.appendChild(el("div", "sub", sub || ""));
       row.appendChild(mid);
       const right = el("div");
-      const role = el("div", "role " + (slot.role_source === "inferred" ? "inferred" : "") + (opts.onRole ? " clickable" : ""), ROLE_SHORT[slot.role] || "?");
+      const role = el("div", "role " + (["inferred", "guessed"].includes(slot.role_source) ? "inferred" : "") + (opts.onRole ? " clickable" : ""), ROLE_SHORT[slot.role] || "?");
       if (opts.onRole) { role.title = "click to change role"; role.onclick = () => opts.onRole(slot); }
       right.appendChild(role);
       const sw = swapTo[slot.cell_id];
@@ -272,7 +272,7 @@
       row.appendChild(portrait(c.enemy, "small", c.enemy_id));
       const body = el("div");
       const head = el("div", "enemy", c.enemy);
-      head.appendChild(el("small", "", (ROLE_SHORT[c.role] || c.role) + (c.role_source === "inferred" ? " (inferred)" : "")));
+      head.appendChild(el("small", "", (ROLE_SHORT[c.role] || c.role) + (["inferred", "guessed"].includes(c.role_source) ? " (" + c.role_source + ")" : "")));
       body.appendChild(head);
       const answers = el("div", "answers");
       if (!c.responses.length) answers.appendChild(el("span", "empty", c.has_data ? "no matchup data for our pool" : "no matchup data"));

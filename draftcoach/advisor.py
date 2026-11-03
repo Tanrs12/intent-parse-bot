@@ -485,14 +485,10 @@ def advise(state: DraftState, roster: Roster | None = None, *, meta: dict | None
             seat = engine_assignments[0][role]
             slot = slot_by_role[role]
             signups.append(backend.signup_for_seat(slot, role, pools_by_role.get(role, []), roster, seat["user_id"]))
-            if slot.user_id and slot.role_source in ("client", "config"):
-                role_players[role] = int(slot.user_id)
+            if slot.role_source in ("lcu", "client", "config"):
+                role_players[role] = int(seat["user_id"])
         backend_result = backend.recommend(signups, unavailable=unavailable, locked=our_locked, role_players=role_players,
                                            side=state.side, limit=comps_limit)
-        if backend_result and not backend_result.get("recommendations") and role_players:
-            # Pinning every seat can leave the search empty: let the backend choose roles itself.
-            backend_result = backend.recommend(signups, unavailable=unavailable, locked=our_locked, role_players={},
-                                               side=state.side, limit=comps_limit)
         comps = backend.as_comps(backend_result)
         if comps:
             notes.append("ranking: shared /league game backend")

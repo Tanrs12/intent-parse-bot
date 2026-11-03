@@ -4,14 +4,7 @@
   "note": "Flexers squad roster: 28 linked accounts across eight people; player-submitted champion pools, familiarity tiers (comfort, refresh, developing), and six target composition playbooks. Tom is tracked but has no assigned roles/champions until his own signup.",
   "mode": "merge",
   "settings": {
-    "queues": [
-      440,
-      0,
-      830,
-      840,
-      850,
-      870
-    ]
+    "queues": []
   },
   "players": [
     {

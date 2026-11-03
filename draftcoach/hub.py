@@ -22,9 +22,9 @@ from collections import deque
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-from . import advisor, loadfiles
+from . import VAR_DIR, advisor, assist, loadfiles
 from . import champions as champ_map
-from . import client_actions
+from . import client_actions, queues
 from . import state as ds
 from .draft_order import DRAFT_TYPES, ManualDraft, normalise_type
 from .roster import Roster
@@ -32,6 +32,7 @@ from .roster import Roster
 import league_comp_engine as engine  # type: ignore  # noqa: E402
 
 log = logging.getLogger("draftcoach.hub")
+MISSING = object()   # a client action request that did not say which game its button was drawn for
 Broadcast = Callable[[dict], Awaitable[None]]
 ROLE_SHORT = {"Top": "Top", "Jungle": "Jungle", "Mid": "Mid", "ADC": "Bot", "Support": "Support"}
 
@@ -68,6 +69,14 @@ class Hub:
         self.any_queue = False           # --any-queue: coach customs/normals too (testing)
         self.lockfile: str | None = None # explicit lockfile path, if the server was given one
         self.lcu_enabled = False         # the server runs a client watcher (lockfile fallback is allowed)
+        # Any-queue assistance: this seat's mastery (fetched once per game) and the swap offers this
+        # client already acted on, so a refused or pending request is never repeated.
+        self.comfort: dict[str, dict] = {}
+        self._comfort_game: object = None
+        self._swaps_done: set[tuple] = set()
+        self._swap_task: asyncio.Task | None = None
+        self._tierlist: dict | None = None
+        self._published_at = 0.0
         self._sync_series()
 
     # ---- draft type / fearless series -------------------------------------------
@@ -128,18 +137,33 @@ class Hub:
 
     # ---- inputs ------------------------------------------------------------
     def allowed_queues(self) -> list[int] | None:
-        """Queue ids the live coach reacts to; None means every queue (``--any-queue``)."""
+        """Queue ids the live coach reacts to; None means every role-draft queue (ARAM/Arena never)."""
         if self.any_queue:
             return None
-        raw = self.roster.settings.get("queues", [440])
+        raw = self.roster.settings.get("queues", [])
         try:
             ids = [int(x) for x in (raw or [])]
         except (TypeError, ValueError):
-            ids = [440]
+            ids = []
         return ids or None
 
     async def ingest_lcu_session(self, session: dict | None, gameflow_phase: str | None, queue: dict | None = None,
                                  source: str = "lcu") -> None:
+        """Never raises: a malformed session (new client field, odd queue id) must not tear down the
+        client watcher, which would reconnect and fail again for the rest of champion select."""
+        try:
+            await self._ingest_lcu_session(session, gameflow_phase, queue, source)
+        except Exception as exc:  # noqa: BLE001
+            log.exception("champion select session could not be read")
+            self.last_session = None          # no client action may run against the rejected update
+            self.status["detail"] = f"Could not read this champion select update: {exc}"
+            try:
+                await self._push()
+            except Exception:  # noqa: BLE001
+                log.exception("could not publish after a rejected update")
+
+    async def _ingest_lcu_session(self, session: dict | None, gameflow_phase: str | None, queue: dict | None,
+                                  source: str) -> None:
         allowed = self.allowed_queues() if source == "lcu" else None
         self.status["queue"] = queue
         qtext = " ".join(str((queue or {}).get(k) or "") for k in ("name", "shortName", "description", "type", "category")).casefold()
@@ -147,15 +171,20 @@ class Hub:
         category = str((queue or {}).get("category") or "").casefold()
         qtype = str((queue or {}).get("type") or "").casefold()
         is_bot = category == "versusai" or "bot" in qtype or int((queue or {}).get("id", -1)) in {830, 840, 850}
-        if session and queue is not None and allowed is not None and int(queue.get("id", -1)) not in allowed and not (is_custom and 0 in allowed) and not is_bot:
-            # Normal / solo-queue champ select: stand by. Customs and versus-AI are test modes.
-            name = queue.get("name") or f"queue {queue.get('id')}"
+        mode = queues.unsupported_mode(queue) if session and source == "lcu" else None
+        filtered = (allowed is not None and queue is not None and int(queue.get("id", -1)) not in allowed
+                    and not (is_custom and 0 in allowed) and not is_bot)
+        if session and (mode or filtered):
+            # ARAM / Arena have no role draft; other queues are skipped only when settings.queues lists queues.
+            name = queues.queue_label(queue)
+            detail = (f"Standing by: {mode} has no role draft." if mode
+                      else f"Standing by: {name} is not in this coach's queue list (settings.queues).")
             if self.state is not None and self.state.source == "lcu":
-                self.log_event(f"standing by: {name} is not ranked flex", "phase")
+                self.log_event(f"standing by: {mode or name}", "phase")
             self.last_session = None
             self.status["lcu_in_champ_select"] = False
             self._last_input = None
-            await self.clear(detail=f"Standing by: {name} is not Ranked Flex, Custom/Practice Tool, or versus-AI.", source=source)
+            await self.clear(detail=detail, source=source)
             return
         self.last_session = session
         if not session:
@@ -170,10 +199,14 @@ class Hub:
                 self._last_input = None
                 await self.clear(detail=f"not in champ select (phase {gameflow_phase or 'None'})", source=source)
             return
-        self.status["lcu_in_champ_select"] = source == "lcu"
-        self._last_input = ("lcu", session, gameflow_phase, source)
-        state = ds.state_from_lcu_session(session, self.roster, gameflow_phase)
+        seat_fallback = source == "simulation" or is_custom or is_bot
+        state = ds.state_from_lcu_session(session, self.roster, gameflow_phase, seat_fallback=seat_fallback)
+        self._apply_wanted_role(state)
         state.source = source
+        self.status["lcu_in_champ_select"] = source == "lcu"
+        self._last_input = ("lcu", session, gameflow_phase, source, seat_fallback)
+        if source == "lcu":
+            self._after_live_session(session, state)
         self._apply_series(state)
         await self.submit(state)
 
@@ -196,8 +229,9 @@ class Hub:
             return
         kind = self._last_input[0]
         if kind == "lcu":
-            _, session, phase, source = self._last_input
-            state = ds.state_from_lcu_session(session, self.roster, phase)
+            _, session, phase, source, seat_fallback = self._last_input
+            state = ds.state_from_lcu_session(session, self.roster, phase, seat_fallback=seat_fallback)
+            self._apply_wanted_role(state)
             state.source = source
             self._apply_series(state)
         elif kind == "manual":
@@ -282,6 +316,8 @@ class Hub:
                                 "our_locked": {}, "enemy_locked": {}, "swaps": []}
                 if generation != self._generation:
                     continue  # A dodge/queue change revoked this computation while it ran.
+                if seq != self._submitted_seq and self._pending is not None and time.time() - self._published_at < 1.0:
+                    continue  # A newer session is queued; publish it instead (at least once a second).
                 elapsed = (time.perf_counter() - started) * 1000
                 self._diff_events(self._prev_state, state)
                 change = self._explain_change(self._prev_state, self._prev_guidance, state, guidance)
@@ -291,8 +327,11 @@ class Hub:
                 self._prev_state, self._prev_guidance = state, guidance
                 self.state = state
                 self.guidance = guidance
-                self.status.update({"source": state.source, "updated_at": time.time(), "compute_ms": round(elapsed, 1), "stale": False})
+                # Scoring finishing is not proof the client is back: a disconnect during scoring stays stale.
+                stale = state.source == "lcu" and self.status.get("connection") not in ("connected", None)
+                self.status.update({"source": state.source, "updated_at": time.time(), "compute_ms": round(elapsed, 1), "stale": stale})
                 self._scored_seq = seq
+                self._published_at = time.time()
                 await self._push()
                 if self._pending is None and self.prewarm:
                     await self._prewarm(state, guidance)
@@ -507,7 +546,7 @@ class Hub:
         # FLEXERS: the scripted simulation stands in for the League client, so the panel's Hover / Lock
         # buttons can be tried in demo mode; the action lands on the simulated session (see client_act).
         simulated = state.source == "simulation"
-        view: dict = {"cell_id": slot.cell_id, "name": slot.display_name, "role": slot.role, "locked": slot.locked,
+        view: dict = {"cell_id": slot.cell_id, "game_id": state.game_id, "name": slot.display_name, "role": slot.role, "locked": slot.locked,
                       "hover": slot.hover, "kind": None, "can_act": False, "suggestion": None, "swap": None,
                       "incoming_swap": None, "client": simulated or (not self.status.get("stale") and self.client_rest() is not None),
                       "simulated": simulated}
@@ -569,9 +608,30 @@ class Hub:
                                      "can_accept": view["client"]}
         return view
 
-    async def client_act(self, what: str, champion: str | None = None, trade_id: int | None = None) -> dict:
-        """hover | lock | swap_request | swap_accept | swap_decline through the local client."""
+    async def client_act(self, what: str, champion: str | None = None, trade_id: int | None = None, *,
+                         action_id: int | None = None, family: str | None = None, swap_id: int | None = None,
+                         verb: str | None = None, kind: str | None = None, game_id: object = MISSING) -> dict:
+        """hover | lock | swap_request | swap_accept | swap_decline | seat_swap through the local client.
+
+        ``action_id`` is the client action the clicked button was drawn for: a click from a screen that
+        has since moved on (our ban became our pick, a new game) is refused instead of applied to
+        whatever action is current now."""
         session = self.last_session
+        live = bool(session) and self.state is not None and self.state.source == "lcu"
+        if live and self.status.get("stale"):
+            raise RuntimeError("League client state is stale; wait for it to reconnect")
+        if what in ("hover", "lock") and live and (action_id is None or kind is None or game_id is MISSING):
+            raise RuntimeError("this button is from an older screen: refresh and choose again")
+        if what in ("hover", "lock") and live and str(game_id) != str(session.get("gameId")):
+            raise RuntimeError("that choice is out of date: the draft has moved on, pick again")
+        if what in ("hover", "lock") and (action_id is not None or kind is not None):
+            # The same raw session object is handed to ClientActions below, so the action checked here is
+            # the action executed (its own localPlayerCellId, not the last published state's).
+            cell = client_actions.local_cell(session or {})
+            current = client_actions.active_action(session or {}, cell) if cell is not None else None
+            if current is None or (action_id is not None and int(current.get("id", -1)) != int(action_id)) \
+                    or (kind is not None and current.get("type") != kind):
+                raise RuntimeError("that choice is out of date: the draft has moved on, pick again")
         if session and self.state is not None and self.state.source == "simulation":
             return await self._simulated_client_act(what, champion)
         if self.status.get("stale"):
@@ -601,6 +661,11 @@ class Hub:
         elif what == "swap_decline":
             result = await asyncio.to_thread(actions.decline_trade, session, trade_id)
             self.log_event("client: swap declined", "board")
+        elif what == "seat_swap":
+            if family not in client_actions.SWAP_FAMILIES or verb not in ("request", "accept", "decline", "cancel") or swap_id is None:
+                raise RuntimeError("seat swap needs a family, swap id and verb")
+            result = await asyncio.to_thread(actions.swap, family, int(swap_id), verb)
+            self.log_event(f"client: {'role' if family == 'position-swaps' else 'pick-order'} swap {verb}", "board")
         else:
             raise RuntimeError(f"unknown client action: {what}")
         return result
@@ -642,6 +707,200 @@ class Hub:
         return {"action_id": int(action["id"]), "kind": action.get("type"), "champion": champion,
                 "completed": what == "lock", "simulated": True}
 
+    # ---- any-queue assistance ----------------------------------------------------------------
+    def tierlist(self) -> dict:
+        if self._tierlist is None:
+            self._tierlist = assist.load_tierlist()
+        return self._tierlist
+
+    def _local_slot(self) -> ds.PlayerSlot | None:
+        state = self.state
+        if state is None or state.local_cell_id is None:
+            return None
+        return next((p for p in state.our_team if p.cell_id == state.local_cell_id), None)
+
+    def wanted_role(self, state: ds.DraftState | None = None) -> str | None:
+        """The role this seat should end up in: the team's role lock for our verified identity, else
+        our own "My role tonight" choice. Display names never authorise anything: a stranger called
+        "Alice" in Solo/Duo is not the Alice the team draft placed."""
+        state = state or self.state
+        slot = None
+        if state is not None and state.local_cell_id is not None:
+            slot = next((p for p in state.our_team if p.cell_id == state.local_cell_id), None)
+        control = (self.intent_guidance or {}).get("control") or {}
+        if slot is not None and slot.user_id and slot.player_key:
+            for role, uid in (control.get("role_locks") or {}).items():
+                try:
+                    same = int(uid) == int(slot.user_id) or float(uid) == float(slot.user_id)
+                except (TypeError, ValueError):
+                    same = False
+                if role in assist.ROLES and same:
+                    return role
+        try:
+            role = json.loads((VAR_DIR / "my-role.json").read_text(encoding="utf-8")).get("role")
+        except (OSError, ValueError, AttributeError):
+            role = None
+        return role if role in assist.ROLES else None
+
+    def _apply_wanted_role(self, state: ds.DraftState) -> None:
+        """Blind pick and role-less lobbies: our seat plays the role we chose, not a seat-order guess.
+
+        Only a seat whose role is a guess (or unknown) moves; whoever was guessed into the wanted role
+        takes our old guess. Client-assigned and champion-inferred roles are left alone."""
+        slot = None
+        if state.local_cell_id is not None:
+            slot = next((p for p in state.our_team if p.cell_id == state.local_cell_id), None)
+        if slot is None or slot.role_source not in ("guessed", "unknown"):
+            return
+        wanted = self.wanted_role(state)
+        if wanted is None or slot.role == wanted:
+            return
+        holder = next((p for p in state.our_team if p is not slot and p.role == wanted), None)
+        if holder is not None and holder.role_source not in ("guessed", "unknown"):
+            return
+        if holder is not None:
+            holder.role = slot.role
+        slot.role, slot.role_source = wanted, "wanted"
+
+    def wanted_pick_slot(self, role: str | None) -> int | None:
+        """Our 0-based pick slot in the leading draft's reveal order (counter-pick roles go last)."""
+        if role not in assist.ROLES:
+            return None
+        comps = (self.intent_guidance or {}).get("comps") or []
+        rows = (comps[0].get("pick_order") if comps and isinstance(comps[0], dict) else None) \
+            or (self.guidance or {}).get("pick_order") or []
+        order = [r.get("role") for r in rows if isinstance(r, dict) and r.get("role") in assist.ROLES]
+        return order.index(role) if role in order else None
+
+    def assist_view(self) -> dict | None:
+        """Enemy pick prediction, comfort-first picks for this seat and the swap plan."""
+        state = self.state
+        if state is None or state.source not in ("lcu", "simulation"):
+            return None
+        tier = self.tierlist()
+        try:
+            out: dict = {"patch": tier.get("patch"), "enemy": assist.predict_enemy(state, tier, self.matchups)}
+            slot = self._local_slot()
+            if slot is not None:
+                local = self.local_view() or {}
+                role = local.get("picking_role") or slot.role
+                # Only a lane we are sure of gets matchup bonuses; a flex pick's guessed lane does not.
+                enemy = next((p.locked for p in state.enemy_team
+                              if p.locked and p.role == role and assist.confident_lane(p, tier)), None)
+                out["role"] = role
+                out["picks"] = assist.comfort_picks(
+                    role, state.unavailable() | set(state.never_pick), tier, self.matchups, comfort=self.comfort,
+                    pool=slot.pool.get(role, []), enemy_laner=enemy, avoid=set(slot.avoid)) if role else []
+                target = self.wanted_role()
+                out["swaps"] = assist.swap_plan(self.last_session or {}, target, self.wanted_pick_slot(target))
+                out["comfort_known"] = bool(self.comfort)
+            return out
+        except Exception as exc:  # noqa: BLE001 - assistance must never break the snapshot
+            log.exception("assist failed")
+            return {"error": str(exc)}
+
+    def _epoch(self, session: dict | None) -> tuple:
+        """What a background client action was decided for: scoring generation, game, our cell, us."""
+        session = session or {}
+        me = next((m for m in session.get("myTeam") or [] if isinstance(m, dict)
+                   and m.get("cellId") == session.get("localPlayerCellId")), {})
+        return (self._generation, session.get("gameId"), session.get("localPlayerCellId"), me.get("puuid"))
+
+    def _epoch_current(self, epoch: tuple) -> bool:
+        return self.last_session is not None and self._epoch(self.last_session) == epoch \
+            and self.status.get("connection") == "connected" and not self.status.get("stale")
+
+    def _after_live_session(self, session: dict, state: ds.DraftState) -> None:
+        """Per live session update: load this seat's mastery once per game, then chase the plan."""
+        epoch = self._epoch(session)
+        game = (epoch[1], epoch[3])
+        loop = asyncio.get_running_loop()
+        if self._comfort_game != game:
+            self._comfort_game = game
+            self.comfort = {}
+            self._swaps_done.clear()
+            loop.create_task(self._load_comfort(game))
+        if self.roster.settings.get("auto_swap", True) and (self._swap_task is None or self._swap_task.done()):
+            self._swap_task = loop.create_task(self._auto_swap(session, state, epoch))
+
+    async def _load_comfort(self, game: tuple) -> None:
+        rest = self.client_rest()
+        if rest is None:
+            return
+        try:
+            rows = await asyncio.to_thread(rest.get, "/lol-champion-mastery/v1/local-player/champion-mastery")
+        except Exception as exc:  # noqa: BLE001
+            log.warning("champion mastery unavailable: %s", exc)
+            return
+        if self._comfort_game != game:
+            return   # a new game / account arrived while this was loading
+        self.comfort = assist.comfort_from_mastery(rows if isinstance(rows, list) else [])
+        await self._push()
+
+    async def _auto_swap(self, session: dict, state: ds.DraftState, epoch: tuple) -> None:
+        """Request the swap towards the wanted role / pick slot and accept offers that move us there.
+
+        Everything is decided for ``state``/``epoch`` and re-checked after every await: a dodge, a new
+        game, another local seat or a disconnect cancels the rest. Each (swap id, verb) is tried once
+        per game, no new request goes out while one of ours is pending in either family, and nothing is
+        declined automatically."""
+        target = self.wanted_role(state)
+        rest = self.client_rest() if target else None
+        if rest is None:
+            return
+        actions = client_actions.ClientActions(rest)
+        session = dict(session)
+        try:
+            for family, key in (("position-swaps", "positionSwaps"), ("pick-order-swaps", "pickOrderSwaps")):
+                if key not in session:
+                    session[key] = await asyncio.to_thread(actions.swap_offers, family)
+        except Exception as exc:  # noqa: BLE001
+            log.debug("swap offers unavailable: %s", exc)
+            return
+        if not self._epoch_current(epoch) or not self.roster.settings.get("auto_swap", True):
+            return
+        plan = assist.swap_plan(session, target, self.wanted_pick_slot(target))
+        todo = [(row["family"], row["swap_id"], "accept", row["with_cell"]) for row in plan["accept"]]
+        pending = any(str((o or {}).get("state") or "").upper() == "SENT"
+                      for o in list(session.get("positionSwaps") or []) + list(session.get("pickOrderSwaps") or [])
+                      if isinstance(o, dict))
+        if not pending:
+            for kind in ("position", "pick_order"):   # one outgoing request at a time; the role swap first
+                row = plan.get(kind)
+                if row and row["state"] == "AVAILABLE" and row["swap_id"] is not None \
+                        and (row["family"], row["swap_id"], "request") not in self._swaps_done:
+                    todo.append((row["family"], row["swap_id"], "request", row["with_cell"]))
+                    break
+        for family, swap_id, verb, cell in todo:
+            key = (family, swap_id, verb)
+            if swap_id is None or key in self._swaps_done:
+                continue
+            if not self._epoch_current(epoch) or not self.roster.settings.get("auto_swap", True) \
+                    or self.wanted_role(self.state) != target:
+                return   # the game, our seat, the setting or the wanted role changed while we waited
+            try:
+                fresh = {f: await asyncio.to_thread(actions.swap_offers, f) for f in client_actions.SWAP_FAMILIES}
+            except Exception as exc:  # noqa: BLE001
+                log.debug("swap offers unavailable: %s", exc)
+                return
+            if not self._epoch_current(epoch) or not self.roster.settings.get("auto_swap", True)                     or self.wanted_role(self.state) != target:
+                return
+            offer = next((o for o in fresh.get(family) or [] if isinstance(o, dict) and o.get("id") == swap_id), None)
+            wanted_state = "AVAILABLE" if verb == "request" else "RECEIVED"
+            if offer is None or str(offer.get("state") or "").upper() != wanted_state:
+                continue
+            if verb == "request" and any(str((o or {}).get("state") or "").upper() == "SENT"
+                                         for rows in fresh.values() for o in rows or [] if isinstance(o, dict)):
+                return   # one of ours went out meanwhile
+            self._swaps_done.add(key)
+            what = "role swap" if family == "position-swaps" else "pick-order swap"
+            try:
+                await asyncio.to_thread(actions.swap, family, int(swap_id), verb)
+                self.log_event(f"auto {what} {verb} with seat {cell} (towards {target})", "board")
+            except Exception as exc:  # noqa: BLE001
+                self.log_event(f"auto {what} {verb} refused: {exc}", "info")
+            await self._push()
+
     # ---- outputs ----------------------------------------------------------------------
     def snapshot(self) -> dict:
         return {
@@ -660,6 +919,7 @@ class Hub:
             "events": list(self.events)[-40:],
             "imports": list(self.roster.history)[-12:],
             "engine_data": engine_data_info(),
+            "assist": self.assist_view(),
         }
 
     async def _push(self) -> None:

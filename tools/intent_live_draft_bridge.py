@@ -36,6 +36,9 @@ NORTHFLANK = Path(os.environ.get("APPDATA", "")) / "npm" / "northflank.CMD"
 SIGNUP_CACHE = REPO / "data" / "live_flex_signups.json"
 RUNTIME_PRO_PATH = REPO / "data" / "live_league_recent_pro.json"
 ARAM_QUEUE_IDS = {450, 2400}
+# No role draft either: ARAM variants and Arena (two-player teams) stand by; every Summoner's Rift queue is coached.
+NO_ROLE_DRAFT_IDS = ARAM_QUEUE_IDS | {65, 100, 720, 1700, 1710}
+NO_ROLE_DRAFT_TOKENS = ("aram", "mayhem", "kiwi", "howling abyss", "cherry", "arena")
 
 
 def _load_champion_ids() -> dict[str, int]:
@@ -717,7 +720,7 @@ def _mode_gate():
     name = " ".join(str(queue.get(k, "")) for k in ("name", "shortName", "description", "gameMode", "type")).casefold()
     map_data = flow.get("map") or {}
     map_name = " ".join(str(map_data.get(k, "")) for k in ("name", "gameModeName", "gameMode")).casefold()
-    disabled = queue_id in ARAM_QUEUE_IDS or any(token in (name + " " + map_name) for token in ("aram", "mayhem", "kiwi", "howling abyss"))
+    disabled = queue_id in NO_ROLE_DRAFT_IDS or any(token in (name + " " + map_name) for token in NO_ROLE_DRAFT_TOKENS)
     return {
         "disabled": bool(disabled),
         "queue_id": queue_id,
@@ -736,7 +739,7 @@ def _queue_traits(queue: dict | None) -> dict:
     text = " ".join(str(queue.get(k, "")) for k in ("name", "shortName", "description", "gameMode", "type", "category")).casefold()
     is_custom = queue_id == 0 or "custom" in text
     is_bot = queue_id in {830, 840, 850, 870} or "versusai" in text or "co-op vs ai" in text or " bot" in (" " + text)
-    disabled = queue_id in ARAM_QUEUE_IDS or any(token in text for token in ("aram", "mayhem", "kiwi", "howling abyss"))
+    disabled = queue_id in NO_ROLE_DRAFT_IDS or any(token in text for token in NO_ROLE_DRAFT_TOKENS)
     return {"disabled": disabled, "queue_id": queue_id, "queue_name": queue.get("name") or queue.get("description"), "is_custom": is_custom, "is_bot": is_bot}
 
 
@@ -988,9 +991,48 @@ def _current_five(state: dict, *, fill_for_test: bool = False) -> list[dict]:
             pass
         pug = _live_pug_signup(row, index)
         if pug is not None:
+            if row.get("is_local"):
+                # This machine's own seat is always controlled, signed up or not: its client is the one
+                # that hovers and locks, so it must get picks (it drafts from its seat pool or the meta).
+                own = [c for c in (row.get("pool") or {}).get(row.get("role"), []) if c]
+                live_champion = row.get("locked") or row.get("hover")
+                pug["champions"] = {row["role"]: [live_champion] if row.get("locked") else list(dict.fromkeys(
+                    ([live_champion] if live_champion else []) + own + _pug_role_pool(row["role"], 6)))}
+                pug["_uncontrolled"] = False
+                pug["_local_unsigned"] = True
             resolved.append(pug)
 
     return resolved[:5] if len(resolved) == 5 else []
+
+TEAM_CONTROL_MIN_PLAYERS = 3
+
+
+def _same_discord_id(uid: int, known: set[int]) -> int:
+    """Discord ids exceed 2**53, so a browser that edited a role lock sends the nearest double
+    (332490596004659200 for ...201). Map it back to the one known id with the same double value."""
+    if uid in known:
+        return uid
+    matches = [k for k in known if float(k) == float(uid)]
+    return matches[0] if len(matches) == 1 else uid
+
+
+def _control_for_lobby(control: dict, five: list[dict], five_ids: set[int]) -> dict:
+    """The team's chosen draft only steers a lobby the team is actually in.
+
+    The relay room is shared by the whole squad, so a Discord "Lock Draft" stays set while one member
+    plays Solo/Duo with strangers. Unless at least three of the chosen players (or, with no role locks,
+    three signed-up team members) are in this five, the choice, champion locks and identity are
+    ignored here; the chooser keeps them for the next team game."""
+    # Verified team members in this five (signed-up profiles, not PUG placeholders). Role locks name only
+    # the players someone pinned by hand, so they cannot measure whether the team is here.
+    present = sum(1 for row in five if not row.get("_uncontrolled") and not row.get("_local_unsigned")
+                  and int(row.get("user_id") or 0) > 0)
+    steering = ("chosen", "champion_locks", "identity", "role_locks", "signature")
+    if present >= TEAM_CONTROL_MIN_PLAYERS or not any(control.get(k) for k in steering):
+        return control
+    return {**control, "chosen": None, "champion_locks": {}, "identity": None, "role_locks": {},
+            "signature": None, "team_absent": True}
+
 
 def _apply_role_locks(live: dict[str, int], role_locks: dict[str, int], five_ids: set[int]) -> dict[str, int]:
     """Pin players to roles as the chosen draft says, as SWAPS over the live layout.
@@ -1002,6 +1044,7 @@ def _apply_role_locks(live: dict[str, int], role_locks: dict[str, int], five_ids
     """
     out = dict(live)
     for role, uid in (role_locks or {}).items():
+        uid = _same_discord_id(uid, five_ids)
         if role not in ROLES or uid not in five_ids:
             continue
         prev_role = next((r for r, u in out.items() if u == uid), None)
@@ -1047,6 +1090,8 @@ def _role_players_for_state(state: dict, five: list[dict], *, testing: bool) -> 
     for row in state.get("our_team", []) or []:
         if row.get("role") not in ROLES or not row.get("user_id"):
             continue
+        if row.get("role_source") == "guessed":
+            continue   # a seat-order guess must not hard-pin the backend's role layout
         uid = int(row["user_id"])
         if uid not in five_ids:
             continue
@@ -1625,14 +1670,8 @@ def build_response():
     testing = bool(merged_gate.get("is_custom") or merged_gate.get("is_bot") or state.get("source") == "simulation")
     known_profiles = _known_live_profile_count(state)
     party_inferred = party.get("party_size") is None and known_profiles >= 3
-    # Custom and versus-AI lobbies are allowed for solo visual testing. Normal PvP supports
-    # 3/4/5-player premades; one/two-player queues remain off. If the lobby endpoint vanished
-    # before this helper started, three matched live profiles are sufficient evidence to continue.
-    if not testing and not (party["party_confirmed"] or party_inferred):
-        size = party.get("party_size")
-        reason = "Draft Coach normal PvP needs a 3-5 player premade" if size is None else f"Draft Coach normal PvP needs a 3-5 player premade ({size}/5 currently)"
-        return {"active": False, "disabled": True, "reason": reason, "known_profiles": known_profiles,
-                "party_inferred": party_inferred, **merged_gate, **party}
+    # Will, 2 Nov 2026: solo and duo queue are coached too. Party size is only informative now;
+    # unmatched seats become neutral PUG profiles in _current_five and the local seat stays ours.
     # Live helpers are champion-select-only. The server keeps a manual board state while idle;
     # never score that in the background or let it keep the overlays alive over the normal client.
     in_champ_select = bool(status.get("lcu_in_champ_select")) or state.get("source") == "simulation"
@@ -1671,6 +1710,7 @@ def build_response():
     }, sort_keys=True)
     control = _get_control()
     five_ids = {int(row["user_id"]) for row in five if row.get("user_id")}
+    control = _control_for_lobby(control, five, five_ids)
     # FLEXERS: a chosen draft pins roles, but a lock that contradicts the live lobby (a sub replaced by a
     # PUG, two players swapped) must degrade to "ignore the lock", never to "no drafts": evict the live
     # seat that already holds the locked player, and fall back to the live map if a player would end
@@ -1685,7 +1725,7 @@ def build_response():
         now = time.time()
         if cache_key == _response_cache_key and _response_cache_value is not None:
             return _response_cache_value
-        signature = _get_preference()
+        signature = control.get("signature") if "signature" in control else _get_preference()
         selected_plan = {}
         if signature:
             values = signature.split("|")

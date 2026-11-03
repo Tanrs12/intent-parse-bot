@@ -88,5 +88,6 @@
       ? "Roles fixed · Unpicked champions can adapt to verified enemy lanes"
       : "Selected plan · Actual League locks take priority"));
   }
-  window.DraftSelectedComp = { render };
+  // coach.html and overlay.html call D.SelectedComp.render; a separate global left that undefined.
+  D.SelectedComp = window.DraftSelectedComp = { render };
 })();

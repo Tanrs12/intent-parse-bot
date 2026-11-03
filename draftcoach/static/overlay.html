@@ -684,14 +684,14 @@
 
       hover.onclick = () => clientAct(
         "hover",
-        { champion: sg.champion },
+        { champion: sg.champion, action_id: local.action_id, kind: local.kind, game_id: local.game_id },
         `${ban ? "Selecting" : "Hovering"} ${sg.champion}…`,
         `${sg.champion} ${ban ? "selected" : "hovered"}`
       );
 
       accept.onclick = () => clientAct(
         "lock",
-        { champion: sg.champion },
+        { champion: sg.champion, action_id: local.action_id, kind: local.kind, game_id: local.game_id },
         `${ban ? "Banning" : "Locking"} ${sg.champion}…`,
         `${sg.champion} ${ban ? "banned" : "locked in"}`
       );

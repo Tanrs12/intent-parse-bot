@@ -421,3 +421,9 @@ button.card:hover:not(:disabled) .champ { color: var(--mm-blue); }
 .team-draft-seats .control-field > .mm-meta { display: block; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .team-draft-seats select { width: 100%; min-width: 0; min-height: 40px; }
 .team-draft-seats small { margin-top: 0; line-height: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Any-queue seat assistance */
+.assist-swaps { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+.assist-enemy { display: grid; gap: 6px; }
+.assist-enemy-role { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.assist-enemy-role > strong { min-width: 4.5em; font-size: 0.8em; letter-spacing: 0.06em; }
