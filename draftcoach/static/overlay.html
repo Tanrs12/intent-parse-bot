@@ -134,6 +134,7 @@
       </section>
       <div class="ov-context">
       <div id="selected-comp-board" hidden aria-label="Selected Discord five-role composition"></div>
+      <section id="enemy-role-editor" class="fd-enemy-role-editor" aria-label="Enemy lane assignments" hidden></section>
       <section id="post-draft-summary" class="draft-summary"
                aria-label="Final team and game plan" hidden></section>
       <div id="order" hidden>
@@ -185,6 +186,7 @@
 
 <script src="/static/common.js"></script>
 <script src="/static/selected-comp.js"></script>
+<script src="/static/enemy-roles.js"></script>
 <script src="/static/draft-review.js"></script>
 <script>
 (function () {
@@ -234,7 +236,7 @@
     // ---- shared draft control and authoritative panel guidance -------------------
   const BRIDGE = "http://127.0.0.1:" + (Number(location.port || 8765) + 1);  // FLEXERS: the bridge runs on app port + 1
   let identityPending = false, identityFilled = false;
-  let panelBridge = null, panelControl = null, controlPolling = false;
+  let panelBridge = null, panelControl = null, controlPolling = false, panelIsCaptain = false;
 
   function renderSelectedTeamComp() {
     const box = $("team-choice-status");
@@ -280,6 +282,7 @@
 
       const data = await controlResponse.json();
       panelControl = data.control;
+      panelIsCaptain = !!data.is_captain;
       renderSelectedTeamComp();
       panelBridge = guidanceResponse.ok
         ? await guidanceResponse.json()
@@ -308,6 +311,7 @@
     } catch (e) {
       panelBridge = null;
       panelControl = null;
+      panelIsCaptain = false;
       renderSelectedTeamComp();
       $("identity").parentElement.hidden = true;
       $("shake").hidden = true;
@@ -320,7 +324,7 @@
   }
 
   async function updatePanelControl(update) {
-    if (identityPending) return;
+    if (identityPending) return false;
     identityPending = true;
     $("identity").disabled = $("shake").disabled = true;
     $("settings-feedback").textContent = "Updating shared draft…";
@@ -335,12 +339,15 @@
       const data = await response.json();
       panelControl = data.control || panelControl;
       $("settings-feedback").textContent = update.shake_it_up
-        ? "Finding different drafts…"
+        ? "Finding different drafts…" : update.enemy_role_overrides
+        ? "Enemy lane assignments shared with the team."
         : "Shared identity updated.";
+      return true;
     } catch (e) {
       $("identity").value = panelControl?.identity || "";
       $("settings-feedback").textContent =
         "Could not update the shared draft. Try again.";
+      return false;
     } finally {
       identityPending = false;
       $("identity").disabled = $("shake").disabled = false;
@@ -405,12 +412,14 @@
     if (rows.length !== 5) { orderKey = ""; return; }
     const seats = ((s && s.our_team) || []).filter((p) => p.role);
     const byRole = Object.fromEntries(seats.map((p) => [p.role, p]));
-    const ordered = D.ROLES.map((role) => {
-      const row = rows.find(x => x.role === role);
-      const seat = byRole[role];
-      return row && seat?.locked ? { ...row, champion: seat.locked,
-        champion_id: D.idFor(seat.locked), status: "locked" } : row;
-    }).filter(Boolean);
+    // Keep strategic BLUE/RED reveal order; a physical Top pick may be for
+    // Jungle. Never relabel Jungle's selected champion as Top just because
+    // the Top player happened to be the first person allowed to pick.
+    const secured = g?.our_locked || {};
+    const ordered = [...rows].sort((a, b) => Number(a.slot) - Number(b.slot))
+      .map(row => secured[row.role]
+        ? { ...row, champion: secured[row.role], champion_id: D.idFor(secured[row.role]), status: "locked" }
+        : row);
     const src = (g && g.pick_order_source) || "";
     // A draft the team chose (Discord "Lock Draft N") names the list; a replaced seat says why.
     const chosen = (g && g.chosen) || null;
@@ -429,7 +438,7 @@
       li.dataset.local = String(!!seat.is_local);
       const who = D.el("span", "ov-comp-who");
       who.append(D.el("b", "", ROLE_LONG[r.role] || r.role), D.el("span", "", seat.display_name ? seat.display_name + (seat.is_local ? " · you" : "") : ""));
-      const tag = r.status === "locked" ? "Locked" : r.status === "next" ? (seat.is_local ? "You pick now" : "Picks next") : "Later";
+      const tag = r.status === "locked" ? "Secured" : r.status === "next" ? "Reveal next" : "Reveal later";
       const swap = replaced[r.role];
       li.append(D.portrait(r.champion, "", r.champion_id), who, D.el("b", "ov-comp-champ", r.champion), D.el("span", "ov-comp-tag", tag));
       if (swap) {
@@ -947,12 +956,15 @@
         (ban ? "Ban " : "Pick ") + sg.champion,
         sg.champion,
         sg.champion_id || entry.champion_id,
-        (ban ? "Your ban" : "Your pick · " + (ROLE_LONG[sg.role || local.role] || sg.role || local.role || "")) +
+        (ban ? "Your ban" : sg.trade_after_lock
+          ? "For " + (sg.for_player || ROLE_LONG[sg.role] || sg.role) + " · TRADE AFTER LOCKS"
+          : "For " + (sg.for_player || ROLE_LONG[sg.role] || sg.role || "")) +
           (entry.plan ? " · " + entry.plan.name + " plan " + entry.plan.progress + "/5" : "")
       );
 
       setReason(
-        ban ? D.overlayBanReason(entry) : D.overlayPickReason(entry),
+        ban ? D.overlayBanReason(entry)
+          : sg.team_reveal ? sg.reason : D.overlayPickReason(entry),
         !ban && entry.counter_risk >= 0.5 &&
           !!entry.counter_risk_by?.length
       );
@@ -1093,9 +1105,17 @@
         $("statekey").textContent = eyebrow;
         if (top) {
           const mine = snap.local && snap.local.can_act && snap.local.suggestion && snap.local.suggestion.champion === top.champion;
-          const who = mine ? snap.local.name : (s.our_team || []).find(p => p.role === top.role)?.display_name || (top.player && top.player !== top.role ? top.player : "");
+          const target = (s.our_team || []).find(p => p.role === top.role);
+          const actor = (s.our_team || []).find(p => s.active.cell_ids?.includes(p.cell_id));
+          const who = target?.display_name || top.player || top.role;
           const teammateTurn = mode === "our-pick" && D.Review.actionState(snap).teammate;
-          const recipient = (teammateTurn ? (who || "A teammate") + " picks now" : mine ? "Your pick" : who ? who + " plays it" : "Our pick") + " · " + (ROLE_LONG[top.role] || top.role) + (top.plan ? " · " + top.plan.name + " plan" : "");
+          const trade = !!(mode === "our-pick" && actor && target && actor.cell_id !== target.cell_id);
+          const recipient = trade ? (actor.display_name || "Teammate") + " PICKS FOR " +
+                who + " · TRADE AFTER LOCKS"
+            : (teammateTurn ? (actor?.display_name || "A teammate") + " picks now" :
+               mine ? "Your pick" : who ? who + " plays it" : "Our pick") +
+               " · " + (ROLE_LONG[top.role] || top.role) +
+               (top.plan ? " · " + top.plan.name + " plan" : "");
           setLead("pick:" + top.champion + ":" + mode, teammateTurn ? top.champion : mode === "our-pick" ? "Pick " + top.champion : "Next up: " + top.champion, top.champion, top.champion_id, recipient);
           const warn = top.counter_risk >= 0.5 && top.counter_risk_by && top.counter_risk_by.length;
           setReason(D.overlayPickReason(top), warn);
@@ -1107,6 +1127,8 @@
     }
     renderAlternatives(alts);
     renderSelectedTeamComp();
+    D.EnemyRoles.render($("enemy-role-editor"), s, g,
+      panelControl, panelIsCaptain, updatePanelControl);
     renderChange(snap.last_change, changeAllowed);
     renderActions(snap);
     renderSwaps(snap);

@@ -37,6 +37,84 @@ Broadcast = Callable[[dict], Awaitable[None]]
 ROLE_SHORT = {"Top": "Top", "Jungle": "Jungle", "Mid": "Mid", "ADC": "Bot", "Support": "Support"}
 
 
+
+
+def _strategic_team_pick(shared: dict | None, state: ds.DraftState,
+                         session: dict, actor_cell: int,
+                         can_pick: Callable[[str], bool]) -> dict | None:
+    """Recommend the next TEAM champion to the person with the current turn.
+
+    The champion belongs to its planned *role/player*, not necessarily to
+    this pick-turn seat. It can be traded after ally picks are secured. Never
+    recommend an unavailable/unowned champ to the current League client.
+    For two simultaneous turns, actor-cell order allocates separate targets.
+    """
+    if not shared or not shared.get("comps"):
+        return None
+    comp = shared["comps"][0]
+    steps = [p for p in comp.get("pick_order") or []
+             if isinstance(p, dict) and p.get("role") and p.get("champion")]
+    if not steps:
+        return None
+    gone = (set(state.our_locked().values())
+            | set(state.enemy_locked().values())
+            | set(state.our_bans) | set(state.enemy_bans))
+    remaining = [step for step in steps if step["champion"] not in gone]
+    if not remaining:
+        return None
+
+    active = sorted(
+        [a for group in session.get("actions") or [] for a in group or []
+         if isinstance(a, dict) and a.get("type") == "pick"
+         and a.get("isAllyAction") and a.get("isInProgress")
+         and not a.get("completed")],
+        key=lambda a: int(a.get("actorCellId", 999)),
+    )
+    cells = [int(a.get("actorCellId", -1)) for a in active]
+    if actor_cell not in cells:
+        return None
+    own = next(a for a in active if int(a.get("actorCellId", -1)) == actor_cell)
+    own_hover = champ_map.name_for(int(own.get("championId") or 0))
+    others_hovered = {
+        champ_map.name_for(int(a.get("championId") or 0))
+        for a in active if int(a.get("actorCellId", -1)) != actor_cell
+        and a.get("championId")
+    }
+    # A teammate's current hover reserves that champ for this simultaneous
+    # pick group. Never compete with their selected pick.
+    remaining = [p for p in remaining if p["champion"] not in others_hovered]
+    if own_hover:
+        hovered = next((p for p in remaining if p["champion"] == own_hover
+                        and can_pick(p["champion"])), None)
+        if hovered is not None:
+            return {**hovered, "for_player": (comp.get("players") or {}).get(hovered["role"]),
+                    "for_player_id": (comp.get("player_ids") or {}).get(hovered["role"]),
+                    "source": "team-reveal-order", "preselected_hover": True}
+    # For a simultaneous R1/R2 or B2/B3, keep a separate designated
+    # champion for each *unhovered* actor. If the first actor cannot own
+    # their planned champion, prefer a later unassigned team champion
+    # rather than steal the other active actor's reserved target.
+    pending = [
+        int(a.get("actorCellId", -1)) for a in active
+        if champ_map.name_for(int(a.get("championId") or 0)) not in {
+            step["champion"] for step in steps
+        }
+    ]
+    slot = pending.index(actor_cell) if actor_cell in pending else cells.index(actor_cell)
+    group_size = max(1, len(pending))
+    candidates = [
+        *remaining[slot:slot + 1],
+        *remaining[group_size:],
+        *remaining[:slot],
+        *remaining[slot + 1:group_size],
+    ]
+    chosen = next((p for p in candidates if can_pick(p["champion"])), None)
+    if chosen is None:
+        return None
+    return {**chosen, "for_player": (comp.get("players") or {}).get(chosen["role"]),
+            "for_player_id": (comp.get("player_ids") or {}).get(chosen["role"]),
+            "source": "team-reveal-order", "preselected_hover": False}
+
 class Hub:
     def __init__(self, roster: Roster, draft: ManualDraft | None = None, broadcast: Broadcast | None = None,
                  debounce_ms: int = 30, prewarm: int = 3, roster_path: Path | None = None):
@@ -633,12 +711,29 @@ class Hub:
                     if sw["to_cell"] == slot.cell_id:
                         picking_role = sw["from_role"]
                 view["picking_role"] = picking_role
-                # FLEXERS: never offer a champion another seat already took or a ban removed, and when the
-                # ranked picks carry nothing for this seat's role, fall back to the leading draft's champion
-                # for that role rather than the top pick of a different role.
-                taken = set(state.our_locked().values()) | set(state.enemy_locked().values()) | set(state.our_bans) | set(state.enemy_bans)
-                mine = [p for p in g.get("picks") or [] if p["role"] == picking_role and p["champion"] not in taken
-                        and self.can_pick(p["champion"])]
+                # The team PICK ORDER outranks the physical actor's role. A Top
+                # player on B1 can lock the planned Jungle champion and trade
+                # it later. Respect the current account's pickable champions.
+                strategic = _strategic_team_pick(
+                    shared, state, session, slot.cell_id, self.can_pick)
+                taken = (set(state.our_locked().values()) | set(state.enemy_locked().values())
+                         | set(state.our_bans) | set(state.enemy_bans))
+                mine = ([{
+                    "champion": strategic["champion"],
+                    "champion_id": strategic.get("champion_id")
+                                   or champ_map.id_for(strategic["champion"]),
+                    "role": strategic["role"],
+                    "why": ["team reveal order: pick for " +
+                            (strategic.get("for_player") or strategic["role"]) +
+                            (" and trade after locks" if strategic["role"] != slot.role else "")],
+                    "team_reveal": True,
+                    "for_player": strategic.get("for_player") or strategic["role"],
+                    "for_player_id": strategic.get("for_player_id"),
+                }] if strategic else [])
+                if not mine:
+                    mine = [p for p in g.get("picks") or []
+                            if p["role"] == picking_role and p["champion"] not in taken
+                            and self.can_pick(p["champion"])]
                 if not mine:
                     for comp in (shared or {}).get("comps") or g.get("comps") or []:
                         planned = (comp.get("champions") or {}).get(picking_role)
@@ -655,8 +750,20 @@ class Hub:
                     mine = [{**p, "why": ["your comfort pick for " + picking_role]} for p in comfort if self.can_pick(p["champion"])][:1]
                 if mine:
                     best = mine[0]
-                    view["suggestion"] = {"kind": "pick", "champion": best["champion"], "champion_id": best.get("champion_id"),
-                                          "role": best["role"], "reason": (best.get("why") or [""])[0]}
+                    view["picking_role"] = best["role"]
+                    view["suggestion"] = {
+                        "kind": "pick", "champion": best["champion"],
+                        "champion_id": best.get("champion_id"),
+                        "role": best["role"], "reason": (best.get("why") or [""])[0],
+                        "team_reveal": bool(best.get("team_reveal")),
+                        "for_player": best.get("for_player"),
+                        "trade_after_lock": bool(
+                            best.get("team_reveal") and (
+                                best["role"] != slot.role or
+                                (str(best.get("for_player_id") or "").isdigit()
+                                 and int(best["for_player_id"]) != int(slot.user_id or 0))
+                            )),
+                    }
         # Expected champion swap involving this seat (after both locks).
         for sw in g.get("swaps") or []:
             if sw["from_cell"] == slot.cell_id:
@@ -901,7 +1008,14 @@ class Hub:
         return out
 
     def wanted_pick_slot(self, role: str | None) -> int | None:
-        """Our 0-based pick slot in the leading draft's reveal order (counter-pick roles go last)."""
+        """Personal pick-order swaps are unnecessary when we can pick/trade.
+
+        The squad's recommended *champion* reveal order is independent from
+        League's pick-turn seats. Only role swaps remain automatic while
+        following a shared draft; manual pick-order swaps remain optional.
+        """
+        if (self.shared_guidance() or {}).get("comps"):
+            return None
         if role not in assist.ROLES:
             return None
         comps = (self.shared_guidance() or {}).get("comps") or []

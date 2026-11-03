@@ -51,3 +51,31 @@
 .draft-overlay[data-mode="idle"]:has(#selected-comp-board:not([hidden])) .ov-reason { display: none; }
 .draft-overlay[data-mode="idle"]:has(#selected-comp-board:not([hidden])) .ov-focus { padding-top: 7px; padding-bottom: 7px; }
 .fd-selected-comp.narrow .fd-sc-option { flex-basis: 66px; }
+
+/* Verified enemy-lane control, shared by full Coach and compact overlay. */
+.fd-enemy-role-editor {
+  padding: 0.7rem;
+  margin: 0.5rem 0;
+  border: 1px solid var(--fd-border, var(--border, #526077));
+  border-radius: 0.65rem;
+  background: var(--mm-surface);
+}
+.fd-enemy-role-header {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  justify-content: space-between; gap: 0.4rem;
+}
+.fd-enemy-role-editor .fd-note { margin: 0.3rem 0 0.6rem; font-size: 0.8rem; }
+.fd-enemy-role-list { display: grid; gap: 0.4rem; }
+.fd-enemy-role-row {
+  display: grid; grid-template-columns: 1.8rem minmax(5rem, 1fr) minmax(8rem, 11rem);
+  gap: 0.5rem; align-items: center; font-size: 0.85rem;
+}
+.fd-enemy-role-row select {
+  width: 100%; min-width: 0; border-radius: 0.4rem;
+  padding: 0.35rem; border: 1px solid var(--fd-border, var(--border, #526077));
+  background: var(--mm-surface); color: var(--mm-ink);
+}
+.fd-enemy-role-row select:disabled { opacity: 0.75; }
+.fd-enemy-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fd-enemy-role-feedback { margin: 0.2rem 0; font-size: 0.75rem; }
+.fd-enemy-role-feedback:empty { display: none; }

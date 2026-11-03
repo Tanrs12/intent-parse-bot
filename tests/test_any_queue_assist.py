@@ -623,21 +623,24 @@ def test_no_second_request_while_one_is_pending(roster, monkeypatch, tmp_path):
     assert not [c for c in rest.calls if c[0] == "POST"]
 
 
-def test_a_tried_request_does_not_block_the_other_family(roster, monkeypatch, tmp_path):
+def test_tried_role_request_does_not_force_a_pick_order_swap(roster, monkeypatch, tmp_path):
     rest = FakeRest(offers={"position-swaps": [{"id": 11, "cellId": 0, "state": "AVAILABLE"}],
                             "pick-order-swaps": [{"id": 22, "cellId": 0, "state": "AVAILABLE"}]})
     hub = _live_hub(roster, rest, monkeypatch, tmp_path)
-    # Seat 4 wants Top (held by seat 0) and the first pick slot (also seat 0's).
+    # A selected team draft has an optimal *champion reveal* sequence. If
+    # seat 4 gets a pick turn earlier than planned, they can pick for a
+    # teammate and TRADE later. No automatic pick-order swap is necessary.
     hub.intent_guidance = {"comps": [{"pick_order": [{"role": r} for r in ("Top", "Jungle", "Mid", "ADC", "Support")]}]}
-    hub._comfort_game = (4242, "p4")                                         # same game: keep the record
-    hub._swaps_done.add(("position-swaps", 11, "request", 0, ("Top", 0)))   # already asked once for this plan, refused
+    hub._comfort_game = (4242, "p4")
+    hub._swaps_done.add(("position-swaps", 11, "request", 0, ("Top", None)))
 
     async def go():
         await hub.ingest_lcu_session(_session(local=4), "ChampSelect", {"id": 420})
         await hub._swap_task
     _run(go())
     posts = [c for c in rest.calls if c[0] == "POST"]
-    assert posts == [("POST", "/lol-champ-select/v1/session/pick-order-swaps/22/request", None)]
+    assert posts == []   # prior role request not retried; no forced pick-order change
+    assert hub.wanted_pick_slot("Top") is None
 
 
 def test_one_manual_role_lock_does_not_hide_a_present_five_stack():
