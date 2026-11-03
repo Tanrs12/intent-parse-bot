@@ -188,6 +188,7 @@ def rebuild_index(folder: Path) -> dict:
 def collect(role: str, champions: list[str], *, folder: Path = FOLDER,
             max_new: int = 12, delay: float = MIN_GAP_SECONDS,
             expected_patch: str | None = None, force: bool = False,
+            allow_declared_offmeta: bool = False,
             emit=print) -> dict:
     if role not in ROLES:
         raise ValueError("unsupported role")
@@ -196,6 +197,14 @@ def collect(role: str, champions: list[str], *, folder: Path = FOLDER,
     if delay < MIN_GAP_SECONDS:
         raise ValueError("must respect minimum delay")
     allowed = {normalise(c): c for c in role_universe(role)}
+    if allow_declared_offmeta:
+        # Only for an actually locked enemy or the assigned player's
+        # explicitly declared lane pool. Do NOT grant blanket off-role
+        # eligibility to the ranking/search engine.
+        from league_comp_engine import load_meta
+        allowed.update({normalise(c): c
+                        for c in load_meta().get("champion_traits", {})
+                        if c and normalise(c)})
     unique = []
     for c in champions:
         key = normalise(c)
@@ -267,11 +276,14 @@ def main() -> int:
     p.add_argument("--expected-patch")
     p.add_argument("--folder",type=Path,default=FOLDER)
     p.add_argument("--force",action="store_true")
+    p.add_argument("--declared-offmeta", action="store_true",
+                   help="Use only for a confirmed enemy lane or an assigned player's submitted pool")
     args=p.parse_args()
     print(json.dumps(collect(args.role,args.champions,folder=args.folder,
                              max_new=args.max_new,delay=args.delay,
                              expected_patch=args.expected_patch,
-                             force=args.force),indent=2))
+                             force=args.force,
+                             allow_declared_offmeta=args.declared_offmeta),indent=2))
     return 0
 
 if __name__=="__main__":

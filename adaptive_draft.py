@@ -18,8 +18,13 @@ DAMAGE_TYPES = {"MAGIC_DAMAGE", "PHYSICAL_DAMAGE"}
 
 def _damage_roles(champs: Mapping[str, str], traits: Mapping[str, dict],
                   kind: str) -> set[str]:
-    return {role for role in ROLES
-            if str(traits.get(champs.get(role, ""), {}).get("adaptive_type") or "") == kind}
+    """Count credible damage sources, not a tank's incidental AD/AP spells."""
+    return {
+        role for role in ROLES
+        if (str(traits.get(champs.get(role, ""), {}).get("adaptive_type") or "") == kind
+            and int(((traits.get(champs.get(role, ""), {}).get("ratings") or {})
+                     .get("damage", 2) or 0)) >= 2)
+    }
 
 
 def _signature(row: dict) -> tuple[str, ...]:

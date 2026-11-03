@@ -197,6 +197,7 @@ class LiveCounterCollector:
                 result = self.fetcher(role, [champion], folder=self.root,
                                       max_new=1, delay=MIN_GAP_SECONDS,
                                       expected_patch=patch,
+                                      allow_declared_offmeta=True,
                                       emit=lambda *_: None)
                 if result.get("stopped"):
                     with self._lock:
