@@ -170,6 +170,8 @@
           </div>
         </section>
 
+        <section id="enemy-role-editor" class="fd-enemy-role-editor" aria-label="Enemy lane assignments" hidden></section>
+
         <section id="captain-section" hidden>
           <header class="coach-section-head"><h3>Ranked team drafts</h3><span class="mm-meta" id="captain-side"></span></header>
           <div class="captain-phase" id="captain-phase"></div>
@@ -258,6 +260,7 @@
 
 <script src="/static/common.js"></script>
 <script src="/static/selected-comp.js"></script>
+<script src="/static/enemy-roles.js"></script>
 <script src="/static/draft-review.js"></script>
 <script src="/static/player-review.js"></script>
 <script>
@@ -1472,6 +1475,9 @@
     const canPick = ourPick && !locked && draft.current && draft.current.kind === "pick", canBan = ourBan && !locked && draft.current && draft.current.kind === "ban";
     const showBan = !!ourBan;
     renderCaptain(g, state);
+    D.EnemyRoles.render($("enemy-role-editor"), state,
+      intentGuidance?.guidance || g, intentControl,
+      isCaptain, postControl);
     renderDraftControl(snapshot);
     renderGamePlanCard();
     renderPickOrder(g);

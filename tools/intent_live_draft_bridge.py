@@ -385,6 +385,7 @@ def _apply_cloud_control(control: dict) -> None:
             # The room's control was released (Discord "Release draft" or a cleared preference):
             # drop the locks and the chosen draft too, keep the shake counter so retired drafts stay retired.
             _set_control({"identity": None, "role_locks": {}, "champion_locks": {}, "chosen": None,
+                          "enemy_role_overrides": {"game_id": "", "assignments": {}},
                           "shake": int(_control.get("shake") or 0), "signature": (control or {}).get("preference")}, replace=True)
 
 
@@ -511,9 +512,11 @@ PREFERENCE_MAX_GAP = 2.5
 #   champion_locks  role -> champion: every draft must contain it (a lock we have not revealed yet)
 #   shake           counter; each increment reshuffles and retires the drafts already shown this game
 #   chosen          the draft the team picked (in Discord or an app): label, source, original five
-_control: dict = {"identity": None, "role_locks": {}, "champion_locks": {}, "shake": 0, "chosen": None}
+_control: dict = {"identity": None, "role_locks": {}, "champion_locks": {},
+                  "enemy_role_overrides": {"game_id": "", "assignments": {}},
+                  "shake": 0, "chosen": None}
 _shaken_signatures: dict[str, list[str]] = {}       # game id -> signatures retired by shakes
-_CONTROL_KEYS = ("identity", "role_locks", "champion_locks", "shake", "chosen")
+_CONTROL_KEYS = ("identity", "role_locks", "champion_locks", "enemy_role_overrides", "shake", "chosen")
 
 
 def _normalise_control(raw: dict | None) -> dict:
@@ -528,11 +531,28 @@ def _normalise_control(raw: dict | None) -> dict:
             role_locks[role] = int(uid)
     champion_locks = {role: str(champ)[:40] for role, champ in (raw.get("champion_locks") or {}).items()
                       if role in ROLES and champ}
+    # A manual lane choice is a shared captain decision for ONE champ select.
+    # It may never survive into a different game or invent an enemy pick.
+    overrides = raw.get("enemy_role_overrides") or {}
+    overrides = overrides if isinstance(overrides, dict) else {}
+    override_game = str(overrides.get("game_id") or "")[:80]
+    proposed = overrides.get("assignments") or {}
+    proposed = proposed if isinstance(proposed, dict) else {}
+    assigned = {}
+    for champion, role in list(proposed.items())[:5]:
+        champion = str(champion).strip()[:40]
+        if champion and role in ROLES:
+            # One opponent per lane: if duplicate roles arrive, the first
+            # wins and the ambiguous extra gets no forced assignment.
+            if role not in assigned.values():
+                assigned[champion] = role
     try:
         shake = max(0, int(raw.get("shake") or 0))
     except (TypeError, ValueError):
         shake = 0
-    return {"identity": identity, "role_locks": role_locks, "champion_locks": champion_locks, "shake": shake, "chosen": chosen}
+    return {"identity": identity, "role_locks": role_locks,
+            "champion_locks": champion_locks, "shake": shake, "chosen": chosen,
+            "enemy_role_overrides": {"game_id": override_game, "assignments": assigned}}
 
 
 def _get_control() -> dict:
@@ -1176,8 +1196,30 @@ def _drafts_with_fallback(live_role_players: dict[str, int], **kwargs) -> dict:
     return result
 
 
-def _locked_by_role(state: dict) -> dict[str, str]:
-    return {row["role"]: row["locked"] for row in state.get("our_team", []) if row.get("role") in ROLES and row.get("locked")}
+def _locked_by_role(state: dict, plan: dict | None = None) -> dict[str, str]:
+    """Attribute ally locks to their intended champion ROLE, not pick-turn seat.
+
+    In coordinated Flex, Top may pick Jungle's champion first and trade it.
+    The team draft must count that Jungle champion as secured, leaving Top
+    open until its own champion is revealed. Unknown deviations stay assigned
+    to their physical role rather than fabricating a champion trade.
+    """
+    plan = plan or {}
+    target_role = {champ: role for role, champ in plan.items()
+                   if role in ROLES and champ}
+    rows = [r for r in state.get("our_team", [])
+            if r.get("role") in ROLES and r.get("locked")]
+    found = {}
+    for row in rows:
+        champion = row["locked"]
+        role = target_role.get(champion)
+        if role in ROLES and role not in found:
+            found[role] = champion
+    for row in rows:
+        role, champion = row["role"], row["locked"]
+        if champion not in found.values() and role not in found:
+            found[role] = champion
+    return found
 
 
 def _role_players_for_state(state: dict, five: list[dict], *, testing: bool) -> dict[str, int]:
@@ -1313,22 +1355,35 @@ def _unavailable(state: dict) -> set[str]:
     return names
 
 
-def _locked_enemy_roles(state: dict) -> dict[str, str]:
-    """Map confirmed enemy picks to lanes, inferring only unambiguous roles.
+def _locked_enemy_roles(state: dict, control: dict | None = None) -> dict[str, str]:
+    """Map locked enemy champions to lanes: manual > confirmed > unique inference.
 
-    Champion-select seats do not always reveal assigned positions. We can use
-    the role snapshot when a champion has exactly one supported position, but
-    we must not invent a lane counter for a flex pick.
+    Ignore stale game IDs, hovers, duplicate roles, and no-longer-locked
+    champions. Manual assignment never changes physical League client slots.
     """
+    control = control if control is not None else _get_control()
+    stored = (control.get("enemy_role_overrides") or {})
+    game_id = str(state.get("game_id") or "")
+    manual = (stored.get("assignments") or {}) if (
+        game_id and str(stored.get("game_id") or "") == game_id
+    ) else {}
+    locked_rows = [row for row in (state.get("enemy_team") or []) if row.get("locked")]
+    locked_names = {row["locked"] for row in locked_rows}
     found = {}
+    # Manual placements have priority even if another slot claims the role.
+    for champion, role in manual.items():
+        if champion in locked_names and role in ROLES and role not in found:
+            found[role] = champion
+    placed = set(found.values())
     unresolved = []
-    for row in state.get("enemy_team") or []:
-        champion = row.get("locked")
-        if not champion:
+    for row in locked_rows:
+        champion = row["locked"]
+        if champion in placed:
             continue
         role = row.get("role")
         if role in ROLES and role not in found:
             found[role] = champion
+            placed.add(champion)
         else:
             unresolved.append(champion)
     if not unresolved:
@@ -1388,7 +1443,7 @@ def _live_lane_adjustment(rec: dict, state: dict) -> tuple[float, list[dict]]:
     return round(max(-6.0, min(6.0, total)), 3), edges
 
 
-def _guidance_from_result(result: dict, state: dict) -> dict:
+def _guidance_from_result(result: dict, state: dict, control: dict | None = None) -> dict:
     raw_recs = result.get("recommendations") or []
     recs = []
     for original in raw_recs:
@@ -1425,7 +1480,9 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
                 recs.insert(0, recs.pop(pref_index))
                 preference_info["promoted"] = True
 
-    locked_roles = {row["role"] for row in state.get("our_team", []) if row.get("locked") and row.get("role") in ROLES}
+    chosen_role_plan = ((((control if control is not None else _get_control())
+                          .get("chosen") or {}).get("champions")) or {})
+    locked_roles = set(_locked_by_role(state, chosen_role_plan))
     picks = []
     seen = set()
     for rec in recs:
@@ -1629,10 +1686,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
     hover_now = dict(result.get("hovered_champions") or _hovered_by_role(state))
     current_pick_group = None
     if comps:
-        locked_now = {
-            row.get("role") for row in state.get("our_team", [])
-            if row.get("role") in ROLES and row.get("locked")
-        }
+        locked_now = set(_locked_by_role(state, chosen_role_plan))
         order = comps[0].get("pick_order") or []
         remaining = [row for row in order if row.get("role") not in locked_now]
         if remaining:
@@ -1679,6 +1733,18 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
                 "team_plan": comps[0].get("team_plan"), "why": ["visual test preview"],
             })
 
+    # Public reveal order follows the planned TEAM roles, not League's
+    # physical pick-turn seats. A player may select a teammate's champion.
+    lead_order = list((comps[0].get("pick_order") or []) if comps else [])
+    next_unpicked = next((r.get("role") for r in lead_order
+                          if r.get("role") not in locked_roles), None)
+    strategic_order = [
+        {**row, "status": ("locked" if row.get("role") in locked_roles
+                            else "next" if row.get("role") == next_unpicked
+                            else "later"),
+         "tags": ["trade after both champions are locked if needed"]}
+        for row in lead_order
+    ]
     active = state.get("active") or {}
     roles_now = [row["role"] for row in state.get("our_team", []) if row.get("role") in ROLES and not row.get("locked")]
     enemy_locked = {row["role"]: row["locked"] for row in state.get("enemy_team", []) if row.get("role") in ROLES and row.get("locked")}
@@ -1688,10 +1754,7 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
     # behaves like a real draft: show pick #1 first, then advance as our test picks are locked.
     visual_test_pick = None
     if visual_test and comps:
-        locked_test_roles = {
-            row.get("role") for row in state.get("our_team", [])
-            if row.get("role") in ROLES and row.get("locked")
-        }
+        locked_test_roles = set(_locked_by_role(state, chosen_role_plan))
         next_row = next((
             row for row in (comps[0].get("pick_order") or [])
             if row.get("role") in ROLES
@@ -1712,11 +1775,13 @@ def _guidance_from_result(result: dict, state: dict) -> dict:
         "headline": ("Ban now: " + bans[0]["champion"]) if active.get("kind") == "ban" and active.get("ours") and bans else (("Pick " + picks[0]["champion"]) if picks else "Intent draft ready"),
         "phase_kind": active.get("kind") or "idle",
         "side": side_key,
+        "pick_order": strategic_order,
+        "pick_order_source": "lead",
         "current_pick_group": current_pick_group,
         "roles_now": roles_now,
         "picking_now": bool(active.get("kind") == "pick" and active.get("ours")),
         "draft_complete": len(locked_roles) == 5,
-        "our_locked": _locked_by_role(state),
+        "our_locked": _locked_by_role(state, chosen_role_plan),
         "our_hovers": hover_now,
         "our_hover_ids": {role: _champion_id(champion) for role, champion in hover_now.items()},
         "enemy_locked": enemy_locked,
@@ -1808,7 +1873,9 @@ def build_response():
         return {"active": False, "disabled": False, "reason": f"Waiting for all five {label}", "matched": len(five),
                 "known_profiles": known_profiles, "party_inferred": party_inferred, **merged_gate, **party}
     effective_state = _apply_test_overrides(_state_for_test(state)) if testing else state
-    locked = _locked_by_role(effective_state)
+    initial_control = _get_control()
+    initial_plan = ((initial_control.get("chosen") or {}).get("champions") or {})
+    locked = _locked_by_role(effective_state, initial_plan)
     unavailable = _unavailable(effective_state)
     hovered = _hovered_by_role(effective_state)
     role_players = _role_players_for_state(effective_state, five, testing=testing)
@@ -1857,7 +1924,7 @@ def build_response():
             if len(values) == len(ROLES) and all(value and value != "?" for value in values):
                 selected_plan = dict(zip(ROLES, values))
         chosen_plan = control.get("chosen") or {}
-        known_enemy_lanes = _locked_enemy_roles(effective_state)
+        known_enemy_lanes = _locked_enemy_roles(effective_state, control)
         adaptive_plan = (chosen_plan.get("champions") or {}) if chosen_plan.get("mode") == "adaptive" else {}
         # First solve a stable baseline anchored to the captain's chosen
         # team. A separate *asynchronous* search will then open each other
@@ -1881,7 +1948,7 @@ def build_response():
                 row["locked"] for row in effective_state.get("enemy_team", [])
                 if row.get("locked")
             ],
-            enemy_roles=_locked_enemy_roles(effective_state),
+            enemy_roles=known_enemy_lanes,
             side=state.get("side") or "blue",
             limit=10,
             # Stable through picks/bans, different for a new champ-select ID; a shake reshuffles it.
@@ -1942,7 +2009,7 @@ def build_response():
             )
             if completed is not None:
                 result = completed
-        guidance = _guidance_from_result(result, effective_state)
+        guidance = _guidance_from_result(result, effective_state, control)
         if compensation_state:
             guidance["compensation_search"] = {"state": compensation_state}
             if result.get("compensation_search"):
@@ -1951,6 +2018,7 @@ def build_response():
         lead = (guidance.get("comps") or [{}])[0]
         _last_best_signature = lead.get("signature") or (_comp_signature(lead.get("champions")) if lead.get("champions") else None)
         guidance["control"] = control
+        guidance["enemy_roles_resolved"] = known_enemy_lanes
         # Scouting only. An off-pool recommendation never enters the legal
         # champion selection or the client Hover/Lock actions.
         # Guidance comp cards flatten each player to a display-name string.
@@ -2146,7 +2214,8 @@ class Handler(BaseHTTPRequestHandler):
             self._reply({"ok": True, "control": _get_control(),
                          "identities": [{"key": k, "label": v["label"], "description": v["description"]} for k, v in IDENTITIES.items()],
                          "sync": _auto_sync_meta(mode) if _cloud_mode == "auto" else None,
-                         "is_captain": bool(_auto_is_host)})
+                         "is_captain": bool(_auto_is_host) if _cloud_mode == "auto"
+                                       else (_cloud_mode != "follow" and not _upstream_base)})
             return
         if path == "/api/test":
             with _test_lock:
@@ -2168,6 +2237,14 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:
             self._reply({"error": str(exc)}, 400)
             return
+        if path == "/api/control" and "enemy_role_overrides" in payload:
+            if _cloud_mode in ("auto", "follow") and not _auto_is_host:
+                self._reply({"error": "Only the team captain can assign enemy lanes"}, 403)
+                return
+            override = payload["enemy_role_overrides"]
+            if not isinstance(override, dict) or not str(override.get("game_id") or ""):
+                self._reply({"error": "Enemy lane assignments require a game ID"}, 400)
+                return
         if path == "/api/control" and "my_role" in payload and len(payload) == 1:
             # This player's wanted role: part of the heartbeat identity, not of the shared control.
             role = _set_wanted_role(payload.get("my_role"))
