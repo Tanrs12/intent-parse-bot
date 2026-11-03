@@ -274,6 +274,10 @@ def create_app(config: dict | None = None, *, enable_lcu: bool = True, lockfile:
     async def coach_page() -> FileResponse:
         return FileResponse(STATIC / "coach.html", media_type="text/html")
 
+    @app.get("/stats", response_class=HTMLResponse)
+    async def stats_page() -> FileResponse:
+        return FileResponse(STATIC / "stats.html", media_type="text/html")
+
     @app.get("/studio", response_class=HTMLResponse)
     async def studio_page() -> FileResponse:
         return FileResponse(STATIC / "studio.html", media_type="text/html")

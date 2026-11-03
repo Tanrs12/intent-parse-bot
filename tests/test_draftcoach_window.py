@@ -261,3 +261,20 @@ def test_without_a_gui_loop_draft_studio_falls_back_to_the_browser(monkeypatch):
     monkeypatch.setattr(module.webbrowser, "open", opened.append)
     module.Api("http://127.0.0.1:8899").open_studio()
     assert opened == ["http://127.0.0.1:8899/studio"]
+
+
+def test_stats_open_inside_the_coach_window(fake):
+    main, panel, api = _started(fake)
+    api.open_stats()
+    assert main.calls == [("load_url", "http://127.0.0.1:8899/stats?host=webview"), "show"]
+
+
+def test_the_panel_hides_in_game_and_returns_after(fake):
+    main, panel, api = _started(fake)
+    api.game_started()
+    api.game_started()                     # repeated phase updates: one hide
+    assert panel.calls == ["hide"]
+    api.game_ended()
+    api.game_ended()
+    assert panel.calls == ["hide", "show"]
+    assert main.calls == []                # the coach window is left alone

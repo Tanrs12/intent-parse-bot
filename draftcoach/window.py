@@ -82,6 +82,7 @@ class Api:
         self._panel = None
         self._panel_pos = (x, y)
         self._theme = theme
+        self._hidden_for_game = False
         self.scale = load_scale()
 
     # -- window bookkeeping ---------------------------------------------------------------------
@@ -175,22 +176,46 @@ class Api:
             pass
         return scale
 
-    def open_studio(self) -> None:
-        """Draft Studio opens inside the app: in the coach window (its Coach link leads back)."""
+    def _open_in_coach(self, page: str) -> None:
+        """App pages (Draft Studio, Stats) open inside the app: in the coach window, whose Coach link leads back."""
         if self._webview is None:
-            webbrowser.open(self.url + "/studio")
+            webbrowser.open(self.url + page)
             return
         if self._main is None:
-            self._create_main("/studio")
+            self._create_main(page)
             style_windows_window(MAIN_TITLE, round_corners=False)
             return
         try:
-            self._main.load_url(f"{self.url}/studio?host=webview")
-        except Exception:  # noqa: BLE001 - a window that is going away: open a fresh one on the Studio
-            self._create_main("/studio")
+            self._main.load_url(f"{self.url}{page}?host=webview")
+        except Exception:  # noqa: BLE001 - a window that is going away: open a fresh one on the page
+            self._create_main(page)
             style_windows_window(MAIN_TITLE, round_corners=False)
             return
         self._bring_to_front(self._main, MAIN_TITLE)
+
+    def open_studio(self) -> None:
+        self._open_in_coach("/studio")
+
+    def open_stats(self) -> None:
+        self._open_in_coach("/stats")
+
+    def game_started(self) -> None:
+        """League is loading or playing a game: the always-on-top panel gets out of the way."""
+        if self._panel is not None and not self._hidden_for_game:
+            self._hidden_for_game = True
+            try:
+                self._panel.hide()
+            except Exception:  # noqa: BLE001 - a window that is going away
+                pass
+
+    def game_ended(self) -> None:
+        """Back in the client (post-game, lobby, champion select): the panel returns where it was."""
+        if self._panel is not None and self._hidden_for_game:
+            self._hidden_for_game = False
+            try:
+                self._panel.show()
+            except Exception:  # noqa: BLE001
+                pass
 
 
 def set_app_id() -> None:

@@ -20,6 +20,7 @@
   </div>
   <nav class="studio-nav"><button class="fd-text-button" id="refresh-data" type="button" title="Pull the latest shared drafting data (histories, matchups, pro pairs)">Refresh data</button>
     <a class="fd-text-button" id="back-to-coach" href="/">Coach</a>
+    <a class="fd-text-button" id="to-stats" href="/stats">Stats</a>
     <button class="fd-text-button" id="theme" type="button" aria-pressed="false">Dark</button></nav>
 </header>
 
@@ -237,7 +238,10 @@
 </script>
 <script>
   // Inside the app's coach window, going back keeps the app's own controls (Show panel).
-  if (new URLSearchParams(location.search).get("host") === "webview") document.getElementById("back-to-coach").href = "/?host=webview";
+  if (new URLSearchParams(location.search).get("host") === "webview") {
+    document.getElementById("back-to-coach").href = "/?host=webview";
+    document.getElementById("to-stats").href = "/stats?host=webview";
+  }
 </script>
 </body>
 </html>

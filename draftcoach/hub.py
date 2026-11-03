@@ -180,6 +180,11 @@ class Hub:
     async def _ingest_lcu_session(self, session: dict | None, gameflow_phase: str | None, queue: dict | None,
                                   source: str) -> None:
         allowed = self.allowed_queues() if source == "lcu" else None
+        if source == "lcu" and self.status.get("gameflow") != gameflow_phase:
+            # The panel hides itself while a game is loading or in progress (see overlay.html).
+            self.status["gameflow"] = gameflow_phase
+            if not session:
+                await self._push()
         self.status["queue"] = queue
         qtext = " ".join(str((queue or {}).get(k) or "") for k in ("name", "shortName", "description", "type", "category")).casefold()
         is_custom = queue is not None and (int(queue.get("id", -1)) == 0 or "custom" in qtext or "practice tool" in qtext)

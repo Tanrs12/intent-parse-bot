@@ -900,3 +900,23 @@ def test_re_entering_champion_select_with_a_reused_game_id_can_request_again(ros
     _run(enter())
     requests = [c for c in rest.calls if c == ("POST", "/lol-champ-select/v1/session/position-swaps/11/request", None)]
     assert len(requests) == 2
+
+
+def test_the_game_phase_reaches_the_overlay_so_it_can_hide_in_game(roster, monkeypatch, tmp_path):
+    hub = _live_hub(roster, FakeRest(), monkeypatch, tmp_path)
+    pushed = []
+
+    async def broadcast(snapshot):
+        pushed.append(snapshot["status"].get("gameflow"))
+    hub.broadcast = broadcast
+
+    async def go():
+        await hub.ingest_lcu_session(_session(local=4), "ChampSelect", {"id": 420})
+        await hub.settle()
+        await hub.ingest_lcu_session(None, "InProgress", None)
+        await hub.settle()
+        await hub.ingest_lcu_session(None, "EndOfGame", None)
+        await hub.settle()
+    _run(go())
+    assert hub.status["gameflow"] == "EndOfGame"
+    assert "InProgress" in pushed and pushed[-1] == "EndOfGame"
