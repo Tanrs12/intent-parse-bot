@@ -19,7 +19,8 @@ def test_floating_panel_status_works_even_while_waiting_for_champ_select():
     html = (ROOT / "draftcoach/static/overlay.html").read_text(encoding="utf-8")
     assert 'id="team-choice-status"' in html
     assert 'const chosen = panelControl && panelControl.chosen;' in html
-    assert 'panelControl = data.control;\n      renderSelectedTeamComp();' in html
+    # the panel renders as soon as the control arrives (captain flag set in between since 711501e)
+    assert 'panelControl = data.control;\n      panelIsCaptain = !!data.is_captain;\n      renderSelectedTeamComp();' in html
     assert "No team draft chosen" in html
     assert "Adaptive: roles fixed" in html
 
