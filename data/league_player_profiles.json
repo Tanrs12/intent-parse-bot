@@ -11375,7 +11375,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-11-03T19:29:23.303423+00:00",
+        "refreshed_at": "2026-11-04T19:43:22.139666+00:00",
         "accounts_ok": 8,
         "accounts_total": 8,
         "fresh_rows_seen": 30,
@@ -18288,7 +18288,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-11-03T19:29:23.303423+00:00",
+        "refreshed_at": "2026-11-04T19:43:22.139666+00:00",
         "accounts_ok": 3,
         "accounts_total": 3,
         "fresh_rows_seen": 21,
@@ -24182,7 +24182,7 @@
         "champions_observed": 91,
         "season_account_samples": 5,
         "accounts_loaded": 1,
-        "individual_ranked_games": 104,
+        "individual_ranked_games": 106,
         "individual_normal_games": 6
       },
       "champion_history": [
@@ -25735,6 +25735,54 @@
         }
       ],
       "recent_matches": [
+        {
+          "account": "Adittive-EUW",
+          "id": "ta1XN8oiMOKBhvox6In-6JuKQai22GGwedVLjxoqV3Q=",
+          "created_at": "2026-11-05T01:14:21+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Malphite",
+          "position": "TOP",
+          "game_length_seconds": 1647,
+          "kills": 2,
+          "deaths": 4,
+          "assists": 6,
+          "kda": 2.0,
+          "kp": 29.0,
+          "op_score": 4.4,
+          "lane_score": 32.0,
+          "cs_per_min": 5.7,
+          "gold_per_min": 331.9,
+          "dpm": 348.7,
+          "damage_share": 11.2,
+          "vision_score": 25.0
+        },
+        {
+          "account": "Adittive-EUW",
+          "id": "ta1XN8oiMOLdoCP7_HP75gi-LS1ONa_3PCUHWpoT2V8=",
+          "created_at": "2026-11-05T00:05:02+09:00",
+          "queue": "SOLORANKED",
+          "queue_group": "RANKED",
+          "map": "SUMMONERS_RIFT",
+          "result": "WIN",
+          "champion": "Darius",
+          "position": "TOP",
+          "game_length_seconds": 2019,
+          "kills": 7,
+          "deaths": 5,
+          "assists": 8,
+          "kda": 3.0,
+          "kp": 30.0,
+          "op_score": 4.7,
+          "lane_score": 65.0,
+          "cs_per_min": 6.9,
+          "gold_per_min": 404.1,
+          "dpm": 702.6,
+          "damage_share": 17.4,
+          "vision_score": 33.0
+        },
         {
           "account": "Adittive-EUW",
           "id": "ta1XN8oiMOJ_xWoLFIKUxZF3SbK8cKXgHFvcO8ltWww=",
@@ -28379,18 +28427,18 @@
       "recent_match_summary": {
         "queues": {
           "RANKED": {
-            "games": 104,
-            "wins": 51,
-            "win_rate": 49.0,
-            "kda": 2.88,
-            "kp": 41.61,
+            "games": 106,
+            "wins": 53,
+            "win_rate": 50.0,
+            "kda": 2.87,
+            "kp": 41.38,
             "op_score": 4.58,
-            "lane_score": 43.85,
-            "cs_per_min": 5.68,
-            "gold_per_min": 391.1,
-            "dpm": 635.35,
-            "damage_share": 16.9,
-            "vision_score": 23.06
+            "lane_score": 43.93,
+            "cs_per_min": 5.69,
+            "gold_per_min": 390.66,
+            "dpm": 633.28,
+            "damage_share": 16.85,
+            "vision_score": 23.17
           },
           "NORMAL": {
             "games": 6,
@@ -28409,18 +28457,18 @@
         },
         "positions": {
           "TOP": {
-            "games": 11,
-            "wins": 4,
-            "win_rate": 36.4,
-            "kda": 2.44,
-            "kp": 29.45,
-            "op_score": 3.9,
-            "lane_score": 45.64,
-            "cs_per_min": 5.77,
-            "gold_per_min": 354.5,
-            "dpm": 569.75,
-            "damage_share": 16.03,
-            "vision_score": 20.18
+            "games": 13,
+            "wins": 6,
+            "win_rate": 46.2,
+            "kda": 2.45,
+            "kp": 29.46,
+            "op_score": 4.0,
+            "lane_score": 46.08,
+            "cs_per_min": 5.85,
+            "gold_per_min": 356.58,
+            "dpm": 562.97,
+            "damage_share": 15.76,
+            "vision_score": 21.54
           },
           "JUNGLE": {
             "games": 52,
@@ -28654,6 +28702,27 @@
           },
           {
             "games": 5,
+            "wins": 4,
+            "win_rate": 80.0,
+            "kda": 3.35,
+            "kp": 21.2,
+            "op_score": 4.02,
+            "lane_score": 42.4,
+            "cs_per_min": 5.96,
+            "gold_per_min": 319.94,
+            "dpm": 511.58,
+            "damage_share": 13.26,
+            "vision_score": 21.2,
+            "champion": "Malphite",
+            "positions": {
+              "TOP": 5
+            },
+            "queues": {
+              "RANKED": 5
+            }
+          },
+          {
+            "games": 5,
             "wins": 2,
             "win_rate": 40.0,
             "kda": 2.07,
@@ -28671,27 +28740,6 @@
             },
             "queues": {
               "RANKED": 5
-            }
-          },
-          {
-            "games": 4,
-            "wins": 3,
-            "win_rate": 75.0,
-            "kda": 3.69,
-            "kp": 19.25,
-            "op_score": 3.93,
-            "lane_score": 45.0,
-            "cs_per_min": 6.03,
-            "gold_per_min": 316.95,
-            "dpm": 552.3,
-            "damage_share": 13.77,
-            "vision_score": 20.25,
-            "champion": "Malphite",
-            "positions": {
-              "TOP": 4
-            },
-            "queues": {
-              "RANKED": 4
             }
           },
           {
@@ -28844,6 +28892,27 @@
             "queues": {
               "RANKED": 1,
               "NORMAL": 1
+            }
+          },
+          {
+            "games": 1,
+            "wins": 1,
+            "win_rate": 100.0,
+            "kda": 3.0,
+            "kp": 30.0,
+            "op_score": 4.7,
+            "lane_score": 65.0,
+            "cs_per_min": 6.9,
+            "gold_per_min": 404.1,
+            "dpm": 702.6,
+            "damage_share": 17.4,
+            "vision_score": 33.0,
+            "champion": "Darius",
+            "positions": {
+              "TOP": 1
+            },
+            "queues": {
+              "RANKED": 1
             }
           },
           {
@@ -29196,7 +29265,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-11-03T19:29:23.303423+00:00",
+        "refreshed_at": "2026-11-04T19:43:22.139666+00:00",
         "accounts_ok": 1,
         "accounts_total": 1,
         "fresh_rows_seen": 20,
@@ -49292,7 +49361,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-11-03T19:29:23.303423+00:00",
+        "refreshed_at": "2026-11-04T19:43:22.139666+00:00",
         "accounts_ok": 5,
         "accounts_total": 5,
         "fresh_rows_seen": 40,
@@ -54740,7 +54809,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-11-03T19:29:23.303423+00:00",
+        "refreshed_at": "2026-11-04T19:43:22.139666+00:00",
         "accounts_ok": 2,
         "accounts_total": 2,
         "fresh_rows_seen": 10,
@@ -61143,7 +61212,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-11-03T19:29:23.303423+00:00",
+        "refreshed_at": "2026-11-04T19:43:22.139666+00:00",
         "accounts_ok": 3,
         "accounts_total": 3,
         "fresh_rows_seen": 23,
@@ -65235,7 +65304,7 @@
         }
       ],
       "recent_refresh": {
-        "refreshed_at": "2026-11-03T19:29:23.303423+00:00",
+        "refreshed_at": "2026-11-04T19:43:22.139666+00:00",
         "accounts_ok": 1,
         "accounts_total": 1,
         "fresh_rows_seen": 20,
@@ -65297,7 +65366,7 @@
       ],
       "notes": "Returning formerly strong player per teammate report. Historical ability not yet objectively evaluated; recent form unknown. No roles/champion selections assumed.",
       "recent_refresh": {
-        "refreshed_at": "2026-11-03T19:29:23.303423+00:00",
+        "refreshed_at": "2026-11-04T19:43:22.139666+00:00",
         "accounts_ok": 5,
         "accounts_total": 5,
         "fresh_rows_seen": 0,
@@ -65306,6 +65375,6 @@
       "collection_note": "All five linked accounts were reachable, but automated match-history import returned no rows. Historical rank/champion data may exist on public OP.GG pages; current form and historical peak are not yet established by this snapshot."
     }
   },
-  "recent_matches_refreshed_at": "2026-11-03T19:29:23.303423+00:00",
+  "recent_matches_refreshed_at": "2026-11-04T19:43:22.139666+00:00",
   "roster_updated_at": "2026-10-19"
 }
